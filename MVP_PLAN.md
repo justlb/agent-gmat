@@ -35,7 +35,7 @@ Avant chaque MVP qui touche à l'architecture, nous discutons et consignons :
 
 Définir l'architecture minimale de la chaîne « demande utilisateur → édition unique des valeurs → rendu déterministe du template orbit keeping → fichier `.script` ». Produire une décision d'architecture et des critères de validation, sans implémenter la chaîne complète.
 
-### MVP-1 — Connectivité LLM
+### MVP-1 — Connectivité LLM — terminé
 
 Vérifier qu'une requête minimale atteint le backend LLM configuré et que la réponse est exploitable. Aucun agent GMAT ni génération de script à cette étape.
 
