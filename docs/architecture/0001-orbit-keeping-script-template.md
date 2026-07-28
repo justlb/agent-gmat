@@ -71,6 +71,6 @@ Le projet `open_codex_web-master6` peut fournir des noms de propriétés GMAT et
 5. Une clé manquante provoque une erreur explicite en mode strict.
 6. Le workflow ne lance pas GMAT et ne répare pas automatiquement les erreurs.
 
-## Étape suivante
+## Progression
 
-Le MVP-1 vérifie uniquement la connectivité au LLM configuré avec une requête minimale et observable. Il n'intègre pas encore le template GMAT.
+Le MVP-1 a validé la connectivité au LLM configuré en un seul appel. Le MVP-2a matérialise maintenant le script orbit-keeping de référence et vérifie son rendu déterministe, sans appel LLM ni exécution GMAT.

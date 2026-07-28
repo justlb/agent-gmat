@@ -39,9 +39,13 @@ Définir l'architecture minimale de la chaîne « demande utilisateur → éditi
 
 Vérifier qu'une requête minimale atteint le backend LLM configuré et que la réponse est exploitable. Aucun agent GMAT ni génération de script à cette étape.
 
-### MVP-2 — Template et rendu déterministe
+### MVP-2a — Référence orbit-keeping et rendu déterministe
 
-Transformer le script orbit-keeping de référence en template à structure fixe, extraire toutes ses valeurs modifiables et produire un `.script` identique avec les valeurs par défaut.
+Intégrer le script orbit-keeping de référence et prouver qu'un renderer produit un `.script` strictement identique, sans appel LLM ni exécution GMAT.
+
+### MVP-2b — Valeurs du template
+
+Extraire toutes les valeurs modifiables du script de référence vers un fichier dédié, puis vérifier que chaque valeur modifiée est rendue au bon emplacement.
 
 ### MVP-3 — Édition contrôlée en un appel
 
