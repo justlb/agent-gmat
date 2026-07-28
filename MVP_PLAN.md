@@ -16,7 +16,24 @@ Le projet avance par MVP courts et vérifiables :
 
 Les commits sont gérés par Codex sur ce dépôt. Les fichiers de configuration locale et secrets ne sont pas versionnés.
 
+## Références et décisions d'architecture
+
+Le projet `C:\JUSTINE\APP\AGENT_GITHUB\open_codex_web-master` est la source de vérité : les décisions, le code et les tests utiles y sont construits puis versionnés.
+
+Le projet `C:\JUSTINE\APP\AGENT_GITHUB\open_codex_web-master6` peut être consulté comme référence pour comprendre une idée, un flux ou une intégration existante. Il n'est pas considéré comme fiable : toute logique reprise doit être relue, simplifiée si nécessaire et validée par un test dans le nouveau projet.
+
+Avant chaque MVP qui touche à l'architecture, nous discutons et consignons :
+
+1. le problème à résoudre et le résultat observable ;
+2. les composants concernés et leurs responsabilités ;
+3. les entrées, sorties et critères de validation ;
+4. la plus petite expérimentation permettant de confirmer le choix.
+
 ## Feuille de route
+
+### MVP-0 — Cadrage de l'architecture
+
+Définir ensemble l'architecture minimale de la chaîne « demande utilisateur → choix du template → édition du YAML → génération et validation GMAT ». Produire un schéma et des critères de validation, sans implémenter la chaîne complète.
 
 ### MVP-1 — Connectivité LLM
 
