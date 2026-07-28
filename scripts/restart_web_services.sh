@@ -14,9 +14,15 @@ FRONTEND_SESSION="${FRONTEND_SESSION:-$(read_config tmux.frontendSession ocw-fro
 FREECAD_WORKSPACE_DIR="$(require_config workspace.templateDir)"
 FREECAD_RPC_HOST="$(require_config workspace.rpcHost)"
 FREECAD_RPC_PORT="$(require_config workspace.rpcPort)"
-OPENAI_PROXY_URL="${OPENAI_PROXY_URL:-http://127.0.0.1:19091}"
-NO_PROXY_VALUE="${NO_PROXY:-localhost,127.0.0.1,::1}"
 SKIP_REMOTE_GUI="${SKIP_REMOTE_GUI:-0}"
+PROXY_ENV=""
+if [[ -n "${OPENAI_PROXY_URL:-}" ]]; then
+  NO_PROXY_VALUE="${NO_PROXY:-localhost,127.0.0.1,::1}"
+  PROXY_ENV="HTTP_PROXY='${OPENAI_PROXY_URL}' HTTPS_PROXY='${OPENAI_PROXY_URL}' ALL_PROXY='${OPENAI_PROXY_URL}' http_proxy='${OPENAI_PROXY_URL}' https_proxy='${OPENAI_PROXY_URL}' all_proxy='${OPENAI_PROXY_URL}' NO_PROXY='${NO_PROXY_VALUE}' no_proxy='${NO_PROXY_VALUE}'"
+  echo "Backend proxy enabled via OPENAI_PROXY_URL."
+else
+  echo "Backend proxy disabled; model requests use the direct connection."
+fi
 
 stop_session "${BACKEND_SESSION}"
 stop_session "${FRONTEND_SESSION}"
@@ -43,7 +49,7 @@ else
 fi
 
 tmux new-session -d -s "${BACKEND_SESSION}" -c "${BACKEND_DIR}" \
-  "PATH='${NODE_DIR}':\"\${PATH}\" BACKEND_PORT='${BACKEND_PORT}' FREECAD_WORKSPACE_DIR='${FREECAD_WORKSPACE_DIR}' FREECAD_RPC_HOST='${FREECAD_RPC_HOST}' FREECAD_RPC_PORT='${FREECAD_RPC_PORT}' HTTP_PROXY='${OPENAI_PROXY_URL}' HTTPS_PROXY='${OPENAI_PROXY_URL}' ALL_PROXY='${OPENAI_PROXY_URL}' http_proxy='${OPENAI_PROXY_URL}' https_proxy='${OPENAI_PROXY_URL}' all_proxy='${OPENAI_PROXY_URL}' NO_PROXY='${NO_PROXY_VALUE}' no_proxy='${NO_PROXY_VALUE}' '${NPM_BIN}' run dev"
+  "PATH='${NODE_DIR}':\"\${PATH}\" BACKEND_PORT='${BACKEND_PORT}' FREECAD_WORKSPACE_DIR='${FREECAD_WORKSPACE_DIR}' FREECAD_RPC_HOST='${FREECAD_RPC_HOST}' FREECAD_RPC_PORT='${FREECAD_RPC_PORT}' ${PROXY_ENV} '${NPM_BIN}' run dev"
 
 tmux new-session -d -s "${FRONTEND_SESSION}" -c "${FRONTEND_DIR}" \
   "PATH='${NODE_DIR}':\"\${PATH}\" BACKEND_PORT='${BACKEND_PORT}' '${NPM_BIN}' run dev:https -- --host '${FRONTEND_HOST}' --port '${FRONTEND_PORT}' --strictPort"
