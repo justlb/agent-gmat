@@ -5,6 +5,7 @@ import net from "node:net"
 import path from "node:path"
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
+import { configureGlobalFetchProxy } from "./proxy_agent.mjs"
 
 const execFileAsync = promisify(execFile)
 const PROJECT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..")
@@ -705,6 +706,7 @@ function printResults(results, { configPath }) {
 async function main() {
   const args = parseArgs(process.argv.slice(2))
   const config = await readJson(args.config)
+  await configureGlobalFetchProxy({ config })
   const checks = await buildChecks(config, args)
   const results = []
   for (const check of checks) {

@@ -2,10 +2,12 @@
 import fs from "node:fs"
 import net from "node:net"
 import path from "node:path"
+import { configureGlobalFetchProxy } from "./proxy_agent.mjs"
 
 const PROJECT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..")
 const DEFAULT_CONFIG = path.join(PROJECT_ROOT, "config.json")
 const DEFAULT_TIMEOUT_MS = 5000
+const SKIP_REMOTE_GUI = process.env.SKIP_REMOTE_GUI === "1"
 
 function parseArgs(argv) {
   const args = {
@@ -235,12 +237,14 @@ function validateShape(config, issues) {
   optionalPositiveInteger(config, "workspace.textChunkBytes", issues)
   optionalPositiveInteger(config, "workspace.textChunkMaxBytes", issues)
 
-  checkExecutable(config, "tools.remoteDesktopLauncher", issues)
-  for (const tool of ["cad", "paraview", "comsol"]) {
-    requiredString(config, `tools.${tool}.displayNum`, issues)
-    checkExecutable(config, `tools.${tool}.launcher`, issues)
-    requiredPositiveInteger(config, `tools.${tool}.vncPort`, issues)
-    requiredPositiveInteger(config, `tools.${tool}.noVncPort`, issues)
+  if (!SKIP_REMOTE_GUI) {
+    checkExecutable(config, "tools.remoteDesktopLauncher", issues)
+    for (const tool of ["cad", "paraview", "comsol"]) {
+      requiredString(config, `tools.${tool}.displayNum`, issues)
+      checkExecutable(config, `tools.${tool}.launcher`, issues)
+      requiredPositiveInteger(config, `tools.${tool}.vncPort`, issues)
+      requiredPositiveInteger(config, `tools.${tool}.noVncPort`, issues)
+    }
   }
   checkOptionalExecutable(config, "tools.cad.bin", issues)
   optionalString(config, "tools.comsol.sudo", issues)
@@ -386,6 +390,7 @@ async function main() {
   }
 
   if (config) {
+    await configureGlobalFetchProxy({ config })
     validateShape(config, issues)
     if (!args.skipServices && issues.every((issue) => issue.severity !== "error")) {
       await validateServices(config, issues, args.timeoutMs)

@@ -8,9 +8,11 @@ import { registerApiRoutes } from "./server/routes.js"
 import { enterRequestContext } from "./server/requestContext.js"
 import { checkCodexEndpoint, refreshSkillsCache } from "./system/index.js"
 import { resolveWorkspaceTemplateRoot } from "./workspaces/workspacePaths.js"
+import { configureGlobalFetchProxy } from "./networkProxy.js"
 
 const config = loadConfig()
 const logger = createLogger(config.logging)
+configureGlobalFetchProxy(logger, config)
 const configuredWorkspaceRoot = resolveWorkspaceTemplateRoot(config)
 const GNC_WORKSPACE_ROOT = configuredWorkspaceRoot
 const REGION_WORKSPACE_ROOT = configuredWorkspaceRoot
