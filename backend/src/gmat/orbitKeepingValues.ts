@@ -19,6 +19,11 @@ export type OrbitKeepingValues = {
   slots: OrbitKeepingValueSlot[]
 }
 
+export type OrbitKeepingValueChange = {
+  id: string
+  value: string
+}
+
 type LocatedSlot = OrbitKeepingValueSlot & { start: number; end: number }
 
 function safeId(value: string) {
@@ -105,6 +110,37 @@ export function parseOrbitKeepingValues(source: string): OrbitKeepingValues {
     return { id: candidate.id, context: candidate.context, value: candidate.value }
   })
   return { schemaVersion: 1, templateId: "orbit-keeping", slots }
+}
+
+export function applyOrbitKeepingValueChanges(
+  values: OrbitKeepingValues,
+  changes: OrbitKeepingValueChange[],
+): OrbitKeepingValues {
+  const knownSlots = new Map(values.slots.map((slot) => [slot.id, slot]))
+  const changedIds = new Set<string>()
+
+  for (const change of changes) {
+    if (!change || typeof change.id !== "string") {
+      throw new Error("LLM patch contains an invalid slot id")
+    }
+    if (changedIds.has(change.id)) {
+      throw new Error(`LLM patch changes slot ${change.id} more than once`)
+    }
+    if (!knownSlots.has(change.id)) {
+      throw new Error(`LLM patch references an unknown slot: ${change.id}`)
+    }
+    assertSafeValue(change.value, change.id)
+    changedIds.add(change.id)
+  }
+
+  const replacementValues = new Map(changes.map((change) => [change.id, change.value]))
+  return {
+    ...values,
+    slots: values.slots.map((slot) => ({
+      ...slot,
+      value: replacementValues.get(slot.id) ?? slot.value,
+    })),
+  }
 }
 
 export function renderOrbitKeepingValues(template: string, values: OrbitKeepingValues) {

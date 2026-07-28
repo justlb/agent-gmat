@@ -14,6 +14,9 @@ backend/config.json
 frontend/dist/
 frontend/node_modules/
 
+# Generated GMAT mission artifacts; retained locally under data/output_data.
+/data/output_data/
+
 .git.broken/
 .claude/settings.local.json
 .config

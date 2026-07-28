@@ -49,7 +49,7 @@ Terminé : les valeurs modifiables du script de référence sont extraites vers 
 
 ### MVP-3 — Édition contrôlée en un appel
 
-Demander au LLM de modifier uniquement le fichier de valeurs du template, en un seul appel et sans boucle de correction. Vérifier ensuite les changements de façon déterministe.
+Demander au LLM un patch YAML de valeurs en un seul appel, l'appliquer à une copie complète du fichier de valeurs sans boucle de correction, puis rendre et vérifier le script de façon déterministe.
 
 ### MVP-4 — Intégration au workflow du projet
 
