@@ -1,0 +1,4 @@
+interface:
+  display_name: "FSW Requirements Extractor"
+  short_description: "Extract complete CFS_FSW GNC requirements"
+  default_prompt: "Use $fsw-requirements-extractor to extract complete CFS_FSW GNC requirements, including modes, transitions, interfaces, control targets, and pass criteria."

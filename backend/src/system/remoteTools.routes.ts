@@ -1,0 +1,231 @@
+import { execFile, spawn } from "node:child_process"
+import path from "node:path"
+import { promisify } from "node:util"
+import type { FastifyInstance } from "fastify"
+import type { AppConfig } from "../config.js"
+import type { Logger } from "../logger.js"
+
+const REMOTE_DESKTOP_TOOLS = ["freecad", "paraview", "comsol"] as const
+const INTERFACE_CHECK_CACHE_MS = 0
+const INTERFACE_CHECK_TIMEOUT_MS = 360_000
+const execFileAsync = promisify(execFile)
+
+type RemoteDesktopTool = typeof REMOTE_DESKTOP_TOOLS[number]
+type RemoteToolConfigKey = "cad" | "paraview" | "comsol"
+
+type LauncherResult = {
+  ok: boolean
+  tool: RemoteDesktopTool
+  command: string[]
+  code: number | null
+  signal: NodeJS.Signals | null
+  stdout: string
+  stderr: string
+  error?: string
+}
+
+type InterfaceCheckResult = {
+  group: string
+  name: string
+  target: string
+  required: boolean
+  ok: boolean
+  skipped: boolean
+  durationMs: number
+  message?: string
+  error?: string
+  status?: number
+  bytes?: number
+}
+
+type InterfaceCheckSummary = {
+  ok: boolean
+  checkedAt: string
+  cacheTtlMs: number
+  command: string[]
+  results: InterfaceCheckResult[]
+  requiredFailureCount: number
+  optionalFailureCount: number
+  skippedCount: number
+}
+
+function toolConfigKey(tool: RemoteDesktopTool): RemoteToolConfigKey {
+  return tool === "freecad" ? "cad" : tool
+}
+
+function runLauncher(tool: RemoteDesktopTool, config: AppConfig): Promise<LauncherResult> {
+  let executable = config.tools.remoteDesktopLauncher
+  let args: string[] = [tool, "start"]
+  if (tool === "comsol") {
+    const sudoCommand = config.tools.comsol.sudo.trim()
+    executable = sudoCommand || config.tools.comsol.launcher
+    args = sudoCommand ? [config.tools.comsol.launcher] : []
+  }
+  const command = [executable, ...args]
+
+  return new Promise(resolve => {
+    const child = spawn(executable, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+    const stdoutChunks: Buffer[] = []
+    const stderrChunks: Buffer[] = []
+
+    child.stdout.on("data", chunk => stdoutChunks.push(Buffer.from(chunk)))
+    child.stderr.on("data", chunk => stderrChunks.push(Buffer.from(chunk)))
+
+    child.on("error", error => {
+      resolve({
+        ok: false,
+        tool,
+        command,
+        code: null,
+        signal: null,
+        stdout: Buffer.concat(stdoutChunks).toString("utf-8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf-8"),
+        error: error.message,
+      })
+    })
+
+    child.on("close", (code, signal) => {
+      resolve({
+        ok: code === 0,
+        tool,
+        command,
+        code,
+        signal,
+        stdout: Buffer.concat(stdoutChunks).toString("utf-8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf-8"),
+      })
+    })
+  })
+}
+
+function resolveProjectRoot() {
+  const cwd = process.cwd()
+  const parent = path.resolve(cwd, "..")
+  return path.basename(cwd) === "backend" ? parent : cwd
+}
+
+function parseInterfaceCheckOutput(stdout: string) {
+  const trimmed = stdout.trim()
+  if (!trimmed) throw new Error("interface check script returned no output")
+  return JSON.parse(trimmed) as { ok: boolean; results: InterfaceCheckResult[] }
+}
+
+async function runInterfaceCheck(): Promise<InterfaceCheckSummary> {
+  const projectRoot = resolveProjectRoot()
+  const scriptPath = path.join(projectRoot, "scripts", "check_function_interfaces.mjs")
+  const configPath = path.join(projectRoot, "config.json")
+  const command = [process.execPath, scriptPath, "--json"]
+
+  try {
+    const { stdout } = await execFileAsync(command[0], command.slice(1), {
+      cwd: projectRoot,
+      timeout: INTERFACE_CHECK_TIMEOUT_MS,
+      maxBuffer: 1024 * 1024 * 5,
+    })
+    const payload = parseInterfaceCheckOutput(stdout)
+    const results = Array.isArray(payload.results) ? payload.results : []
+    return buildInterfaceCheckSummary(payload.ok, command, results)
+  } catch (error) {
+    const stdout = typeof (error as { stdout?: unknown }).stdout === "string"
+      ? (error as { stdout: string }).stdout
+      : ""
+    if (stdout.trim()) {
+      const payload = parseInterfaceCheckOutput(stdout)
+      const results = Array.isArray(payload.results) ? payload.results : []
+      return buildInterfaceCheckSummary(payload.ok, command, results)
+    }
+    return buildInterfaceCheckSummary(false, command, [{
+      group: "interface-check",
+      name: "Interface check script",
+      target: `${scriptPath} --config ${configPath}`,
+      required: true,
+      ok: false,
+      skipped: false,
+      durationMs: 0,
+      error: error instanceof Error ? error.message : String(error),
+    }])
+  }
+}
+
+function buildInterfaceCheckSummary(ok: boolean, command: string[], results: InterfaceCheckResult[]): InterfaceCheckSummary {
+  const requiredFailureCount = results.filter(item => item.required && !item.ok).length
+  const optionalFailureCount = results.filter(item => !item.required && !item.ok).length
+  const skippedCount = results.filter(item => item.skipped).length
+  return {
+    ok: ok && requiredFailureCount === 0,
+    checkedAt: new Date().toISOString(),
+    cacheTtlMs: INTERFACE_CHECK_CACHE_MS,
+    command,
+    results,
+    requiredFailureCount,
+    optionalFailureCount,
+    skippedCount,
+  }
+}
+
+export async function remoteToolsRoutes(
+  fastify: FastifyInstance,
+  { config, logger }: { config: AppConfig; logger: Logger },
+) {
+  let interfaceCheckInflight: Promise<InterfaceCheckSummary> | null = null
+
+  async function getInterfaceCheckSummary() {
+    if (!interfaceCheckInflight) {
+      interfaceCheckInflight = runInterfaceCheck()
+        .then(summary => {
+          if (!summary.ok) {
+            logger.warn("functional interface check failed", {
+              requiredFailureCount: summary.requiredFailureCount,
+              optionalFailureCount: summary.optionalFailureCount,
+              failed: summary.results
+                .filter(item => !item.ok)
+                .map(item => ({ group: item.group, name: item.name, target: item.target, error: item.error })),
+            })
+          }
+          return summary
+        })
+        .finally(() => {
+          interfaceCheckInflight = null
+        })
+    }
+    return interfaceCheckInflight
+  }
+
+  fastify.get("/api/remote-tools/port-status", async (_req, reply) => {
+    const summary = await getInterfaceCheckSummary()
+    return reply.status(summary.ok ? 200 : 503).send(summary)
+  })
+
+  fastify.get("/api/remote-tools/interface-status", async (_req, reply) => {
+    const summary = await getInterfaceCheckSummary()
+    return reply.status(summary.ok ? 200 : 503).send(summary)
+  })
+
+  fastify.post("/api/remote-tools/ensure-desktops", async (_req, reply) => {
+    const results: LauncherResult[] = []
+
+    for (const tool of REMOTE_DESKTOP_TOOLS) {
+      const result = await runLauncher(tool, config)
+      results.push(result)
+      const configKey = toolConfigKey(tool)
+      if (result.ok) {
+        logger.info("remote desktop ensured", { tool, configKey, command: result.command })
+      } else {
+        logger.warn("remote desktop ensure failed", {
+          tool,
+          configKey,
+          command: result.command,
+          code: result.code,
+          signal: result.signal,
+          error: result.error,
+          stderr: result.stderr.slice(0, 1000),
+        })
+      }
+    }
+
+    const ok = results.every(result => result.ok)
+    return reply.status(ok ? 200 : 503).send({ ok, results })
+  })
+}

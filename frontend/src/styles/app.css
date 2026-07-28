@@ -1,0 +1,182 @@
+@import "tailwindcss" source("../");
+
+@theme {
+  --font-sans: "Inter", "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Avenir Next", "Segoe UI", sans-serif;
+  --font-display: "Inter", "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Avenir Next", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+  --color-ink-950: #181512;
+  --color-ink-700: #62584c;
+  --color-ink-500: #9f9486;
+  --color-sand-50: #fcfbf7;
+  --color-sand-100: #f4f0e8;
+  --color-sand-200: #ece6da;
+  --color-sand-300: #ded5c7;
+  --color-sand-400: #cdbfae;
+  --color-accent-blue: #315fd3;
+  --color-accent-green: #1f8f67;
+  --color-accent-amber: #c88a1a;
+  --color-accent-red: #d94b3d;
+
+  --radius-panel: 2rem;
+  --radius-card: 1.5rem;
+  --shadow-panel: 0 24px 54px rgba(65, 49, 31, 0.08);
+  --shadow-card: 0 14px 30px rgba(65, 49, 31, 0.06);
+}
+
+:root {
+  --bg: #fcfbf7;
+  --bg-2: #f4f0e8;
+  --bg-3: #ece6da;
+  --panel: rgba(255, 255, 255, 0.78);
+  --panel-strong: rgba(255, 255, 255, 0.92);
+  --border: #ded5c7;
+  --border-2: #cdbfae;
+  --text: #181512;
+  --text-2: #62584c;
+  --text-3: #9f9486;
+  --ai-icon: #000000;
+  --green: #1f8f67;
+  --red: #d94b3d;
+  --amber: #c88a1a;
+  --blue: #315fd3;
+  --code-bg: #f6f1e8;
+  --code-header: #ebe3d6;
+  --code-text: #2b241d;
+  --code-dim: #75695d;
+
+  --font: "Inter", "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Avenir Next", "Segoe UI", sans-serif;
+  --display: "Inter", "Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Avenir Next", "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+  --content-width: 760px;
+  --content-px: 24px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(232, 219, 194, 0.42), transparent 28%),
+    radial-gradient(circle at top right, rgba(203, 219, 242, 0.28), transparent 26%),
+    linear-gradient(180deg, #f6f3ec 0%, #f9f7f2 30%, #fcfbf7 100%);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.home-composer-textarea:placeholder-shown {
+  text-align: left;
+  padding-top: 0 !important;
+}
+
+.home-composer-textarea:not(:placeholder-shown) {
+  text-align: left;
+  padding-top: 0 !important;
+}
+
+.home-composer-textarea::placeholder {
+  color: #8d8d92;
+}
+
+.home-history-carousel {
+  scrollbar-width: none;
+}
+
+.home-history-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+::selection {
+  background: rgba(58, 100, 214, 0.18);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cdbfae;
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a89278;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@layer base {
+  body {
+    @apply text-[15px];
+  }
+}

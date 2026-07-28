@@ -1,0 +1,1528 @@
+import { useEffect, useRef, useState } from "react"
+import * as THREE from "three/webgpu"
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
+import { ComplianceCheckPanel } from "./ComplianceCheckPanel"
+import {
+  ANNOTATION_PALETTES,
+  DEFAULT_ANNOTATION_HEIGHT,
+  DEFAULT_ANNOTATION_WIDTH,
+  collectComponentRoots,
+  createAnnotationLabel,
+  distributeLabelTops,
+  measureAnnotationLabel,
+  resolveComponentLabel,
+} from "./viewer3d/annotations"
+import {
+  fetchResolvedModel,
+  buildViewerModelSource,
+  getModelVariantFromUrl,
+  getModelVersion,
+  getVariantDisplayName,
+} from "./viewer3d/modelSource"
+import {
+  addLightweightMeshEdges,
+  applyLightweightPreviewStyle,
+  disposeModelResources,
+  loadGltf,
+  type ComponentColorMap,
+} from "./viewer3d/modelUtils"
+import type { Disposable, PartAnnotation, ResolvedModel, WebGPURendererRuntime } from "./viewer3d/types"
+
+const MAX_DEVICE_PIXEL_RATIO = 1.25
+const ANNOTATION_MAX_TRACKS_PER_SIDE = 3
+const ANNOTATION_TRACK_GAP = 10
+
+type ComponentDetail = {
+  componentId: string
+  color?: THREE.Color
+  dimensions: string
+  displayName: string
+  kind: string
+  modelName: string
+  semanticName: string
+  subsystem: string
+}
+
+type RawComponentInfo = {
+  components?: Array<{
+    id?: unknown
+    component_id?: unknown
+    display_name?: unknown
+  }>
+}
+
+type WorkspaceTextPayload = {
+  content?: unknown
+}
+
+type ViewerComponentMessage = {
+  componentId?: unknown
+  semanticName?: unknown
+  type?: unknown
+}
+
+type ViewerMode = "cad" | "realCad" | "temperature" | "derating"
+const TEMPERATURE_SURFACE_MAX_BYTES = 64 * 1024 * 1024
+
+type TemperatureSurface = {
+  attributes?: {
+    color_rgb?: unknown
+    index?: unknown
+    position?: unknown
+    temperature_K?: unknown
+  }
+  point_count?: unknown
+  temperature_range_K?: {
+    max?: unknown
+    min?: unknown
+  }
+  source?: {
+    coordinate_system?: unknown
+  }
+  triangle_count?: unknown
+}
+
+function parseTemperatureSurfacePayload(payload: unknown): TemperatureSurface | null {
+  if (!payload || typeof payload !== "object") return null
+  const wrapped = payload as { content?: unknown }
+  if (typeof wrapped.content === "string") return JSON.parse(wrapped.content) as TemperatureSurface
+  return payload as TemperatureSurface
+}
+
+function mapVtuPositionsToGlbCoordinates(positions: number[]) {
+  const mapped: number[] = []
+  for (let index = 0; index < positions.length; index += 3) {
+    const x = positions[index]
+    const y = positions[index + 1]
+    const z = positions[index + 2]
+    mapped.push(x, z, -y)
+  }
+  return mapped
+}
+
+function asText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : "-"
+}
+
+function normalizeComponentId(value: unknown) {
+  if (typeof value !== "string") return null
+  const match = value.trim().match(/(?:^|[^a-z0-9])P(\d{3})(?=$|[^a-z0-9])/iu)
+  return match ? `P${match[1]}` : null
+}
+
+function componentDetailLookupKeys(componentId: string) {
+  const normalized = normalizeComponentId(componentId)
+  return normalized && normalized !== componentId ? [componentId, normalized] : [componentId]
+}
+
+function presentText(...values: unknown[]) {
+  for (const value of values) {
+    const text = asText(value)
+    if (text !== "-") return text
+  }
+  return "-"
+}
+
+function parseComponentDetails(data: RawComponentInfo) {
+  const detailsById: Record<string, ComponentDetail> = {}
+
+  const components = Array.isArray(data.components) ? data.components : []
+  components.forEach((component) => {
+    const componentId = asText(component.component_id ?? component.id)
+    if (componentId === "-") return
+
+    const detail = {
+      componentId,
+      dimensions: "-",
+      displayName: presentText(component.display_name, componentId),
+      kind: "-",
+      modelName: "-",
+      semanticName: componentId,
+      subsystem: "-",
+    }
+    componentDetailLookupKeys(componentId).forEach((key) => {
+      detailsById[key] = detail
+    })
+  })
+
+  return detailsById
+}
+
+function parseWorkspaceCadBuildSpec(data: WorkspaceTextPayload | RawComponentInfo | null) {
+  if (!data) return null
+  const content = (data as WorkspaceTextPayload).content
+  if (typeof content !== "string") return data as RawComponentInfo
+  try {
+    return JSON.parse(content) as RawComponentInfo
+  } catch {
+    return null
+  }
+}
+
+function componentDetailsSignature(detailsById: Record<string, ComponentDetail>) {
+  return Object.values(detailsById)
+    .filter((detail, index, details) =>
+      details.findIndex(candidate => candidate.componentId === detail.componentId) === index,
+    )
+    .map(detail => `${detail.componentId}:${detail.displayName}`)
+    .sort()
+    .join("|")
+}
+
+function buildComponentColorMap(detailsById: Record<string, ComponentDetail>): ComponentColorMap {
+  return Object.fromEntries(
+    Object.values(detailsById)
+      .filter((detail): detail is ComponentDetail & { color: THREE.Color } => detail.color instanceof THREE.Color)
+      .map(detail => [detail.componentId.toUpperCase(), detail.color]),
+  )
+}
+
+function parseViewerMode(value: string | null): ViewerMode | null {
+  if (value === "cad" || value === "realCad" || value === "temperature" || value === "derating") return value
+  if (value === "real-cad" || value === "real_cad") return "realCad"
+  if (value === "thermal") return "temperature"
+  return null
+}
+
+function resolveRealCadGlbPath(glbPath: string) {
+  const trimmed = glbPath.trim()
+  if (!trimmed) return "01_cad/geometry_after_real_cad.glb"
+  const normalized = trimmed.replace(/\\/gu, "/")
+  if (/geometry_after_real_cad\.glb$/iu.test(normalized)) return trimmed
+  if (/^02_geometry_edit\/geometry_after\.glb$/iu.test(normalized)) {
+    return "01_cad/geometry_after_real_cad.glb"
+  }
+  if (/geometry_after\.glb$/iu.test(normalized)) {
+    return trimmed.replace(/geometry_after\.glb$/iu, "geometry_after_real_cad.glb")
+  }
+  return "01_cad/geometry_after_real_cad.glb"
+}
+
+function getModelGlbPathForMode(mode: ViewerMode) {
+  const params = new URLSearchParams(window.location.search)
+  const glbPath = params.get("glbPath")?.trim() ?? ""
+  return mode === "realCad" ? resolveRealCadGlbPath(glbPath) : glbPath
+}
+
+function getMissingModelMessage(mode: ViewerMode) {
+  if (mode === "realCad") return "真实CAD模型尚未构建成功"
+  return "Unable to resolve a CAD GLB artifact."
+}
+
+function shouldShowComplianceCheckMode(params: URLSearchParams, values: string[]) {
+  const explicit = params.get("showDerating") ?? params.get("derating")
+  if (explicit) return /^(1|true|yes)$/iu.test(explicit)
+
+  const context = values.join(" ").toLowerCase()
+  return context.includes("derating") || context.includes("ws_check") || context.includes("check_outputs")
+}
+
+function getViewerTheme(params: URLSearchParams): "dark" | "light" {
+  const explicit = params.get("theme")?.trim().toLowerCase()
+  if (explicit === "light") return "light"
+  if (explicit === "dark") return "dark"
+  return window.localStorage.getItem("agent-theme") === "light" ? "light" : "dark"
+}
+
+export default function ModelViewerPage() {
+  const mountRef = useRef<HTMLDivElement>(null)
+  const axisSvgRef = useRef<SVGSVGElement>(null)
+  const annotationSvgRef = useRef<SVGSVGElement>(null)
+  const annotationLabelsRef = useRef<HTMLDivElement>(null)
+  const componentDetailsRef = useRef<Record<string, ComponentDetail>>({})
+  const componentDetailsSignatureRef = useRef("")
+  const modelVariant = getModelVariantFromUrl()
+  const pageParams = new URLSearchParams(window.location.search)
+  const sessionId = pageParams.get("sessionId")?.trim() ?? ""
+  const versionId = pageParams.get("versionId")?.trim() ?? ""
+  const workspaceDir = pageParams.get("workspaceDir")?.trim() ?? ""
+  const workspaceId = pageParams.get("workspaceId")?.trim() ?? ""
+  const workspaceKey = pageParams.get("workspaceKey")?.trim() ?? ""
+  const showComplianceCheckMode = shouldShowComplianceCheckMode(pageParams, [sessionId, versionId, workspaceDir, workspaceId, workspaceKey])
+  const requestedViewerMode = parseViewerMode(pageParams.get("lockMode")) ?? parseViewerMode(pageParams.get("mode"))
+  const lockedViewerMode = showComplianceCheckMode ? "derating" : requestedViewerMode === "derating" ? null : requestedViewerMode
+  const initialViewerMode = lockedViewerMode ?? "cad"
+  const shouldInitializeCadViewer = lockedViewerMode !== "derating"
+  const viewerTheme = getViewerTheme(pageParams)
+  const [selectedComponent, setSelectedComponent] = useState<ComponentDetail | null>(null)
+  const [statusMessage, setStatusMessage] = useState("Resolving CAD geometry...")
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [viewerMode, setViewerMode] = useState<ViewerMode>(initialViewerMode)
+  const [componentDetailsVersion, setComponentDetailsVersion] = useState(0)
+  const [temperatureRange, setTemperatureRange] = useState<{ max: number; min: number } | null>(null)
+  const viewerModeRef = useRef<ViewerMode>("cad")
+
+  useEffect(() => {
+    viewerModeRef.current = viewerMode
+  }, [viewerMode])
+
+  useEffect(() => {
+    if (showComplianceCheckMode && viewerMode !== "derating") {
+      setViewerMode("derating")
+      return
+    }
+    if (!showComplianceCheckMode && viewerMode === "derating") setViewerMode("cad")
+  }, [showComplianceCheckMode, viewerMode])
+
+  useEffect(() => {
+    if (import.meta.env.MODE === "test") return
+    if (!shouldInitializeCadViewer) return
+
+    const controller = new AbortController()
+
+    const loadComponentDetails = async () => {
+      const queryParams = new URLSearchParams()
+      if (workspaceId) queryParams.set("workspaceId", workspaceId)
+      if (versionId) queryParams.set("versionId", versionId)
+      if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
+      queryParams.set("relativePath", "00_inputs/cad_build_spec.json")
+      const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+      return fetch(`/api/workspace/files/text${query}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      }).then((response) => response.ok ? response.json() as Promise<WorkspaceTextPayload> : null)
+        .catch(() => null)
+    }
+
+    loadComponentDetails()
+      .then((data) => {
+        const spec = parseWorkspaceCadBuildSpec(data)
+        if (!spec) return
+        const nextDetails = parseComponentDetails(spec)
+        const nextSignature = componentDetailsSignature(nextDetails)
+        if (nextSignature === componentDetailsSignatureRef.current) return
+        componentDetailsRef.current = nextDetails
+        componentDetailsSignatureRef.current = nextSignature
+        setComponentDetailsVersion(version => version + 1)
+      })
+      .catch(() => {
+        // Component details are an optional overlay enhancement.
+      })
+
+    return () => controller.abort()
+  }, [shouldInitializeCadViewer, versionId, workspaceDir, workspaceId])
+
+  useEffect(() => {
+    if (!shouldInitializeCadViewer) {
+      setStatusMessage("")
+      setErrorMessage(null)
+      return
+    }
+
+    const mount = mountRef.current
+    const axisSvg = axisSvgRef.current
+    const annotationSvg = annotationSvgRef.current
+    const annotationLabels = annotationLabelsRef.current
+
+    if (!mount || !axisSvg || !annotationSvg || !annotationLabels) return
+
+    let disposed = false
+    let renderer: WebGPURendererRuntime | null = null
+    let controls: OrbitControls | null = null
+    let domElement: HTMLCanvasElement | null = null
+    let modelRoot: THREE.Object3D | null = null
+    let temperatureRoot: THREE.Object3D | null = null
+    let temperatureFieldLoaded = false
+    let temperatureFieldLoading = false
+    let currentModelVersion: string | null = null
+    let modelRefreshInFlight = false
+    let lookupInterval: ReturnType<typeof setInterval> | null = null
+    const modelRequest = new AbortController()
+    const disposableResources: Disposable[] = []
+    const annotations: PartAnnotation[] = []
+    const componentRootsById = new Map<string, THREE.Object3D>()
+    const originalMaterialsByMesh = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>()
+    const originalRenderOrderByMesh = new Map<THREE.Mesh, number>()
+    const highlightMaterials = new Set<THREE.Material>()
+    const screenPoint = new THREE.Vector3()
+    const cameraSpacePoint = new THREE.Vector3()
+    const axisDirection = new THREE.Vector3()
+    const cameraInverse = new THREE.Quaternion()
+    let annotationsNeedLayout = false
+    let renderRequested = true
+    let highlightedComponentId: string | null = null
+
+    const requestRender = () => {
+      renderRequested = true
+    }
+
+    const setSceneMode = (mode: ViewerMode) => {
+      if (modelRoot) modelRoot.visible = mode === "cad" || mode === "realCad"
+      if (temperatureRoot) temperatureRoot.visible = mode === "temperature"
+      annotationLabels.style.display = mode === "cad" || mode === "realCad" ? "block" : "none"
+      annotationSvg.style.display = mode === "cad" || mode === "realCad" ? "block" : "none"
+      if (domElement) domElement.style.display = mode === "derating" ? "none" : "block"
+      axisSvg.style.display = mode === "derating" ? "none" : "block"
+      if (mode !== "cad" && mode !== "realCad") {
+        clearModelHighlight()
+        setSelectedComponent(null)
+      }
+      markAnnotationsDirty()
+      requestRender()
+    }
+
+    const markAnnotationsDirty = () => {
+      annotationsNeedLayout = true
+      requestRender()
+    }
+
+    const hideAnnotation = (annotation: PartAnnotation) => {
+      annotation.labelEl.style.opacity = "0"
+      annotation.labelEl.style.transform = "translate(-9999px, -9999px)"
+      annotation.lineEl.style.display = "none"
+      annotation.dotEl.style.display = "none"
+    }
+
+    const clearAnnotations = () => {
+      annotations.splice(0, annotations.length)
+      annotationsNeedLayout = false
+      annotationLabels.replaceChildren()
+      annotationSvg.replaceChildren()
+    }
+
+    const buildTemperatureSurfaceUrl = () => {
+      if (!workspaceDir) throw new Error("Temperature outline requires a workspaceDir.")
+      const queryParams = new URLSearchParams()
+      queryParams.set("maxBytes", String(TEMPERATURE_SURFACE_MAX_BYTES))
+      queryParams.set("relativePath", "02_sim/postprocess/temperature_surface_threejs.json")
+      if (workspaceDir) queryParams.set("workspaceDir", workspaceDir)
+      const query = queryParams.toString()
+      return `/api/workspace/files/text${query ? `?${query}` : ""}`
+    }
+
+    const parseNumericArray = (value: unknown) => (
+      Array.isArray(value)
+        ? value.filter((item): item is number => typeof item === "number" && Number.isFinite(item))
+        : []
+    )
+
+    const parseIndexArray = (value: unknown) => (
+      Array.isArray(value)
+        ? value.filter((item): item is number => Number.isInteger(item) && item >= 0)
+        : []
+    )
+
+    const normalizeTemperatureRoot = (root: THREE.Object3D) => {
+      root.position.set(0, 0, 0)
+      root.scale.set(1, 1, 1)
+      root.updateMatrixWorld(true)
+      const box = new THREE.Box3().setFromObject(root)
+      const size = box.getSize(new THREE.Vector3())
+      const center = box.getCenter(new THREE.Vector3())
+      const maxDim = Math.max(size.x, size.y, size.z)
+      const scale = maxDim > 0 ? 3.5 / maxDim : 1
+      root.scale.setScalar(scale)
+      root.position.sub(center.multiplyScalar(scale))
+      const groundedBox = new THREE.Box3().setFromObject(root)
+      root.position.y -= groundedBox.min.y
+    }
+
+    const loadTemperatureSurface = async (scene: THREE.Scene, camera: THREE.PerspectiveCamera) => {
+      if (temperatureFieldLoaded || temperatureFieldLoading) return
+      temperatureFieldLoading = true
+      setStatusMessage("Loading temperature outline...")
+      try {
+        const response = await fetch(buildTemperatureSurfaceUrl(), {
+          cache: "no-store",
+          signal: modelRequest.signal,
+        })
+        if (!response.ok) throw new Error("Temperature outline result is unavailable.")
+        const data = parseTemperatureSurfacePayload(await response.json())
+        if (!data) throw new Error("Temperature outline data is empty.")
+        const rawPositions = parseNumericArray(data.attributes?.position)
+        const colors = parseNumericArray(data.attributes?.color_rgb)
+        const indices = parseIndexArray(data.attributes?.index)
+        const temperatures = parseNumericArray(data.attributes?.temperature_K)
+        if (rawPositions.length < 3 || rawPositions.length % 3 !== 0) {
+          throw new Error("Temperature outline has no renderable vertices.")
+        }
+        if (colors.length !== rawPositions.length) {
+          throw new Error("Temperature outline color data is incomplete.")
+        }
+        if (indices.length < 3 || indices.length % 3 !== 0) {
+          throw new Error("Temperature outline index data is incomplete.")
+        }
+        const positions = data.source?.coordinate_system === "glb"
+          ? rawPositions
+          : mapVtuPositionsToGlbCoordinates(rawPositions)
+
+        const geometry = new THREE.BufferGeometry()
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
+        geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3))
+        geometry.setIndex(indices)
+        geometry.computeVertexNormals()
+
+        const material = new THREE.MeshBasicMaterial({
+          side: THREE.DoubleSide,
+          vertexColors: true,
+          wireframe: true,
+        })
+        const surface = new THREE.Mesh(geometry, material)
+        const root = new THREE.Group()
+        root.add(surface)
+        normalizeTemperatureRoot(root)
+        root.visible = viewerModeRef.current === "temperature"
+
+        temperatureRoot = root
+        temperatureFieldLoaded = true
+        const tempMin = typeof data.temperature_range_K?.min === "number"
+          ? data.temperature_range_K.min
+          : temperatures.length ? Math.min(...temperatures) : 0
+        const tempMax = typeof data.temperature_range_K?.max === "number"
+          ? data.temperature_range_K.max
+          : temperatures.length ? Math.max(...temperatures) : 0
+        setTemperatureRange({ max: tempMax, min: tempMin })
+        scene.add(root)
+
+        const sphere = new THREE.Sphere()
+        new THREE.Box3().setFromObject(root).getBoundingSphere(sphere)
+        const radius = Math.max(sphere.radius, 0.2)
+        if (viewerModeRef.current === "temperature") {
+          camera.position.set(
+            sphere.center.x + radius * 2.2,
+            sphere.center.y + radius * 1.4,
+            sphere.center.z + radius * 2.2,
+          )
+          controls?.target.copy(sphere.center)
+          controls?.update()
+        }
+        setStatusMessage("")
+        setSceneMode(viewerModeRef.current)
+        requestRender()
+      } catch (error) {
+        if (disposed || modelRequest.signal.aborted) return
+        setErrorMessage(error instanceof Error ? error.message : "Temperature outline load failed.")
+        if (viewerModeRef.current === "temperature") setStatusMessage("")
+      } finally {
+        temperatureFieldLoading = false
+      }
+    }
+
+    const updateAxisOverlay = (camera: THREE.PerspectiveCamera) => {
+      camera.getWorldQuaternion(cameraInverse).invert()
+
+      const origin = { x: 28, y: 62 }
+      const axisLength = 34
+      const axes = [
+        { key: "x", vector: new THREE.Vector3(1, 0, 0) },
+        { key: "y", vector: new THREE.Vector3(0, 0, -1) },
+        { key: "z", vector: new THREE.Vector3(0, 1, 0) },
+      ]
+
+      axes.forEach(({ key, vector }) => {
+        axisDirection.copy(vector).applyQuaternion(cameraInverse).normalize()
+        const depthScale = 0.68 + Math.max(axisDirection.z, -0.6) * 0.18
+        const endX = origin.x + axisDirection.x * axisLength * depthScale
+        const endY = origin.y - axisDirection.y * axisLength * depthScale
+        const labelX = origin.x + axisDirection.x * (axisLength + 10) * depthScale
+        const labelY = origin.y - axisDirection.y * (axisLength + 10) * depthScale
+
+        const line = axisSvg.querySelector<SVGLineElement>(`[data-axis-line="${key}"]`)
+        const label = axisSvg.querySelector<SVGTextElement>(`[data-axis-label="${key}"]`)
+        if (!line || !label) return
+
+        line.setAttribute("x1", `${origin.x}`)
+        line.setAttribute("y1", `${origin.y}`)
+        line.setAttribute("x2", `${endX}`)
+        line.setAttribute("y2", `${endY}`)
+        label.setAttribute("x", `${labelX}`)
+        label.setAttribute("y", `${labelY}`)
+      })
+    }
+
+    const setAnnotationActiveState = (componentId: string | null) => {
+      annotations.forEach((annotation) => {
+        const active = annotation.componentId === componentId
+        annotation.labelEl.style.border = active
+          ? "1px solid rgba(125, 211, 252, 0.86)"
+          : "1px solid rgba(122, 148, 212, 0.42)"
+        annotation.labelEl.style.boxShadow = active
+          ? "0 0 0 2px rgba(56, 189, 248, 0.2), 0 18px 34px rgba(14, 165, 233, 0.2)"
+          : "0 12px 28px rgba(3, 8, 20, 0.32)"
+        annotation.labelEl.style.background = active
+          ? "rgba(7, 26, 46, 0.92)"
+          : annotation.labelEl.dataset.tint ?? "rgba(17, 24, 48, 0.76)"
+        annotation.dotEl.setAttribute("r", active ? "6.2" : "4.2")
+        annotation.dotEl.setAttribute("stroke-width", active ? "2" : "1")
+      })
+    }
+
+    const clearModelHighlight = () => {
+      originalMaterialsByMesh.forEach((material, mesh) => {
+        mesh.material = material
+        mesh.renderOrder = originalRenderOrderByMesh.get(mesh) ?? 1
+      })
+      originalMaterialsByMesh.clear()
+      originalRenderOrderByMesh.clear()
+      highlightMaterials.forEach((material) => material.dispose())
+      highlightMaterials.clear()
+      highlightedComponentId = null
+      setAnnotationActiveState(null)
+      requestRender()
+    }
+
+    const highlightComponent = (componentId: string) => {
+      if (highlightedComponentId === componentId) return
+      clearModelHighlight()
+
+      const componentRoot = componentRootsById.get(componentId)
+      if (!componentRoot) return
+
+      const highlightMaterial = new THREE.MeshStandardMaterial({
+        color: 0x49c8ff,
+        emissive: 0x0d5f92,
+        emissiveIntensity: 0.68,
+        metalness: 0.08,
+        opacity: 0.94,
+        roughness: 0.32,
+        transparent: true,
+      })
+      highlightMaterial.depthWrite = true
+      highlightMaterials.add(highlightMaterial)
+
+      componentRoot.traverse((node) => {
+        const mesh = node as THREE.Mesh
+        if (!mesh.isMesh) return
+
+        originalMaterialsByMesh.set(mesh, mesh.material)
+        originalRenderOrderByMesh.set(mesh, mesh.renderOrder)
+        if (Array.isArray(mesh.material)) {
+          mesh.material = mesh.material.map(() => {
+            const material = highlightMaterial.clone()
+            highlightMaterials.add(material)
+            return material
+          })
+        } else {
+          mesh.material = highlightMaterial
+        }
+        mesh.renderOrder = 4
+      })
+
+      highlightedComponentId = componentId
+      setAnnotationActiveState(componentId)
+      requestRender()
+    }
+
+    const selectComponent = (componentId: string, notifyParent = true) => {
+      const normalizedComponentId = normalizeComponentId(componentId) ?? componentId
+      const detail = componentDetailsRef.current[componentId] ??
+        componentDetailsRef.current[normalizedComponentId] ?? {
+        componentId: normalizedComponentId,
+        dimensions: "-",
+        displayName: normalizedComponentId,
+        kind: "-",
+        modelName: "-",
+        semanticName: normalizedComponentId,
+        subsystem: "-",
+      }
+      setSelectedComponent(detail)
+      highlightComponent(normalizedComponentId)
+
+      if (notifyParent && window.parent !== window) {
+        window.parent.postMessage({
+          componentId: normalizedComponentId,
+          semanticName: detail.semanticName,
+          type: "viewer3d:component-selected",
+        }, window.location.origin)
+      }
+    }
+
+    const handleComponentMessage = (event: MessageEvent<ViewerComponentMessage>) => {
+      if (event.origin !== window.location.origin) return
+      if (event.data?.type !== "viewer3d:select-component") return
+      if (typeof event.data.componentId !== "string") return
+      selectComponent(event.data.componentId, false)
+    }
+
+    const refreshAnnotationMeasurements = () => {
+      annotations.forEach((annotation) => {
+        const { height, width } = measureAnnotationLabel(annotation.labelEl)
+        annotation.height = height
+        annotation.width = width
+      })
+      markAnnotationsDirty()
+    }
+
+    const syncCameraForAnnotations = (camera: THREE.PerspectiveCamera) => {
+      camera.updateMatrixWorld(true)
+    }
+
+    const layoutAnnotations = (
+      camera: THREE.PerspectiveCamera,
+      force = false,
+    ) => {
+      if (!force && !annotationsNeedLayout) return
+      if (annotations.length === 0) {
+        annotationsNeedLayout = false
+        return
+      }
+
+      const viewportWidth = mount.clientWidth
+      const viewportHeight = mount.clientHeight
+      if (viewportWidth <= 0 || viewportHeight <= 0) return
+
+      syncCameraForAnnotations(camera)
+
+      const safeTop = 84
+      const safeBottom = viewportHeight - 52
+      const sidePadding = viewportWidth < 700 ? 12 : 18
+      const labelGap = 6
+
+      annotationSvg.setAttribute("viewBox", `0 0 ${viewportWidth} ${viewportHeight}`)
+
+      const visible = annotations
+        .map((annotation) => {
+          screenPoint.copy(annotation.anchorWorld).project(camera)
+          cameraSpacePoint
+            .copy(annotation.anchorWorld)
+            .applyMatrix4(camera.matrixWorldInverse)
+
+          if (
+            screenPoint.z < -1 ||
+            screenPoint.z > 1 ||
+            screenPoint.x < -1.4 ||
+            screenPoint.x > 1.4 ||
+            screenPoint.y < -1.4 ||
+            screenPoint.y > 1.4
+          ) {
+            hideAnnotation(annotation)
+            return null
+          }
+
+          return {
+            annotation,
+            height: annotation.height,
+            side: cameraSpacePoint.x < 0 ? "left" as const : "right" as const,
+            screenX: (screenPoint.x * 0.5 + 0.5) * viewportWidth,
+            screenY: (-screenPoint.y * 0.5 + 0.5) * viewportHeight,
+            width: annotation.width,
+          }
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null)
+
+      const leftItems = visible
+        .filter((item) => item.side === "left")
+        .sort((a, b) => a.screenY - b.screenY)
+      const rightItems = visible
+        .filter((item) => item.side === "right")
+        .sort((a, b) => a.screenY - b.screenY)
+
+      const applyLayout = (
+        items: typeof leftItems,
+        side: "left" | "right",
+      ) => {
+        if (items.length === 0) return
+
+        const usableHeight = Math.max(safeBottom - safeTop, 1)
+        const tallestItemHeight = Math.max(...items.map((item) => item.height))
+        const singleTrackCapacity = Math.max(
+          1,
+          Math.floor((usableHeight + labelGap) / (tallestItemHeight + labelGap)),
+        )
+        const maxTrackCount = viewportWidth < 640 ? 2 : ANNOTATION_MAX_TRACKS_PER_SIDE
+        const trackCount = Math.min(
+          maxTrackCount,
+          Math.max(1, Math.ceil(items.length / singleTrackCapacity)),
+        )
+        const tracks = Array.from({ length: trackCount }, () => [] as typeof items)
+        items.forEach((item, index) => {
+          tracks[index % trackCount].push(item)
+        })
+
+        const maxLabelWidth = Math.max(...items.map((item) => item.width))
+
+        tracks.forEach((trackItems, trackIndex) => {
+          const tops = distributeLabelTops(
+            trackItems.map((item) => ({
+              desiredTop: item.screenY - item.height * 0.5,
+              height: item.height,
+            })),
+            safeTop,
+            safeBottom,
+            labelGap,
+          )
+
+          trackItems.forEach((item, index) => {
+            const trackOffset = trackIndex * (maxLabelWidth + ANNOTATION_TRACK_GAP)
+            const labelLeft =
+              side === "left"
+                ? sidePadding + trackOffset
+                : viewportWidth - sidePadding - item.width - trackOffset
+            const labelTop = tops[index]
+            const labelCenterY = labelTop + item.height * 0.5
+            const labelEdgeX =
+              side === "left" ? labelLeft + item.width : labelLeft
+            const elbowX =
+              side === "left"
+                ? Math.min(item.screenX - 18, labelEdgeX + 18 + trackIndex * 10)
+                : Math.max(item.screenX + 18, labelEdgeX - 18 - trackIndex * 10)
+
+            item.annotation.labelEl.style.opacity = "1"
+            item.annotation.labelEl.style.transform = `translate(${labelLeft}px, ${labelTop}px)`
+
+            item.annotation.lineEl.style.display = "block"
+            item.annotation.lineEl.setAttribute(
+              "points",
+              `${item.screenX},${item.screenY} ${item.screenX},${labelCenterY} ${elbowX},${labelCenterY} ${labelEdgeX},${labelCenterY}`,
+            )
+
+            item.annotation.dotEl.style.display = "block"
+            item.annotation.dotEl.setAttribute("cx", item.screenX.toFixed(2))
+            item.annotation.dotEl.setAttribute("cy", item.screenY.toFixed(2))
+          })
+        })
+      }
+
+      applyLayout(leftItems, "left")
+      applyLayout(rightItems, "right")
+      annotationsNeedLayout = false
+    }
+
+    const buildAnnotations = (
+      model: THREE.Object3D,
+      camera: THREE.PerspectiveCamera,
+    ) => {
+      clearAnnotations()
+      model.updateWorldMatrix(true, true)
+
+      const componentRoots = collectComponentRoots(model)
+      componentRootsById.clear()
+
+      componentRoots
+        .map((componentRoot) => ({
+          componentId: normalizeComponentId(resolveComponentLabel(componentRoot)) ?? resolveComponentLabel(componentRoot),
+          node: componentRoot,
+        }))
+        .filter((component) => component.componentId.length > 0)
+        .sort((left, right) => left.componentId.localeCompare(right.componentId))
+        .forEach((component, index) => {
+          const bounds = new THREE.Box3().setFromObject(component.node)
+          if (bounds.isEmpty()) return
+
+          const center = bounds.getCenter(new THREE.Vector3())
+          const anchorWorld = new THREE.Vector3(center.x, bounds.max.y, center.z)
+          const palette = ANNOTATION_PALETTES[index % ANNOTATION_PALETTES.length]
+          const detail = componentDetailsRef.current[component.componentId]
+          const labelText = detail?.displayName && detail.displayName !== "-"
+            ? detail.displayName
+            : component.componentId
+          const labelEl = createAnnotationLabel(labelText, palette)
+          labelEl.dataset.tint = palette.tint
+          const showDetails = () => {
+            selectComponent(component.componentId)
+          }
+          labelEl.addEventListener("click", showDetails)
+          labelEl.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault()
+              showDetails()
+            }
+          })
+
+          const lineEl = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "polyline",
+          )
+          lineEl.setAttribute("fill", "none")
+          lineEl.setAttribute("stroke", palette.line)
+          lineEl.setAttribute("stroke-width", "1.4")
+          lineEl.setAttribute("stroke-linecap", "round")
+          lineEl.setAttribute("stroke-linejoin", "round")
+          lineEl.style.display = "none"
+
+          const dotEl = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "circle",
+          )
+          dotEl.setAttribute("r", "4.2")
+          dotEl.setAttribute("fill", palette.dot)
+          dotEl.setAttribute("stroke", "rgba(255, 255, 255, 0.95)")
+          dotEl.setAttribute("stroke-width", "1")
+          dotEl.style.display = "none"
+
+          annotationLabels.appendChild(labelEl)
+          annotationSvg.appendChild(lineEl)
+          annotationSvg.appendChild(dotEl)
+          componentRootsById.set(component.componentId, component.node)
+
+          annotations.push({
+            anchorWorld,
+            componentId: component.componentId,
+            dotEl,
+            height: DEFAULT_ANNOTATION_HEIGHT,
+            labelEl,
+            lineEl,
+            width: DEFAULT_ANNOTATION_WIDTH,
+          })
+        })
+
+      refreshAnnotationMeasurements()
+      layoutAnnotations(camera, true)
+    }
+
+    const init = async () => {
+      const modelSource = buildViewerModelSource(modelVariant, getModelGlbPathForMode(viewerMode))
+      if (!modelSource) {
+        setErrorMessage("Viewer model source is unavailable.")
+        setStatusMessage("")
+        return
+      }
+
+      const width = mount.clientWidth
+      const height = mount.clientHeight
+
+      const nextRenderer = new THREE.WebGPURenderer({ antialias: true, alpha: false }) as unknown as WebGPURendererRuntime
+      renderer = nextRenderer
+      await nextRenderer.init()
+
+      if (nextRenderer.backend?.isWebGLBackend) {
+        console.info("Viewer3D renderer fallback: WebGPU unavailable in current context, running with WebGL2 backend.")
+      }
+
+      if (disposed) {
+        nextRenderer.dispose()
+        return
+      }
+
+      nextRenderer.setPixelRatio(
+        Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO),
+      )
+      nextRenderer.setSize(width, height)
+      nextRenderer.shadowMap.enabled = false
+      nextRenderer.outputColorSpace = THREE.SRGBColorSpace
+      nextRenderer.toneMapping = THREE.NoToneMapping
+      nextRenderer.toneMappingExposure = 1
+      domElement = nextRenderer.domElement
+      mount.appendChild(nextRenderer.domElement)
+
+      const scene = new THREE.Scene()
+      scene.background = new THREE.Color(viewerTheme === "light" ? 0xf6f8fb : 0x111318)
+
+      const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 1000)
+      camera.position.set(3, 2, 5)
+
+      const grid = new THREE.GridHelper(
+        30,
+        30,
+        viewerTheme === "light" ? 0x9aa7b6 : 0xd8dde6,
+        viewerTheme === "light" ? 0xd6dde6 : 0x2d323a,
+      )
+      grid.material.transparent = true
+      grid.material.opacity = viewerTheme === "light" ? 0.38 : 0.22
+      scene.add(grid)
+
+      controls = new OrbitControls(camera, nextRenderer.domElement)
+      controls.enableDamping = true
+      controls.dampingFactor = 0.06
+      controls.minDistance = 0.3
+      controls.maxDistance = 150
+      controls.addEventListener("change", markAnnotationsDirty)
+      controls.addEventListener("start", requestRender)
+      controls.addEventListener("end", requestRender)
+
+      const loader = new GLTFLoader()
+
+      const loadResolvedModel = async (resolvedModel: ResolvedModel, phase: "initial" | "refresh") => {
+        const nextModelVersion = getModelVersion(resolvedModel)
+
+        if (nextModelVersion === currentModelVersion) {
+          return
+        }
+
+        setErrorMessage(null)
+        setStatusMessage(phase === "initial" ? "Loading GLB..." : "Refreshing geometry...")
+
+        const gltf = await loadGltf(loader, resolvedModel.modelUrl)
+
+        if (disposed) return
+
+        if (modelRoot) {
+          clearModelHighlight()
+          scene.remove(modelRoot)
+          disposeModelResources(modelRoot)
+          modelRoot = null
+        }
+        clearAnnotations()
+        componentRootsById.clear()
+        setSelectedComponent(null)
+
+        const model = gltf.scene
+        modelRoot = model
+
+        const componentColors = buildComponentColorMap(componentDetailsRef.current)
+        applyLightweightPreviewStyle(model, 0.18, componentColors)
+
+        const box = new THREE.Box3().setFromObject(model)
+        const size = box.getSize(new THREE.Vector3())
+        const center = box.getCenter(new THREE.Vector3())
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const scale = maxDim > 0 ? 3.5 / maxDim : 1
+        model.scale.setScalar(scale)
+        model.position.sub(center.multiplyScalar(scale))
+
+        const groundedBox = new THREE.Box3().setFromObject(model)
+        model.position.y -= groundedBox.min.y
+
+        scene.add(model)
+        addLightweightMeshEdges(model, componentColors)
+        setSceneMode(viewerModeRef.current)
+        if (viewerModeRef.current === "temperature") {
+          void loadTemperatureSurface(scene, camera)
+        }
+
+        const sphere = new THREE.Sphere()
+        new THREE.Box3().setFromObject(model).getBoundingSphere(sphere)
+        const radius = Math.max(sphere.radius, 0.2)
+        const sphereCenter = sphere.center
+
+        camera.position.set(
+          sphereCenter.x + radius * 2.2,
+          sphereCenter.y + radius * 1.4,
+          sphereCenter.z + radius * 2.2,
+        )
+        controls?.target.copy(sphereCenter)
+        controls?.update()
+
+        buildAnnotations(model, camera)
+        currentModelVersion = nextModelVersion
+        setStatusMessage("")
+        requestRender()
+      }
+
+      const resolveLatestModel = async (phase: "initial" | "refresh") => {
+        const resolvedModel = await fetchResolvedModel(modelSource, modelRequest.signal)
+        if (!resolvedModel) {
+          if (phase === "initial") {
+            throw new Error(getMissingModelMessage(viewerModeRef.current))
+          }
+          return
+        }
+
+        if (disposed) return
+
+        await loadResolvedModel(resolvedModel, phase)
+      }
+
+      const syncViewport = () => {
+        const nextWidth = mount.clientWidth
+        const nextHeight = mount.clientHeight
+        if (nextWidth <= 0 || nextHeight <= 0) return
+
+        camera.aspect = nextWidth / nextHeight
+        camera.updateProjectionMatrix()
+        nextRenderer.setPixelRatio(
+          Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO),
+        )
+        nextRenderer.setSize(nextWidth, nextHeight)
+        refreshAnnotationMeasurements()
+        layoutAnnotations(camera, true)
+        requestRender()
+      }
+
+      const resizeObserver = new ResizeObserver(() => {
+        syncViewport()
+      })
+      resizeObserver.observe(mount)
+
+      document.fonts?.ready.then(() => {
+        if (disposed) return
+        refreshAnnotationMeasurements()
+        layoutAnnotations(camera, true)
+        requestRender()
+      })
+
+      window.addEventListener("message", handleComponentMessage)
+
+      nextRenderer.setAnimationLoop(() => {
+        if (disposed) return
+
+        if (controls?.update()) {
+          renderRequested = true
+        }
+
+        if (!renderRequested && !annotationsNeedLayout) return
+
+        updateAxisOverlay(camera)
+        layoutAnnotations(camera)
+        nextRenderer.render(scene, camera)
+        renderRequested = false
+      })
+
+      const refreshLatestModel = (phase: "initial" | "refresh") => {
+        if (modelRefreshInFlight) return
+        modelRefreshInFlight = true
+        void resolveLatestModel(phase)
+          .catch((error: unknown) => {
+            if (disposed) return
+            if (phase === "initial") {
+              setStatusMessage(
+                modelSource.autoRefresh && viewerModeRef.current === "realCad"
+                  ? "真实CAD模型尚未构建成功"
+                  : modelSource.autoRefresh ? `Waiting for ${getVariantDisplayName(modelSource.variant)}...` : "",
+              )
+              setErrorMessage(
+                modelSource.autoRefresh
+                  ? null
+                  : error instanceof Error ? error.message : getMissingModelMessage(viewerModeRef.current),
+              )
+            } else {
+              console.error("Viewer3D auto-refresh error:", error)
+            }
+          })
+          .finally(() => {
+            modelRefreshInFlight = false
+          })
+      }
+
+      const handleModeChange = () => {
+        setSceneMode(viewerModeRef.current)
+        if (viewerModeRef.current === "temperature") {
+          void loadTemperatureSurface(scene, camera)
+        }
+        if (viewerModeRef.current === "cad" || viewerModeRef.current === "realCad") {
+          refreshLatestModel("initial")
+        }
+      }
+
+      window.addEventListener("viewer3d:mode-change", handleModeChange)
+      handleModeChange()
+      refreshLatestModel("initial")
+
+      if (modelSource.autoRefresh) {
+        lookupInterval = setInterval(() => {
+          refreshLatestModel("refresh")
+        }, 3000)
+      }
+
+      return () => {
+        resizeObserver.disconnect()
+        window.removeEventListener("message", handleComponentMessage)
+        window.removeEventListener("viewer3d:mode-change", handleModeChange)
+        controls?.removeEventListener("change", markAnnotationsDirty)
+        controls?.removeEventListener("start", requestRender)
+        controls?.removeEventListener("end", requestRender)
+        if (lookupInterval) {
+          clearInterval(lookupInterval)
+          lookupInterval = null
+        }
+      }
+    }
+
+    let disposeResize: (() => void) | undefined
+
+    init()
+      .then((cleanup) => {
+        if (disposed) {
+          cleanup?.()
+          return
+        }
+        disposeResize = cleanup
+      })
+      .catch((error: unknown) => {
+        if (disposed) return
+        console.error("Viewer3D init error:", error)
+        setErrorMessage(error instanceof Error ? error.message : "Viewer initialization failed.")
+        setStatusMessage("")
+      })
+
+    return () => {
+      disposed = true
+      modelRequest.abort()
+      disposeResize?.()
+      clearModelHighlight()
+      clearAnnotations()
+      setTemperatureRange(null)
+      controls?.dispose()
+      renderer?.setAnimationLoop(null)
+      if (lookupInterval) clearInterval(lookupInterval)
+      disposeModelResources(modelRoot)
+      if (temperatureRoot) {
+        disposeModelResources(temperatureRoot)
+      }
+
+      disposableResources.forEach((resource) => resource.dispose())
+      renderer?.dispose()
+
+      if (mount && domElement && mount.contains(domElement)) {
+        mount.removeChild(domElement)
+      }
+    }
+  }, [componentDetailsVersion, modelVariant, shouldInitializeCadViewer, versionId, viewerMode, viewerTheme, workspaceDir, workspaceId])
+
+  useEffect(() => {
+    window.dispatchEvent(new Event("viewer3d:mode-change"))
+  }, [viewerMode])
+
+  const isLightViewerTheme = viewerTheme === "light"
+  const panelBackground = isLightViewerTheme ? "rgba(255, 255, 255, 0.84)" : "rgba(6, 12, 27, 0.74)"
+  const panelBorder = isLightViewerTheme ? "1px solid rgba(35, 82, 124, 0.16)" : "1px solid rgba(122, 148, 212, 0.28)"
+  const panelShadow = isLightViewerTheme ? "0 8px 24px rgba(18, 34, 51, 0.08)" : undefined
+  const monoMutedColor = isLightViewerTheme ? "rgba(64, 82, 105, 0.78)" : "rgba(218, 231, 255, 0.82)"
+  const viewerModeOptions = lockedViewerMode
+    ? ([
+        [
+          lockedViewerMode,
+          lockedViewerMode === "temperature"
+            ? "Thermal"
+            : lockedViewerMode === "realCad"
+              ? "真实CAD"
+              : "CAD",
+        ],
+      ] as const)
+    : ([
+        ["cad", "CAD"],
+        ["realCad", "真实CAD"],
+        ["temperature", "Thermal"],
+      ] as const)
+
+  return (
+    <div
+      style={{
+        width: "100vw",
+        height: "100vh",
+        background: isLightViewerTheme ? "#f6f8fb" : "#111318",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+      {showComplianceCheckMode && viewerMode === "derating" ? (
+        <div
+          style={{
+            bottom: 0,
+            left: 0,
+            position: "absolute",
+            right: 0,
+            top: 0,
+            zIndex: 4,
+            background: isLightViewerTheme ? "#f6f8fb" : "#06111d",
+          }}
+        >
+          <ComplianceCheckPanel
+            theme={viewerTheme}
+            versionId={versionId}
+            workspaceDir={workspaceDir}
+            workspaceId={workspaceId}
+          />
+        </div>
+      ) : null}
+
+      {lockedViewerMode === "derating" ? null : (
+        <div
+          style={{
+            position: "absolute",
+            left: 18,
+            top: 18,
+            display: "flex",
+            gap: 6,
+            padding: 4,
+            borderRadius: 8,
+            background: panelBackground,
+            border: panelBorder,
+            boxShadow: panelShadow,
+            backdropFilter: "blur(12px)",
+            pointerEvents: "auto",
+          }}
+        >
+        {viewerModeOptions.map(([mode, label]) => {
+          const active = viewerMode === mode
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewerMode(mode)}
+              style={{
+                minWidth: 92,
+                height: 32,
+                border: isLightViewerTheme ? "1px solid rgba(0, 102, 204, 0.24)" : "1px solid rgba(143, 172, 230, 0.28)",
+                borderRadius: 6,
+                background: isLightViewerTheme
+                  ? active ? "#e8f2ff" : "#ffffff"
+                  : active ? "rgba(65, 167, 255, 0.24)" : "rgba(11, 21, 45, 0.68)",
+                color: isLightViewerTheme
+                  ? active ? "#003f88" : "#344054"
+                  : active ? "#f4f9ff" : "rgba(211, 226, 255, 0.78)",
+                cursor: "pointer",
+                fontFamily: "\"IBM Plex Sans\", system-ui, sans-serif",
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+        </div>
+      )}
+
+      {viewerMode === "temperature" && temperatureRange && (
+        <div
+          style={{
+            position: "absolute",
+            left: 18,
+            bottom: 18,
+            display: "grid",
+            gap: 8,
+            width: 220,
+            padding: "12px",
+            borderRadius: 8,
+            background: panelBackground,
+            border: panelBorder,
+            boxShadow: panelShadow,
+            backdropFilter: "blur(12px)",
+            color: isLightViewerTheme ? "#26394d" : "#d9e6ff",
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              height: 10,
+              borderRadius: 999,
+              background: "linear-gradient(90deg, #0066ff 0%, #00d4ff 35%, #23d66b 50%, #f4d03f 70%, #ff3b30 100%)",
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.16) inset",
+            }}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontFamily: "\"IBM Plex Mono\", Consolas, monospace",
+              fontSize: 11,
+              color: monoMutedColor,
+            }}
+          >
+            <span>{temperatureRange.min.toFixed(2)} K</span>
+            <span>{temperatureRange.max.toFixed(2)} K</span>
+          </div>
+        </div>
+      )}
+
+      <svg
+        ref={axisSvgRef}
+        aria-label="XYZ positive axis indicator"
+        viewBox="0 0 92 92"
+        style={{
+          position: "absolute",
+          right: 12,
+          bottom: 12,
+          width: 58,
+          height: 58,
+          pointerEvents: "none",
+        }}
+      >
+        <defs>
+          <marker id="axis-arrow-x" markerWidth="4" markerHeight="4" refX="3.6" refY="2" orient="auto">
+            <path d="M0,0 L4,2 L0,4 Z" fill="#ff5f68" />
+          </marker>
+          <marker id="axis-arrow-y" markerWidth="4" markerHeight="4" refX="3.6" refY="2" orient="auto">
+            <path d="M0,0 L4,2 L0,4 Z" fill="#6ee77f" />
+          </marker>
+          <marker id="axis-arrow-z" markerWidth="4" markerHeight="4" refX="3.6" refY="2" orient="auto">
+            <path d="M0,0 L4,2 L0,4 Z" fill="#6ba8ff" />
+          </marker>
+        </defs>
+        <circle cx="28" cy="62" r="3.2" fill="rgba(231, 238, 255, 0.88)" />
+        <line data-axis-line="x" x1="28" y1="62" x2="58" y2="62" stroke="#ff5f68" strokeWidth="3" strokeLinecap="round" markerEnd="url(#axis-arrow-x)" />
+        <line data-axis-line="y" x1="28" y1="62" x2="8" y2="82" stroke="#6ee77f" strokeWidth="3" strokeLinecap="round" markerEnd="url(#axis-arrow-y)" />
+        <line data-axis-line="z" x1="28" y1="62" x2="28" y2="28" stroke="#6ba8ff" strokeWidth="3" strokeLinecap="round" markerEnd="url(#axis-arrow-z)" />
+        <text data-axis-label="x" x="66" y="65" fill="#ff8b91" fontFamily="IBM Plex Mono, Consolas, monospace" fontSize="12" fontWeight="700" textAnchor="middle">X</text>
+        <text data-axis-label="y" x="1" y="90" fill="#8cf49a" fontFamily="IBM Plex Mono, Consolas, monospace" fontSize="12" fontWeight="700" textAnchor="middle">Y</text>
+        <text data-axis-label="z" x="28" y="18" fill="#8fbdff" fontFamily="IBM Plex Mono, Consolas, monospace" fontSize="12" fontWeight="700" textAnchor="middle">Z</text>
+      </svg>
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+        }}
+      >
+        <svg
+          ref={annotationSvgRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            overflow: "visible",
+          }}
+        />
+        <div
+          ref={annotationLabelsRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+          }}
+        />
+      </div>
+
+      {selectedComponent && (
+        <div
+          style={{
+            position: "absolute",
+            right: 18,
+            bottom: 18,
+            width: "min(360px, calc(100vw - 36px))",
+            display: "grid",
+            gap: 12,
+            padding: "16px",
+            borderRadius: 8,
+            background: isLightViewerTheme ? "rgba(255, 255, 255, 0.9)" : "rgba(6, 12, 27, 0.84)",
+            border: isLightViewerTheme ? "1px solid rgba(35, 82, 124, 0.18)" : "1px solid rgba(122, 148, 212, 0.34)",
+            boxShadow: isLightViewerTheme ? "0 18px 42px rgba(18, 34, 51, 0.12)" : "0 18px 42px rgba(0, 0, 0, 0.34)",
+            backdropFilter: "blur(12px)",
+            color: isLightViewerTheme ? "#26394d" : "#d9e6ff",
+            pointerEvents: "auto",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "start",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+              <span
+                style={{
+                  color: isLightViewerTheme ? "#1763a6" : "#93b7ff",
+                  fontFamily: "\"IBM Plex Mono\", Consolas, monospace",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {selectedComponent.componentId}
+              </span>
+              <span
+                style={{
+	                  color: isLightViewerTheme ? "#172433" : "#f3f7ff",
+                  fontFamily: "\"Space Grotesk\", system-ui, sans-serif",
+                  fontSize: 18,
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {selectedComponent.displayName}
+              </span>
+            </div>
+            <button
+              type="button"
+              aria-label="Close component details"
+              onClick={() => setSelectedComponent(null)}
+              style={{
+                width: 28,
+                height: 28,
+                flex: "0 0 auto",
+	                border: isLightViewerTheme ? "1px solid rgba(35, 82, 124, 0.18)" : "1px solid rgba(143, 172, 230, 0.32)",
+	                borderRadius: 6,
+	                background: isLightViewerTheme ? "rgba(243, 247, 251, 0.92)" : "rgba(11, 21, 45, 0.72)",
+	                color: isLightViewerTheme ? "rgba(38, 57, 77, 0.86)" : "rgba(218, 231, 255, 0.86)",
+                cursor: "pointer",
+                fontSize: 18,
+                lineHeight: "24px",
+              }}
+            >
+              x
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gap: 8 }}>
+            {[
+              ["器件类型", selectedComponent.kind],
+              ["型号", selectedComponent.modelName],
+              ["分系统", selectedComponent.subsystem],
+              ["尺寸", selectedComponent.dimensions],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "96px minmax(0, 1fr)",
+                  gap: 10,
+                  alignItems: "baseline",
+                }}
+              >
+                <span
+                  style={{
+	                    color: isLightViewerTheme ? "rgba(64, 82, 105, 0.68)" : "rgba(145, 172, 226, 0.68)",
+                    fontFamily: "\"IBM Plex Mono\", Consolas, monospace",
+                    fontSize: 11,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {label}
+                </span>
+                <span
+                  style={{
+	                    color: isLightViewerTheme ? "#26394d" : "#d9e6ff",
+                    fontFamily: "\"IBM Plex Sans\", system-ui, sans-serif",
+                    fontSize: 13,
+                    lineHeight: 1.45,
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(statusMessage || errorMessage) && (
+        <div
+          style={{
+            position: "absolute",
+            top: 72,
+            left: 20,
+            display: "grid",
+            gap: 6,
+            maxWidth: 520,
+            padding: "12px 14px",
+            borderRadius: 12,
+	            background: isLightViewerTheme ? "rgba(255, 255, 255, 0.82)" : "rgba(6, 12, 27, 0.66)",
+	            border: isLightViewerTheme ? "1px solid rgba(35, 82, 124, 0.16)" : "1px solid rgba(92, 126, 188, 0.24)",
+	            boxShadow: panelShadow,
+	            backdropFilter: "blur(10px)",
+	            color: isLightViewerTheme ? "#26394d" : "#c9dbff",
+            pointerEvents: "none",
+          }}
+        >
+          {statusMessage && (
+            <span
+              style={{
+                fontFamily: "\"IBM Plex Mono\", Consolas, monospace",
+                fontSize: 12,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+	                color: isLightViewerTheme ? "rgba(64, 82, 105, 0.72)" : "rgba(152, 183, 235, 0.74)",
+              }}
+            >
+              {statusMessage}
+            </span>
+          )}
+          {errorMessage && (
+            <span
+              style={{
+                fontFamily: "\"IBM Plex Sans\", system-ui, sans-serif",
+                fontSize: 13,
+                lineHeight: 1.45,
+	                color: isLightViewerTheme ? "#b42318" : "#ffb4b4",
+              }}
+            >
+              {errorMessage}
+            </span>
+          )}
+        </div>
+      )}
+
+    </div>
+  )
+}
