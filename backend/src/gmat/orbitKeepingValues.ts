@@ -1,0 +1,160 @@
+import fs from "node:fs/promises"
+import path from "node:path"
+import { parseDocument, stringify } from "yaml"
+
+import { defaultOrbitKeepingTemplatePath } from "./orbitKeepingTemplate.js"
+
+const SIMPLE_ASSIGNMENT = /^(\s*)([A-Za-z][A-Za-z0-9_.]*)(\s*=\s*)(.+?)(;\s*)$/u
+const INLINE_LITERAL = /'[^'\r\n]*'|(?<![A-Za-z_])[-+]?(?:\d+\.\d+|\d+)(?:e[-+]?\d+)?(?![A-Za-z_])|\b(?:true|false|On|Off)\b/giu
+
+export type OrbitKeepingValueSlot = {
+  id: string
+  context: string
+  value: string
+}
+
+export type OrbitKeepingValues = {
+  schemaVersion: 1
+  templateId: "orbit-keeping"
+  slots: OrbitKeepingValueSlot[]
+}
+
+type LocatedSlot = OrbitKeepingValueSlot & { start: number; end: number }
+
+function safeId(value: string) {
+  return value.replace(/[^A-Za-z0-9]+/gu, "_").replace(/^_+|_+$/gu, "")
+}
+
+function locateSlots(template: string): LocatedSlot[] {
+  const slots: LocatedSlot[] = []
+  let lineStart = 0
+  let lineNumber = 1
+
+  for (const line of template.split(/(?<=\n)/u)) {
+    const lineWithoutNewline = line.replace(/\r?\n$/u, "")
+    const assignment = SIMPLE_ASSIGNMENT.exec(lineWithoutNewline)
+
+    if (assignment) {
+      const [, indent, left, separator, value] = assignment
+      const start = lineStart + indent.length + left.length + separator.length
+      slots.push({
+        id: `line_${String(lineNumber).padStart(3, "0")}_${safeId(left)}`,
+        context: lineWithoutNewline.trim(),
+        value,
+        start,
+        end: start + value.length,
+      })
+    } else if (!lineWithoutNewline.trimStart().startsWith("%")) {
+      let literalIndex = 0
+      for (const match of lineWithoutNewline.matchAll(INLINE_LITERAL)) {
+        const value = match[0]
+        const start = lineStart + (match.index ?? 0)
+        literalIndex += 1
+        slots.push({
+          id: `line_${String(lineNumber).padStart(3, "0")}_literal_${literalIndex}`,
+          context: lineWithoutNewline.trim(),
+          value,
+          start,
+          end: start + value.length,
+        })
+      }
+    }
+
+    lineStart += line.length
+    lineNumber += 1
+  }
+
+  return slots
+}
+
+function assertSafeValue(value: unknown, id: string): asserts value is string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`value slot ${id} must contain a non-empty string`)
+  }
+  if (/\r|\n|;/u.test(value)) {
+    throw new Error(`value slot ${id} contains forbidden line or command syntax`)
+  }
+}
+
+export function extractOrbitKeepingValues(template: string): OrbitKeepingValues {
+  return {
+    schemaVersion: 1,
+    templateId: "orbit-keeping",
+    slots: locateSlots(template).map(({ id, context, value }) => ({ id, context, value })),
+  }
+}
+
+export function parseOrbitKeepingValues(source: string): OrbitKeepingValues {
+  const document = parseDocument(source)
+  if (document.errors.length > 0) {
+    throw new Error(`values YAML is invalid: ${document.errors[0].message}`)
+  }
+  const parsed = document.toJS()
+  if (!parsed || typeof parsed !== "object") throw new Error("values YAML must be an object")
+  const values = parsed as Partial<OrbitKeepingValues>
+  if (values.schemaVersion !== 1 || values.templateId !== "orbit-keeping" || !Array.isArray(values.slots)) {
+    throw new Error("values YAML has an unsupported schema or template id")
+  }
+  const slots = values.slots.map((slot) => {
+    if (!slot || typeof slot !== "object") throw new Error("values YAML contains an invalid slot")
+    const candidate = slot as Partial<OrbitKeepingValueSlot>
+    if (typeof candidate.id !== "string" || typeof candidate.context !== "string") {
+      throw new Error("values YAML slot is missing id or context")
+    }
+    assertSafeValue(candidate.value, candidate.id)
+    return { id: candidate.id, context: candidate.context, value: candidate.value }
+  })
+  return { schemaVersion: 1, templateId: "orbit-keeping", slots }
+}
+
+export function renderOrbitKeepingValues(template: string, values: OrbitKeepingValues) {
+  const located = locateSlots(template)
+  if (located.length !== values.slots.length) {
+    throw new Error("values YAML slot count does not match the fixed orbit-keeping template")
+  }
+
+  const replacements = new Map(values.slots.map((slot) => [slot.id, slot]))
+  let rendered = template
+  for (const expected of [...located].reverse()) {
+    const replacement = replacements.get(expected.id)
+    if (!replacement || replacement.context !== expected.context) {
+      throw new Error(`values YAML does not match template slot ${expected.id}`)
+    }
+    assertSafeValue(replacement.value, expected.id)
+    rendered = `${rendered.slice(0, expected.start)}${replacement.value}${rendered.slice(expected.end)}`
+  }
+  return rendered
+}
+
+export async function writeDefaultOrbitKeepingValues({
+  outputPath,
+  templatePath = defaultOrbitKeepingTemplatePath(),
+}: {
+  outputPath: string
+  templatePath?: string
+}) {
+  const template = await fs.readFile(templatePath, "utf8")
+  const values = extractOrbitKeepingValues(template)
+  await fs.mkdir(path.dirname(outputPath), { recursive: true })
+  await fs.writeFile(outputPath, stringify(values), "utf8")
+  return values
+}
+
+export async function renderOrbitKeepingFromValues({
+  outputPath,
+  valuesPath,
+  templatePath = defaultOrbitKeepingTemplatePath(),
+}: {
+  outputPath: string
+  valuesPath: string
+  templatePath?: string
+}) {
+  const [template, valuesSource] = await Promise.all([
+    fs.readFile(templatePath, "utf8"),
+    fs.readFile(valuesPath, "utf8"),
+  ])
+  const rendered = renderOrbitKeepingValues(template, parseOrbitKeepingValues(valuesSource))
+  await fs.mkdir(path.dirname(outputPath), { recursive: true })
+  await fs.writeFile(outputPath, rendered, "utf8")
+  return { outputPath, valuesPath, templatePath, bytesWritten: Buffer.byteLength(rendered, "utf8") }
+}

@@ -45,7 +45,7 @@ Intégrer le script orbit-keeping de référence et prouver qu'un renderer produ
 
 ### MVP-2b — Valeurs du template
 
-Extraire toutes les valeurs modifiables du script de référence vers un fichier dédié, puis vérifier que chaque valeur modifiée est rendue au bon emplacement.
+Terminé : les valeurs modifiables du script de référence sont extraites vers un fichier dédié et des tests vérifient leur rendu au bon emplacement.
 
 ### MVP-3 — Édition contrôlée en un appel
 
