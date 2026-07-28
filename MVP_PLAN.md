@@ -2,7 +2,7 @@
 
 ## Objectif produit
 
-Transformer une demande en langage naturel en un script GMAT fiable en partant d'un **template de mission existant**. Le LLM doit choisir le template adapté, le copier dans l'espace de travail, puis modifier les paramètres réellement demandés.
+Transformer une demande en langage naturel en un script GMAT d'orbit keeping fiable, en conservant exactement la structure d'un **template de script de référence**. Le LLM est utilisé une seule fois pour modifier les valeurs du template. La génération du fichier `.script` est ensuite déterministe.
 
 ## Méthode de travail
 
@@ -33,24 +33,24 @@ Avant chaque MVP qui touche à l'architecture, nous discutons et consignons :
 
 ### MVP-0 — Cadrage de l'architecture
 
-Définir ensemble l'architecture minimale de la chaîne « demande utilisateur → choix du template → édition du YAML → génération et validation GMAT ». Produire un schéma et des critères de validation, sans implémenter la chaîne complète.
+Définir l'architecture minimale de la chaîne « demande utilisateur → édition unique des valeurs → rendu déterministe du template orbit keeping → fichier `.script` ». Produire une décision d'architecture et des critères de validation, sans implémenter la chaîne complète.
 
 ### MVP-1 — Connectivité LLM
 
 Vérifier qu'une requête minimale atteint le backend LLM configuré et que la réponse est exploitable. Aucun agent GMAT ni génération de script à cette étape.
 
-### MVP-2 — Catalogue de templates
+### MVP-2 — Template et rendu déterministe
 
-Définir un petit catalogue de templates GMAT, avec leur objectif et les fichiers qu'ils autorisent à modifier.
+Transformer le script orbit-keeping de référence en template à structure fixe, extraire toutes ses valeurs modifiables et produire un `.script` identique avec les valeurs par défaut.
 
-### MVP-3 — Édition contrôlée d'un template
+### MVP-3 — Édition contrôlée en un appel
 
-À partir d'un seul template, demander au LLM de modifier directement le YAML de mission, puis vérifier que les valeurs demandées sont présentes.
+Demander au LLM de modifier uniquement le fichier de valeurs du template, en un seul appel et sans boucle de correction. Vérifier ensuite les changements de façon déterministe.
 
-### MVP-4 — Génération et validation GMAT
+### MVP-4 — Intégration au workflow du projet
 
-Générer le script `.script` depuis le YAML modifié et valider que GMAT peut le charger ou l'exécuter.
+Brancher la chaîne validée au workflow du projet et exposer le `.script`, le diff des valeurs et les erreurs déterministes comme artefacts.
 
-### MVP-5 — Sélection de template
+### Hors périmètre actuel
 
-Laisser le LLM choisir le bon template parmi le catalogue, avec une trace explicite du template retenu et des modifications appliquées.
+L'exécution du script dans GMAT, la correction automatique des erreurs, la planification de manœuvres et la sélection entre plusieurs types de missions ne font pas partie des premiers MVP.
