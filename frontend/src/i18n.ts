@@ -683,8 +683,7 @@ export const resources = {
 
 export type AppLanguage = keyof typeof resources
 
-const storedLanguage = window.localStorage.getItem("app-language")
-const initialLanguage: AppLanguage = storedLanguage === "en" || storedLanguage === "zh" ? storedLanguage : "en"
+const initialLanguage: AppLanguage = "en"
 
 i18n.use(initReactI18next).init({
   fallbackLng: "en",
@@ -702,6 +701,6 @@ i18n.on("languageChanged", language => {
   }
 })
 
-document.documentElement.lang = initialLanguage === "zh" ? "zh-CN" : "en"
+document.documentElement.lang = "en"
 
 export default i18n
