@@ -2,16 +2,19 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, ty
 import type { AgentSpeechState, AgentWorkspaceView, RecorderState } from './types'
 
 type AgentInputMode = 'voice' | 'text'
+export type AgentChatMode = 'general' | 'gmat-orbit-keeping'
 
 type AgentRecorderControlProps = {
   activeView: AgentWorkspaceView | null
   agentSpeechError: string
   agentSpeechState: AgentSpeechState
   busy: boolean
+  chatMode: AgentChatMode
   disabled: boolean
   error: string
   inputMode: AgentInputMode
   onButtonClick: () => void
+  onChatModeChange: (mode: AgentChatMode) => void
   onTextChange: (value: string) => void
   onTextSubmit: () => void
   recorderStatusText: string
@@ -42,10 +45,12 @@ export function AgentRecorderControl({
   agentSpeechError,
   agentSpeechState,
   busy,
+  chatMode,
   disabled,
   error,
   inputMode,
   onButtonClick,
+  onChatModeChange,
   onTextChange,
   onTextSubmit,
   recorderStatusText,
@@ -86,6 +91,7 @@ export function AgentRecorderControl({
   }
   const triggerRobotAction = () => {
     if (busy) {
+      if (chatMode === 'gmat-orbit-keeping') return
       onButtonClick()
       return
     }
@@ -283,13 +289,31 @@ export function AgentRecorderControl({
         </button>
         {inputMode === 'text' && textDialogOpen ? (
           <div className="agent-robot-chat">
+            <div className="agent-chat-mode" role="group" aria-label="Chat mode">
+              <button
+                aria-pressed={chatMode === 'general'}
+                className={chatMode === 'general' ? 'is-selected' : ''}
+                onClick={() => onChatModeChange('general')}
+                type="button"
+              >
+                General
+              </button>
+              <button
+                aria-pressed={chatMode === 'gmat-orbit-keeping'}
+                className={chatMode === 'gmat-orbit-keeping' ? 'is-selected' : ''}
+                onClick={() => onChatModeChange('gmat-orbit-keeping')}
+                type="button"
+              >
+                GMAT Orbit Keeping
+              </button>
+            </div>
             <textarea
               aria-label="文字输入"
               autoFocus
               disabled={textInputDisabled}
               onChange={event => onTextChange(event.target.value)}
               onKeyDown={handleTextKeyDown}
-              placeholder="输入任务目标..."
+              placeholder={chatMode === 'gmat-orbit-keeping' ? 'Describe the GMAT values to change...' : '输入任务目标...'}
               rows={3}
               value={textInputValue}
             />

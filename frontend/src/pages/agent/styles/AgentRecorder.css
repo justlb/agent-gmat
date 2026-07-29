@@ -653,6 +653,25 @@
   transition: transform 160ms ease;
 }
 
+.agent-chat-mode {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+}
+
+.agent-robot-chat .agent-chat-mode button {
+  flex: 1;
+  height: 28px;
+  background: #e8edf5;
+  color: #334155;
+  font-size: 11px;
+}
+
+.agent-robot-chat .agent-chat-mode button.is-selected {
+  background-image: linear-gradient(to right, #9147ff, #3b82f6);
+  color: #fff;
+}
+
 .agent-robot-chat::after {
   content: "";
   position: absolute;

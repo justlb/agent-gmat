@@ -16,6 +16,7 @@ import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
 import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex, type ManagedModelBackend } from './agent/managedRun'
+import { generateOrbitKeeping, type OrbitKeepingGenerateResult } from './agent/orbitKeepingApi'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -36,6 +37,7 @@ import './AgentPage.css'
 
 type AgentInputMode = 'voice' | 'text'
 type AgentTheme = 'dark' | 'light'
+type ChatMode = 'general' | 'gmat-orbit-keeping'
 
 const AGENT_THEME_STORAGE_KEY = 'agent-theme'
 
@@ -54,10 +56,12 @@ export default function AgentPage() {
   const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
   const [inputMode, setInputMode] = useState<AgentInputMode>('text')
+  const [chatMode, setChatMode] = useState<ChatMode>('general')
   const [modelBackend, setModelBackend] = useState<ManagedModelBackend>('chatModel')
   const [textInput, setTextInput] = useState('')
   const [textInputDisplay, setTextInputDisplay] = useState('')
   const [managedRunError, setManagedRunError] = useState('')
+  const [gmatGenerating, setGmatGenerating] = useState(false)
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
   const [remoteToolPortStatus, setRemoteToolPortStatus] = useState<RemoteToolPortSummary | null>(null)
   const [remoteToolPortError, setRemoteToolPortError] = useState('')
@@ -427,6 +431,7 @@ export default function AgentPage() {
   }, [agentSpeechPlaying, agentSpeechState, startRecording, state, stopAgentSpeechPlayback, stopRecording])
 
   const handleInputModeChange = useCallback((nextMode: AgentInputMode) => {
+    if (chatMode === 'gmat-orbit-keeping' && nextMode === 'voice') return
     if (nextMode === inputMode) return
     if (state === 'recording') cancelRecording()
     if (agentSpeechPlaying || agentSpeechState === 'synthesizing') stopAgentSpeechPlayback()
@@ -435,7 +440,19 @@ export default function AgentPage() {
     setManagedRunError('')
     setTextInputDisplay('')
     setInputMode(nextMode)
-  }, [agentSpeechPlaying, agentSpeechState, cancelRecording, clearAgentSpeechDisplay, clearRecorderDisplay, inputMode, state, stopAgentSpeechPlayback])
+  }, [agentSpeechPlaying, agentSpeechState, cancelRecording, chatMode, clearAgentSpeechDisplay, clearRecorderDisplay, inputMode, state, stopAgentSpeechPlayback])
+
+  const handleChatModeChange = useCallback((nextMode: ChatMode) => {
+    if (nextMode === chatMode) return
+    if (state === 'recording') cancelRecording()
+    if (agentSpeechPlaying || agentSpeechState === 'synthesizing') stopAgentSpeechPlayback()
+    clearAgentSpeechDisplay()
+    clearRecorderDisplay()
+    setManagedRunError('')
+    setTextInputDisplay('')
+    if (nextMode === 'gmat-orbit-keeping') setInputMode('text')
+    setChatMode(nextMode)
+  }, [agentSpeechPlaying, agentSpeechState, cancelRecording, chatMode, clearAgentSpeechDisplay, clearRecorderDisplay, state, stopAgentSpeechPlayback])
 
   const handleNavSelect = useCallback((item: (typeof NAV_ITEMS)[number], _index: number, event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault()
@@ -449,7 +466,7 @@ export default function AgentPage() {
   const progressStatusLabel = workflowProgressSummary.statusLabel || progressUpdatedAt
   const recordButtonBusy = agentSpeechState === 'synthesizing' || agentSpeechPlaying
   const recordButtonDisabled = state === 'transcribing'
-  const textComposerBusy = recordButtonBusy || state === 'transcribing'
+  const textComposerBusy = recordButtonBusy || state === 'transcribing' || gmatGenerating
   const textRecorderStatusText = textComposerBusy
     ? recorderStatusText
     : '文字输入模式，提交后继续语音播报'
@@ -460,8 +477,21 @@ export default function AgentPage() {
     setManagedRunError('')
     setTextInput('')
     setTextInputDisplay(prompt)
-    void runCodex(prompt, 'text')
-  }, [clearAgentSpeechDisplay, runCodex, textComposerBusy, textInput])
+    if (chatMode === 'general') {
+      void runCodex(prompt, 'text')
+      return
+    }
+    setGmatGenerating(true)
+    void generateOrbitKeeping(prompt)
+      .then((result: OrbitKeepingGenerateResult) => {
+        const changes = result.changes.map(change => `- ${change.id} = ${change.value}`).join('\n')
+        showSpeechText(`GMAT Orbit Keeping generated in ${result.latencyMs} ms.\nAccepted changes:\n${changes || '- none'}`)
+      })
+      .catch(error => {
+        setManagedRunError(error instanceof Error ? error.message : 'GMAT generation failed')
+      })
+      .finally(() => setGmatGenerating(false))
+  }, [chatMode, clearAgentSpeechDisplay, runCodex, showSpeechText, textComposerBusy, textInput])
   const displayedSessionStatus = managedVoiceRunning || latestManagedStatus?.status === 'running'
     ? 'running'
     : latestManagedStatus?.status === 'completed' || latestManagedStatus?.status === 'partial'
@@ -584,11 +614,13 @@ export default function AgentPage() {
           activeView={activeView}
           agentSpeechError={agentSpeechError}
           agentSpeechState={agentSpeechState}
-          busy={recordButtonBusy}
+          busy={recordButtonBusy || gmatGenerating}
+          chatMode={chatMode}
           disabled={recordButtonDisabled}
           error={error || managedRunError}
           inputMode={inputMode}
           onButtonClick={handleButtonClick}
+          onChatModeChange={handleChatModeChange}
           onTextChange={setTextInput}
           onTextSubmit={handleTextSubmit}
           recorderStatusText={inputMode === 'text' ? textRecorderStatusText : recorderStatusText}
