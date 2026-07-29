@@ -47,7 +47,7 @@ orbitKeepingTemplate.ts
 localisation et copie déterministe du template de référence ;
 
 orbitKeepingValues.ts
-extraction des 144 valeurs modifiables ;
+extraction des 193 valeurs modifiables ;
 lecture/validation du YAML ;
 application des changements ;
 rendu déterministe du script ;

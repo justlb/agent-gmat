@@ -2,10 +2,10 @@ schemaVersion: 1
 templateId: orbit-keeping
 slots:
   - id: line_014_DefaultSC_DateFormat
-    context: DefaultSC.DateFormat       = TAIModJulian;
+    context: DefaultSC.DateFormat = TAIModJulian;
     value: TAIModJulian
   - id: line_015_DefaultSC_Epoch
-    context: DefaultSC.Epoch            = '21545';
+    context: DefaultSC.Epoch = '21545';
     value: "'21545'"
   - id: line_016_DefaultSC_CoordinateSystem
     context: DefaultSC.CoordinateSystem = EarthMJ2000Eq;
@@ -14,469 +14,617 @@ slots:
     context: DefaultSC.DisplayStateType = Keplerian;
     value: Keplerian
   - id: line_018_DefaultSC_SMA
-    context: DefaultSC.SMA              = 6690.0;
-    value: "6690.0"
+    context: DefaultSC.SMA = 6578.136300000001;
+    value: "6578.136300000001"
   - id: line_019_DefaultSC_ECC
-    context: DefaultSC.ECC              = 0.0;
-    value: "0.0"
+    context: DefaultSC.ECC = 1.172614597519161e-16;
+    value: "1.172614597519161e-16"
   - id: line_020_DefaultSC_INC
-    context: DefaultSC.INC              = 0.0;
-    value: "0.0"
+    context: DefaultSC.INC = 0;
+    value: "0"
   - id: line_021_DefaultSC_RAAN
-    context: DefaultSC.RAAN             = 0.0;
-    value: "0.0"
+    context: DefaultSC.RAAN = 0;
+    value: "0"
   - id: line_022_DefaultSC_AOP
-    context: DefaultSC.AOP              = 0.0;
-    value: "0.0"
+    context: DefaultSC.AOP = 0;
+    value: "0"
   - id: line_023_DefaultSC_TA
-    context: DefaultSC.TA               = 0.0;
-    value: "0.0"
+    context: DefaultSC.TA = 0;
+    value: "0"
   - id: line_024_DefaultSC_DryMass
-    context: DefaultSC.DryMass          = 325;
-    value: "325"
+    context: DefaultSC.DryMass = 300;
+    value: "300"
   - id: line_025_DefaultSC_Cd
-    context: DefaultSC.Cd               = 2.5;
+    context: DefaultSC.Cd = 2.5;
     value: "2.5"
   - id: line_026_DefaultSC_Cr
-    context: DefaultSC.Cr               = 1.8;
+    context: DefaultSC.Cr = 1.8;
     value: "1.8"
   - id: line_027_DefaultSC_DragArea
-    context: DefaultSC.DragArea         = 15;
+    context: DefaultSC.DragArea = 15;
     value: "15"
   - id: line_028_DefaultSC_SRPArea
-    context: DefaultSC.SRPArea          = 1;
+    context: DefaultSC.SRPArea = 1;
     value: "1"
-  - id: line_030_DefaultSC_Tanks
-    context: DefaultSC.Tanks                   = {ChemicalTank1};
+  - id: line_029_DefaultSC_SPADDragScaleFactor
+    context: DefaultSC.SPADDragScaleFactor = 1;
+    value: "1"
+  - id: line_030_DefaultSC_SPADSRPScaleFactor
+    context: DefaultSC.SPADSRPScaleFactor = 1;
+    value: "1"
+  - id: line_031_DefaultSC_AtmosDensityScaleFactor
+    context: DefaultSC.AtmosDensityScaleFactor = 1;
+    value: "1"
+  - id: line_032_DefaultSC_ExtendedMassPropertiesModel
+    context: DefaultSC.ExtendedMassPropertiesModel = 'None';
+    value: "'None'"
+  - id: line_033_DefaultSC_Tanks
+    context: DefaultSC.Tanks = {ChemicalTank1};
     value: "{ChemicalTank1}"
-  - id: line_038_ChemicalTank1_AllowNegativeFuelMass
+  - id: line_034_DefaultSC_NAIFId
+    context: DefaultSC.NAIFId = -10022001;
+    value: "-10022001"
+  - id: line_035_DefaultSC_NAIFIdReferenceFrame
+    context: DefaultSC.NAIFIdReferenceFrame = -9022001;
+    value: "-9022001"
+  - id: line_036_DefaultSC_OrbitColor
+    context: DefaultSC.OrbitColor = Red;
+    value: Red
+  - id: line_037_DefaultSC_TargetColor
+    context: DefaultSC.TargetColor = Teal;
+    value: Teal
+  - id: line_038_DefaultSC_OrbitErrorCovariance
+    context: DefaultSC.OrbitErrorCovariance = [ 1e+70 0 0 0 0 0 ; 0 1e+70 0 0 0 0 ;
+      0 0 1e+70 0 0 0 ; 0 0 0 1e+70 0 0 ; 0 0 0 0 1e+70 0 ; 0 0 0 0 0 1e+70 ];
+    value: "[ 1e+70 0 0 0 0 0 ; 0 1e+70 0 0 0 0 ; 0 0 1e+70 0 0 0 ; 0 0 0 1e+70 0 0
+      ; 0 0 0 0 1e+70 0 ; 0 0 0 0 0 1e+70 ]"
+  - id: line_039_DefaultSC_CdSigma
+    context: DefaultSC.CdSigma = 1e+70;
+    value: "1e+70"
+  - id: line_040_DefaultSC_CrSigma
+    context: DefaultSC.CrSigma = 1e+70;
+    value: "1e+70"
+  - id: line_041_DefaultSC_Id
+    context: DefaultSC.Id = 'SatId';
+    value: "'SatId'"
+  - id: line_042_DefaultSC_Attitude
+    context: DefaultSC.Attitude = CoordinateSystemFixed;
+    value: CoordinateSystemFixed
+  - id: line_043_DefaultSC_SPADSRPInterpolationMethod
+    context: DefaultSC.SPADSRPInterpolationMethod = Bilinear;
+    value: Bilinear
+  - id: line_044_DefaultSC_SPADSRPScaleFactorSigma
+    context: DefaultSC.SPADSRPScaleFactorSigma = 1e+70;
+    value: "1e+70"
+  - id: line_045_DefaultSC_SPADDragInterpolationMethod
+    context: DefaultSC.SPADDragInterpolationMethod = Bilinear;
+    value: Bilinear
+  - id: line_046_DefaultSC_SPADDragScaleFactorSigma
+    context: DefaultSC.SPADDragScaleFactorSigma = 1e+70;
+    value: "1e+70"
+  - id: line_047_DefaultSC_AtmosDensityScaleFactorSigma
+    context: DefaultSC.AtmosDensityScaleFactorSigma = 1e+70;
+    value: "1e+70"
+  - id: line_048_DefaultSC_ModelFile
+    context: DefaultSC.ModelFile = 'aura.3ds';
+    value: "'aura.3ds'"
+  - id: line_049_DefaultSC_ModelOffsetX
+    context: DefaultSC.ModelOffsetX = 0;
+    value: "0"
+  - id: line_050_DefaultSC_ModelOffsetY
+    context: DefaultSC.ModelOffsetY = 0;
+    value: "0"
+  - id: line_051_DefaultSC_ModelOffsetZ
+    context: DefaultSC.ModelOffsetZ = 0;
+    value: "0"
+  - id: line_052_DefaultSC_ModelRotationX
+    context: DefaultSC.ModelRotationX = 0;
+    value: "0"
+  - id: line_053_DefaultSC_ModelRotationY
+    context: DefaultSC.ModelRotationY = 0;
+    value: "0"
+  - id: line_054_DefaultSC_ModelRotationZ
+    context: DefaultSC.ModelRotationZ = 0;
+    value: "0"
+  - id: line_055_DefaultSC_ModelScale
+    context: DefaultSC.ModelScale = 1;
+    value: "1"
+  - id: line_056_DefaultSC_AttitudeDisplayStateType
+    context: DefaultSC.AttitudeDisplayStateType = 'Quaternion';
+    value: "'Quaternion'"
+  - id: line_057_DefaultSC_AttitudeRateDisplayStateType
+    context: DefaultSC.AttitudeRateDisplayStateType = 'AngularVelocity';
+    value: "'AngularVelocity'"
+  - id: line_058_DefaultSC_AttitudeCoordinateSystem
+    context: DefaultSC.AttitudeCoordinateSystem = EarthMJ2000Eq;
+    value: EarthMJ2000Eq
+  - id: line_059_DefaultSC_EulerAngleSequence
+    context: DefaultSC.EulerAngleSequence = '321';
+    value: "'321'"
+  - id: line_067_ChemicalTank1_DirectionX
+    context: ChemicalTank1.DirectionX = 0;
+    value: "0"
+  - id: line_068_ChemicalTank1_DirectionY
+    context: ChemicalTank1.DirectionY = 0;
+    value: "0"
+  - id: line_069_ChemicalTank1_DirectionZ
+    context: ChemicalTank1.DirectionZ = 1;
+    value: "1"
+  - id: line_070_ChemicalTank1_SecondDirectionX
+    context: ChemicalTank1.SecondDirectionX = 0;
+    value: "0"
+  - id: line_071_ChemicalTank1_SecondDirectionY
+    context: ChemicalTank1.SecondDirectionY = -1;
+    value: "-1"
+  - id: line_072_ChemicalTank1_SecondDirectionZ
+    context: ChemicalTank1.SecondDirectionZ = 0;
+    value: "0"
+  - id: line_073_ChemicalTank1_HWOriginInBCSX
+    context: ChemicalTank1.HWOriginInBCSX = 0;
+    value: "0"
+  - id: line_074_ChemicalTank1_HWOriginInBCSY
+    context: ChemicalTank1.HWOriginInBCSY = 0;
+    value: "0"
+  - id: line_075_ChemicalTank1_HWOriginInBCSZ
+    context: ChemicalTank1.HWOriginInBCSZ = 0;
+    value: "0"
+  - id: line_076_ChemicalTank1_AllowNegativeFuelMass
     context: ChemicalTank1.AllowNegativeFuelMass = false;
     value: "false"
-  - id: line_039_ChemicalTank1_FuelMass
-    context: ChemicalTank1.FuelMass              = 25;
-    value: "25"
-  - id: line_040_ChemicalTank1_Pressure
-    context: ChemicalTank1.Pressure              = 1500;
+  - id: line_077_ChemicalTank1_FuelMass
+    context: ChemicalTank1.FuelMass = 200;
+    value: "200"
+  - id: line_078_ChemicalTank1_FuelCenterOfMassX
+    context: ChemicalTank1.FuelCenterOfMassX = 0;
+    value: "0"
+  - id: line_079_ChemicalTank1_FuelCenterOfMassY
+    context: ChemicalTank1.FuelCenterOfMassY = 0;
+    value: "0"
+  - id: line_080_ChemicalTank1_FuelCenterOfMassZ
+    context: ChemicalTank1.FuelCenterOfMassZ = 0;
+    value: "0"
+  - id: line_081_ChemicalTank1_FuelMomentOfInertiaXX
+    context: ChemicalTank1.FuelMomentOfInertiaXX = 99;
+    value: "99"
+  - id: line_082_ChemicalTank1_FuelMomentOfInertiaXY
+    context: ChemicalTank1.FuelMomentOfInertiaXY = 0;
+    value: "0"
+  - id: line_083_ChemicalTank1_FuelMomentOfInertiaXZ
+    context: ChemicalTank1.FuelMomentOfInertiaXZ = 0;
+    value: "0"
+  - id: line_084_ChemicalTank1_FuelMomentOfInertiaYY
+    context: ChemicalTank1.FuelMomentOfInertiaYY = 99;
+    value: "99"
+  - id: line_085_ChemicalTank1_FuelMomentOfInertiaYZ
+    context: ChemicalTank1.FuelMomentOfInertiaYZ = 0;
+    value: "0"
+  - id: line_086_ChemicalTank1_FuelMomentOfInertiaZZ
+    context: ChemicalTank1.FuelMomentOfInertiaZZ = 99;
+    value: "99"
+  - id: line_087_ChemicalTank1_Pressure
+    context: ChemicalTank1.Pressure = 1500;
     value: "1500"
-  - id: line_041_ChemicalTank1_Temperature
-    context: ChemicalTank1.Temperature           = 20;
+  - id: line_088_ChemicalTank1_Temperature
+    context: ChemicalTank1.Temperature = 20;
     value: "20"
-  - id: line_042_ChemicalTank1_RefTemperature
-    context: ChemicalTank1.RefTemperature        = 20;
+  - id: line_089_ChemicalTank1_RefTemperature
+    context: ChemicalTank1.RefTemperature = 20;
     value: "20"
-  - id: line_043_ChemicalTank1_Volume
-    context: ChemicalTank1.Volume                = 0.75;
+  - id: line_090_ChemicalTank1_Volume
+    context: ChemicalTank1.Volume = 0.75;
     value: "0.75"
-  - id: line_044_ChemicalTank1_FuelDensity
-    context: ChemicalTank1.FuelDensity           = 1260;
+  - id: line_091_ChemicalTank1_FuelDensity
+    context: ChemicalTank1.FuelDensity = 1260;
     value: "1260"
-  - id: line_045_ChemicalTank1_PressureModel
-    context: ChemicalTank1.PressureModel         = PressureRegulated;
+  - id: line_092_ChemicalTank1_PressureModel
+    context: ChemicalTank1.PressureModel = PressureRegulated;
     value: PressureRegulated
-  - id: line_049_TOI_CoordinateSystem
-    context: TOI.CoordinateSystem   = Local;
-    value: Local
-  - id: line_050_TOI_Origin
-    context: TOI.Origin             = Earth;
+  - id: line_101_DefaultProp_ForceModel_CentralBody
+    context: DefaultProp_ForceModel.CentralBody = Earth;
     value: Earth
-  - id: line_051_TOI_Axes
-    context: TOI.Axes               = VNB;
-    value: VNB
-  - id: line_052_TOI_Element1
-    context: TOI.Element1           = 0.01;
-    value: "0.01"
-  - id: line_053_TOI_Element2
-    context: TOI.Element2           = 0;
-    value: "0"
-  - id: line_054_TOI_Element3
-    context: TOI.Element3           = 0;
-    value: "0"
-  - id: line_055_TOI_DecrementMass
-    context: TOI.DecrementMass      = true;
-    value: "true"
-  - id: line_056_TOI_Isp
-    context: TOI.Isp                = 300;
-    value: "300"
-  - id: line_057_TOI_GravitationalAccel
-    context: TOI.GravitationalAccel = 9.81;
-    value: "9.81"
-  - id: line_059_TOI_Tank
-    context: TOI.Tank               = {ChemicalTank1};
-    value: "{ChemicalTank1}"
-  - id: line_063_GOI_CoordinateSystem
-    context: GOI.CoordinateSystem   = Local;
-    value: Local
-  - id: line_064_GOI_Origin
-    context: GOI.Origin             = Earth;
-    value: Earth
-  - id: line_065_GOI_Axes
-    context: GOI.Axes               = VNB;
-    value: VNB
-  - id: line_066_GOI_Element1
-    context: GOI.Element1           = 0.01;
-    value: "0.01"
-  - id: line_067_GOI_Element2
-    context: GOI.Element2           = 0;
-    value: "0"
-  - id: line_068_GOI_Element3
-    context: GOI.Element3           = 0;
-    value: "0"
-  - id: line_069_GOI_DecrementMass
-    context: GOI.DecrementMass      = true;
-    value: "true"
-  - id: line_070_GOI_Isp
-    context: GOI.Isp                = 300;
-    value: "300"
-  - id: line_071_GOI_GravitationalAccel
-    context: GOI.GravitationalAccel = 9.81;
-    value: "9.81"
-  - id: line_073_GOI_Tank
-    context: GOI.Tank               = {ChemicalTank1};
-    value: "{ChemicalTank1}"
-  - id: line_081_DefaultProp_ForceModel_CentralBody
-    context: DefaultProp_ForceModel.CentralBody                      = Earth;
-    value: Earth
-  - id: line_082_DefaultProp_ForceModel_PrimaryBodies
-    context: DefaultProp_ForceModel.PrimaryBodies                    = {Earth};
+  - id: line_102_DefaultProp_ForceModel_PrimaryBodies
+    context: DefaultProp_ForceModel.PrimaryBodies = {Earth};
     value: "{Earth}"
-  - id: line_083_DefaultProp_ForceModel_PointMasses
-    context: DefaultProp_ForceModel.PointMasses                      = {};
-    value: "{}"
-  - id: line_084_DefaultProp_ForceModel_SRP
-    context: DefaultProp_ForceModel.SRP                              = Off;
+  - id: line_103_DefaultProp_ForceModel_SRP
+    context: DefaultProp_ForceModel.SRP = Off;
     value: Off
-  - id: line_085_DefaultProp_ForceModel_RelativisticCorrection
-    context: DefaultProp_ForceModel.RelativisticCorrection           = Off;
+  - id: line_104_DefaultProp_ForceModel_RelativisticCorrection
+    context: DefaultProp_ForceModel.RelativisticCorrection = Off;
     value: Off
-  - id: line_086_DefaultProp_ForceModel_ErrorControl
-    context: DefaultProp_ForceModel.ErrorControl                     = RSSStep;
+  - id: line_105_DefaultProp_ForceModel_ErrorControl
+    context: DefaultProp_ForceModel.ErrorControl = RSSStep;
     value: RSSStep
-  - id: line_088_DefaultProp_ForceModel_GravityField_Earth_Degree
-    context: DefaultProp_ForceModel.GravityField.Earth.Degree        = 4;
+  - id: line_106_DefaultProp_ForceModel_GravityField_Earth_Degree
+    context: DefaultProp_ForceModel.GravityField.Earth.Degree = 4;
     value: "4"
-  - id: line_089_DefaultProp_ForceModel_GravityField_Earth_Order
-    context: DefaultProp_ForceModel.GravityField.Earth.Order         = 4;
+  - id: line_107_DefaultProp_ForceModel_GravityField_Earth_Order
+    context: DefaultProp_ForceModel.GravityField.Earth.Order = 4;
     value: "4"
-  - id: line_090_DefaultProp_ForceModel_GravityField_Earth_PotentialFile
+  - id: line_108_DefaultProp_ForceModel_GravityField_Earth_StmLimit
+    context: DefaultProp_ForceModel.GravityField.Earth.StmLimit = 100;
+    value: "100"
+  - id: line_109_DefaultProp_ForceModel_GravityField_Earth_PotentialFile
     context: DefaultProp_ForceModel.GravityField.Earth.PotentialFile = 'JGM2.cof';
     value: "'JGM2.cof'"
-  - id: line_091_DefaultProp_ForceModel_GravityField_Earth_TideModel
-    context: DefaultProp_ForceModel.GravityField.Earth.TideModel     = 'None';
+  - id: line_110_DefaultProp_ForceModel_GravityField_Earth_TideModel
+    context: DefaultProp_ForceModel.GravityField.Earth.TideModel = 'None';
     value: "'None'"
-  - id: line_092_DefaultProp_ForceModel_Drag_AtmosphereModel
-    context: DefaultProp_ForceModel.Drag.AtmosphereModel             = MSISE90;
+  - id: line_111_DefaultProp_ForceModel_Drag_AtmosphereModel
+    context: DefaultProp_ForceModel.Drag.AtmosphereModel = MSISE90;
     value: MSISE90
-  - id: line_093_DefaultProp_ForceModel_Drag_DragModel
-    context: DefaultProp_ForceModel.Drag.DragModel                   = 'Spherical';
-    value: "'Spherical'"
-  - id: line_094_DefaultProp_ForceModel_Drag_HistoricWeatherSource
-    context: DefaultProp_ForceModel.Drag.HistoricWeatherSource       =
+  - id: line_112_DefaultProp_ForceModel_Drag_HistoricWeatherSource
+    context: DefaultProp_ForceModel.Drag.HistoricWeatherSource =
       'ConstantFluxAndGeoMag';
     value: "'ConstantFluxAndGeoMag'"
-  - id: line_095_DefaultProp_ForceModel_Drag_PredictedWeatherSource
-    context: DefaultProp_ForceModel.Drag.PredictedWeatherSource      =
+  - id: line_113_DefaultProp_ForceModel_Drag_PredictedWeatherSource
+    context: DefaultProp_ForceModel.Drag.PredictedWeatherSource =
       'ConstantFluxAndGeoMag';
     value: "'ConstantFluxAndGeoMag'"
-  - id: line_096_DefaultProp_ForceModel_Drag_F107
-    context: DefaultProp_ForceModel.Drag.F107                        = 150;
+  - id: line_114_DefaultProp_ForceModel_Drag_CSSISpaceWeatherFile
+    context: DefaultProp_ForceModel.Drag.CSSISpaceWeatherFile =
+      'SpaceWeather-All-v1.2.txt';
+    value: "'SpaceWeather-All-v1.2.txt'"
+  - id: line_115_DefaultProp_ForceModel_Drag_SchattenFile
+    context: DefaultProp_ForceModel.Drag.SchattenFile = 'SchattenPredict.txt';
+    value: "'SchattenPredict.txt'"
+  - id: line_116_DefaultProp_ForceModel_Drag_F107
+    context: DefaultProp_ForceModel.Drag.F107 = 150;
     value: "150"
-  - id: line_097_DefaultProp_ForceModel_Drag_F107A
-    context: DefaultProp_ForceModel.Drag.F107A                       = 150;
+  - id: line_117_DefaultProp_ForceModel_Drag_F107A
+    context: DefaultProp_ForceModel.Drag.F107A = 150;
     value: "150"
-  - id: line_098_DefaultProp_ForceModel_Drag_MagneticIndex
-    context: DefaultProp_ForceModel.Drag.MagneticIndex               = 3;
+  - id: line_118_DefaultProp_ForceModel_Drag_MagneticIndex
+    context: DefaultProp_ForceModel.Drag.MagneticIndex = 3;
     value: "3"
-  - id: line_099_DefaultProp_ForceModel_Drag_SchattenErrorModel
-    context: DefaultProp_ForceModel.Drag.SchattenErrorModel          = 'Nominal';
+  - id: line_119_DefaultProp_ForceModel_Drag_SchattenErrorModel
+    context: DefaultProp_ForceModel.Drag.SchattenErrorModel = 'Nominal';
     value: "'Nominal'"
-  - id: line_100_DefaultProp_ForceModel_Drag_SchattenTimingModel
-    context: DefaultProp_ForceModel.Drag.SchattenTimingModel         = 'NominalCycle';
+  - id: line_120_DefaultProp_ForceModel_Drag_SchattenTimingModel
+    context: DefaultProp_ForceModel.Drag.SchattenTimingModel = 'NominalCycle';
     value: "'NominalCycle'"
-  - id: line_108_DefaultProp_FM
-    context: DefaultProp.FM                       = DefaultProp_ForceModel;
+  - id: line_121_DefaultProp_ForceModel_Drag_DragModel
+    context: DefaultProp_ForceModel.Drag.DragModel = 'Spherical';
+    value: "'Spherical'"
+  - id: line_129_DefaultProp_FM
+    context: DefaultProp.FM = DefaultProp_ForceModel;
     value: DefaultProp_ForceModel
-  - id: line_109_DefaultProp_Type
-    context: DefaultProp.Type                     = RungeKutta89;
+  - id: line_130_DefaultProp_Type
+    context: DefaultProp.Type = RungeKutta89;
     value: RungeKutta89
-  - id: line_110_DefaultProp_InitialStepSize
-    context: DefaultProp.InitialStepSize          = 60;
+  - id: line_131_DefaultProp_InitialStepSize
+    context: DefaultProp.InitialStepSize = 60;
     value: "60"
-  - id: line_111_DefaultProp_Accuracy
-    context: DefaultProp.Accuracy                 = 1e-11;
-    value: "1e-11"
-  - id: line_112_DefaultProp_MinStep
-    context: DefaultProp.MinStep                  = 0.001;
+  - id: line_132_DefaultProp_Accuracy
+    context: DefaultProp.Accuracy = 9.999999999999999e-12;
+    value: "9.999999999999999e-12"
+  - id: line_133_DefaultProp_MinStep
+    context: DefaultProp.MinStep = 0.001;
     value: "0.001"
-  - id: line_113_DefaultProp_MaxStep
-    context: DefaultProp.MaxStep                  = 2700;
+  - id: line_134_DefaultProp_MaxStep
+    context: DefaultProp.MaxStep = 2700;
     value: "2700"
-  - id: line_114_DefaultProp_MaxStepAttempts
-    context: DefaultProp.MaxStepAttempts          = 50;
+  - id: line_135_DefaultProp_MaxStepAttempts
+    context: DefaultProp.MaxStepAttempts = 50;
     value: "50"
-  - id: line_115_DefaultProp_StopIfAccuracyIsViolated
+  - id: line_136_DefaultProp_StopIfAccuracyIsViolated
     context: DefaultProp.StopIfAccuracyIsViolated = true;
     value: "true"
-  - id: line_122_minAltitude
-    context: minAltitude = 200;
-    value: "200"
-  - id: line_130_DC1_ShowProgress
-    context: DC1.ShowProgress      = true;
+  - id: line_144_TOI_CoordinateSystem
+    context: TOI.CoordinateSystem = Local;
+    value: Local
+  - id: line_145_TOI_Origin
+    context: TOI.Origin = Earth;
+    value: Earth
+  - id: line_146_TOI_Axes
+    context: TOI.Axes = VNB;
+    value: VNB
+  - id: line_147_TOI_Element1
+    context: TOI.Element1 = 0.003;
+    value: "0.003"
+  - id: line_148_TOI_Element2
+    context: TOI.Element2 = 0;
+    value: "0"
+  - id: line_149_TOI_Element3
+    context: TOI.Element3 = 0;
+    value: "0"
+  - id: line_150_TOI_DecrementMass
+    context: TOI.DecrementMass = true;
     value: "true"
-  - id: line_131_DC1_ReportStyle
-    context: DC1.ReportStyle       = Normal;
+  - id: line_151_TOI_Tank
+    context: TOI.Tank = {ChemicalTank1};
+    value: "{ChemicalTank1}"
+  - id: line_152_TOI_Isp
+    context: TOI.Isp = 300;
+    value: "300"
+  - id: line_153_TOI_GravitationalAccel
+    context: TOI.GravitationalAccel = 9.81;
+    value: "9.81"
+  - id: line_157_GOI_CoordinateSystem
+    context: GOI.CoordinateSystem = Local;
+    value: Local
+  - id: line_158_GOI_Origin
+    context: GOI.Origin = Earth;
+    value: Earth
+  - id: line_159_GOI_Axes
+    context: GOI.Axes = VNB;
+    value: VNB
+  - id: line_160_GOI_Element1
+    context: GOI.Element1 = 0.003;
+    value: "0.003"
+  - id: line_161_GOI_Element2
+    context: GOI.Element2 = 0;
+    value: "0"
+  - id: line_162_GOI_Element3
+    context: GOI.Element3 = 0;
+    value: "0"
+  - id: line_163_GOI_DecrementMass
+    context: GOI.DecrementMass = true;
+    value: "true"
+  - id: line_164_GOI_Tank
+    context: GOI.Tank = {ChemicalTank1};
+    value: "{ChemicalTank1}"
+  - id: line_165_GOI_Isp
+    context: GOI.Isp = 300;
+    value: "300"
+  - id: line_166_GOI_GravitationalAccel
+    context: GOI.GravitationalAccel = 9.81;
+    value: "9.81"
+  - id: line_174_DefaultDC_ShowProgress
+    context: DefaultDC.ShowProgress = true;
+    value: "true"
+  - id: line_175_DefaultDC_ReportStyle
+    context: DefaultDC.ReportStyle = Normal;
     value: Normal
-  - id: line_132_DC1_ReportFile
-    context: DC1.ReportFile        = 'DifferentialCorrectorDC1.data';
+  - id: line_176_DefaultDC_ReportFile
+    context: DefaultDC.ReportFile = 'DifferentialCorrectorDC1.data';
     value: "'DifferentialCorrectorDC1.data'"
-  - id: line_133_DC1_MaximumIterations
-    context: DC1.MaximumIterations = 25;
+  - id: line_177_DefaultDC_MaximumIterations
+    context: DefaultDC.MaximumIterations = 25;
     value: "25"
-  - id: line_134_DC1_DerivativeMethod
-    context: DC1.DerivativeMethod  = ForwardDifference;
+  - id: line_178_DefaultDC_DerivativeMethod
+    context: DefaultDC.DerivativeMethod = ForwardDifference;
     value: ForwardDifference
-  - id: line_135_DC1_Algorithm
-    context: DC1.Algorithm         = NewtonRaphson;
+  - id: line_179_DefaultDC_Algorithm
+    context: DefaultDC.Algorithm = NewtonRaphson;
     value: NewtonRaphson
-  - id: line_145_AltitudePlot_SolverIterations
+  - id: line_187_AltitudePlot_SolverIterations
     context: AltitudePlot.SolverIterations = Current;
     value: Current
-  - id: line_146_AltitudePlot_UpperLeft
-    context: AltitudePlot.UpperLeft = [ 0 0 ];
-    value: "[ 0 0 ]"
-  - id: line_147_AltitudePlot_Size
-    context: AltitudePlot.Size = [ 0 0 ];
-    value: "[ 0 0 ]"
-  - id: line_148_AltitudePlot_RelativeZOrder
-    context: AltitudePlot.RelativeZOrder = 0;
-    value: "0"
-  - id: line_149_AltitudePlot_Maximized
+  - id: line_188_AltitudePlot_UpperLeft
+    context: AltitudePlot.UpperLeft = [ 0.002258355916892502 0 ];
+    value: "[ 0.002258355916892502 0 ]"
+  - id: line_189_AltitudePlot_Size
+    context: AltitudePlot.Size = [ 0.5 0.4498644986449865 ];
+    value: "[ 0.5 0.4498644986449865 ]"
+  - id: line_190_AltitudePlot_RelativeZOrder
+    context: AltitudePlot.RelativeZOrder = 1212;
+    value: "1212"
+  - id: line_191_AltitudePlot_Maximized
     context: AltitudePlot.Maximized = false;
     value: "false"
-  - id: line_150_AltitudePlot_XVariable
+  - id: line_192_AltitudePlot_XVariable
     context: AltitudePlot.XVariable = DefaultSC.ElapsedDays;
     value: DefaultSC.ElapsedDays
-  - id: line_151_AltitudePlot_YVariables
+  - id: line_193_AltitudePlot_YVariables
     context: AltitudePlot.YVariables = {DefaultSC.Earth.Altitude};
     value: "{DefaultSC.Earth.Altitude}"
-  - id: line_152_AltitudePlot_ShowGrid
+  - id: line_194_AltitudePlot_ShowGrid
     context: AltitudePlot.ShowGrid = true;
     value: "true"
-  - id: line_153_AltitudePlot_ShowPlot
+  - id: line_195_AltitudePlot_ShowPlot
     context: AltitudePlot.ShowPlot = true;
     value: "true"
-  - id: line_158_FuelPlot_SolverIterations
+  - id: line_199_FuelPlot_SolverIterations
     context: FuelPlot.SolverIterations = Current;
     value: Current
-  - id: line_159_FuelPlot_UpperLeft
-    context: FuelPlot.UpperLeft = [ 0 0 ];
-    value: "[ 0 0 ]"
-  - id: line_160_FuelPlot_Size
-    context: FuelPlot.Size = [ 0 0 ];
-    value: "[ 0 0 ]"
-  - id: line_161_FuelPlot_RelativeZOrder
-    context: FuelPlot.RelativeZOrder = 0;
-    value: "0"
-  - id: line_162_FuelPlot_Maximized
+  - id: line_200_FuelPlot_UpperLeft
+    context: FuelPlot.UpperLeft = [ 0.002258355916892502 0.4534778681120145 ];
+    value: "[ 0.002258355916892502 0.4534778681120145 ]"
+  - id: line_201_FuelPlot_Size
+    context: FuelPlot.Size = [ 0.5 0.4498644986449865 ];
+    value: "[ 0.5 0.4498644986449865 ]"
+  - id: line_202_FuelPlot_RelativeZOrder
+    context: FuelPlot.RelativeZOrder = 1242;
+    value: "1242"
+  - id: line_203_FuelPlot_Maximized
     context: FuelPlot.Maximized = false;
     value: "false"
-  - id: line_163_FuelPlot_XVariable
+  - id: line_204_FuelPlot_XVariable
     context: FuelPlot.XVariable = DefaultSC.A1ModJulian;
     value: DefaultSC.A1ModJulian
-  - id: line_164_FuelPlot_YVariables
+  - id: line_205_FuelPlot_YVariables
     context: FuelPlot.YVariables = {DefaultSC.ChemicalTank1.FuelMass};
     value: "{DefaultSC.ChemicalTank1.FuelMass}"
-  - id: line_165_FuelPlot_ShowGrid
+  - id: line_206_FuelPlot_ShowGrid
     context: FuelPlot.ShowGrid = true;
     value: "true"
-  - id: line_166_FuelPlot_ShowPlot
+  - id: line_207_FuelPlot_ShowPlot
     context: FuelPlot.ShowPlot = true;
     value: "true"
-  - id: line_171_ReboostReport_SolverIterations
+  - id: line_210_ReboostReport_SolverIterations
     context: ReboostReport.SolverIterations = Current;
     value: Current
-  - id: line_172_ReboostReport_UpperLeft
+  - id: line_211_ReboostReport_UpperLeft
     context: ReboostReport.UpperLeft = [ 0 0 ];
     value: "[ 0 0 ]"
-  - id: line_173_ReboostReport_Size
+  - id: line_212_ReboostReport_Size
     context: ReboostReport.Size = [ 0 0 ];
     value: "[ 0 0 ]"
-  - id: line_174_ReboostReport_RelativeZOrder
+  - id: line_213_ReboostReport_RelativeZOrder
     context: ReboostReport.RelativeZOrder = 0;
     value: "0"
-  - id: line_175_ReboostReport_Maximized
+  - id: line_214_ReboostReport_Maximized
     context: ReboostReport.Maximized = false;
     value: "false"
-  - id: line_176_ReboostReport_Filename
+  - id: line_216_ReboostReport_Filename
     context: ReboostReport.Filename = 'ReboostReport.txt';
     value: "'ReboostReport.txt'"
-  - id: line_177_ReboostReport_Precision
+  - id: line_217_ReboostReport_Precision
     context: ReboostReport.Precision = 16;
     value: "16"
-  - id: line_178_ReboostReport_WriteHeaders
+  - id: line_218_ReboostReport_WriteHeaders
     context: ReboostReport.WriteHeaders = true;
     value: "true"
-  - id: line_179_ReboostReport_LeftJustify
+  - id: line_219_ReboostReport_LeftJustify
     context: ReboostReport.LeftJustify = On;
     value: On
-  - id: line_180_ReboostReport_ZeroFill
+  - id: line_220_ReboostReport_ZeroFill
     context: ReboostReport.ZeroFill = Off;
     value: Off
-  - id: line_181_ReboostReport_FixedWidth
+  - id: line_221_ReboostReport_FixedWidth
     context: ReboostReport.FixedWidth = true;
     value: "true"
-  - id: line_182_ReboostReport_Delimiter
+  - id: line_222_ReboostReport_Delimiter
     context: ReboostReport.Delimiter = ' ';
     value: "' '"
-  - id: line_183_ReboostReport_ColumnWidth
+  - id: line_223_ReboostReport_ColumnWidth
     context: ReboostReport.ColumnWidth = 23;
     value: "23"
-  - id: line_184_ReboostReport_WriteReport
+  - id: line_224_ReboostReport_WriteReport
     context: ReboostReport.WriteReport = true;
     value: "true"
-  - id: line_185_ReboostReport_AppendToExistingFile
+  - id: line_225_ReboostReport_AppendToExistingFile
     context: ReboostReport.AppendToExistingFile = false;
     value: "false"
-  - id: line_194_literal_1
-    context: While DefaultSC.ChemicalTank1.FuelMass > 7;
+  - id: line_236_minAltitude
+    context: minAltitude = 190;
+    value: "190"
+  - id: line_237_finalAltitude
+    context: finalAltitude = 100;
+    value: "100"
+  - id: line_238_fuelReserve
+    context: fuelReserve = 7;
     value: "7"
-  - id: line_197_literal_1
-    context: Propagate DefaultProp(DefaultSC) {DefaultSC.ElapsedDays = 15,
-      DefaultSC.Earth.Altitude = minAltitude};
-    value: "15"
-  - id: line_200_literal_1
-    context: Propagate 'Prop To Periapsis' DefaultProp(DefaultSC)
-      {DefaultSC.Earth.Periapsis};
-    value: "'Prop To Periapsis'"
-  - id: line_203_literal_1
-    context: Target 'Hohmann Transfer' DC1 {SolveMode = Solve, ExitMode =
-      SaveAndContinue, ShowProgressWindow = true};
-    value: "'Hohmann Transfer'"
-  - id: line_203_literal_2
-    context: Target 'Hohmann Transfer' DC1 {SolveMode = Solve, ExitMode =
-      SaveAndContinue, ShowProgressWindow = true};
+  - id: line_239_targetSMA
+    context: targetSMA = 6578.1363;
+    value: "6578.1363"
+  - id: line_255_literal_1
+    context: Propagate 'Propagate to Reboost Altitude' DefaultProp(DefaultSC)
+      {DefaultSC.Earth.Altitude = minAltitude};
+    value: "'Propagate to Reboost Altitude'"
+  - id: line_257_literal_1
+    context: Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode =
+      DiscardAndContinue, ShowProgressWindow = true};
+    value: "'Circular Reboost'"
+  - id: line_257_literal_2
+    context: Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode =
+      DiscardAndContinue, ShowProgressWindow = true};
     value: "true"
-  - id: line_206_literal_1
-    context: Vary 'Vary TOI' DC1(TOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = -9.999999e300, Upper = 9.999999e300, MaxStep = 200, AdditiveScaleFactor
-      = 0.0, MultiplicativeScaleFactor = 1.0});
-    value: "'Vary TOI'"
-  - id: line_206_literal_2
-    context: Vary 'Vary TOI' DC1(TOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = -9.999999e300, Upper = 9.999999e300, MaxStep = 200, AdditiveScaleFactor
-      = 0.0, MultiplicativeScaleFactor = 1.0});
-    value: "0.01"
-  - id: line_206_literal_3
-    context: Vary 'Vary TOI' DC1(TOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = -9.999999e300, Upper = 9.999999e300, MaxStep = 200, AdditiveScaleFactor
-      = 0.0, MultiplicativeScaleFactor = 1.0});
+  - id: line_259_literal_1
+    context: Propagate 'Propagate to Periapsis' DefaultProp(DefaultSC)
+      {DefaultSC.Earth.Periapsis};
+    value: "'Propagate to Periapsis'"
+  - id: line_263_literal_1
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "'Vary TOI.V'"
+  - id: line_263_literal_2
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "0.003"
+  - id: line_263_literal_3
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.0001"
-  - id: line_206_literal_4
-    context: Vary 'Vary TOI' DC1(TOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = -9.999999e300, Upper = 9.999999e300, MaxStep = 200, AdditiveScaleFactor
-      = 0.0, MultiplicativeScaleFactor = 1.0});
-    value: "-9.999999e300"
-  - id: line_206_literal_5
-    context: Vary 'Vary TOI' DC1(TOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = -9.999999e300, Upper = 9.999999e300, MaxStep = 200, AdditiveScaleFactor
-      = 0.0, MultiplicativeScaleFactor = 1.0});
-    value: "9.999999e300"
-  - id: line_206_literal_6
-    context: Vary 'Vary TOI' DC1(TOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = -9.999999e300, Upper = 9.999999e300, MaxStep = 200, AdditiveScaleFactor
-      = 0.0, MultiplicativeScaleFactor = 1.0});
-    value: "200"
-  - id: line_206_literal_7
-    context: Vary 'Vary TOI' DC1(TOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = -9.999999e300, Upper = 9.999999e300, MaxStep = 200, AdditiveScaleFactor
-      = 0.0, MultiplicativeScaleFactor = 1.0});
-    value: "0.0"
-  - id: line_206_literal_8
-    context: Vary 'Vary TOI' DC1(TOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = -9.999999e300, Upper = 9.999999e300, MaxStep = 200, AdditiveScaleFactor
-      = 0.0, MultiplicativeScaleFactor = 1.0});
-    value: "1.0"
-  - id: line_209_literal_1
-    context: Maneuver 'Perform TOI' TOI(DefaultSC);
-    value: "'Perform TOI'"
-  - id: line_212_literal_1
-    context: Propagate 'Prop To Apoapsis' DefaultProp(DefaultSC)
-      {DefaultSC.Earth.Apoapsis};
-    value: "'Prop To Apoapsis'"
-  - id: line_215_literal_1
-    context: Vary 'Vary GOI' DC1(GOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = 0, Upper = 3.14159, MaxStep = 0.2, AdditiveScaleFactor = 0.0,
-      MultiplicativeScaleFactor = 1.0});
-    value: "'Vary GOI'"
-  - id: line_215_literal_2
-    context: Vary 'Vary GOI' DC1(GOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = 0, Upper = 3.14159, MaxStep = 0.2, AdditiveScaleFactor = 0.0,
-      MultiplicativeScaleFactor = 1.0});
-    value: "0.01"
-  - id: line_215_literal_3
-    context: Vary 'Vary GOI' DC1(GOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = 0, Upper = 3.14159, MaxStep = 0.2, AdditiveScaleFactor = 0.0,
-      MultiplicativeScaleFactor = 1.0});
-    value: "0.0001"
-  - id: line_215_literal_4
-    context: Vary 'Vary GOI' DC1(GOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = 0, Upper = 3.14159, MaxStep = 0.2, AdditiveScaleFactor = 0.0,
-      MultiplicativeScaleFactor = 1.0});
+  - id: line_263_literal_4
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
     value: "0"
-  - id: line_215_literal_5
-    context: Vary 'Vary GOI' DC1(GOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = 0, Upper = 3.14159, MaxStep = 0.2, AdditiveScaleFactor = 0.0,
-      MultiplicativeScaleFactor = 1.0});
-    value: "3.14159"
-  - id: line_215_literal_6
-    context: Vary 'Vary GOI' DC1(GOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = 0, Upper = 3.14159, MaxStep = 0.2, AdditiveScaleFactor = 0.0,
-      MultiplicativeScaleFactor = 1.0});
-    value: "0.2"
-  - id: line_215_literal_7
-    context: Vary 'Vary GOI' DC1(GOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = 0, Upper = 3.14159, MaxStep = 0.2, AdditiveScaleFactor = 0.0,
-      MultiplicativeScaleFactor = 1.0});
+  - id: line_263_literal_5
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "0.02"
+  - id: line_263_literal_6
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "0.005"
+  - id: line_263_literal_7
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.0"
-  - id: line_215_literal_8
-    context: Vary 'Vary GOI' DC1(GOI.Element1 = 0.01, {Perturbation = 0.0001, Lower
-      = 0, Upper = 3.14159, MaxStep = 0.2, AdditiveScaleFactor = 0.0,
-      MultiplicativeScaleFactor = 1.0});
+  - id: line_263_literal_8
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
     value: "1.0"
-  - id: line_218_literal_1
-    context: Maneuver 'Perform GOI' GOI(DefaultSC);
-    value: "'Perform GOI'"
-  - id: line_221_literal_1
-    context: Achieve 'Achieve DefaultSC.Earth.SMA = 6690' DC1(DefaultSC.Earth.SMA =
-      6690, {Tolerance = 1.0});
-    value: "'Achieve DefaultSC.Earth.SMA = 6690'"
-  - id: line_221_literal_2
-    context: Achieve 'Achieve DefaultSC.Earth.SMA = 6690' DC1(DefaultSC.Earth.SMA =
-      6690, {Tolerance = 1.0});
-    value: "6690"
-  - id: line_221_literal_3
-    context: Achieve 'Achieve DefaultSC.Earth.SMA = 6690' DC1(DefaultSC.Earth.SMA =
-      6690, {Tolerance = 1.0});
+  - id: line_264_literal_1
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "'Vary GOI.V'"
+  - id: line_264_literal_2
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "0.003"
+  - id: line_264_literal_3
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "0.0001"
+  - id: line_264_literal_4
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "0"
+  - id: line_264_literal_5
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "0.02"
+  - id: line_264_literal_6
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "0.005"
+  - id: line_264_literal_7
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
+    value: "0.0"
+  - id: line_264_literal_8
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+      0.0, MultiplicativeScaleFactor = 1.0});
     value: "1.0"
-  - id: line_224_literal_1
-    context: Achieve 'Achieve DefaultSC.Earth.ECC = 0.005' DC1(DefaultSC.Earth.ECC =
-      0.005, {Tolerance = 0.005});
-    value: "'Achieve DefaultSC.Earth.ECC = 0.005'"
-  - id: line_224_literal_2
-    context: Achieve 'Achieve DefaultSC.Earth.ECC = 0.005' DC1(DefaultSC.Earth.ECC =
-      0.005, {Tolerance = 0.005});
+  - id: line_266_literal_1
+    context: Maneuver 'Apply TOI' TOI(DefaultSC);
+    value: "'Apply TOI'"
+  - id: line_267_literal_1
+    context: Propagate 'Propagate to Apoapsis' DefaultProp(DefaultSC)
+      {DefaultSC.Earth.Apoapsis};
+    value: "'Propagate to Apoapsis'"
+  - id: line_268_literal_1
+    context: Achieve 'Achieve Target SMA' DefaultDC(DefaultSC.Earth.SMA = targetSMA,
+      {Tolerance = 1.0});
+    value: "'Achieve Target SMA'"
+  - id: line_268_literal_2
+    context: Achieve 'Achieve Target SMA' DefaultDC(DefaultSC.Earth.SMA = targetSMA,
+      {Tolerance = 1.0});
+    value: "1.0"
+  - id: line_270_literal_1
+    context: Maneuver 'Apply GOI' GOI(DefaultSC);
+    value: "'Apply GOI'"
+  - id: line_271_literal_1
+    context: Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0,
+      {Tolerance = 0.005});
+    value: "'Achieve Circular Orbit'"
+  - id: line_271_literal_2
+    context: Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0,
+      {Tolerance = 0.005});
+    value: "0.0"
+  - id: line_271_literal_3
+    context: Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0,
+      {Tolerance = 0.005});
     value: "0.005"
-  - id: line_224_literal_3
-    context: Achieve 'Achieve DefaultSC.Earth.ECC = 0.005' DC1(DefaultSC.Earth.ECC =
-      0.005, {Tolerance = 0.005});
-    value: "0.005"
-  - id: line_228_literal_1
-    context: Propagate 'Prop One Day' DefaultProp(DefaultSC) {DefaultSC.ElapsedDays
-      = 20, DefaultSC.Earth.Altitude = minAltitude};
-    value: "'Prop One Day'"
-  - id: line_228_literal_2
-    context: Propagate 'Prop One Day' DefaultProp(DefaultSC) {DefaultSC.ElapsedDays
-      = 20, DefaultSC.Earth.Altitude = minAltitude};
-    value: "20"
-  - id: line_235_literal_1
-    context: Propagate DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = 150};
-    value: "150"
+  - id: line_279_literal_1
+    context: Propagate 'Propagate to Final Altitude' DefaultProp(DefaultSC)
+      {DefaultSC.Earth.Altitude = finalAltitude};
+    value: "'Propagate to Final Altitude'"

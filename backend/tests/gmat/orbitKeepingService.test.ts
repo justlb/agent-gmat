@@ -6,12 +6,19 @@ import { describe, it } from "node:test"
 
 import { generateOrbitKeepingMission } from "../../src/gmat/orbitKeeping.service.js"
 import { defaultOrbitKeepingTemplatePath } from "../../src/gmat/orbitKeepingTemplate.js"
+import { extractOrbitKeepingValues } from "../../src/gmat/orbitKeepingValues.js"
 
 const connection = { apiKey: "test-key", baseUrl: "https://model.example.test/v1", model: "test-model" }
 
 describe("orbit keeping service", () => {
   it("makes exactly one LLM request and writes the requested values into an unchanged template", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-orbit-service-"))
+    const sourceTemplate = await fs.readFile(defaultOrbitKeepingTemplatePath(), "utf8")
+    const sourceValues = extractOrbitKeepingValues(sourceTemplate)
+    const dryMassId = sourceValues.slots.find((slot) => slot.context.includes("DefaultSC.DryMass"))?.id
+    const dragAreaId = sourceValues.slots.find((slot) => slot.context.includes("DefaultSC.DragArea"))?.id
+    assert.ok(dryMassId)
+    assert.ok(dragAreaId)
     let calls = 0
     const result = await generateOrbitKeepingMission({
       connection,
@@ -20,7 +27,7 @@ describe("orbit keeping service", () => {
       artifactId: "test-mission",
       fetchImpl: async () => {
         calls += 1
-        return new Response(JSON.stringify({ output_text: "changes:\n  - id: line_024_DefaultSC_DryMass\n    value: '200'\n  - id: line_027_DefaultSC_DragArea\n    value: '10'" }), { status: 200 })
+        return new Response(JSON.stringify({ output_text: `changes:\n  - id: ${dryMassId}\n    value: '200'\n  - id: ${dragAreaId}\n    value: '10'` }), { status: 200 })
       },
     })
 
@@ -33,7 +40,7 @@ describe("orbit keeping service", () => {
     ])
     assert.match(script, /DefaultSC\.DryMass\s+= 200;/u)
     assert.match(script, /DefaultSC\.DragArea\s+= 10;/u)
-    assert.equal(script.replace("= 200;", "= 325;").replace("= 10;", "= 15;"), sourceScript)
+    assert.equal(script.replace("= 200;", "= 300;").replace("= 10;", "= 15;"), sourceScript)
     assert.match(values, /value: "200"/u)
     assert.match(values, /value: "10"/u)
   })

@@ -15,19 +15,24 @@ const connection = {
 describe("orbit keeping one-call LLM editor", () => {
   it("uses one LLM request and applies only returned value changes", async () => {
     const template = await fs.readFile(defaultOrbitKeepingTemplatePath(), "utf8")
+    const values = extractOrbitKeepingValues(template)
+    const dryMassId = values.slots.find((slot) => slot.context.includes("DefaultSC.DryMass"))?.id
+    const dragAreaId = values.slots.find((slot) => slot.context.includes("DefaultSC.DragArea"))?.id
+    assert.ok(dryMassId)
+    assert.ok(dragAreaId)
     const calls: RequestInit[] = []
     const result = await editOrbitKeepingValuesWithLlm({
       connection,
       request: "Change dry mass to 100 kg and drag area to 30 m2.",
-      values: extractOrbitKeepingValues(template),
+      values,
       fetchImpl: async (_input, init) => {
         calls.push(init ?? {})
         return new Response(JSON.stringify({
           output_text: [
             "changes:",
-            "  - id: line_024_DefaultSC_DryMass",
+            `  - id: ${dryMassId}`,
             "    value: '100'",
-            "  - id: line_027_DefaultSC_DragArea",
+            `  - id: ${dragAreaId}`,
             "    value: '30'",
           ].join("\n"),
         }), { status: 200 })
@@ -36,8 +41,8 @@ describe("orbit keeping one-call LLM editor", () => {
 
     assert.equal(calls.length, 1)
     assert.equal(JSON.parse(String(calls[0].body)).model, "test-model")
-    assert.equal(result.values.slots.find((slot) => slot.id === "line_024_DefaultSC_DryMass")?.value, "100")
-    assert.equal(result.values.slots.find((slot) => slot.id === "line_027_DefaultSC_DragArea")?.value, "30")
+    assert.equal(result.values.slots.find((slot) => slot.id === dryMassId)?.value, "100")
+    assert.equal(result.values.slots.find((slot) => slot.id === dragAreaId)?.value, "30")
   })
 
   it("does not retry when the model returns an error", async () => {

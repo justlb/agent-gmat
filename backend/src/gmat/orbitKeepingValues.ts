@@ -76,7 +76,10 @@ function assertSafeValue(value: unknown, id: string): asserts value is string {
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`value slot ${id} must contain a non-empty string`)
   }
-  if (/\r|\n|;/u.test(value)) {
+  if (/\r|\n/u.test(value)) {
+    throw new Error(`value slot ${id} contains forbidden line or command syntax`)
+  }
+  if (/;/u.test(value) && !/^\[\s*[-+0-9.eE;\s]+\]$/u.test(value)) {
     throw new Error(`value slot ${id} contains forbidden line or command syntax`)
   }
 }

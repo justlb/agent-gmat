@@ -1,178 +1,218 @@
-% ========================================================================
-%  MISSION : AutonomousLEOReboost
-%  Description : Repeated drag decay and targeted two-burn Hohmann reboost while propellant remains.
-%  Duration : Until tank fuel mass reaches 7 kg, followed by decay to 150 km altitude.
-% ========================================================================
-
+%
+%  AutonomousLEOReboost
+%
+%  Circular Earth-orbit stationkeeping with drag decay, two-burn reboosts,
+%  a protected fuel reserve, and a final controlled decay to 100 km.
+%
 
 %----------------------------------------
-% STEP 1 : SPACECRAFT
+%---------- Spacecraft and tank
 %----------------------------------------
 
 Create Spacecraft DefaultSC;
 
-DefaultSC.DateFormat       = TAIModJulian;
-DefaultSC.Epoch            = '21545';
+DefaultSC.DateFormat = TAIModJulian;
+DefaultSC.Epoch = '21545';
 DefaultSC.CoordinateSystem = EarthMJ2000Eq;
 DefaultSC.DisplayStateType = Keplerian;
-DefaultSC.SMA              = 6690.0;
-DefaultSC.ECC              = 0.0;
-DefaultSC.INC              = 0.0;
-DefaultSC.RAAN             = 0.0;
-DefaultSC.AOP              = 0.0;
-DefaultSC.TA               = 0.0;
-DefaultSC.DryMass          = 325;
-DefaultSC.Cd               = 2.5;
-DefaultSC.Cr               = 1.8;
-DefaultSC.DragArea         = 15;
-DefaultSC.SRPArea          = 1;
-
-DefaultSC.Tanks                   = {ChemicalTank1};
+DefaultSC.SMA = 6578.136300000001;
+DefaultSC.ECC = 1.172614597519161e-16;
+DefaultSC.INC = 0;
+DefaultSC.RAAN = 0;
+DefaultSC.AOP = 0;
+DefaultSC.TA = 0;
+DefaultSC.DryMass = 300;
+DefaultSC.Cd = 2.5;
+DefaultSC.Cr = 1.8;
+DefaultSC.DragArea = 15;
+DefaultSC.SRPArea = 1;
+DefaultSC.SPADDragScaleFactor = 1;
+DefaultSC.SPADSRPScaleFactor = 1;
+DefaultSC.AtmosDensityScaleFactor = 1;
+DefaultSC.ExtendedMassPropertiesModel = 'None';
+DefaultSC.Tanks = {ChemicalTank1};
+DefaultSC.NAIFId = -10022001;
+DefaultSC.NAIFIdReferenceFrame = -9022001;
+DefaultSC.OrbitColor = Red;
+DefaultSC.TargetColor = Teal;
+DefaultSC.OrbitErrorCovariance = [ 1e+70 0 0 0 0 0 ; 0 1e+70 0 0 0 0 ; 0 0 1e+70 0 0 0 ; 0 0 0 1e+70 0 0 ; 0 0 0 0 1e+70 0 ; 0 0 0 0 0 1e+70 ];
+DefaultSC.CdSigma = 1e+70;
+DefaultSC.CrSigma = 1e+70;
+DefaultSC.Id = 'SatId';
+DefaultSC.Attitude = CoordinateSystemFixed;
+DefaultSC.SPADSRPInterpolationMethod = Bilinear;
+DefaultSC.SPADSRPScaleFactorSigma = 1e+70;
+DefaultSC.SPADDragInterpolationMethod = Bilinear;
+DefaultSC.SPADDragScaleFactorSigma = 1e+70;
+DefaultSC.AtmosDensityScaleFactorSigma = 1e+70;
+DefaultSC.ModelFile = 'aura.3ds';
+DefaultSC.ModelOffsetX = 0;
+DefaultSC.ModelOffsetY = 0;
+DefaultSC.ModelOffsetZ = 0;
+DefaultSC.ModelRotationX = 0;
+DefaultSC.ModelRotationY = 0;
+DefaultSC.ModelRotationZ = 0;
+DefaultSC.ModelScale = 1;
+DefaultSC.AttitudeDisplayStateType = 'Quaternion';
+DefaultSC.AttitudeRateDisplayStateType = 'AngularVelocity';
+DefaultSC.AttitudeCoordinateSystem = EarthMJ2000Eq;
+DefaultSC.EulerAngleSequence = '321';
 
 %----------------------------------------
-% STEP 2 : HARDWARE - TANKS AND THRUSTERS
+%---------- Hardware Components
 %----------------------------------------
 
 Create ChemicalTank ChemicalTank1;
 
+ChemicalTank1.DirectionX = 0;
+ChemicalTank1.DirectionY = 0;
+ChemicalTank1.DirectionZ = 1;
+ChemicalTank1.SecondDirectionX = 0;
+ChemicalTank1.SecondDirectionY = -1;
+ChemicalTank1.SecondDirectionZ = 0;
+ChemicalTank1.HWOriginInBCSX = 0;
+ChemicalTank1.HWOriginInBCSY = 0;
+ChemicalTank1.HWOriginInBCSZ = 0;
 ChemicalTank1.AllowNegativeFuelMass = false;
-ChemicalTank1.FuelMass              = 25;
-ChemicalTank1.Pressure              = 1500;
-ChemicalTank1.Temperature           = 20;
-ChemicalTank1.RefTemperature        = 20;
-ChemicalTank1.Volume                = 0.75;
-ChemicalTank1.FuelDensity           = 1260;
-ChemicalTank1.PressureModel         = PressureRegulated;
+ChemicalTank1.FuelMass = 200;
+ChemicalTank1.FuelCenterOfMassX = 0;
+ChemicalTank1.FuelCenterOfMassY = 0;
+ChemicalTank1.FuelCenterOfMassZ = 0;
+ChemicalTank1.FuelMomentOfInertiaXX = 99;
+ChemicalTank1.FuelMomentOfInertiaXY = 0;
+ChemicalTank1.FuelMomentOfInertiaXZ = 0;
+ChemicalTank1.FuelMomentOfInertiaYY = 99;
+ChemicalTank1.FuelMomentOfInertiaYZ = 0;
+ChemicalTank1.FuelMomentOfInertiaZZ = 99;
+ChemicalTank1.Pressure = 1500;
+ChemicalTank1.Temperature = 20;
+ChemicalTank1.RefTemperature = 20;
+ChemicalTank1.Volume = 0.75;
+ChemicalTank1.FuelDensity = 1260;
+ChemicalTank1.PressureModel = PressureRegulated;
 
-Create ImpulsiveBurn TOI;
-
-TOI.CoordinateSystem   = Local;
-TOI.Origin             = Earth;
-TOI.Axes               = VNB;
-TOI.Element1           = 0.01;
-TOI.Element2           = 0;
-TOI.Element3           = 0;
-TOI.DecrementMass      = true;
-TOI.Isp                = 300;
-TOI.GravitationalAccel = 9.81;
-
-TOI.Tank               = {ChemicalTank1};
-
-Create ImpulsiveBurn GOI;
-
-GOI.CoordinateSystem   = Local;
-GOI.Origin             = Earth;
-GOI.Axes               = VNB;
-GOI.Element1           = 0.01;
-GOI.Element2           = 0;
-GOI.Element3           = 0;
-GOI.DecrementMass      = true;
-GOI.Isp                = 300;
-GOI.GravitationalAccel = 9.81;
-
-GOI.Tank               = {ChemicalTank1};
 
 %----------------------------------------
-% STEP 3 : FORCE MODEL
+%---------- Force model
 %----------------------------------------
 
 Create ForceModel DefaultProp_ForceModel;
 
-DefaultProp_ForceModel.CentralBody                      = Earth;
-DefaultProp_ForceModel.PrimaryBodies                    = {Earth};
-DefaultProp_ForceModel.PointMasses                      = {};
-DefaultProp_ForceModel.SRP                              = Off;
-DefaultProp_ForceModel.RelativisticCorrection           = Off;
-DefaultProp_ForceModel.ErrorControl                     = RSSStep;
-
-DefaultProp_ForceModel.GravityField.Earth.Degree        = 4;
-DefaultProp_ForceModel.GravityField.Earth.Order         = 4;
+DefaultProp_ForceModel.CentralBody = Earth;
+DefaultProp_ForceModel.PrimaryBodies = {Earth};
+DefaultProp_ForceModel.SRP = Off;
+DefaultProp_ForceModel.RelativisticCorrection = Off;
+DefaultProp_ForceModel.ErrorControl = RSSStep;
+DefaultProp_ForceModel.GravityField.Earth.Degree = 4;
+DefaultProp_ForceModel.GravityField.Earth.Order = 4;
+DefaultProp_ForceModel.GravityField.Earth.StmLimit = 100;
 DefaultProp_ForceModel.GravityField.Earth.PotentialFile = 'JGM2.cof';
-DefaultProp_ForceModel.GravityField.Earth.TideModel     = 'None';
-DefaultProp_ForceModel.Drag.AtmosphereModel             = MSISE90;
-DefaultProp_ForceModel.Drag.DragModel                   = 'Spherical';
-DefaultProp_ForceModel.Drag.HistoricWeatherSource       = 'ConstantFluxAndGeoMag';
-DefaultProp_ForceModel.Drag.PredictedWeatherSource      = 'ConstantFluxAndGeoMag';
-DefaultProp_ForceModel.Drag.F107                        = 150;
-DefaultProp_ForceModel.Drag.F107A                       = 150;
-DefaultProp_ForceModel.Drag.MagneticIndex               = 3;
-DefaultProp_ForceModel.Drag.SchattenErrorModel          = 'Nominal';
-DefaultProp_ForceModel.Drag.SchattenTimingModel         = 'NominalCycle';
+DefaultProp_ForceModel.GravityField.Earth.TideModel = 'None';
+DefaultProp_ForceModel.Drag.AtmosphereModel = MSISE90;
+DefaultProp_ForceModel.Drag.HistoricWeatherSource = 'ConstantFluxAndGeoMag';
+DefaultProp_ForceModel.Drag.PredictedWeatherSource = 'ConstantFluxAndGeoMag';
+DefaultProp_ForceModel.Drag.CSSISpaceWeatherFile = 'SpaceWeather-All-v1.2.txt';
+DefaultProp_ForceModel.Drag.SchattenFile = 'SchattenPredict.txt';
+DefaultProp_ForceModel.Drag.F107 = 150;
+DefaultProp_ForceModel.Drag.F107A = 150;
+DefaultProp_ForceModel.Drag.MagneticIndex = 3;
+DefaultProp_ForceModel.Drag.SchattenErrorModel = 'Nominal';
+DefaultProp_ForceModel.Drag.SchattenTimingModel = 'NominalCycle';
+DefaultProp_ForceModel.Drag.DragModel = 'Spherical';
 
 %----------------------------------------
-% STEP 4 : PROPAGATOR
+%---------- Propagator
 %----------------------------------------
 
 Create Propagator DefaultProp;
 
-DefaultProp.FM                       = DefaultProp_ForceModel;
-DefaultProp.Type                     = RungeKutta89;
-DefaultProp.InitialStepSize          = 60;
-DefaultProp.Accuracy                 = 1e-11;
-DefaultProp.MinStep                  = 0.001;
-DefaultProp.MaxStep                  = 2700;
-DefaultProp.MaxStepAttempts          = 50;
+DefaultProp.FM = DefaultProp_ForceModel;
+DefaultProp.Type = RungeKutta89;
+DefaultProp.InitialStepSize = 60;
+DefaultProp.Accuracy = 9.999999999999999e-12;
+DefaultProp.MinStep = 0.001;
+DefaultProp.MaxStep = 2700;
+DefaultProp.MaxStepAttempts = 50;
 DefaultProp.StopIfAccuracyIsViolated = true;
 
 %----------------------------------------
-% STEP 5 : VARIABLES
+%---------- Burns
 %----------------------------------------
 
-Create Variable minAltitude;
-minAltitude = 200;
+Create ImpulsiveBurn TOI;
+
+TOI.CoordinateSystem = Local;
+TOI.Origin = Earth;
+TOI.Axes = VNB;
+TOI.Element1 = 0.003;
+TOI.Element2 = 0;
+TOI.Element3 = 0;
+TOI.DecrementMass = true;
+TOI.Tank = {ChemicalTank1};
+TOI.Isp = 300;
+TOI.GravitationalAccel = 9.81;
+
+Create ImpulsiveBurn GOI;
+
+GOI.CoordinateSystem = Local;
+GOI.Origin = Earth;
+GOI.Axes = VNB;
+GOI.Element1 = 0.003;
+GOI.Element2 = 0;
+GOI.Element3 = 0;
+GOI.DecrementMass = true;
+GOI.Tank = {ChemicalTank1};
+GOI.Isp = 300;
+GOI.GravitationalAccel = 9.81;
 
 %----------------------------------------
-% STEP 6 : SOLVER
+%---------- Solver
 %----------------------------------------
 
-Create DifferentialCorrector DC1;
+Create DifferentialCorrector DefaultDC;
 
-DC1.ShowProgress      = true;
-DC1.ReportStyle       = Normal;
-DC1.ReportFile        = 'DifferentialCorrectorDC1.data';
-DC1.MaximumIterations = 25;
-DC1.DerivativeMethod  = ForwardDifference;
-DC1.Algorithm         = NewtonRaphson;
-
+DefaultDC.ShowProgress = true;
+DefaultDC.ReportStyle = Normal;
+DefaultDC.ReportFile = 'DifferentialCorrectorDC1.data';
+DefaultDC.MaximumIterations = 25;
+DefaultDC.DerivativeMethod = ForwardDifference;
+DefaultDC.Algorithm = NewtonRaphson;
 
 %----------------------------------------
-% STEP 7 : SUBSCRIBERS (Visualization and Output)
+%---------- Subscribers
 %----------------------------------------
 
-% --- XY Plot ---
 Create XYPlot AltitudePlot;
 
 AltitudePlot.SolverIterations = Current;
-AltitudePlot.UpperLeft = [ 0 0 ];
-AltitudePlot.Size = [ 0 0 ];
-AltitudePlot.RelativeZOrder = 0;
+AltitudePlot.UpperLeft = [ 0.002258355916892502 0 ];
+AltitudePlot.Size = [ 0.5 0.4498644986449865 ];
+AltitudePlot.RelativeZOrder = 1212;
 AltitudePlot.Maximized = false;
 AltitudePlot.XVariable = DefaultSC.ElapsedDays;
 AltitudePlot.YVariables = {DefaultSC.Earth.Altitude};
 AltitudePlot.ShowGrid = true;
 AltitudePlot.ShowPlot = true;
 
-% --- XY Plot ---
 Create XYPlot FuelPlot;
 
 FuelPlot.SolverIterations = Current;
-FuelPlot.UpperLeft = [ 0 0 ];
-FuelPlot.Size = [ 0 0 ];
-FuelPlot.RelativeZOrder = 0;
+FuelPlot.UpperLeft = [ 0.002258355916892502 0.4534778681120145 ];
+FuelPlot.Size = [ 0.5 0.4498644986449865 ];
+FuelPlot.RelativeZOrder = 1242;
 FuelPlot.Maximized = false;
 FuelPlot.XVariable = DefaultSC.A1ModJulian;
 FuelPlot.YVariables = {DefaultSC.ChemicalTank1.FuelMass};
 FuelPlot.ShowGrid = true;
 FuelPlot.ShowPlot = true;
 
-% --- Report File ---
 Create ReportFile ReboostReport;
-
 ReboostReport.SolverIterations = Current;
 ReboostReport.UpperLeft = [ 0 0 ];
 ReboostReport.Size = [ 0 0 ];
 ReboostReport.RelativeZOrder = 0;
 ReboostReport.Maximized = false;
+
 ReboostReport.Filename = 'ReboostReport.txt';
 ReboostReport.Precision = 16;
 ReboostReport.WriteHeaders = true;
@@ -185,54 +225,57 @@ ReboostReport.WriteReport = true;
 ReboostReport.AppendToExistingFile = false;
 
 %----------------------------------------
-% STEP 8 : MISSION SEQUENCE
+%---------- Arrays, Variables, Strings
+%----------------------------------------
+
+%----------------------------------------
+%---------- Variables
+%----------------------------------------
+
+Create Variable minAltitude finalAltitude fuelReserve targetSMA;
+minAltitude = 190;
+finalAltitude = 100;
+fuelReserve = 7;
+targetSMA = 6578.1363;
+
+
+%----------------------------------------
+%---------- Mission Sequence
+%----------------------------------------
+
+
+%----------------------------------------
+%---------- Mission sequence
 %----------------------------------------
 
 BeginMissionSequence;
 
-% --- Step: while ---
-While DefaultSC.ChemicalTank1.FuelMass > 7;
+While DefaultSC.ChemicalTank1.FuelMass > fuelReserve
 
-   % --- Step: propagate ---
-   Propagate DefaultProp(DefaultSC) {DefaultSC.ElapsedDays = 15, DefaultSC.Earth.Altitude = minAltitude};
+   Propagate 'Propagate to Reboost Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = minAltitude};
 
-   % --- Step: Prop To Periapsis ---
-   Propagate 'Prop To Periapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Periapsis};
+   Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode = DiscardAndContinue, ShowProgressWindow = true};
 
-   % --- Step: Hohmann Transfer ---
-   Target 'Hohmann Transfer' DC1 {SolveMode = Solve, ExitMode = SaveAndContinue, ShowProgressWindow = true};
+      Propagate 'Propagate to Periapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Periapsis};
 
-      % --- Step: Vary TOI ---
-      Vary 'Vary TOI' DC1(TOI.Element1 = 0.01, {Perturbation = 0.0001, Lower = -9.999999e300, Upper = 9.999999e300, MaxStep = 200, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+      % Burn magnitudes are in km/s.  Positive, bounded values prevent
+      % retrograde solver trials from creating an Earth-intersecting orbit.
+      Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation = 0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+      Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation = 0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
 
-      % --- Step: Perform TOI ---
-      Maneuver 'Perform TOI' TOI(DefaultSC);
+      Maneuver 'Apply TOI' TOI(DefaultSC);
+      Propagate 'Propagate to Apoapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Apoapsis};
+      Achieve 'Achieve Target SMA' DefaultDC(DefaultSC.Earth.SMA = targetSMA, {Tolerance = 1.0});
 
-      % --- Step: Prop To Apoapsis ---
-      Propagate 'Prop To Apoapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Apoapsis};
+      Maneuver 'Apply GOI' GOI(DefaultSC);
+      Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0, {Tolerance = 0.005});
 
-      % --- Step: Vary GOI ---
-      Vary 'Vary GOI' DC1(GOI.Element1 = 0.01, {Perturbation = 0.0001, Lower = 0, Upper = 3.14159, MaxStep = 0.2, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+   EndTarget;  % For targeter DefaultDC
 
-      % --- Step: Perform GOI ---
-      Maneuver 'Perform GOI' GOI(DefaultSC);
-
-      % --- Step: achieve ---
-      Achieve 'Achieve DefaultSC.Earth.SMA = 6690' DC1(DefaultSC.Earth.SMA = 6690, {Tolerance = 1.0});
-
-      % --- Step: achieve ---
-      Achieve 'Achieve DefaultSC.Earth.ECC = 0.005' DC1(DefaultSC.Earth.ECC = 0.005, {Tolerance = 0.005});
-   EndTarget;
-
-   % --- Step: Prop One Day ---
-   Propagate 'Prop One Day' DefaultProp(DefaultSC) {DefaultSC.ElapsedDays = 20, DefaultSC.Earth.Altitude = minAltitude};
-
-   % --- Step: report ---
    Report ReboostReport DefaultSC.A1ModJulian DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;
+
 EndWhile;
 
-% --- Step: propagate ---
-Propagate DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = 150};
+Propagate 'Propagate to Final Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = finalAltitude};
 
-% --- Step: report ---
 Report ReboostReport DefaultSC.A1ModJulian DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;

@@ -24,10 +24,9 @@ from urllib.request import Request, urlopen
 
 
 DEFAULT_PROMPT = (
-    "set initial orbit to 1000 km circular, "
-    "Change dry mass to 300 kg, drag area to 15 m2, "
-    "and minimum altitude to 950 km." \
-    "calculate the requiered delta-v to maintain the orbit for 1 year, then add fuel mass to the spacecraft to achieve that delta-v, "
+    "set initial orbit to 200 km circular, "
+    "and minimum altitude to 190 km." \
+    "modify the fuel mass to maintain the orbite for a week "
 )
 DEFAULT_USER_ID = "justine"
 

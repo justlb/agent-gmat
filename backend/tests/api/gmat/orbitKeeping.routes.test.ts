@@ -7,16 +7,24 @@ import Fastify from "fastify"
 
 import { createTestConfig } from "../../helpers/testConfig.js"
 import { createTestServer } from "../../helpers/createTestServer.js"
+import { defaultOrbitKeepingTemplatePath } from "../../../src/gmat/orbitKeepingTemplate.js"
+import { extractOrbitKeepingValues } from "../../../src/gmat/orbitKeepingValues.js"
 
 describe("POST /api/gmat/orbit-keeping/generate", () => {
   it("returns generated artefacts inside the requesting user's workspace", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-orbit-route-"))
+    const template = await fs.readFile(defaultOrbitKeepingTemplatePath(), "utf8")
+    const values = extractOrbitKeepingValues(template)
+    const dryMassId = values.slots.find((slot) => slot.context.includes("DefaultSC.DryMass"))?.id
+    const dragAreaId = values.slots.find((slot) => slot.context.includes("DefaultSC.DragArea"))?.id
+    assert.ok(dryMassId)
+    assert.ok(dragAreaId)
     let modelCalls = 0
     const fakeModel = Fastify()
     fakeModel.post("/v1/responses", async () => {
       modelCalls += 1
       return {
-        output_text: "changes:\n  - id: line_024_DefaultSC_DryMass\n    value: '200'\n  - id: line_027_DefaultSC_DragArea\n    value: '10'",
+        output_text: `changes:\n  - id: ${dryMassId}\n    value: '200'\n  - id: ${dragAreaId}\n    value: '10'`,
       }
     })
     await fakeModel.listen({ host: "127.0.0.1", port: 0 })

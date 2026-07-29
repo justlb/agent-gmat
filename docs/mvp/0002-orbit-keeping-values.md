@@ -2,7 +2,7 @@
 
 Statut : terminé
 
-Le script GMAT de référence reste immuable. Le fichier `orbit_keeping.values.yaml` contient 144 emplacements de valeurs avec leur contexte GMAT. Le renderer accepte uniquement ce même ensemble d'emplacements et rejette un YAML incomplet, invalide ou dont le contexte ne correspond plus au template.
+Le script GMAT de référence reste immuable. Le fichier `orbit_keeping.values.yaml` contient 193 emplacements de valeurs avec leur contexte GMAT. Le renderer accepte uniquement ce même ensemble d'emplacements et rejette un YAML incomplet, invalide ou dont le contexte ne correspond plus au template.
 
 ## Essai manuel sous WSL
 

@@ -30,7 +30,7 @@ describe("orbit keeping values renderer", () => {
     assert.match(rendered, /DefaultSC\.DragArea\s+= 30;/u)
     assert.match(rendered, /minAltitude = 180;/u)
     assert.match(rendered, /BeginMissionSequence;/u)
-    assert.match(rendered, /Target 'Hohmann Transfer'/u)
+    assert.match(rendered, /Target 'Circular Reboost'/u)
   })
 
   it("writes a default values YAML and renders it back to the exact reference", async () => {
