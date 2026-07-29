@@ -64,13 +64,13 @@ type AgentWorkspacePanelProps = {
 }
 
 function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showComplianceCheckConfig: boolean, showGncConfig: boolean) {
-  if (activeView === 'workspace') return '当前任务'
-  if (activeView === 'bom' && showComplianceCheckConfig) return '配置文件'
-  if (activeView === 'bom') return showGncConfig ? 'GNC 配置' : '配置文件'
-  if (activeView === 'model') return '结果预览'
-  if (activeView === 'tools') return showGncConfig ? 'GNC 工具' : '仿真工具'
-  if (activeView === 'log') return '工作区文件'
-  return '语音对话'
+  if (activeView === 'workspace') return 'Workspace'
+  if (activeView === 'bom' && showComplianceCheckConfig) return 'Config'
+  if (activeView === 'bom') return showGncConfig ? 'GNC Config' : 'Config'
+  if (activeView === 'model') return 'Preview'
+  if (activeView === 'tools') return showGncConfig ? 'GNC Tools' : 'Simulation Tools'
+  if (activeView === 'log') return 'Workspace Files'
+  return 'Voice chat'
 }
 
 export function AgentWorkspacePanel({
@@ -126,7 +126,7 @@ export function AgentWorkspacePanel({
     if (tool === 'cad') return 'CAD'
     if (tool === 'paraview') return 'ParaView'
     if (tool === 'comsol') return 'COMSOL'
-    if (tool === 'gnc-dashboard') return 'GNC 看板'
+    if (tool === 'gnc-dashboard') return 'GNC Dashboard'
     return 'GNC'
   }
   const thermalConfigContent = usesCatchSupportingTable(activeContext) ? (
@@ -178,7 +178,7 @@ export function AgentWorkspacePanel({
       <div className="agent-workspace-header">
         <div>
           <strong>{getWorkspacePanelTitle(activeView, showComplianceCheckConfig, showGncConfig)}</strong>
-          <span>{activeView ? `${getWorkspaceDisplayName(activeContext.workspaceName)}${activeContext.versionId ? ` · ${activeContext.versionId}` : ''}` : '选择左侧模块展开当前任务'}</span>
+          <span>{activeView ? `${getWorkspaceDisplayName(activeContext.workspaceName)}${activeContext.versionId ? ` · ${activeContext.versionId}` : ''}` : 'Choose a section from the left navigation'}</span>
         </div>
         {activeView === 'tools' && (
           <div className="agent-tool-tabs">
@@ -197,12 +197,12 @@ export function AgentWorkspacePanel({
       </div>
       <div className="agent-workspace-body">
         {!activeView ? (
-          <div className="agent-empty-state">当前任务已收回，点击左侧模块重新展开</div>
+          <div className="agent-empty-state">The workspace is collapsed. Select a section from the left navigation.</div>
         ) : activeView === 'workspace' ? (
           <CurrentWorkspaceCard
             activeManifestVersion={activeManifestVersion}
             branchManifest={branchManifest}
-            currentWorkspaceName={activeContext.workspaceName ?? '当前任务'}
+            currentWorkspaceName={activeContext.workspaceName ?? 'Current workspace'}
             manifestLoading={manifestLoading}
             onCheckoutVersion={checkoutVersion}
             onCancelDeleteVersion={cancelDeleteVersion}
@@ -239,19 +239,19 @@ export function AgentWorkspacePanel({
           </div>
         ) : activeView === 'model' && showModelPreview ? (
           activeContext.versionDir ? (
-            <iframe className="agent-embed-frame" title="结果预览" src={viewerHref} />
+            <iframe className="agent-embed-frame" title="Results preview" src={viewerHref} />
           ) : (
-            <div className="agent-empty-state">等待当前任务生成结果预览</div>
+            <div className="agent-empty-state">Waiting for this task to generate a preview.</div>
           )
         ) : activeView === 'model' ? (
-          <div className="agent-empty-state">当前任务没有 3D 结果预览</div>
+          <div className="agent-empty-state">This task has no 3D preview.</div>
         ) : activeView === 'tools' && activeTool === 'gnc-dashboard' && showGncConfig ? (
           <GncDashboardPanel activeContext={activeContext} />
         ) : activeView === 'tools' ? (
           toolUrls[activeTool] ? (
             <iframe className="agent-embed-frame" title={activeTool} src={toolUrls[activeTool]} />
           ) : (
-            <div className="agent-empty-state">当前仿真工具没有可打开的远程窗口</div>
+            <div className="agent-empty-state">This simulation tool has no remote window available.</div>
           )
         ) : (
           <AgentFilesView

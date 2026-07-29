@@ -9,11 +9,11 @@ export type AgentNavItem = {
 }
 
 export const NAV_ITEMS: AgentNavItem[] = [
-  { label: '当前任务', href: '#workspace', meta: 'Workspace' },
-  { label: '组件清单', href: '#bom', meta: 'Components' },
-  { label: '结果预览', href: '#model', meta: 'Preview' },
-  { label: '仿真工具', href: '#tools', meta: 'Tools' },
-  { label: '工作区文件', href: '#log', meta: 'Files' },
+  { label: 'Workspace', href: '#workspace', meta: 'Workspace' },
+  { label: 'Config', href: '#bom', meta: 'Config' },
+  { label: 'Preview', href: '#model', meta: 'Preview' },
+  { label: 'Tools', href: '#tools', meta: 'Tools' },
+  { label: 'Files', href: '#log', meta: 'Files' },
 ]
 export const NAV_VIEWS: AgentWorkspaceView[] = ['workspace', 'bom', 'model', 'tools', 'log']
 export const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = '01_cad/geometry_after.glb'

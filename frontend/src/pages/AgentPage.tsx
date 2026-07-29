@@ -77,7 +77,7 @@ export default function AgentPage() {
     setProgressRefreshNonce(value => value + 1)
   }, [])
   const versionState = useWorkspaceVersionState({
-    fallbackWorkspaceName: '当前任务',
+    fallbackWorkspaceName: 'Current workspace',
     onRefreshWorkspaceViews: refreshWorkspaceViews,
     onReloadSessions: () => {},
     workspaceRefreshNonce,
@@ -138,13 +138,13 @@ export default function AgentPage() {
       .then(async response => {
         const data = await response.json().catch(() => null) as RemoteToolPortSummary | null
         if (!data || !Array.isArray(data.results)) {
-          throw new Error('接口状态响应格式异常')
+          throw new Error('Invalid interface status response')
         }
         setRemoteToolPortStatus(data)
         setRemoteToolPortError('')
       })
       .catch(error => {
-        setRemoteToolPortError(error instanceof Error ? error.message : '接口状态获取失败')
+        setRemoteToolPortError(error instanceof Error ? error.message : 'Unable to load interface status')
       })
       .finally(() => {
         setRemoteToolPortLoading(false)
@@ -193,18 +193,18 @@ export default function AgentPage() {
     if (progressVariant === 'check') {
       return NAV_ITEMS
         .filter(item => item.href !== '#tools')
-        .map(item => item.href === '#bom' ? { ...item, label: '配置文件', meta: 'Config' } : item)
+        .map(item => item.href === '#bom' ? { ...item, label: 'Config', meta: 'Config' } : item)
     }
     if (!showGncConfig) {
       return NAV_ITEMS
         .filter(item => showModelPreview || item.href !== '#model')
-        .map(item => item.href === '#bom' ? { ...item, label: '配置文件', meta: 'Config' } : item)
+        .map(item => item.href === '#bom' ? { ...item, label: 'Config', meta: 'Config' } : item)
     }
     return NAV_ITEMS
       .filter(item => item.href !== '#model')
       .map(item => (
         item.href === '#bom'
-          ? { ...item, label: 'GNC 配置', meta: 'Config' }
+          ? { ...item, label: 'GNC Config', meta: 'Config' }
           : item
       ))
   }, [progressVariant, showGncConfig, showModelPreview])
@@ -469,7 +469,7 @@ export default function AgentPage() {
   const textComposerBusy = recordButtonBusy || state === 'transcribing' || gmatGenerating
   const textRecorderStatusText = textComposerBusy
     ? recorderStatusText
-    : '文字输入模式，提交后继续语音播报'
+    : 'Text mode'
   const handleTextSubmit = useCallback(() => {
     const prompt = textInput.trim()
     if (!prompt || textComposerBusy) return
@@ -502,8 +502,8 @@ export default function AgentPage() {
   const sessionStatusLabel = t(`workspace.status.${displayedSessionStatus}`)
   const dataSourceLabel = activeContext.workspaceName
     ? getWorkspaceDisplayName(activeContext.workspaceName)
-    : activeContext.workspaceKey || activeContext.workspaceId || '未选择数据源'
-  const versionLabel = activeContext.versionId || '未选择版本'
+    : activeContext.workspaceKey || activeContext.workspaceId || 'No workspace selected'
+  const versionLabel = activeContext.versionId || 'No version selected'
   const agentPageClassName = [
     'agent-page',
     `is-${agentTheme}-theme`,
@@ -554,7 +554,7 @@ export default function AgentPage() {
         <AgentConversationPopover
           conversationLogs={conversationLogs}
           onClose={() => setConversationPanelOpen(false)}
-          title="历史对话"
+          title="Conversation history"
         />
       ) : null}
       {progressPanelOpen ? (

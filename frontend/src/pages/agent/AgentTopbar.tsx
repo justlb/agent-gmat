@@ -107,7 +107,7 @@ export function AgentTopbar({
   const skippedChecks = portStatus?.results.filter(item => item.skipped) ?? []
   const showInterfaceStatus = Boolean(portStatusError || failedChecks.length)
   const checkedAtLabel = formatCheckedAt(portStatus?.checkedAt)
-  const inputModeLabel = inputMode === 'voice' ? '语音输入' : '文字输入'
+  const inputModeLabel = inputMode === 'voice' ? 'Voice input' : 'Text input'
   const totalChecks = portStatus?.results.length ?? 0
 
   return (
@@ -139,10 +139,10 @@ export function AgentTopbar({
               className="agent-stop-summary-button agent-stop-summary-button--topbar"
               disabled={stopSummaryPending}
               onClick={onStopAndSummarize}
-              title="停止当前 Codex pipeline 并生成语音总结"
+              title="Stop the current Codex pipeline and generate a spoken summary"
             >
               <span aria-hidden="true" />
-              {stopSummaryPending ? '总结中' : '停止'}
+              {stopSummaryPending ? 'Summarizing' : 'Stop'}
             </button>
           ) : null}
         </div>
@@ -165,7 +165,7 @@ export function AgentTopbar({
         <button
           type="button"
           className={`agent-port-card is-${portVariant} ${portPanelOpen ? 'is-open' : ''}`}
-          title={`${inputModeLabel}，点击打开状态与设置`}
+          title={`${inputModeLabel}. Open status and settings.`}
           aria-expanded={portPanelOpen}
           aria-haspopup="dialog"
           onClick={() => setPortPanelOpen(open => !open)}
@@ -179,18 +179,18 @@ export function AgentTopbar({
           </span>
         </button>
         {portPanelOpen ? (
-          <div className="agent-port-popover" role="dialog" aria-label="状态与设置">
+          <div className="agent-port-popover" role="dialog" aria-label="Status and settings">
             <section className="agent-port-settings-section">
               <div className="agent-port-mode-row">
-                <span>输入方式</span>
-                <div className="agent-input-mode-switch" role="group" aria-label="输入方式">
+                <span>Input</span>
+                <div className="agent-input-mode-switch" role="group" aria-label="Input mode">
                   <button
                     type="button"
                     className={inputMode === 'voice' ? 'is-active' : ''}
                     aria-pressed={inputMode === 'voice'}
                     onClick={() => onInputModeChange('voice')}
                   >
-                    语音
+                    Voice
                   </button>
                   <button
                     type="button"
@@ -198,13 +198,13 @@ export function AgentTopbar({
                     aria-pressed={inputMode === 'text'}
                     onClick={() => onInputModeChange('text')}
                   >
-                    文字
+                    Text
                   </button>
                 </div>
               </div>
               <div className="agent-port-mode-row">
-                <span>模型</span>
-                <div className="agent-input-mode-switch" role="group" aria-label="模型">
+                <span>Model</span>
+                <div className="agent-input-mode-switch" role="group" aria-label="Model">
                   <button
                     type="button"
                     className={modelBackend === 'openai' ? 'is-active' : ''}
@@ -219,20 +219,20 @@ export function AgentTopbar({
                     aria-pressed={modelBackend === 'chatModel'}
                     onClick={() => onModelBackendChange('chatModel')}
                   >
-                    内网模型
+                    Internal model
                   </button>
                 </div>
               </div>
               <div className="agent-port-mode-row">
-                <span>主题</span>
-                <div className="agent-input-mode-switch" role="group" aria-label="主题">
+                <span>Theme</span>
+                <div className="agent-input-mode-switch" role="group" aria-label="Theme">
                   <button
                     type="button"
                     className={agentTheme === 'dark' ? 'is-active' : ''}
                     aria-pressed={agentTheme === 'dark'}
                     onClick={() => onAgentThemeChange('dark')}
                   >
-                    深色
+                    Dark
                   </button>
                   <button
                     type="button"
@@ -240,7 +240,7 @@ export function AgentTopbar({
                     aria-pressed={agentTheme === 'light'}
                     onClick={() => onAgentThemeChange('light')}
                   >
-                    浅色
+                    Light
                   </button>
                 </div>
               </div>
@@ -250,13 +250,13 @@ export function AgentTopbar({
                 <section className="agent-interface-section">
                   <div className="agent-interface-summary">
                     <div>
-                      <strong>{portStatusError || !portStatus?.ok ? '接口异常' : '接口检测'}</strong>
+                      <strong>{portStatusError || !portStatus?.ok ? 'Interface issue' : 'Interface status'}</strong>
                       <span>
                         {portStatus
-                          ? `${totalChecks} 项 · 异常 ${failedChecks.length}${skippedChecks.length ? ` · 跳过 ${skippedChecks.length}` : ''}${checkedAtLabel ? ` · ${checkedAtLabel}` : ''}`
+                          ? `${totalChecks} checks · ${failedChecks.length} failing${skippedChecks.length ? ` · ${skippedChecks.length} skipped` : ''}${checkedAtLabel ? ` · ${checkedAtLabel}` : ''}`
                           : portStatusLoading
-                            ? '正在统一检测功能接口'
-                            : '等待检测结果'}
+                            ? 'Checking service interfaces'
+                            : 'Waiting for results'}
                       </span>
                     </div>
                     <button
@@ -265,7 +265,7 @@ export function AgentTopbar({
                       disabled={portStatusLoading}
                       onClick={onPortStatusRefresh}
                     >
-                      {portStatusLoading ? '检测中' : '重新检测'}
+                      {portStatusLoading ? 'Checking' : 'Check again'}
                     </button>
                   </div>
                 </section>
@@ -281,12 +281,12 @@ export function AgentTopbar({
                             <strong>{item.name}</strong>
                             <span>{formatInterfaceDetail(item)}</span>
                           </div>
-                          <em>{item.required ? '异常' : '警告'}</em>
+                          <em>{item.required ? 'Error' : 'Warning'}</em>
                         </div>
                       ))}
                     </div>
                     <p className="agent-port-check-note is-bad">
-                      {`检测到 ${failedChecks.length} 个功能接口异常`}
+                      {`${failedChecks.length} interface issue(s) detected`}
                       {checkedAtLabel ? ` · ${checkedAtLabel}` : ''}
                     </p>
                   </>

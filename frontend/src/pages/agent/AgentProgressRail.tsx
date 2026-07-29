@@ -16,7 +16,7 @@ export function AgentProgressRail({ className = 'agent-right-rail', onClose, pro
           <strong>{title}</strong>
           <span>{progressUpdatedAt}</span>
           {onClose ? (
-            <button type="button" className="agent-progress-close" aria-label="关闭进度面板" onClick={onClose}>
+            <button type="button" className="agent-progress-close" aria-label="Close progress panel" onClick={onClose}>
               x
             </button>
           ) : null}

@@ -29,13 +29,13 @@ export function AgentConversationPopover({
         </div>
         <div className="agent-conversation-header-actions">
           {actions}
-          <button type="button" className="agent-conversation-close" aria-label="关闭历史对话" onClick={onClose}>x</button>
+          <button type="button" className="agent-conversation-close" aria-label="Close conversation history" onClick={onClose}>x</button>
         </div>
       </header>
       {historyContent ? (
         <ConversationLogView session={historyContent} />
       ) : (
-        <div className="agent-conversation-empty">未找到 logs/conversation-history.json 历史对话</div>
+        <div className="agent-conversation-empty">No conversation history found at logs/conversation-history.json</div>
       )}
     </aside>
   )

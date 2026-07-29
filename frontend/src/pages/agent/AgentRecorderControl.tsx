@@ -205,14 +205,14 @@ export function AgentRecorderControl({
     : undefined
   const displayError = error || agentSpeechError
   const agentBubbleText = displayError ||
-    (agentSpeechState === 'synthesizing' ? '正在生成语音...' : visibleAgentResponse)
+    (agentSpeechState === 'synthesizing' ? 'Generating speech...' : visibleAgentResponse)
   const userBubbleText = text.trim()
   const bubbleText = agentBubbleText || userBubbleText || statusHintText
   const bubbleLabel = agentBubbleText
-    ? (displayError ? '状态' : 'AI AGENT')
+    ? (displayError ? 'Status' : 'AI AGENT')
     : userBubbleText
-      ? '用户'
-      : '状态'
+      ? 'User'
+      : 'Status'
   const bubbleTextSegments = getBubbleTextSegments(bubbleText)
 
   useEffect(() => {
@@ -250,7 +250,7 @@ export function AgentRecorderControl({
           </div>
         ) : null}
         <button
-          aria-label={inputMode === 'text' ? '打开文字对话' : recorderStatusText}
+          aria-label={inputMode === 'text' ? 'Open text chat' : recorderStatusText}
           className={`agent-robot-button ${state === 'recording' ? 'is-recording' : ''} ${busy ? 'is-busy' : ''}`}
           type="button"
           onClick={handleRobotButtonClick}
@@ -308,12 +308,12 @@ export function AgentRecorderControl({
               </button>
             </div>
             <textarea
-              aria-label="文字输入"
+              aria-label="Text input"
               autoFocus
               disabled={textInputDisabled}
               onChange={event => onTextChange(event.target.value)}
               onKeyDown={handleTextKeyDown}
-              placeholder={chatMode === 'gmat-orbit-keeping' ? 'Describe the GMAT values to change...' : '输入任务目标...'}
+              placeholder={chatMode === 'gmat-orbit-keeping' ? 'Describe the GMAT values to change...' : 'Describe your task...'}
               rows={3}
               value={textInputValue}
             />
@@ -322,7 +322,7 @@ export function AgentRecorderControl({
               disabled={textInputDisabled || textInputValue.trim().length === 0}
               onClick={handleTextSubmitClick}
             >
-              发送
+              Send
             </button>
           </div>
         ) : null}
