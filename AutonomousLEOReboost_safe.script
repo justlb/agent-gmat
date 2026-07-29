@@ -1,0 +1,224 @@
+%
+%  AutonomousLEOReboost
+%
+%  Circular Earth-orbit stationkeeping with drag decay, two-burn reboosts,
+%  a protected fuel reserve, and a final controlled decay to 100 km.
+%
+
+%----------------------------------------
+%---------- Spacecraft and tank
+%----------------------------------------
+
+Create Spacecraft DefaultSC;
+
+DefaultSC.DateFormat       = TAIModJulian;
+DefaultSC.Epoch            = '21545';
+DefaultSC.CoordinateSystem = EarthMJ2000Eq;
+DefaultSC.DisplayStateType = Keplerian;
+DefaultSC.SMA              = 6578.1363;
+DefaultSC.ECC              = 0;
+DefaultSC.INC              = 0;
+DefaultSC.RAAN             = 0;
+DefaultSC.AOP              = 0;
+DefaultSC.TA               = 0;
+DefaultSC.DryMass          = 300;
+DefaultSC.Cd               = 2.5;
+DefaultSC.Cr               = 1.8;
+DefaultSC.DragArea         = 15;
+DefaultSC.SRPArea          = 1;
+DefaultSC.Attitude         = CoordinateSystemFixed;
+DefaultSC.OrbitColor       = Red;
+
+Create ChemicalTank ChemicalTank1;
+
+ChemicalTank1.DirectionX              = 0;
+ChemicalTank1.DirectionY              = 0;
+ChemicalTank1.DirectionZ              = 1;
+ChemicalTank1.SecondDirectionX        = 0;
+ChemicalTank1.SecondDirectionY        = -1;
+ChemicalTank1.SecondDirectionZ        = 0;
+ChemicalTank1.AllowNegativeFuelMass   = false;
+ChemicalTank1.FuelMass                = 200;
+ChemicalTank1.FuelCenterOfMassX       = 0;
+ChemicalTank1.FuelCenterOfMassY       = 0;
+ChemicalTank1.FuelCenterOfMassZ       = 0;
+ChemicalTank1.FuelMomentOfInertiaXX   = 99;
+ChemicalTank1.FuelMomentOfInertiaXY   = 0;
+ChemicalTank1.FuelMomentOfInertiaXZ   = 0;
+ChemicalTank1.FuelMomentOfInertiaYY   = 99;
+ChemicalTank1.FuelMomentOfInertiaYZ   = 0;
+ChemicalTank1.FuelMomentOfInertiaZZ   = 99;
+ChemicalTank1.Pressure                = 1500;
+ChemicalTank1.Temperature             = 20;
+ChemicalTank1.RefTemperature          = 20;
+ChemicalTank1.Volume                  = 0.75;
+ChemicalTank1.FuelDensity             = 1260;
+ChemicalTank1.PressureModel           = PressureRegulated;
+
+DefaultSC.Tanks = {ChemicalTank1};
+
+%----------------------------------------
+%---------- Force model
+%----------------------------------------
+
+Create ForceModel DefaultProp_ForceModel;
+
+DefaultProp_ForceModel.CentralBody                     = Earth;
+DefaultProp_ForceModel.PrimaryBodies                   = {Earth};
+DefaultProp_ForceModel.SRP                             = Off;
+DefaultProp_ForceModel.RelativisticCorrection          = Off;
+DefaultProp_ForceModel.ErrorControl                    = RSSStep;
+DefaultProp_ForceModel.GravityField.Earth.Degree       = 4;
+DefaultProp_ForceModel.GravityField.Earth.Order        = 4;
+DefaultProp_ForceModel.GravityField.Earth.StmLimit     = 100;
+DefaultProp_ForceModel.GravityField.Earth.PotentialFile = 'JGM2.cof';
+DefaultProp_ForceModel.GravityField.Earth.TideModel    = 'None';
+DefaultProp_ForceModel.Drag.AtmosphereModel            = MSISE90;
+DefaultProp_ForceModel.Drag.HistoricWeatherSource      = 'ConstantFluxAndGeoMag';
+DefaultProp_ForceModel.Drag.PredictedWeatherSource     = 'ConstantFluxAndGeoMag';
+DefaultProp_ForceModel.Drag.CSSISpaceWeatherFile       = 'SpaceWeather-All-v1.2.txt';
+DefaultProp_ForceModel.Drag.SchattenFile               = 'SchattenPredict.txt';
+DefaultProp_ForceModel.Drag.F107                       = 150;
+DefaultProp_ForceModel.Drag.F107A                      = 150;
+DefaultProp_ForceModel.Drag.MagneticIndex              = 3;
+DefaultProp_ForceModel.Drag.SchattenErrorModel         = 'Nominal';
+DefaultProp_ForceModel.Drag.SchattenTimingModel        = 'NominalCycle';
+DefaultProp_ForceModel.Drag.DragModel                  = 'Spherical';
+
+%----------------------------------------
+%---------- Propagator
+%----------------------------------------
+
+Create Propagator DefaultProp;
+
+DefaultProp.FM                       = DefaultProp_ForceModel;
+DefaultProp.Type                     = RungeKutta89;
+DefaultProp.InitialStepSize          = 60;
+DefaultProp.Accuracy                 = 9.999999999999999e-012;
+DefaultProp.MinStep                  = 0.001;
+DefaultProp.MaxStep                  = 2700;
+DefaultProp.MaxStepAttempts          = 50;
+DefaultProp.StopIfAccuracyIsViolated = true;
+
+%----------------------------------------
+%---------- Burns
+%----------------------------------------
+
+Create ImpulsiveBurn TOI;
+
+TOI.CoordinateSystem = Local;
+TOI.Origin           = Earth;
+TOI.Axes             = VNB;
+TOI.Element1         = 0.003;
+TOI.Element2         = 0;
+TOI.Element3         = 0;
+TOI.DecrementMass    = true;
+TOI.Tank             = {ChemicalTank1};
+TOI.Isp              = 300;
+TOI.GravitationalAccel = 9.81;
+
+Create ImpulsiveBurn GOI;
+
+GOI.CoordinateSystem = Local;
+GOI.Origin           = Earth;
+GOI.Axes             = VNB;
+GOI.Element1         = 0.003;
+GOI.Element2         = 0;
+GOI.Element3         = 0;
+GOI.DecrementMass    = true;
+GOI.Tank             = {ChemicalTank1};
+GOI.Isp              = 300;
+GOI.GravitationalAccel = 9.81;
+
+%----------------------------------------
+%---------- Solver
+%----------------------------------------
+
+Create DifferentialCorrector DefaultDC;
+
+DefaultDC.ShowProgress       = true;
+DefaultDC.ReportStyle        = Normal;
+DefaultDC.ReportFile         = 'DifferentialCorrectorDC1.data';
+DefaultDC.MaximumIterations  = 25;
+DefaultDC.DerivativeMethod   = ForwardDifference;
+DefaultDC.Algorithm          = NewtonRaphson;
+
+%----------------------------------------
+%---------- Subscribers
+%----------------------------------------
+
+Create XYPlot AltitudePlot;
+
+AltitudePlot.SolverIterations = Current;
+AltitudePlot.XVariable        = DefaultSC.ElapsedDays;
+AltitudePlot.YVariables       = {DefaultSC.Earth.Altitude};
+AltitudePlot.ShowGrid         = true;
+AltitudePlot.ShowPlot         = true;
+
+Create XYPlot FuelPlot;
+
+FuelPlot.SolverIterations = Current;
+FuelPlot.XVariable        = DefaultSC.A1ModJulian;
+FuelPlot.YVariables       = {DefaultSC.ChemicalTank1.FuelMass};
+FuelPlot.ShowGrid         = true;
+FuelPlot.ShowPlot         = true;
+
+Create ReportFile ReboostReport;
+
+ReboostReport.Filename              = 'ReboostReport.txt';
+ReboostReport.Precision             = 16;
+ReboostReport.WriteHeaders          = true;
+ReboostReport.LeftJustify           = On;
+ReboostReport.ZeroFill              = Off;
+ReboostReport.FixedWidth            = true;
+ReboostReport.Delimiter             = ' ';
+ReboostReport.ColumnWidth           = 23;
+ReboostReport.WriteReport           = true;
+ReboostReport.AppendToExistingFile  = false;
+
+%----------------------------------------
+%---------- Variables
+%----------------------------------------
+
+Create Variable minAltitude finalAltitude fuelReserve targetSMA;
+
+minAltitude  = 190;
+finalAltitude = 100;
+fuelReserve  = 7;
+targetSMA    = 6578.1363;
+
+%----------------------------------------
+%---------- Mission sequence
+%----------------------------------------
+
+BeginMissionSequence;
+
+While DefaultSC.ChemicalTank1.FuelMass > fuelReserve
+
+   Propagate 'Propagate to Reboost Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = minAltitude};
+
+   Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode = Stop, ShowProgressWindow = true};
+
+      Propagate 'Propagate to Periapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Periapsis};
+
+      % Burn magnitudes are in km/s.  Positive, bounded values prevent
+      % retrograde solver trials from creating an Earth-intersecting orbit.
+      Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation = 0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+      Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation = 0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+
+      Maneuver 'Apply TOI' TOI(DefaultSC);
+      Propagate 'Propagate to Apoapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Apoapsis};
+      Achieve 'Achieve Target SMA' DefaultDC(DefaultSC.Earth.SMA = targetSMA, {Tolerance = 1.0});
+
+      Maneuver 'Apply GOI' GOI(DefaultSC);
+      Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0, {Tolerance = 0.005});
+
+   EndTarget;  % For targeter DefaultDC
+
+   Report ReboostReport DefaultSC.A1ModJulian DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;
+
+EndWhile;
+
+Propagate 'Propagate to Final Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = finalAltitude};
+
+Report ReboostReport DefaultSC.A1ModJulian DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;
