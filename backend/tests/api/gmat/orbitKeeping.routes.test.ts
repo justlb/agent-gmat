@@ -23,6 +23,7 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
     const fakeModel = Fastify()
     fakeModel.post("/v1/responses", async () => {
       modelCalls += 1
+      if (modelCalls > 1) return { output_text: "Run analysis: the saved result is available without rerunning GMAT." }
       return {
         output_text: `changes:\n  - id: ${dryMassId}\n    value: '200'\n  - id: ${dragAreaId}\n    value: '10'`,
       }
@@ -45,7 +46,7 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
         headers: { "x-codex-user-id": "alice" },
         payload: { request: "Change dry mass to 200 kg and drag area to 10 m2.", workspaceDir: versionDir },
       })
-      const body = response.json() as { changes: Array<{ id: string; value: string }>; scriptPath: string; valuesPath: string }
+      const body = response.json() as { changes: Array<{ id: string; value: string }>; runPath: string; scriptPath: string; valuesPath: string }
       const aliceRoot = path.join(tempRoot, "users", "alice")
 
       assert.equal(response.statusCode, 200)
@@ -69,8 +70,10 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
       assert.equal(listResponse.statusCode, 200)
       const listedFiles = listResponse.json().files as Array<{ fileName: string; relativePath: string }>
       assert.deepEqual(listedFiles.map(file => file.fileName).sort(), [
+        "gmat_result.json",
         "orbit_keeping.script",
         "orbit_keeping.values.yaml",
+        "run_manifest.json",
       ])
       assert.match(runDirectory, /^\d{2}-\d{2}-\d{2}_\d{2}-\d{2}$/u)
 
@@ -81,6 +84,19 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
       })
       assert.equal(downloadResponse.statusCode, 200)
       assert.match(downloadResponse.body, /DefaultSC\.DryMass\s+= 200;/u)
+
+      const scriptMtimeBeforeAnalysis = (await fs.stat(body.scriptPath)).mtimeMs
+      const analysisResponse = await server.inject({
+        method: "POST",
+        url: "/api/gmat/orbit-keeping/analyze",
+        headers: { "x-codex-user-id": "alice" },
+        payload: { question: "What happened in this run?", runPath: body.runPath },
+      })
+      assert.equal(analysisResponse.statusCode, 200)
+      assert.match(analysisResponse.json().answer, /without rerunning GMAT/u)
+      assert.equal(modelCalls, 2)
+      assert.equal((await fs.stat(body.scriptPath)).mtimeMs, scriptMtimeBeforeAnalysis)
+      await fs.access(path.join(path.dirname(body.scriptPath), "conversation.json"))
     } finally {
       await server.close()
       await fakeModel.close()

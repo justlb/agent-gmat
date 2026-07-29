@@ -7,10 +7,12 @@ import type { AppConfig } from "../config.js"
 import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
+import { analyzeOrbitKeepingRunWithLlm } from "./orbitKeepingAnalysis.js"
 import { generateOrbitKeepingMission } from "./orbitKeeping.service.js"
 
 type GenerateOrbitKeepingBody = { request?: unknown; workspaceDir?: unknown }
-type OrbitKeepingFileKind = "script" | "values"
+type AnalyzeOrbitKeepingBody = { question?: unknown; runPath?: unknown }
+type OrbitKeepingFileKind = "log" | "manifest" | "report" | "result" | "script" | "values"
 
 function getOrbitKeepingOutputDir(userWorkspaceRoot: string) {
   return path.join(path.resolve(userWorkspaceRoot), "gmat", "orbit-keeping")
@@ -19,6 +21,10 @@ function getOrbitKeepingOutputDir(userWorkspaceRoot: string) {
 function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
   if (fileName.endsWith(".script")) return "script"
   if (fileName.endsWith(".values.yaml")) return "values"
+  if (fileName === "gmat_result.json") return "result"
+  if (fileName === "run_manifest.json") return "manifest"
+  if (fileName === "ReboostReport.txt") return "report"
+  if (fileName === "gmat.log") return "log"
   return null
 }
 
@@ -77,8 +83,20 @@ function resolveListedOrbitKeepingFilePath(userWorkspaceRoot: string, relativePa
   const root = path.resolve(userWorkspaceRoot)
   const filePath = path.resolve(root, relativePath)
   const normalized = filePath.split(path.sep).join("/")
-  if (!isPathInside(root, filePath) || !/\/gmat\/orbit-keeping(?:\/[^/]+)?\/[^/]+\.(?:script|values\.yaml)$/u.test(normalized)) return null
+  if (
+    !isPathInside(root, filePath) ||
+    !/\/gmat\/orbit-keeping(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|run_manifest\.json|ReboostReport\.txt|gmat\.log)$/u.test(normalized)
+  ) return null
   return filePath
+}
+
+function resolveOrbitKeepingRunDir(userWorkspaceRoot: string, runPath: unknown) {
+  if (typeof runPath !== "string" || !runPath.trim()) return null
+  const root = path.resolve(userWorkspaceRoot)
+  const runDir = path.resolve(root, runPath)
+  const normalized = runDir.split(path.sep).join("/")
+  if (!isPathInside(root, runDir) || !/\/gmat\/orbit-keeping\/[^/]+$/u.test(normalized)) return null
+  return runDir
 }
 
 function resolveOutputWorkspaceDir(userWorkspaceRoot: string, requestedWorkspaceDir: unknown) {
@@ -92,6 +110,24 @@ function resolveOutputWorkspaceDir(userWorkspaceRoot: string, requestedWorkspace
 
 /** HTTP boundary for the one-call, deterministic orbit-keeping pipeline. */
 export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+  fastify.post<{ Body: AnalyzeOrbitKeepingBody }>("/api/gmat/orbit-keeping/analyze", async (req, reply) => {
+    const question = typeof req.body?.question === "string" ? req.body.question.trim() : ""
+    if (!question) return reply.status(400).send({ error: "question must be a non-empty string" })
+    const userWorkspaceRoot = getRequestUserWorkspaceRoot()
+    if (!userWorkspaceRoot) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const runDir = resolveOrbitKeepingRunDir(userWorkspaceRoot, req.body?.runPath)
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    try {
+      return reply.send(await analyzeOrbitKeepingRunWithLlm({
+        connection: resolveModelBackend(config, "chatModel"),
+        question,
+        runDir,
+      }))
+    } catch (err) {
+      return reply.status(422).send({ error: getErrorMessage(err, "failed to analyze GMAT run") })
+    }
+  })
+
   fastify.get("/api/gmat/orbit-keeping/files", async (_req, reply) => {
     const userWorkspaceRoot = getRequestUserWorkspaceRoot()
     if (!userWorkspaceRoot) return reply.status(500).send({ error: "user workspace is unavailable" })
@@ -103,12 +139,12 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
     if (!userWorkspaceRoot) return reply.status(500).send({ error: "user workspace is unavailable" })
     const filePath = resolveListedOrbitKeepingFilePath(userWorkspaceRoot, req.query.relativePath)
     if (!filePath) return reply.status(400).send({ error: "invalid GMAT artifact path" })
-    const kind = orbitKeepingFileKind(filePath)
+    const kind = orbitKeepingFileKind(path.basename(filePath))
     if (!kind) return reply.status(400).send({ error: "invalid GMAT artifact path" })
     const stat = await fs.stat(filePath).catch(() => null)
     if (!stat?.isFile()) return reply.status(404).send({ error: "GMAT artifact not found" })
     return reply
-      .header("Content-Type", kind === "script" ? "text/plain; charset=utf-8" : "application/x-yaml; charset=utf-8")
+      .header("Content-Type", kind === "values" ? "application/x-yaml; charset=utf-8" : kind === "result" || kind === "manifest" ? "application/json; charset=utf-8" : "text/plain; charset=utf-8")
       .header("Content-Disposition", `attachment; filename="${path.basename(filePath)}"`)
       .header("Content-Length", String(stat.size))
       .send(createReadStream(filePath))
@@ -123,11 +159,19 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
 
     try {
       const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
-      return reply.send(await generateOrbitKeepingMission({
+      const result = await generateOrbitKeepingMission({
         connection: resolveModelBackend(config, "chatModel"),
+        execution: config.tools.gmat.bin ? {
+          bin: config.tools.gmat.bin,
+          timeoutMs: config.tools.gmat.timeoutMs,
+        } : undefined,
         request,
         workspaceDir,
-      }))
+      })
+      return reply.send({
+        ...result,
+        runPath: path.relative(path.resolve(userWorkspaceRoot), result.runDir),
+      })
     } catch (err) {
       return reply.status(422).send({ error: getErrorMessage(err, "failed to generate orbit-keeping mission") })
     }

@@ -153,3 +153,29 @@ https://github.com/justlb/agent-gmat
 Branche actuelle : main.
 Dernier commit connu :
 2b5c8ce feat: add one-call LLM orbit keeping value editor
+# GMAT run execution and contextual analysis
+
+The orbit-keeping frontend flow now creates an immutable timestamped run and, when
+`tools.gmat.bin` is configured, executes `GmatConsole.exe --run <script>`.
+
+Each new run contains:
+
+- `orbit_keeping.script`
+- `orbit_keeping.values.yaml`
+- `gmat.log`
+- `ReboostReport.txt` when GMAT produces it
+- `gmat_result.json`
+- `run_manifest.json`
+- `conversation.json` after the first question about the saved run
+
+The frontend `Files` panel groups these files by run. Selecting **Discuss this
+run** binds subsequent GMAT chat messages to the saved run and calls
+`POST /api/gmat/orbit-keeping/analyze`; this analysis does not execute GMAT
+again. Selecting **New GMAT run** clears that context so the next GMAT message
+creates and executes a new run.
+
+The first normalized result contract is intentionally limited to the values
+available in `ReboostReport.txt`: reported altitude extrema, final reported
+altitude/fuel/epoch, report sample count, and fuel difference between the first
+and last report rows. These are named “reported” metrics because the current
+template does not yet export a continuous orbit timeline.

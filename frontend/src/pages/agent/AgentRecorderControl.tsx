@@ -5,6 +5,7 @@ type AgentInputMode = 'voice' | 'text'
 export type AgentChatMode = 'general' | 'gmat-orbit-keeping'
 
 type AgentRecorderControlProps = {
+  activeGmatRunId?: string
   activeView: AgentWorkspaceView | null
   agentSpeechError: string
   agentSpeechState: AgentSpeechState
@@ -15,6 +16,7 @@ type AgentRecorderControlProps = {
   inputMode: AgentInputMode
   onButtonClick: () => void
   onChatModeChange: (mode: AgentChatMode) => void
+  onStartNewGmatRun: () => void
   onTextChange: (value: string) => void
   onTextSubmit: () => void
   recorderStatusText: string
@@ -41,6 +43,7 @@ type DockedRobotPosition = {
 }
 
 export function AgentRecorderControl({
+  activeGmatRunId,
   activeView,
   agentSpeechError,
   agentSpeechState,
@@ -51,6 +54,7 @@ export function AgentRecorderControl({
   inputMode,
   onButtonClick,
   onChatModeChange,
+  onStartNewGmatRun,
   onTextChange,
   onTextSubmit,
   recorderStatusText,
@@ -307,13 +311,21 @@ export function AgentRecorderControl({
                 GMAT Orbit Keeping
               </button>
             </div>
+            {chatMode === 'gmat-orbit-keeping' && activeGmatRunId ? (
+              <div className="agent-gmat-chat-context">
+                <span>Discussing run: {activeGmatRunId}</span>
+                <button type="button" onClick={onStartNewGmatRun}>New GMAT run</button>
+              </div>
+            ) : null}
             <textarea
               aria-label="Text input"
               autoFocus
               disabled={textInputDisabled}
               onChange={event => onTextChange(event.target.value)}
               onKeyDown={handleTextKeyDown}
-              placeholder={chatMode === 'gmat-orbit-keeping' ? 'Describe the GMAT values to change...' : 'Describe your task...'}
+              placeholder={chatMode === 'gmat-orbit-keeping'
+                ? activeGmatRunId ? 'Ask a question about this completed run...' : 'Describe the GMAT values to change...'
+                : 'Describe your task...'}
               rows={3}
               value={textInputValue}
             />

@@ -18,6 +18,7 @@ type BomStagePanelProps = ComponentProps<typeof BomStagePanel>
 type AgentFilesViewProps = ComponentProps<typeof AgentFilesView>
 
 type AgentWorkspacePanelProps = {
+  activeGmatRunPath?: string
   activeContext: AgentFilesViewProps['activeContext'] & {
     versionDir?: string | null
     versionId?: string | null
@@ -38,6 +39,7 @@ type AgentWorkspacePanelProps = {
   createVersionFromInput: CurrentWorkspaceCardProps['onCreateVersionFromInput']
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
   manifestLoading: boolean
+  onSelectGmatRun?: AgentFilesViewProps['onSelectGmatRun']
   selectedBom: BomStagePanelProps['selectedBom']
   selectedFileError: string
   selectedFileLoading: boolean
@@ -74,6 +76,7 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showCompl
 }
 
 export function AgentWorkspacePanel({
+  activeGmatRunPath,
   activeContext,
   activeManifestVersion,
   activeTool,
@@ -90,6 +93,7 @@ export function AgentWorkspacePanel({
   createVersionFromInput,
   handleSelectFile,
   manifestLoading,
+  onSelectGmatRun,
   selectedBom,
   selectedFileError,
   selectedFileLoading,
@@ -255,8 +259,10 @@ export function AgentWorkspacePanel({
           )
         ) : (
           <AgentFilesView
+            activeGmatRunPath={activeGmatRunPath}
             activeContext={activeContext}
             handleSelectFile={handleSelectFile}
+            onSelectGmatRun={onSelectGmatRun}
             selectedFileError={selectedFileError}
             selectedFileLoading={selectedFileLoading}
             selectedFilePath={selectedFilePath}

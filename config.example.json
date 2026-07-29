@@ -95,6 +95,10 @@
     },
     "gnc": {
       "url": "http://localhost:8765/"
+    },
+    "gmat": {
+      "bin": "/mnt/c/path/to/GMAT/bin/GmatConsole.exe",
+      "timeoutMs": 120000
     }
   },
   "funasr": {

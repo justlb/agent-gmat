@@ -40,9 +40,20 @@ describe("orbit keeping service", () => {
     ])
     assert.match(script, /DefaultSC\.DryMass\s+= 200;/u)
     assert.match(script, /DefaultSC\.DragArea\s+= 10;/u)
-    assert.equal(script.replace("= 200;", "= 300;").replace("= 10;", "= 15;"), sourceScript)
+    assert.equal(
+      script
+        .replace("= 200;", "= 300;")
+        .replace("= 10;", "= 15;")
+        .replace(/ReboostReport\.Filename = '[^']+';/u, "ReboostReport.Filename = 'ReboostReport.txt';"),
+      sourceScript,
+    )
     assert.match(values, /value: "200"/u)
     assert.match(values, /value: "10"/u)
+    assert.deepEqual(result.result, { reportSampleCount: 0, status: "generated" })
+    await Promise.all([
+      fs.access(result.manifestPath),
+      fs.access(result.resultPath),
+    ])
   })
 
   it("does not retry or create artefacts when the LLM request fails", async () => {

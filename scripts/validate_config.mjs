@@ -247,6 +247,7 @@ function validateShape(config, issues) {
     }
   }
   checkOptionalExecutable(config, "tools.cad.bin", issues)
+  checkOptionalExecutable(config, "tools.gmat.bin", issues)
   optionalString(config, "tools.comsol.sudo", issues)
   optionalUrl(config, "tools.gnc.url", issues)
 

@@ -5,8 +5,10 @@ import { WorkspaceFilePreviewPanel } from '../WorkspaceFilePreviewPanel'
 import { listOrbitKeepingFiles, orbitKeepingFileDownloadUrl, type OrbitKeepingFile } from '../orbitKeepingApi'
 
 type AgentFilesViewProps = {
+  activeGmatRunPath?: string
   activeContext: ComponentProps<typeof GeneratedFilesTreeCard>['activeContext']
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
+  onSelectGmatRun?: (run: { runId: string; runPath: string }) => void
   selectedFileError: string
   selectedFileLoading: boolean
   selectedFilePath: string
@@ -15,8 +17,10 @@ type AgentFilesViewProps = {
 }
 
 export function AgentFilesView({
+  activeGmatRunPath,
   activeContext,
   handleSelectFile,
+  onSelectGmatRun,
   selectedFileError,
   selectedFileLoading,
   selectedFilePath,
@@ -40,6 +44,13 @@ export function AgentFilesView({
       })
     return () => { cancelled = true }
   }, [workspaceRefreshNonce])
+  const gmatRuns = Object.values(gmatFiles.reduce<Record<string, { files: OrbitKeepingFile[]; runId: string; runPath: string }>>((groups, file) => {
+    const runPath = file.relativePath.replace(/[\\/][^\\/]+$/u, '')
+    const runId = runPath.split(/[\\/]/u).at(-1) ?? file.artifactId
+    groups[runPath] ??= { files: [], runId, runPath }
+    groups[runPath].files.push(file)
+    return groups
+  }, {}))
 
   return (
     <div className="agent-file-stage">
@@ -52,13 +63,25 @@ export function AgentFilesView({
             </div>
           </header>
           {gmatFilesError ? <p className="agent-gmat-files-error">{gmatFilesError}</p> : null}
-          {gmatFiles.length ? (
+          {gmatRuns.length ? (
             <div className="agent-gmat-files-list">
-              {gmatFiles.map(file => (
-                <a href={orbitKeepingFileDownloadUrl(file)} key={file.relativePath}>
-                  <span>{file.fileName}</span>
-                  <small>Download</small>
-                </a>
+              {gmatRuns.map(run => (
+                <section className={activeGmatRunPath === run.runPath ? 'is-active' : ''} key={run.runPath}>
+                  <header>
+                    <strong>{run.runId}</strong>
+                    {run.files.some(file => file.kind === 'manifest') && run.files.some(file => file.kind === 'result') ? (
+                      <button type="button" onClick={() => onSelectGmatRun?.({ runId: run.runId, runPath: run.runPath })}>
+                        {activeGmatRunPath === run.runPath ? 'Active conversation' : 'Discuss this run'}
+                      </button>
+                    ) : <small>Legacy run</small>}
+                  </header>
+                  {run.files.map(file => (
+                    <a href={orbitKeepingFileDownloadUrl(file)} key={file.relativePath}>
+                      <span>{file.fileName}</span>
+                      <small>Download</small>
+                    </a>
+                  ))}
+                </section>
               ))}
             </div>
           ) : <p className="agent-gmat-files-empty">No GMAT files generated yet.</p>}

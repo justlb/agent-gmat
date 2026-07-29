@@ -16,7 +16,7 @@ import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
 import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex, type ManagedModelBackend } from './agent/managedRun'
-import { generateOrbitKeeping, type OrbitKeepingGenerateResult } from './agent/orbitKeepingApi'
+import { analyzeOrbitKeepingRun, generateOrbitKeeping, type OrbitKeepingGenerateResult } from './agent/orbitKeepingApi'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -62,6 +62,7 @@ export default function AgentPage() {
   const [textInputDisplay, setTextInputDisplay] = useState('')
   const [managedRunError, setManagedRunError] = useState('')
   const [gmatGenerating, setGmatGenerating] = useState(false)
+  const [activeGmatRun, setActiveGmatRun] = useState<{ runId: string; runPath: string } | null>(null)
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
   const [remoteToolPortStatus, setRemoteToolPortStatus] = useState<RemoteToolPortSummary | null>(null)
   const [remoteToolPortError, setRemoteToolPortError] = useState('')
@@ -482,17 +483,36 @@ export default function AgentPage() {
       return
     }
     setGmatGenerating(true)
+    if (activeGmatRun) {
+      void analyzeOrbitKeepingRun({
+        question: prompt,
+        runPath: activeGmatRun.runPath,
+      })
+        .then(result => showSpeechText(result.answer))
+        .catch(error => {
+          setManagedRunError(error instanceof Error ? error.message : 'GMAT analysis failed')
+        })
+        .finally(() => setGmatGenerating(false))
+      return
+    }
     void generateOrbitKeeping(prompt, { workspaceDir: activeContext.versionDir })
       .then((result: OrbitKeepingGenerateResult) => {
         const changes = result.changes.map(change => `- ${change.id} = ${change.value}`).join('\n')
-        showSpeechText(`GMAT Orbit Keeping generated in ${result.latencyMs} ms.\nAccepted changes:\n${changes || '- none'}`)
+        const metrics = [
+          `GMAT run ${result.runId}: ${result.result.status}`,
+          result.result.minimumReportedAltitudeKm !== undefined ? `Minimum reported altitude: ${result.result.minimumReportedAltitudeKm} km` : '',
+          result.result.finalFuelMassKg !== undefined ? `Final reported fuel: ${result.result.finalFuelMassKg} kg` : '',
+          result.result.error ?? '',
+        ].filter(Boolean).join('\n')
+        setActiveGmatRun({ runId: result.runId, runPath: result.runPath })
+        showSpeechText(`${metrics}\nGeneration latency: ${result.latencyMs} ms.\nAccepted changes:\n${changes || '- none'}`)
         refreshWorkspaceViews()
       })
       .catch(error => {
         setManagedRunError(error instanceof Error ? error.message : 'GMAT generation failed')
       })
       .finally(() => setGmatGenerating(false))
-  }, [activeContext.versionDir, chatMode, clearAgentSpeechDisplay, refreshWorkspaceViews, runCodex, showSpeechText, textComposerBusy, textInput])
+  }, [activeContext.versionDir, activeGmatRun, chatMode, clearAgentSpeechDisplay, refreshWorkspaceViews, runCodex, showSpeechText, textComposerBusy, textInput])
   const displayedSessionStatus = managedVoiceRunning || latestManagedStatus?.status === 'running'
     ? 'running'
     : latestManagedStatus?.status === 'completed' || latestManagedStatus?.status === 'partial'
@@ -570,6 +590,7 @@ export default function AgentPage() {
       <section className="agent-stage" aria-live="polite">
         <AgentSideNav activeNavIndex={activeNavIndex} navItems={navItems} onNavSelect={handleNavSelect} />
         <AgentWorkspacePanel
+          activeGmatRunPath={activeGmatRun?.runPath}
           activeContext={activeContext}
           activeManifestVersion={activeManifestVersion}
           activeTool={activeTool}
@@ -586,6 +607,13 @@ export default function AgentPage() {
           createVersionFromInput={createVersionFromInput}
           handleSelectFile={handleSelectFile}
           manifestLoading={manifestLoading}
+          onSelectGmatRun={run => {
+            setActiveGmatRun(run)
+            setChatMode('gmat-orbit-keeping')
+            setInputMode('text')
+            setManagedRunError('')
+            showSpeechText(`Run ${run.runId} is now the active GMAT conversation context. Questions will use its saved results without rerunning GMAT.`)
+          }}
           selectedBom={selectedBom}
           selectedFileError={selectedFileError}
           selectedFileLoading={selectedFileLoading}
@@ -612,6 +640,7 @@ export default function AgentPage() {
         />
 
         <AgentRecorderControl
+          activeGmatRunId={activeGmatRun?.runId}
           activeView={activeView}
           agentSpeechError={agentSpeechError}
           agentSpeechState={agentSpeechState}
@@ -622,6 +651,11 @@ export default function AgentPage() {
           inputMode={inputMode}
           onButtonClick={handleButtonClick}
           onChatModeChange={handleChatModeChange}
+          onStartNewGmatRun={() => {
+            setActiveGmatRun(null)
+            clearAgentSpeechDisplay()
+            setManagedRunError('')
+          }}
           onTextChange={setTextInput}
           onTextSubmit={handleTextSubmit}
           recorderStatusText={inputMode === 'text' ? textRecorderStatusText : recorderStatusText}

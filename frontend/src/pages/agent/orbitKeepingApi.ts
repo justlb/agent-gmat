@@ -8,6 +8,21 @@ export type OrbitKeepingChange = {
 export type OrbitKeepingGenerateResult = {
   changes: OrbitKeepingChange[]
   latencyMs: number
+  manifestPath: string
+  result: {
+    error?: string
+    executionDurationMs?: number
+    finalAltitudeKm?: number
+    finalFuelMassKg?: number
+    fuelUsedBetweenReportsKg?: number
+    maximumReportedAltitudeKm?: number
+    minimumReportedAltitudeKm?: number
+    reportSampleCount: number
+    status: 'generated' | 'completed' | 'failed' | 'timeout'
+  }
+  resultPath: string
+  runId: string
+  runPath: string
   scriptPath: string
   valuesPath: string
 }
@@ -15,7 +30,7 @@ export type OrbitKeepingGenerateResult = {
 export type OrbitKeepingFile = {
   artifactId: string
   fileName: string
-  kind: 'script' | 'values'
+  kind: 'log' | 'manifest' | 'report' | 'result' | 'script' | 'values'
   mtimeMs: number
   relativePath: string
   size: number
@@ -43,6 +58,24 @@ export async function generateOrbitKeeping(request: string, {
   })
   if (!response.ok) throw new Error(await getResponseErrorMessage(response))
   return response.json() as Promise<OrbitKeepingGenerateResult>
+}
+
+export async function analyzeOrbitKeepingRun({
+  apiBase,
+  question,
+  runPath,
+}: {
+  apiBase?: string
+  question: string
+  runPath: string
+}) {
+  const response = await fetch(joinApiPath(apiBase, '/gmat/orbit-keeping/analyze'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, runPath }),
+  })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  return response.json() as Promise<{ answer: string; latencyMs: number; runId: string }>
 }
 
 export async function listOrbitKeepingFiles(apiBase?: string) {

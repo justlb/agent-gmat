@@ -80,6 +80,10 @@ export interface AppConfig {
     gnc: {
       url: string | null
     }
+    gmat: {
+      bin: string | null
+      timeoutMs: number
+    }
   }
   workspace: {
     filesystemGroup: string
@@ -350,6 +354,7 @@ export function loadConfig(): AppConfig {
   const paraviewTool = tools.paraview ?? {} as Partial<AppConfig["tools"]["paraview"]>
   const comsolTool = tools.comsol ?? {} as Partial<AppConfig["tools"]["comsol"]>
   const gncTool = tools.gnc ?? {} as Partial<AppConfig["tools"]["gnc"]>
+  const gmatTool = tools.gmat ?? {} as Partial<AppConfig["tools"]["gmat"]>
   const workspace = (
     cfg.workspace ??
     (typeof cfg[LEGACY_CAD_CONFIG_KEY] === "object" && cfg[LEGACY_CAD_CONFIG_KEY] !== null
@@ -449,6 +454,14 @@ export function loadConfig(): AppConfig {
       },
       gnc: {
         url: optionalString(gncTool.url, "tools.gnc.url"),
+      },
+      gmat: {
+        bin: optionalString(gmatTool.bin, "tools.gmat.bin"),
+        timeoutMs: positiveInteger(
+          gmatTool.timeoutMs,
+          "tools.gmat.timeoutMs",
+          120_000,
+        ),
       },
     },
     workspace: {

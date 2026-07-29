@@ -99,6 +99,10 @@ export function createTestConfig(overrides: Partial<AppConfig> = {}): AppConfig 
       gnc: {
         url: null,
       },
+      gmat: {
+        bin: null,
+        timeoutMs: 120_000,
+      },
       paraview: {
         displayNum: "4",
         launcher: "/bin/true",
