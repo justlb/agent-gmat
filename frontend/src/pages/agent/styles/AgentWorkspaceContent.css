@@ -1898,3 +1898,48 @@
     width: 34px;
   }
 }
+.agent-gmat-files-card {
+  margin: 0 0 12px;
+  border: 1px solid rgba(91, 124, 255, 0.36);
+  border-radius: 12px;
+  background: rgba(18, 28, 56, 0.72);
+  padding: 12px;
+}
+
+.agent-gmat-files-card header,
+.agent-gmat-files-card a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.agent-gmat-files-card strong,
+.agent-gmat-files-card span {
+  display: block;
+}
+
+.agent-gmat-files-card header span,
+.agent-gmat-files-empty,
+.agent-gmat-files-error {
+  margin: 3px 0 0;
+  color: rgba(226, 232, 240, 0.68);
+  font-size: 12px;
+}
+
+.agent-gmat-files-error { color: #fca5a5; }
+
+.agent-gmat-files-list { margin-top: 10px; }
+
+.agent-gmat-files-card a {
+  padding: 7px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  color: #dbeafe;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.agent-gmat-files-card a small {
+  color: #93c5fd;
+  font-weight: 700;
+}

@@ -59,6 +59,27 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
       assert.match(script, /DefaultSC\.DragArea\s+= 10;/u)
       assert.match(values, /value: "200"/u)
       assert.match(values, /value: "10"/u)
+
+      const artifactId = path.basename(body.scriptPath, ".script")
+      const listResponse = await server.inject({
+        method: "GET",
+        url: "/api/gmat/orbit-keeping/files",
+        headers: { "x-codex-user-id": "alice" },
+      })
+      assert.equal(listResponse.statusCode, 200)
+      const listedFiles = listResponse.json().files as Array<{ fileName: string; relativePath: string }>
+      assert.deepEqual(listedFiles.map(file => file.fileName).sort(), [
+        `${artifactId}.script`,
+        `${artifactId}.values.yaml`,
+      ])
+
+      const downloadResponse = await server.inject({
+        method: "GET",
+        url: `/api/gmat/orbit-keeping/files/download?relativePath=${encodeURIComponent(listedFiles.find(file => file.fileName.endsWith(".script"))?.relativePath ?? "")}`,
+        headers: { "x-codex-user-id": "alice" },
+      })
+      assert.equal(downloadResponse.statusCode, 200)
+      assert.match(downloadResponse.body, /DefaultSC\.DryMass\s+= 200;/u)
     } finally {
       await server.close()
       await fakeModel.close()

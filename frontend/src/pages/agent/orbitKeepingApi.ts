@@ -12,6 +12,15 @@ export type OrbitKeepingGenerateResult = {
   valuesPath: string
 }
 
+export type OrbitKeepingFile = {
+  artifactId: string
+  fileName: string
+  kind: 'script' | 'values'
+  mtimeMs: number
+  relativePath: string
+  size: number
+}
+
 async function getResponseErrorMessage(response: Response) {
   const payload = await response.json().catch(() => ({})) as { error?: unknown; message?: unknown }
   if (typeof payload.error === 'string') return payload.error
@@ -34,4 +43,16 @@ export async function generateOrbitKeeping(request: string, {
   })
   if (!response.ok) throw new Error(await getResponseErrorMessage(response))
   return response.json() as Promise<OrbitKeepingGenerateResult>
+}
+
+export async function listOrbitKeepingFiles(apiBase?: string) {
+  const response = await fetch(joinApiPath(apiBase, '/gmat/orbit-keeping/files'), { cache: 'no-store' })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  const payload = await response.json() as { files?: OrbitKeepingFile[] }
+  return Array.isArray(payload.files) ? payload.files : []
+}
+
+export function orbitKeepingFileDownloadUrl(file: Pick<OrbitKeepingFile, 'relativePath'>, apiBase?: string) {
+  const base = joinApiPath(apiBase, '/gmat/orbit-keeping/files/download')
+  return `${base}?${new URLSearchParams({ relativePath: file.relativePath }).toString()}`
 }
