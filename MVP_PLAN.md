@@ -20,7 +20,7 @@ Les commits sont gérés par Codex sur ce dépôt. Les fichiers de configuration
 
 Le projet `C:\JUSTINE\APP\AGENT_GITHUB\open_codex_web-master` est la source de vérité : les décisions, le code et les tests utiles y sont construits puis versionnés.
 
-Le projet `C:\JUSTINE\APP\AGENT_GITHUB\open_codex_web-master6` peut être consulté comme référence pour comprendre une idée, un flux ou une intégration existante. Il n'est pas considéré comme fiable : toute logique reprise doit être relue, simplifiée si nécessaire et validée par un test dans le nouveau projet.
+Le projet `C:\JUSTINE\APP\AGENT_GITHUB\open_codex_web-master` peut être consulté comme référence pour comprendre une idée, un flux ou une intégration existante. Il n'est pas considéré comme fiable : toute logique reprise doit être relue, simplifiée si nécessaire et validée par un test dans le nouveau projet.
 
 Avant chaque MVP qui touche à l'architecture, nous discutons et consignons :
 

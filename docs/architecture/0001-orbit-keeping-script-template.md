@@ -60,7 +60,7 @@ Une erreur de syntaxe YAML, une valeur absente ou un rendu impossible arrête la
 - aucune exécution de GMAT dans le périmètre actuel ;
 - aucun générateur GMAT générique et aucun planificateur de manœuvres.
 
-Le projet `open_codex_web-master6` peut fournir des noms de propriétés GMAT et des exemples de sortie. Son orchestrateur, sa pipeline de correction et son générateur généraliste ne sont pas repris sans validation indépendante.
+Le projet `open_codex_web-master` peut fournir des noms de propriétés GMAT et des exemples de sortie. Son orchestrateur, sa pipeline de correction et son générateur généraliste ne sont pas repris sans validation indépendante.
 
 ## Invariants vérifiables
 

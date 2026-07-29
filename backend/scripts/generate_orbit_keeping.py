@@ -24,8 +24,10 @@ from urllib.request import Request, urlopen
 
 
 DEFAULT_PROMPT = (
-    "Change dry mass to 200 kg, drag area to 10 m2, "
-    "and minimum altitude to 210 km."
+    "set initial orbit to 1000 km circular, "
+    "Change dry mass to 300 kg, drag area to 15 m2, "
+    "and minimum altitude to 950 km." \
+    "calculate the requiered delta-v to maintain the orbit for 1 year, then add fuel mass to the spacecraft to achieve that delta-v, "
 )
 DEFAULT_USER_ID = "justine"
 
@@ -49,29 +51,46 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--request", default=DEFAULT_PROMPT, help="Natural-language mission change request.")
     parser.add_argument("--backend-url", default=default_backend_url(), help="Backend base URL.")
     parser.add_argument("--user-id", default=DEFAULT_USER_ID, help="User workspace owner.")
-    parser.add_argument("--output-dir", type=Path, default=default_output_dir(), help="Directory receiving timestamped copies of the YAML and GMAT script.")
+    parser.add_argument("--output-dir", type=Path, default=default_output_dir(), help="Directory receiving one timestamped folder per run.")
+    parser.add_argument("--keep-backend-artifacts", action="store_true", help="Keep the temporary artefacts written by the backend workspace.")
     return parser.parse_args()
 
 
-def save_manual_test_artifacts(result: dict[str, object], output_dir: Path) -> tuple[Path, Path]:
-    """Copy backend artefacts to the project manual-test directory without overwriting a run."""
+def is_expected_backend_artifact(values_source: Path, script_source: Path) -> bool:
+    return (
+        values_source.name.endswith(".values.yaml")
+        and script_source.suffix == ".script"
+        and values_source.parent == script_source.parent
+        and values_source.parent.name == "orbit-keeping"
+        and values_source.parent.parent.name == "gmat"
+    )
+
+
+def archive_manual_test_artifacts(
+    result: dict[str, object], output_dir: Path, keep_backend_artifacts: bool,
+) -> tuple[Path, Path]:
+    """Archive artefacts in one dated folder, then remove backend temporary copies."""
     values_source = Path(str(result["valuesPath"]))
     script_source = Path(str(result["scriptPath"]))
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if not is_expected_backend_artifact(values_source, script_source):
+        raise OSError("backend returned unexpected artefact paths; temporary files were not removed")
 
     timestamp = datetime.now().strftime("%y-%m-%d_%H-%M")
-    suffix = ""
+    run_dir = output_dir / timestamp
     attempt = 1
-    while True:
-        values_destination = output_dir / f"orbit_keeping_{timestamp}{suffix}.values.yaml"
-        script_destination = output_dir / f"orbit_keeping_{timestamp}{suffix}.script"
-        if not values_destination.exists() and not script_destination.exists():
-            break
+    while run_dir.exists():
         attempt += 1
-        suffix = f"_{attempt:02d}"
+        run_dir = output_dir / f"{timestamp}_{attempt:02d}"
+
+    run_dir.mkdir(parents=True)
+    values_destination = run_dir / "orbit_keeping.values.yaml"
+    script_destination = run_dir / "orbit_keeping.script"
 
     shutil.copy2(values_source, values_destination)
     shutil.copy2(script_source, script_destination)
+    if not keep_backend_artifacts:
+        values_source.unlink()
+        script_source.unlink()
     return values_destination, script_destination
 
 
@@ -102,7 +121,7 @@ def main() -> int:
         return 1
 
     try:
-        saved_values, saved_script = save_manual_test_artifacts(result, args.output_dir)
+        saved_values, saved_script = archive_manual_test_artifacts(result, args.output_dir, args.keep_backend_artifacts)
     except (KeyError, OSError) as exc:
         print(f"Mission generated, but manual-test copies could not be saved: {exc}", file=sys.stderr)
         return 1
@@ -112,8 +131,11 @@ def main() -> int:
     print("Accepted changes:")
     for change in result["changes"]:
         print(f"  - {change['id']} = {change['value']}")
-    print(f"Backend Values YAML: {result['valuesPath']}")
-    print(f"Backend GMAT script: {result['scriptPath']}")
+    if args.keep_backend_artifacts:
+        print(f"Backend Values YAML: {result['valuesPath']}")
+        print(f"Backend GMAT script: {result['scriptPath']}")
+    else:
+        print("Backend temporary artefacts removed.")
     print(f"Saved Values YAML: {saved_values}")
     print(f"Saved GMAT script: {saved_script}")
     return 0
