@@ -60,7 +60,7 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
       assert.match(values, /value: "200"/u)
       assert.match(values, /value: "10"/u)
 
-      const artifactId = path.basename(body.scriptPath, ".script")
+      const runDirectory = path.basename(path.dirname(body.scriptPath))
       const listResponse = await server.inject({
         method: "GET",
         url: "/api/gmat/orbit-keeping/files",
@@ -69,9 +69,10 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
       assert.equal(listResponse.statusCode, 200)
       const listedFiles = listResponse.json().files as Array<{ fileName: string; relativePath: string }>
       assert.deepEqual(listedFiles.map(file => file.fileName).sort(), [
-        `${artifactId}.script`,
-        `${artifactId}.values.yaml`,
+        "orbit_keeping.script",
+        "orbit_keeping.values.yaml",
       ])
+      assert.match(runDirectory, /^\d{2}-\d{2}-\d{2}_\d{2}-\d{2}$/u)
 
       const downloadResponse = await server.inject({
         method: "GET",

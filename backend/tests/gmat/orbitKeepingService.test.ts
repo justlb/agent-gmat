@@ -32,7 +32,7 @@ describe("orbit keeping service", () => {
     })
 
     assert.equal(calls, 1)
-    assert.match(result.valuesPath, /gmat[\\/]orbit-keeping[\\/]test-mission\.values\.yaml$/u)
+    assert.match(result.valuesPath, /gmat[\\/]orbit-keeping[\\/]test-mission[\\/]orbit_keeping\.values\.yaml$/u)
     const [sourceScript, script, values] = await Promise.all([
       fs.readFile(defaultOrbitKeepingTemplatePath(), "utf8"),
       fs.readFile(result.scriptPath, "utf8"),

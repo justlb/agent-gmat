@@ -38,20 +38,30 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
           await visit(child, depth + 1)
           continue
         }
-        for (const outputEntry of outputEntries) {
-          if (!outputEntry.isFile()) continue
-          const kind = orbitKeepingFileKind(outputEntry.name)
-          if (!kind) continue
-          const outputPath = path.join(outputDir, outputEntry.name)
+        const addOutputFile = async (outputPath: string, fileName: string) => {
+          const kind = orbitKeepingFileKind(fileName)
+          if (!kind) return
           const stat = await fs.stat(outputPath)
           files.push({
-            artifactId: outputEntry.name.replace(kind === "script" ? /\.script$/u : /\.values\.yaml$/u, ""),
-            fileName: outputEntry.name,
+            artifactId: path.basename(path.dirname(outputPath)),
+            fileName,
             kind,
             mtimeMs: stat.mtimeMs,
             relativePath: path.relative(root, outputPath),
             size: stat.size,
           })
+        }
+        for (const outputEntry of outputEntries) {
+          const outputPath = path.join(outputDir, outputEntry.name)
+          if (outputEntry.isFile()) {
+            await addOutputFile(outputPath, outputEntry.name)
+            continue
+          }
+          if (!outputEntry.isDirectory()) continue
+          const runEntries = await fs.readdir(outputPath, { withFileTypes: true }).catch(() => [])
+          for (const runEntry of runEntries) {
+            if (runEntry.isFile()) await addOutputFile(path.join(outputPath, runEntry.name), runEntry.name)
+          }
         }
         continue
       }
@@ -67,7 +77,7 @@ function resolveListedOrbitKeepingFilePath(userWorkspaceRoot: string, relativePa
   const root = path.resolve(userWorkspaceRoot)
   const filePath = path.resolve(root, relativePath)
   const normalized = filePath.split(path.sep).join("/")
-  if (!isPathInside(root, filePath) || !/\/gmat\/orbit-keeping\/[^/]+\.(?:script|values\.yaml)$/u.test(normalized)) return null
+  if (!isPathInside(root, filePath) || !/\/gmat\/orbit-keeping(?:\/[^/]+)?\/[^/]+\.(?:script|values\.yaml)$/u.test(normalized)) return null
   return filePath
 }
 

@@ -1,6 +1,5 @@
 import fs from "node:fs/promises"
 import path from "node:path"
-import { randomUUID } from "node:crypto"
 import { stringify } from "yaml"
 
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
@@ -24,6 +23,25 @@ function defaultOrbitKeepingValuesPath(projectRoot = process.cwd()) {
   )
 }
 
+function formatRunDirectoryName(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0")
+  return `${pad(date.getFullYear() % 100)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}`
+}
+
+async function createRunOutputDir(rootDir: string, requestedName: string) {
+  for (let index = 1; index <= 99; index += 1) {
+    const suffix = index === 1 ? "" : `_${String(index).padStart(2, "0")}`
+    const outputDir = path.join(rootDir, `${requestedName}${suffix}`)
+    try {
+      await fs.mkdir(outputDir, { recursive: false })
+      return outputDir
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err
+    }
+  }
+  throw new Error("too many GMAT generations in the same minute")
+}
+
 /**
  * Generates GMAT artefacts from the immutable Keplerian template.
  *
@@ -37,7 +55,7 @@ export async function generateOrbitKeepingMission({
   fetchImpl,
   templatePath = defaultOrbitKeepingTemplatePath(),
   valuesPath = defaultOrbitKeepingValuesPath(),
-  artifactId = randomUUID(),
+  artifactId = formatRunDirectoryName(new Date()),
 }: {
   connection: Pick<ResolvedModelBackend, "apiKey" | "baseUrl" | "model">
   request: string
@@ -59,10 +77,11 @@ export async function generateOrbitKeepingMission({
   const renderedScript = renderOrbitKeepingValues(template, edit.values)
   const renderedValues = stringify(edit.values)
 
-  const outputDir = path.join(path.resolve(workspaceDir), "gmat", "orbit-keeping")
-  const outputValuesPath = path.join(outputDir, `${artifactId}.values.yaml`)
-  const outputScriptPath = path.join(outputDir, `${artifactId}.script`)
-  await fs.mkdir(outputDir, { recursive: true })
+  const outputRoot = path.join(path.resolve(workspaceDir), "gmat", "orbit-keeping")
+  await fs.mkdir(outputRoot, { recursive: true })
+  const outputDir = await createRunOutputDir(outputRoot, artifactId)
+  const outputValuesPath = path.join(outputDir, "orbit_keeping.values.yaml")
+  const outputScriptPath = path.join(outputDir, "orbit_keeping.script")
   await Promise.all([
     fs.writeFile(outputValuesPath, renderedValues, "utf8"),
     fs.writeFile(outputScriptPath, renderedScript, "utf8"),

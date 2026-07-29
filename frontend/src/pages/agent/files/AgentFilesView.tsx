@@ -55,7 +55,7 @@ export function AgentFilesView({
           {gmatFiles.length ? (
             <div className="agent-gmat-files-list">
               {gmatFiles.map(file => (
-                <a href={orbitKeepingFileDownloadUrl(file)} key={`${file.artifactId}:${file.kind}`}>
+                <a href={orbitKeepingFileDownloadUrl(file)} key={file.relativePath}>
                   <span>{file.fileName}</span>
                   <small>Download</small>
                 </a>
