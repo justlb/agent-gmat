@@ -38,11 +38,12 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
       }),
     })
     try {
+      const versionDir = path.join(tempRoot, "users", "alice", "workspaces", "gmat", "versions", "v0001")
       const response = await server.inject({
         method: "POST",
         url: "/api/gmat/orbit-keeping/generate",
         headers: { "x-codex-user-id": "alice" },
-        payload: { request: "Change dry mass to 200 kg and drag area to 10 m2." },
+        payload: { request: "Change dry mass to 200 kg and drag area to 10 m2.", workspaceDir: versionDir },
       })
       const body = response.json() as { changes: Array<{ id: string; value: string }>; scriptPath: string; valuesPath: string }
       const aliceRoot = path.join(tempRoot, "users", "alice")
@@ -50,8 +51,8 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
       assert.equal(response.statusCode, 200)
       assert.equal(modelCalls, 1)
       assert.equal(body.changes.length, 2)
-      assert.ok(body.scriptPath.startsWith(aliceRoot))
-      assert.ok(body.valuesPath.startsWith(aliceRoot))
+      assert.ok(body.scriptPath.startsWith(versionDir))
+      assert.ok(body.valuesPath.startsWith(versionDir))
       assert.equal(body.scriptPath.includes("output_data"), false)
       const [script, values] = await Promise.all([fs.readFile(body.scriptPath, "utf8"), fs.readFile(body.valuesPath, "utf8")])
       assert.match(script, /DefaultSC\.DryMass\s+= 200;/u)
@@ -70,6 +71,25 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
       const response = await server.inject({ method: "POST", url: "/api/gmat/orbit-keeping/generate", payload: { request: "  " } })
       assert.equal(response.statusCode, 400)
       assert.deepEqual(response.json(), { error: "request must be a non-empty string" })
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("rejects a workspace outside the requesting user's root", async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-orbit-route-"))
+    const server = await createTestServer({
+      config: createTestConfig({ workspace: { usersRoot: path.join(tempRoot, "users") } }),
+    })
+    try {
+      const response = await server.inject({
+        method: "POST",
+        url: "/api/gmat/orbit-keeping/generate",
+        headers: { "x-codex-user-id": "alice" },
+        payload: { request: "Change dry mass to 100 kg.", workspaceDir: path.join(tempRoot, "other-user") },
+      })
+      assert.equal(response.statusCode, 422)
+      assert.deepEqual(response.json(), { error: "workspaceDir must be inside the current user workspace" })
     } finally {
       await server.close()
     }

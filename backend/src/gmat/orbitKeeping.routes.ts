@@ -1,12 +1,23 @@
 import type { FastifyInstance } from "fastify"
+import path from "node:path"
 
 import type { AppConfig } from "../config.js"
 import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getErrorMessage } from "../shared/index.js"
+import { isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { generateOrbitKeepingMission } from "./orbitKeeping.service.js"
 
-type GenerateOrbitKeepingBody = { request?: unknown }
+type GenerateOrbitKeepingBody = { request?: unknown; workspaceDir?: unknown }
+
+function resolveOutputWorkspaceDir(userWorkspaceRoot: string, requestedWorkspaceDir: unknown) {
+  if (typeof requestedWorkspaceDir !== "string" || !requestedWorkspaceDir.trim()) return userWorkspaceRoot
+  const workspaceDir = path.resolve(requestedWorkspaceDir)
+  if (!isPathInside(path.resolve(userWorkspaceRoot), workspaceDir)) {
+    throw new Error("workspaceDir must be inside the current user workspace")
+  }
+  return workspaceDir
+}
 
 /** HTTP boundary for the one-call, deterministic orbit-keeping pipeline. */
 export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
@@ -14,10 +25,11 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
     const request = typeof req.body?.request === "string" ? req.body.request.trim() : ""
     if (!request) return reply.status(400).send({ error: "request must be a non-empty string" })
 
-    const workspaceDir = getRequestUserWorkspaceRoot()
-    if (!workspaceDir) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const userWorkspaceRoot = getRequestUserWorkspaceRoot()
+    if (!userWorkspaceRoot) return reply.status(500).send({ error: "user workspace is unavailable" })
 
     try {
+      const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
       return reply.send(await generateOrbitKeepingMission({
         connection: resolveModelBackend(config, "chatModel"),
         request,

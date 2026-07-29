@@ -482,16 +482,17 @@ export default function AgentPage() {
       return
     }
     setGmatGenerating(true)
-    void generateOrbitKeeping(prompt)
+    void generateOrbitKeeping(prompt, { workspaceDir: activeContext.versionDir })
       .then((result: OrbitKeepingGenerateResult) => {
         const changes = result.changes.map(change => `- ${change.id} = ${change.value}`).join('\n')
         showSpeechText(`GMAT Orbit Keeping generated in ${result.latencyMs} ms.\nAccepted changes:\n${changes || '- none'}`)
+        refreshWorkspaceViews()
       })
       .catch(error => {
         setManagedRunError(error instanceof Error ? error.message : 'GMAT generation failed')
       })
       .finally(() => setGmatGenerating(false))
-  }, [chatMode, clearAgentSpeechDisplay, runCodex, showSpeechText, textComposerBusy, textInput])
+  }, [activeContext.versionDir, chatMode, clearAgentSpeechDisplay, refreshWorkspaceViews, runCodex, showSpeechText, textComposerBusy, textInput])
   const displayedSessionStatus = managedVoiceRunning || latestManagedStatus?.status === 'running'
     ? 'running'
     : latestManagedStatus?.status === 'completed' || latestManagedStatus?.status === 'partial'

@@ -11,13 +11,13 @@ describe('generateOrbitKeeping', () => {
     }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(generateOrbitKeeping('Change dry mass to 200 kg')).resolves.toMatchObject({
+    await expect(generateOrbitKeeping('Change dry mass to 200 kg', { workspaceDir: '/workspace/active-version' })).resolves.toMatchObject({
       latencyMs: 24000,
       changes: [{ id: 'line_024_DefaultSC_DryMass', value: '200' }],
     })
     expect(fetchMock).toHaveBeenCalledWith('/api/gmat/orbit-keeping/generate', expect.objectContaining({
       method: 'POST',
-      body: JSON.stringify({ request: 'Change dry mass to 200 kg' }),
+      body: JSON.stringify({ request: 'Change dry mass to 200 kg', workspaceDir: '/workspace/active-version' }),
     }))
   })
 })

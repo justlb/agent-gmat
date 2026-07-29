@@ -20,11 +20,17 @@ async function getResponseErrorMessage(response: Response) {
 }
 
 /** Calls the deterministic GMAT pipeline directly, without the managed-agent dispatcher. */
-export async function generateOrbitKeeping(request: string, apiBase?: string) {
+export async function generateOrbitKeeping(request: string, {
+  apiBase,
+  workspaceDir,
+}: {
+  apiBase?: string
+  workspaceDir?: string | null
+} = {}) {
   const response = await fetch(joinApiPath(apiBase, '/gmat/orbit-keeping/generate'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ request }),
+    body: JSON.stringify({ request, ...(workspaceDir ? { workspaceDir } : {}) }),
   })
   if (!response.ok) throw new Error(await getResponseErrorMessage(response))
   return response.json() as Promise<OrbitKeepingGenerateResult>
