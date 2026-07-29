@@ -1,14 +1,9 @@
-import { useEffect, useState } from 'react'
-import { APP_NAVIGATION_EVENT } from '../../app/sessionUtils'
+import { useState } from 'react'
 import type { WorkspaceSessionStatus } from '../workspace/workspaceSessionVisibility'
 
 type AgentInputMode = 'voice' | 'text'
 type AgentModelBackend = 'openai' | 'chatModel'
 type AgentTheme = 'dark' | 'light'
-
-type AuthMe = {
-  userId: string
-}
 
 function formatCheckedAt(value?: string) {
   if (!value) return ''
@@ -100,8 +95,6 @@ export function AgentTopbar({
   versionLabel,
 }: AgentTopbarProps) {
   const [portPanelOpen, setPortPanelOpen] = useState(false)
-  const [loggingOut, setLoggingOut] = useState(false)
-  const [userId, setUserId] = useState('default')
   const showStopButton = sessionStatus === 'running'
   const portVariant = portStatusError
     ? 'bad'
@@ -114,38 +107,8 @@ export function AgentTopbar({
   const skippedChecks = portStatus?.results.filter(item => item.skipped) ?? []
   const showInterfaceStatus = Boolean(portStatusError || failedChecks.length)
   const checkedAtLabel = formatCheckedAt(portStatus?.checkedAt)
-  const initials = userId.trim().slice(0, 1).toUpperCase() || 'U'
   const inputModeLabel = inputMode === 'voice' ? '语音输入' : '文字输入'
   const totalChecks = portStatus?.results.length ?? 0
-
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/auth/me', { cache: 'no-store' })
-      .then(async response => response.ok ? await response.json() as AuthMe : null)
-      .then(data => {
-        if (!data || cancelled) return
-        setUserId(data.userId)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const handleLogout = async () => {
-    if (loggingOut) return
-    setLoggingOut(true)
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-    } catch {
-      // Continue navigation even if the logout request fails.
-    } finally {
-      setPortPanelOpen(false)
-      setLoggingOut(false)
-      window.history.pushState(null, '', '/home')
-      window.dispatchEvent(new Event(APP_NAVIGATION_EVENT))
-    }
-  }
 
   return (
     <header className="agent-hud-topbar">
@@ -207,7 +170,6 @@ export function AgentTopbar({
           aria-haspopup="dialog"
           onClick={() => setPortPanelOpen(open => !open)}
         >
-          <span className="agent-port-user-initial" aria-hidden="true">{initials}</span>
           <span
             className={`agent-input-mode-icon ${inputMode === 'text' ? 'is-muted' : 'is-live'}`}
             aria-label={inputModeLabel}
@@ -218,12 +180,6 @@ export function AgentTopbar({
         </button>
         {portPanelOpen ? (
           <div className="agent-port-popover" role="dialog" aria-label="状态与设置">
-            <header className="agent-account-menu-header">
-              <span className="agent-user-avatar" aria-hidden="true">{initials}</span>
-              <div>
-                <strong>{userId}</strong>
-              </div>
-            </header>
             <section className="agent-port-settings-section">
               <div className="agent-port-mode-row">
                 <span>输入方式</span>
@@ -289,10 +245,6 @@ export function AgentTopbar({
                 </div>
               </div>
             </section>
-            <button type="button" className="agent-account-logout-row" disabled={loggingOut} onClick={handleLogout}>
-              <span aria-hidden="true">↪</span>
-              {loggingOut ? '退出中' : '退出登录'}
-            </button>
             {showInterfaceStatus ? (
               <>
                 <section className="agent-interface-section">

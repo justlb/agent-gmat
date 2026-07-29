@@ -9,7 +9,6 @@ installDevPerformanceTimelineGuard()
 
 const ModelViewerPage = lazy(() => import('./pages/ModelViewerPage.tsx'))
 const EarthPage = lazy(() => import('./pages/EarthPage.tsx'))
-const HomePage = lazy(() => import('./pages/HomePage.tsx'))
 const WorkspaceSessionPage = lazy(() => import('./pages/WorkspaceSessionPage.tsx'))
 const GncWorkspacePage = lazy(() => import('./pages/GncWorkspacePage.tsx'))
 const RegionWorkspacePage = lazy(() => import('./pages/RegionWorkspacePage.tsx'))
@@ -59,7 +58,7 @@ function Router() {
   if (isHome) {
     return (
       <Suspense fallback={<div style={{ background: '#eef3f8', width: '100vw', height: '100vh' }} />}>
-        <HomePage />
+        <AgentPage />
       </Suspense>
     )
   }
