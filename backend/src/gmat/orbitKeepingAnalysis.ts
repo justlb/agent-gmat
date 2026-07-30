@@ -2,6 +2,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
+import type { OrbitKeepingDraftRun } from "./orbitKeepingDraft.js"
 
 const DEFAULT_TIMEOUT_MS = 60_000
 
@@ -42,12 +43,14 @@ function extractResponseText(payload: unknown) {
 export async function analyzeOrbitKeepingRunWithLlm({
   connection,
   question,
+  relatedRuns = [],
   runDir,
   fetchImpl = fetch,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: {
   connection: Pick<ResolvedModelBackend, "apiKey" | "baseUrl" | "model">
   question: string
+  relatedRuns?: OrbitKeepingDraftRun[]
   runDir: string
   fetchImpl?: typeof fetch
   timeoutMs?: number
@@ -61,15 +64,16 @@ export async function analyzeOrbitKeepingRunWithLlm({
   const conversationPath = path.join(runDir, "conversation.json")
   const previousTurns = await loadOrbitKeepingRunConversation(runDir)
   const prompt = [
-    "You are an engineering assistant analyzing one immutable GMAT orbit-keeping run.",
+    "You are an engineering assistant analyzing immutable GMAT orbit-keeping runs from one mission discussion.",
     "Answer only from the supplied run data. Do not claim that GMAT was rerun.",
     "State clearly when the available report does not contain enough information.",
-    "Use units and identify the run ID. Be concise and technically precise.",
+    "Use units and identify the run ID or IDs. Be concise and technically precise.",
     `Question: ${question}`,
     `Run manifest:\n${manifestSource}`,
     `Normalized result:\n${resultSource}`,
     reportSource ? `GMAT report samples:\n${reportSource.slice(0, 100_000)}` : "GMAT report samples: unavailable",
     timeSeriesSource ? `GMAT engineering time series (epoch A1ModJulian; altitude km; fuel kg; total mass kg; SMA km; eccentricity; inclination deg):\n${timeSeriesSource.slice(0, 100_000)}` : "GMAT engineering time series: unavailable",
+    relatedRuns.length ? `Other immutable runs linked to this same mission discussion. Their normalized summaries may be compared with the current run, but do not invent report details not shown here:\n${JSON.stringify(relatedRuns.filter(run => run.runId !== JSON.parse(manifestSource).runId), null, 2)}` : "No other GMAT run is linked to this mission discussion yet.",
     previousTurns.length ? `Previous discussion:\n${JSON.stringify(previousTurns.slice(-10), null, 2)}` : "",
   ].filter(Boolean).join("\n\n")
   const startedAt = Date.now()

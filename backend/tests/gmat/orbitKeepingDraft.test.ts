@@ -4,7 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import { describe, it } from "node:test"
 
-import { assertOrbitKeepingSimulationSafety, confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, draftToOrbitKeepingChanges } from "../../src/gmat/orbitKeepingDraft.js"
+import { assertOrbitKeepingSimulationSafety, confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, draftToOrbitKeepingChanges, recordOrbitKeepingDraftRun } from "../../src/gmat/orbitKeepingDraft.js"
 import { defaultOrbitKeepingTemplatePath } from "../../src/gmat/orbitKeepingTemplate.js"
 import { applyOrbitKeepingValueChanges, extractOrbitKeepingValues } from "../../src/gmat/orbitKeepingValues.js"
 
@@ -37,6 +37,15 @@ describe("orbit keeping mission draft", () => {
     const changes = draftToOrbitKeepingChanges(confirmed, extractOrbitKeepingValues(template))
     assert.ok(changes.some(change => change.id.includes("DefaultSC_DryMass") && change.value === "300"))
     assert.ok(changes.some(change => change.id.includes("ChemicalTank1_FuelMass") && change.value === "200"))
+    const withRun = await recordOrbitKeepingDraftRun(workspaceDir, confirmed.draftId, {
+      changes,
+      completedAt: "2026-07-30T10:00:00Z",
+      result: { minimumReportedAltitudeKm: 180, status: "completed" },
+      runId: "26-07-30_10-00",
+      runPath: "gmat/orbit-keeping/26-07-30_10-00",
+    })
+    assert.equal(withRun.runs.length, 1)
+    assert.equal(withRun.runs[0].runId, "26-07-30_10-00")
   })
 
   it("accepts a standard Responses API output block when output_text is absent", async () => {

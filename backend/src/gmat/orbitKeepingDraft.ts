@@ -47,12 +47,29 @@ export type OrbitKeepingDraft = {
   createdAt: string
   draftId: string
   missing: string[]
+  runs: OrbitKeepingDraftRun[]
   safety: OrbitKeepingSafetyReview
   status: "blocked" | "collecting" | "ready" | "confirmed"
   templateId: "orbit-keeping-earth-keplerian"
   targetSmaFollowsInitial: boolean
   updatedAt: string
   values: DraftValues
+}
+
+/** Immutable result references belonging to one iterative mission discussion. */
+export type OrbitKeepingDraftRun = {
+  changes: Array<{ id: string; value: string }>
+  completedAt: string
+  result: {
+    error?: string
+    finalAltitudeKm?: number
+    finalFuelMassKg?: number
+    maximumReportedAltitudeKm?: number
+    minimumReportedAltitudeKm?: number
+    status: "generated" | "completed" | "failed" | "timeout"
+  }
+  runId: string
+  runPath: string
 }
 
 type FieldDefinition = {
@@ -276,7 +293,7 @@ async function saveDraft(workspaceDir: string, draft: OrbitKeepingDraft) {
 export async function createOrbitKeepingDraft(workspaceDir: string) {
   const values = Object.fromEntries(fields.map(field => [field.path, null])) as DraftValues
   const now = new Date().toISOString()
-  const draft = refreshDraft({ confirmed: false, conversation: [], createdAt: now, draftId: newDraftId(), targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values })
+  const draft = refreshDraft({ confirmed: false, conversation: [], createdAt: now, draftId: newDraftId(), runs: [], targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values })
   return saveDraft(workspaceDir, draft)
 }
 
@@ -290,7 +307,7 @@ export async function loadOrbitKeepingDraft(workspaceDir: string, draftId: strin
   if (targetSmaFollowsInitial && values["stationKeeping.targetSmaKm"] === null && typeof values["initialOrbit.smaKm"] === "number") {
     values["stationKeeping.targetSmaKm"] = values["initialOrbit.smaKm"]
   }
-  return refreshDraft({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], createdAt: parsed.createdAt, draftId: parsed.draftId, targetSmaFollowsInitial, templateId: parsed.templateId, values })
+  return refreshDraft({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], createdAt: parsed.createdAt, draftId: parsed.draftId, runs: Array.isArray(parsed.runs) ? parsed.runs : [], targetSmaFollowsInitial, templateId: parsed.templateId, values })
 }
 
 function parseAssistantPatch(source: string) {
@@ -405,6 +422,17 @@ export async function confirmOrbitKeepingDraft(workspaceDir: string, draftId: st
   const blockingChecks = draft.safety.checks.filter(check => check.severity === "error")
   if (blockingChecks.length) throw new Error(`GMAT physical sanity checks failed: ${blockingChecks.map(check => check.message).join(" ")}`)
   return saveDraft(workspaceDir, refreshDraft({ ...draft, confirmed: true }))
+}
+
+/** Stores a completed GMAT execution in the same mission discussion as its draft. */
+export async function recordOrbitKeepingDraftRun(workspaceDir: string, draftId: string, run: OrbitKeepingDraftRun) {
+  const draft = await loadOrbitKeepingDraft(workspaceDir, draftId)
+  if (draft.status !== "confirmed") throw new Error("GMAT draft must be confirmed before recording a run")
+  if (!/^[-A-Za-z0-9_]+$/u.test(run.runId) || !/^gmat[\\/]orbit-keeping[\\/][-A-Za-z0-9_]+$/u.test(run.runPath)) {
+    throw new Error("invalid GMAT run reference")
+  }
+  const runs = [...draft.runs.filter(existing => existing.runId !== run.runId), run]
+  return saveDraft(workspaceDir, refreshDraft({ ...draft, runs }))
 }
 
 export function draftToOrbitKeepingChanges(draft: OrbitKeepingDraft, values: OrbitKeepingValues): OrbitKeepingValueChange[] {

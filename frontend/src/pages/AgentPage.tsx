@@ -4,7 +4,7 @@ import { joinApiPath } from '../app/apiBase'
 import { getGncToolUrl, getRemoteToolUrl } from '../app/runtimeConfig'
 import { useBomInfo } from '../hooks/useBomInfo'
 import { useWorkspaceAppState } from '../hooks/useWorkspaceAppState'
-import { formatProgressUpdatedAt, type WorkflowProgressVariant } from './workspace/progressUtils'
+import { formatProgressUpdatedAt, type WorkflowLoopProgressEntry, type WorkflowProgressVariant } from './workspace/progressUtils'
 import { useWorkspaceRuntimeData } from './workspace/useWorkspaceRuntimeData'
 import { useWorkspaceVersionState } from './workspace/useWorkspaceVersionState'
 import { getWorkspaceDisplayName, isThermalCadWorkspace } from './workspace/workspaceVersion'
@@ -16,7 +16,7 @@ import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
 import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex, type ManagedModelBackend } from './agent/managedRun'
-import { analyzeOrbitKeepingRun, confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraft, getOrbitKeepingRunConversation, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
+import { analyzeOrbitKeepingRun, confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraftWithProgress, getOrbitKeepingRunConversation, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingProgressEvent, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -38,6 +38,28 @@ import './AgentPage.css'
 type AgentInputMode = 'voice' | 'text'
 type AgentTheme = 'dark' | 'light'
 type ChatMode = 'general' | 'gmat-orbit-keeping'
+
+const GMAT_WORKFLOW_LABELS: Record<OrbitKeepingProgressEvent['key'] | 'draft_llm' | 'validate_draft', string> = {
+  draft_llm: 'LLM mission discussion',
+  validate_draft: 'Validate mission inputs',
+  load_template: 'Prepare fixed GMAT template',
+  llm_patch: 'Apply confirmed changes',
+  render_script: 'Generate GMAT script',
+  run_gmat: 'Run GMAT simulation',
+  save_results: 'Save GMAT results',
+}
+
+function newGmatWorkflow(): WorkflowLoopProgressEntry[] {
+  return (Object.keys(GMAT_WORKFLOW_LABELS) as Array<keyof typeof GMAT_WORKFLOW_LABELS>).map(key => ({
+    completed: false, key, label: GMAT_WORKFLOW_LABELS[key], percent: 0, rawStatus: 'pending', status: 'pending', statusLabel: 'Pending', updatedAt: null,
+  }))
+}
+
+function setGmatWorkflowStatus(entries: WorkflowLoopProgressEntry[], key: string, status: WorkflowLoopProgressEntry['status']) {
+  return entries.map(entry => entry.key === key ? {
+    ...entry, completed: status === 'completed', rawStatus: status, status, statusLabel: status === 'completed' ? 'Completed' : status === 'running' ? 'Running' : status === 'failed' ? 'Failed' : 'Pending', updatedAt: new Date().toISOString(),
+  } : entry)
+}
 
 const AGENT_THEME_STORAGE_KEY = 'agent-theme'
 
@@ -63,7 +85,8 @@ export default function AgentPage() {
   const [managedRunError, setManagedRunError] = useState('')
   const [gmatGenerating, setGmatGenerating] = useState(false)
   const [activeGmatDraft, setActiveGmatDraft] = useState<OrbitKeepingDraft | null>(null)
-  const [activeGmatRun, setActiveGmatRun] = useState<{ conversation: OrbitKeepingRunConversationTurn[]; runId: string; runPath: string } | null>(null)
+  const [activeGmatRun, setActiveGmatRun] = useState<{ conversation: OrbitKeepingRunConversationTurn[]; draftId?: string; runId: string; runPath: string } | null>(null)
+  const [gmatWorkflowEntries, setGmatWorkflowEntries] = useState<WorkflowLoopProgressEntry[] | null>(null)
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
   const [remoteToolPortStatus, setRemoteToolPortStatus] = useState<RemoteToolPortSummary | null>(null)
   const [remoteToolPortError, setRemoteToolPortError] = useState('')
@@ -464,11 +487,12 @@ export default function AgentPage() {
   const visibleActiveView = activeView === 'model' && !showModelPreview ? 'workspace' : activeView
   const activeNavIndex = visibleActiveView ? navItems.findIndex(item => item.href === `#${visibleActiveView}`) : -1
   const progressUpdatedAt = formatProgressUpdatedAt(progressData, navigator.language || 'zh-CN', t)
-  const progressPercent = workflowProgressSummary.percentage
-  const progressStatusLabel = workflowProgressSummary.statusLabel || progressUpdatedAt
-  const displayedProgressUpdatedAt = progressUpdatedAt
-  const displayedProgressTitle = t('workspace.inspector.progressTitle')
-  const displayedProgressEntries = workflowLoopProgressEntries
+  const gmatActiveEntry = gmatWorkflowEntries?.find(entry => entry.status === 'running') ?? gmatWorkflowEntries?.find(entry => entry.status === 'failed')
+  const progressPercent = gmatWorkflowEntries ? undefined : workflowProgressSummary.percentage
+  const progressStatusLabel = gmatWorkflowEntries ? `GMAT workflow: ${gmatActiveEntry?.label ?? 'completed'}` : workflowProgressSummary.statusLabel || progressUpdatedAt
+  const displayedProgressUpdatedAt = gmatWorkflowEntries?.find(entry => entry.status === 'running')?.updatedAt ?? progressUpdatedAt
+  const displayedProgressTitle = gmatWorkflowEntries ? 'GMAT workflow' : t('workspace.inspector.progressTitle')
+  const displayedProgressEntries = gmatWorkflowEntries ?? workflowLoopProgressEntries
   const recordButtonBusy = agentSpeechState === 'synthesizing' || agentSpeechPlaying
   const recordButtonDisabled = state === 'transcribing'
   const textComposerBusy = recordButtonBusy || state === 'transcribing' || gmatGenerating
@@ -487,19 +511,25 @@ export default function AgentPage() {
       return
     }
     setGmatGenerating(true)
+    setProgressPanelOpen(true)
+    setGmatWorkflowEntries(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'running'))
     if (activeGmatRun) {
       void analyzeOrbitKeepingRun({
+        draftId: activeGmatRun.draftId,
         question: prompt,
         runPath: activeGmatRun.runPath,
+        workspaceDir: activeContext.versionDir,
       })
         .then(result => {
           setActiveGmatRun(current => current && current.runPath === activeGmatRun.runPath
             ? { ...current, conversation: [...current.conversation, { answer: result.answer, askedAt: new Date().toISOString(), question: prompt }] }
             : current)
           showSpeechText(result.answer)
+          setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'completed') : entries)
         })
         .catch(error => {
           setManagedRunError(error instanceof Error ? error.message : 'GMAT analysis failed')
+          setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'failed') : entries)
         })
         .finally(() => setGmatGenerating(false))
       return
@@ -537,21 +567,30 @@ export default function AgentPage() {
     if (!activeGmatDraft) {
       void createOrbitKeepingDraft(activeContext.versionDir)
         .then(draft => discussOrbitKeepingDraft(draft.draftId, prompt, activeContext.versionDir))
-        .then(draft => { setActiveGmatDraft(draft); describeDraft(draft) })
-        .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft creation failed'))
+        .then(draft => { setActiveGmatDraft(draft); describeDraft(draft); setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'draft_llm', 'completed'), 'validate_draft', 'completed') : entries) })
+        .catch(reason => { setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft creation failed'); setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'failed') : entries) })
         .finally(() => setGmatGenerating(false))
       return
     }
     void discussOrbitKeepingDraft(activeGmatDraft.draftId, prompt, activeContext.versionDir)
-      .then(draft => { setActiveGmatDraft(draft); describeDraft(draft) })
-      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft update failed'))
+      .then(draft => { setActiveGmatDraft(draft); describeDraft(draft); setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'draft_llm', 'completed'), 'validate_draft', 'completed') : entries) })
+      .catch(reason => { setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft update failed'); setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'failed') : entries) })
       .finally(() => setGmatGenerating(false))
   }, [activeContext.versionDir, activeGmatDraft, activeGmatRun, chatMode, clearAgentSpeechDisplay, refreshWorkspaceViews, runCodex, showSpeechText, textComposerBusy, textInput])
   const handleExecuteGmatDraft = useCallback(() => {
     if (!activeGmatDraft || gmatGenerating) return
     setGmatGenerating(true)
+    setProgressPanelOpen(true)
+    setGmatWorkflowEntries(setGmatWorkflowStatus(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'), 'validate_draft', 'running'))
     void confirmOrbitKeepingDraft(activeGmatDraft.draftId, activeContext.versionDir)
-      .then(draft => { setActiveGmatDraft(draft); return executeOrbitKeepingDraft(draft.draftId, activeContext.versionDir) })
+      .then(draft => {
+        setActiveGmatDraft(draft)
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'validate_draft', 'completed') : entries)
+        return executeOrbitKeepingDraftWithProgress(draft.draftId, {
+          workspaceDir: activeContext.versionDir,
+          onProgress: event => setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, event.key, event.status) : entries),
+        })
+      })
       .then((result: OrbitKeepingGenerateResult) => {
         const runFailed = result.result.status === 'failed' || result.result.status === 'timeout'
         const conversation: OrbitKeepingRunConversationTurn[] = [{
@@ -561,14 +600,14 @@ export default function AgentPage() {
           askedAt: new Date().toISOString(),
           question: 'GMAT execution',
         }]
-        setActiveGmatRun({ conversation, runId: result.runId, runPath: result.runPath })
-        setActiveGmatDraft(null)
+        setActiveGmatRun({ conversation, draftId: result.draftId ?? activeGmatDraft.draftId, runId: result.runId, runPath: result.runPath })
+        if (runFailed) setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_gmat', 'failed') : entries)
         showSpeechText(runFailed
           ? `GMAT run ${result.runId} ${result.result.status}: ${result.result.error || 'see the run discussion for details.'}`
           : `GMAT run ${result.runId}: ${result.result.status}. Accepted changes: ${result.changes.length}.`)
         refreshWorkspaceViews()
       })
-      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft execution failed'))
+      .catch(reason => { setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft execution failed'); setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_gmat', 'failed') : entries) })
       .finally(() => setGmatGenerating(false))
   }, [activeContext.versionDir, activeGmatDraft, gmatGenerating, refreshWorkspaceViews, showSpeechText])
   const displayedSessionStatus = managedVoiceRunning || latestManagedStatus?.status === 'running'
@@ -716,6 +755,16 @@ export default function AgentPage() {
           onButtonClick={handleButtonClick}
           onChatModeChange={handleChatModeChange}
           onExecuteGmatDraft={handleExecuteGmatDraft}
+          onModifyGmatRun={() => {
+            if (!activeGmatDraft) {
+              setManagedRunError('The mission draft for this run is no longer available. Start a new GMAT run.')
+              return
+            }
+            setActiveGmatRun(null)
+            setManagedRunError('')
+            showSpeechText('Mission draft reopened. Describe the change, then confirm to run GMAT again. Previous runs remain available for comparison.')
+          }}
+          onRerunGmat={handleExecuteGmatDraft}
           onStartNewGmatRun={() => {
             setActiveGmatRun(null)
             setActiveGmatDraft(null)

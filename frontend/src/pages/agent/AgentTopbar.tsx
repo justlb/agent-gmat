@@ -60,7 +60,7 @@ type AgentTopbarProps = {
   onProgressToggle: () => void
   onStopAndSummarize: () => void
   progressOpen: boolean
-  progressPercent: number
+  progressPercent?: number
   progressStatusLabel: string
   progressTitle: string
   sessionStatus: WorkspaceSessionStatus
@@ -160,7 +160,7 @@ export function AgentTopbar({
             <strong>{progressTitle}</strong>
             <small>{progressStatusLabel}</small>
           </span>
-          <span className="agent-progress-value">{progressPercent}%</span>
+          {typeof progressPercent === 'number' ? <span className="agent-progress-value">{progressPercent}%</span> : null}
         </button>
         <button
           type="button"

@@ -27,6 +27,8 @@ type AgentRecorderControlProps = {
   onButtonClick: () => void
   onChatModeChange: (mode: AgentChatMode) => void
   onExecuteGmatDraft: () => void
+  onModifyGmatRun: () => void
+  onRerunGmat: () => void
   onStartNewGmatRun: () => void
   onTextChange: (value: string) => void
   onTextSubmit: () => void
@@ -92,6 +94,8 @@ export function AgentRecorderControl({
   onButtonClick,
   onChatModeChange,
   onExecuteGmatDraft,
+  onModifyGmatRun,
+  onRerunGmat,
   onStartNewGmatRun,
   onTextChange,
   onTextSubmit,
@@ -360,12 +364,14 @@ export function AgentRecorderControl({
             {chatMode === 'gmat-orbit-keeping' && activeGmatRunId ? (
               <div className="agent-gmat-chat-context">
                 <span>Discussing run: {activeGmatRunId}</span>
+                <button type="button" disabled={busy} onClick={onRerunGmat}>Rerun unchanged</button>
+                <button type="button" onClick={onModifyGmatRun}>Modify and rerun</button>
                 <button type="button" onClick={onStartNewGmatRun}>New GMAT run</button>
               </div>
             ) : null}
             {chatMode === 'gmat-orbit-keeping' && activeGmatRunId ? (
               <section className="agent-gmat-conversation agent-gmat-run-conversation" aria-label="GMAT run discussion" aria-live="polite">
-                <header><strong>Run discussion</strong><span>Saved with this GMAT run</span></header>
+                <header><strong>Run discussion</strong><span>Saved with this GMAT run; linked runs can be compared</span></header>
                 <div className="agent-gmat-conversation-history">
                   {(gmatRunConversation ?? []).map((turn, index) => (
                     <div className="agent-gmat-turn" key={`${index}-${turn.askedAt}`}>

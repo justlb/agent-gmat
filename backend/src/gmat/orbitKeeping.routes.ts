@@ -9,11 +9,11 @@ import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { analyzeOrbitKeepingRunWithLlm, loadOrbitKeepingRunConversation } from "./orbitKeepingAnalysis.js"
 import { defaultOrbitKeepingValuesPath, generateOrbitKeepingMission, type OrbitKeepingProgress } from "./orbitKeeping.service.js"
-import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, draftToOrbitKeepingChanges, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
+import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, draftToOrbitKeepingChanges, loadOrbitKeepingDraft, recordOrbitKeepingDraftRun } from "./orbitKeepingDraft.js"
 import { parseOrbitKeepingValues } from "./orbitKeepingValues.js"
 
 type GenerateOrbitKeepingBody = { request?: unknown; workspaceDir?: unknown }
-type AnalyzeOrbitKeepingBody = { question?: unknown; runPath?: unknown }
+type AnalyzeOrbitKeepingBody = { draftId?: unknown; question?: unknown; runPath?: unknown; workspaceDir?: unknown }
 type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
 type OrbitKeepingFileKind = "log" | "manifest" | "report" | "result" | "script" | "timeseries" | "values"
@@ -173,9 +173,45 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
         request: `Confirmed GMAT mission draft ${draft.draftId}`,
         workspaceDir,
       })
-      return reply.send({ ...result, runPath: path.relative(path.resolve(userWorkspaceRoot), result.runDir) })
+      const runPath = path.relative(path.resolve(userWorkspaceRoot), result.runDir)
+      await recordOrbitKeepingDraftRun(workspaceDir, draft.draftId, {
+        changes: result.changes,
+        completedAt: new Date().toISOString(),
+        result: result.result,
+        runId: result.runId,
+        runPath,
+      })
+      return reply.send({ ...result, draftId: draft.draftId, runPath })
     } catch (err) {
       return reply.status(422).send({ error: getErrorMessage(err, "failed to execute GMAT draft") })
+    }
+  })
+
+  fastify.post<{ Params: { draftId: string }; Body: DraftWorkspaceBody }>("/api/gmat/orbit-keeping/drafts/:draftId/execute/events", async (req, reply) => {
+    const userWorkspaceRoot = getRequestUserWorkspaceRoot()
+    if (!userWorkspaceRoot) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const sendEvent = (event: string, payload: unknown) => reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+    reply.hijack()
+    reply.raw.writeHead(200, { "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "Content-Type": "text/event-stream; charset=utf-8", "X-Accel-Buffering": "no" })
+    try {
+      const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
+      const draft = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
+      const values = parseOrbitKeepingValues(await fs.readFile(defaultOrbitKeepingValuesPath(), "utf8"))
+      const result = await generateOrbitKeepingMission({
+        changes: draftToOrbitKeepingChanges(draft, values),
+        connection: resolveModelBackend(config, "chatModel"),
+        execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined,
+        onProgress: progress => sendEvent("progress", progress),
+        request: `Confirmed GMAT mission draft ${draft.draftId}`,
+        workspaceDir,
+      })
+      const runPath = path.relative(path.resolve(userWorkspaceRoot), result.runDir)
+      await recordOrbitKeepingDraftRun(workspaceDir, draft.draftId, { changes: result.changes, completedAt: new Date().toISOString(), result: result.result, runId: result.runId, runPath })
+      sendEvent("result", { ...result, draftId: draft.draftId, runPath })
+    } catch (err) {
+      sendEvent("error", { error: getErrorMessage(err, "failed to execute GMAT draft") })
+    } finally {
+      reply.raw.end()
     }
   })
 
@@ -236,9 +272,13 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
     const runDir = resolveOrbitKeepingRunDir(userWorkspaceRoot, req.body?.runPath)
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
+      const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
+      const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
+      const relatedRuns = draftId ? (await loadOrbitKeepingDraft(workspaceDir, draftId)).runs : []
       return reply.send(await analyzeOrbitKeepingRunWithLlm({
         connection: resolveModelBackend(config, "chatModel"),
         question,
+        relatedRuns,
         runDir,
       }))
     } catch (err) {
