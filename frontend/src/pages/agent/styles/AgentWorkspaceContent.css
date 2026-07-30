@@ -1966,3 +1966,35 @@
   color: #93c5fd;
   font-weight: 700;
 }
+
+.gmat-analysis-panel {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.gmat-analysis-panel section {
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.gmat-analysis-panel section > strong,
+.gmat-analysis-panel section > span {
+  display: block;
+}
+
+.gmat-analysis-panel section > span { color: #93c5fd; font-size: 12px; margin-top: 4px; }
+
+.gmat-analysis-chart { color: #60a5fa; inline-size: 100%; margin-top: 14px; }
+.gmat-analysis-chart line { stroke: rgba(148, 163, 184, 0.5); }
+.gmat-analysis-chart text { fill: #cbd5e1; font-size: 13px; }
+
+.gmat-analysis-metrics { display: flex; flex-wrap: wrap; gap: 10px; }
+.gmat-analysis-metrics span {
+  background: rgba(37, 99, 235, 0.16);
+  border-radius: 8px;
+  color: #dbeafe;
+  font-size: 12px;
+  padding: 8px 10px;
+}

@@ -8,6 +8,13 @@ export type OrbitKeepingReportSample = {
   fuelMassKg: number
 }
 
+export type OrbitKeepingTimeSeriesSample = OrbitKeepingReportSample & {
+  eccentricity: number
+  inclinationDeg: number
+  semiMajorAxisKm: number
+  totalMassKg: number
+}
+
 export type OrbitKeepingExecutionResult = {
   completedAt: string
   durationMs: number
@@ -17,6 +24,8 @@ export type OrbitKeepingExecutionResult = {
   reportPath: string
   samples: OrbitKeepingReportSample[]
   status: "completed" | "failed" | "timeout"
+  timeSeriesPath: string
+  timeSeriesSamples: OrbitKeepingTimeSeriesSample[]
 }
 
 export function toGmatNativePath(filePath: string) {
@@ -40,6 +49,25 @@ export function parseOrbitKeepingReport(source: string): OrbitKeepingReportSampl
   return samples
 }
 
+/** Parses the fixed OrbitAnalysisReport schema defined by the Keplerian template. */
+export function parseOrbitKeepingTimeSeriesReport(source: string): OrbitKeepingTimeSeriesSample[] {
+  const samples: OrbitKeepingTimeSeriesSample[] = []
+  for (const line of source.split(/\r?\n/u)) {
+    const values = line.trim().split(/\s+/u).map(Number)
+    if (values.length < 7 || values.slice(0, 7).some(value => !Number.isFinite(value))) continue
+    samples.push({
+      epochA1ModJulian: values[0],
+      altitudeKm: values[1],
+      fuelMassKg: values[2],
+      totalMassKg: values[3],
+      semiMajorAxisKm: values[4],
+      eccentricity: values[5],
+      inclinationDeg: values[6],
+    })
+  }
+  return samples
+}
+
 export async function runOrbitKeepingGmat({
   bin,
   scriptPath,
@@ -51,6 +79,7 @@ export async function runOrbitKeepingGmat({
 }): Promise<OrbitKeepingExecutionResult> {
   const runDir = path.dirname(scriptPath)
   const reportPath = path.join(runDir, "ReboostReport.txt")
+  const timeSeriesPath = path.join(runDir, "OrbitAnalysisReport.txt")
   const logPath = path.join(runDir, "gmat.log")
   const startedAt = Date.now()
   const chunks: Buffer[] = []
@@ -78,7 +107,9 @@ export async function runOrbitKeepingGmat({
 
   await fs.writeFile(logPath, Buffer.concat(chunks))
   const reportSource = await fs.readFile(reportPath, "utf8").catch(() => "")
+  const timeSeriesSource = await fs.readFile(timeSeriesPath, "utf8").catch(() => "")
   const samples = parseOrbitKeepingReport(reportSource)
+  const timeSeriesSamples = parseOrbitKeepingTimeSeriesReport(timeSeriesSource)
   const status = timedOut ? "timeout" : exitCode === 0 && samples.length > 0 ? "completed" : "failed"
   const error = status === "completed"
     ? undefined
@@ -99,5 +130,7 @@ export async function runOrbitKeepingGmat({
     reportPath,
     samples,
     status,
+    timeSeriesPath,
+    timeSeriesSamples,
   }
 }

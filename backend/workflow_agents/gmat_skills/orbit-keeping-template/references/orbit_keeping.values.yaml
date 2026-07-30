@@ -486,145 +486,202 @@ slots:
   - id: line_225_ReboostReport_AppendToExistingFile
     context: ReboostReport.AppendToExistingFile = false;
     value: "false"
-  - id: line_236_minAltitude
+  - id: line_229_OrbitAnalysisReport_SolverIterations
+    context: OrbitAnalysisReport.SolverIterations = Current;
+    value: Current
+  - id: line_230_OrbitAnalysisReport_UpperLeft
+    context: OrbitAnalysisReport.UpperLeft = [ 0 0 ];
+    value: "[ 0 0 ]"
+  - id: line_231_OrbitAnalysisReport_Size
+    context: OrbitAnalysisReport.Size = [ 0 0 ];
+    value: "[ 0 0 ]"
+  - id: line_232_OrbitAnalysisReport_RelativeZOrder
+    context: OrbitAnalysisReport.RelativeZOrder = 0;
+    value: "0"
+  - id: line_233_OrbitAnalysisReport_Maximized
+    context: OrbitAnalysisReport.Maximized = false;
+    value: "false"
+  - id: line_234_OrbitAnalysisReport_Filename
+    context: OrbitAnalysisReport.Filename = 'OrbitAnalysisReport.txt';
+    value: "'OrbitAnalysisReport.txt'"
+  - id: line_235_OrbitAnalysisReport_Precision
+    context: OrbitAnalysisReport.Precision = 16;
+    value: "16"
+  - id: line_236_OrbitAnalysisReport_WriteHeaders
+    context: OrbitAnalysisReport.WriteHeaders = true;
+    value: "true"
+  - id: line_237_OrbitAnalysisReport_LeftJustify
+    context: OrbitAnalysisReport.LeftJustify = On;
+    value: On
+  - id: line_238_OrbitAnalysisReport_ZeroFill
+    context: OrbitAnalysisReport.ZeroFill = Off;
+    value: Off
+  - id: line_239_OrbitAnalysisReport_FixedWidth
+    context: OrbitAnalysisReport.FixedWidth = true;
+    value: "true"
+  - id: line_240_OrbitAnalysisReport_Delimiter
+    context: OrbitAnalysisReport.Delimiter = ' ';
+    value: "' '"
+  - id: line_241_OrbitAnalysisReport_ColumnWidth
+    context: OrbitAnalysisReport.ColumnWidth = 23;
+    value: "23"
+  - id: line_242_OrbitAnalysisReport_WriteReport
+    context: OrbitAnalysisReport.WriteReport = true;
+    value: "true"
+  - id: line_243_OrbitAnalysisReport_AppendToExistingFile
+    context: OrbitAnalysisReport.AppendToExistingFile = false;
+    value: "false"
+  - id: line_254_minAltitude
     context: minAltitude = 190;
     value: "190"
-  - id: line_237_finalAltitude
-    context: finalAltitude = 100;
-    value: "100"
-  - id: line_238_fuelReserve
+  - id: line_255_finalAltitude
+    context: finalAltitude = 150;
+    value: "150"
+  - id: line_256_fuelReserve
     context: fuelReserve = 7;
     value: "7"
-  - id: line_239_targetSMA
+  - id: line_257_targetSMA
     context: targetSMA = 6578.1363;
     value: "6578.1363"
-  - id: line_255_literal_1
+  - id: line_273_literal_1
     context: Propagate 'Propagate to Reboost Altitude' DefaultProp(DefaultSC)
       {DefaultSC.Earth.Altitude = minAltitude};
     value: "'Propagate to Reboost Altitude'"
-  - id: line_257_literal_1
+  - id: line_275_literal_1
     context: Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode =
       DiscardAndContinue, ShowProgressWindow = true};
     value: "'Circular Reboost'"
-  - id: line_257_literal_2
+  - id: line_275_literal_2
     context: Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode =
       DiscardAndContinue, ShowProgressWindow = true};
     value: "true"
-  - id: line_259_literal_1
+  - id: line_277_literal_1
     context: Propagate 'Propagate to Periapsis' DefaultProp(DefaultSC)
       {DefaultSC.Earth.Periapsis};
     value: "'Propagate to Periapsis'"
-  - id: line_263_literal_1
+  - id: line_281_literal_1
     context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "'Vary TOI.V'"
-  - id: line_263_literal_2
+  - id: line_281_literal_2
     context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.003"
-  - id: line_263_literal_3
+  - id: line_281_literal_3
     context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.0001"
-  - id: line_263_literal_4
+  - id: line_281_literal_4
     context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0"
-  - id: line_263_literal_5
+  - id: line_281_literal_5
     context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.02"
-  - id: line_263_literal_6
+  - id: line_281_literal_6
     context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.005"
-  - id: line_263_literal_7
+  - id: line_281_literal_7
     context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.0"
-  - id: line_263_literal_8
+  - id: line_281_literal_8
     context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "1.0"
-  - id: line_264_literal_1
+  - id: line_282_literal_1
     context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "'Vary GOI.V'"
-  - id: line_264_literal_2
+  - id: line_282_literal_2
     context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.003"
-  - id: line_264_literal_3
+  - id: line_282_literal_3
     context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.0001"
-  - id: line_264_literal_4
+  - id: line_282_literal_4
     context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0"
-  - id: line_264_literal_5
+  - id: line_282_literal_5
     context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.02"
-  - id: line_264_literal_6
+  - id: line_282_literal_6
     context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.005"
-  - id: line_264_literal_7
+  - id: line_282_literal_7
     context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.0"
-  - id: line_264_literal_8
+  - id: line_282_literal_8
     context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
       0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "1.0"
-  - id: line_266_literal_1
+  - id: line_284_literal_1
     context: Maneuver 'Apply TOI' TOI(DefaultSC);
     value: "'Apply TOI'"
-  - id: line_267_literal_1
+  - id: line_285_literal_1
     context: Propagate 'Propagate to Apoapsis' DefaultProp(DefaultSC)
       {DefaultSC.Earth.Apoapsis};
     value: "'Propagate to Apoapsis'"
-  - id: line_268_literal_1
+  - id: line_286_literal_1
     context: Achieve 'Achieve Target SMA' DefaultDC(DefaultSC.Earth.SMA = targetSMA,
       {Tolerance = 1.0});
     value: "'Achieve Target SMA'"
-  - id: line_268_literal_2
+  - id: line_286_literal_2
     context: Achieve 'Achieve Target SMA' DefaultDC(DefaultSC.Earth.SMA = targetSMA,
       {Tolerance = 1.0});
     value: "1.0"
-  - id: line_270_literal_1
+  - id: line_288_literal_1
     context: Maneuver 'Apply GOI' GOI(DefaultSC);
     value: "'Apply GOI'"
-  - id: line_271_literal_1
+  - id: line_289_literal_1
     context: Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0,
       {Tolerance = 0.005});
     value: "'Achieve Circular Orbit'"
-  - id: line_271_literal_2
+  - id: line_289_literal_2
     context: Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0,
       {Tolerance = 0.005});
     value: "0.0"
-  - id: line_271_literal_3
+  - id: line_289_literal_3
     context: Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0,
       {Tolerance = 0.005});
     value: "0.005"
-  - id: line_279_literal_1
+  - id: line_294_literal_1
+    context: Report OrbitAnalysisReport DefaultSC.A1ModJulian
+      DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass
+      DefaultSC.TotalMass DefaultSC.Earth.SMA DefaultSC.Earth.ECC
+      DefaultSC.EarthMJ2000Eq.INC;
+    value: "00"
+  - id: line_298_literal_1
     context: Propagate 'Propagate to Final Altitude' DefaultProp(DefaultSC)
       {DefaultSC.Earth.Altitude = finalAltitude};
     value: "'Propagate to Final Altitude'"
+  - id: line_301_literal_1
+    context: Report OrbitAnalysisReport DefaultSC.A1ModJulian
+      DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass
+      DefaultSC.TotalMass DefaultSC.Earth.SMA DefaultSC.Earth.ECC
+      DefaultSC.EarthMJ2000Eq.INC;
+    value: "00"

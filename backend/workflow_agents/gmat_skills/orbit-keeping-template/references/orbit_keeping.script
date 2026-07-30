@@ -224,6 +224,24 @@ ReboostReport.ColumnWidth = 23;
 ReboostReport.WriteReport = true;
 ReboostReport.AppendToExistingFile = false;
 
+% Deterministic engineering data product consumed by the web analysis panel.
+Create ReportFile OrbitAnalysisReport;
+OrbitAnalysisReport.SolverIterations = Current;
+OrbitAnalysisReport.UpperLeft = [ 0 0 ];
+OrbitAnalysisReport.Size = [ 0 0 ];
+OrbitAnalysisReport.RelativeZOrder = 0;
+OrbitAnalysisReport.Maximized = false;
+OrbitAnalysisReport.Filename = 'OrbitAnalysisReport.txt';
+OrbitAnalysisReport.Precision = 16;
+OrbitAnalysisReport.WriteHeaders = true;
+OrbitAnalysisReport.LeftJustify = On;
+OrbitAnalysisReport.ZeroFill = Off;
+OrbitAnalysisReport.FixedWidth = true;
+OrbitAnalysisReport.Delimiter = ' ';
+OrbitAnalysisReport.ColumnWidth = 23;
+OrbitAnalysisReport.WriteReport = true;
+OrbitAnalysisReport.AppendToExistingFile = false;
+
 %----------------------------------------
 %---------- Arrays, Variables, Strings
 %----------------------------------------
@@ -234,7 +252,7 @@ ReboostReport.AppendToExistingFile = false;
 
 Create Variable minAltitude finalAltitude fuelReserve targetSMA;
 minAltitude = 190;
-finalAltitude = 100;
+finalAltitude = 150;
 fuelReserve = 7;
 targetSMA = 6578.1363;
 
@@ -273,9 +291,11 @@ While DefaultSC.ChemicalTank1.FuelMass > fuelReserve
    EndTarget;  % For targeter DefaultDC
 
    Report ReboostReport DefaultSC.A1ModJulian DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;
+   Report OrbitAnalysisReport DefaultSC.A1ModJulian DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass DefaultSC.TotalMass DefaultSC.Earth.SMA DefaultSC.Earth.ECC DefaultSC.EarthMJ2000Eq.INC;
 
 EndWhile;
 
 Propagate 'Propagate to Final Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = finalAltitude};
 
 Report ReboostReport DefaultSC.A1ModJulian DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;
+Report OrbitAnalysisReport DefaultSC.A1ModJulian DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass DefaultSC.TotalMass DefaultSC.Earth.SMA DefaultSC.Earth.ECC DefaultSC.EarthMJ2000Eq.INC;

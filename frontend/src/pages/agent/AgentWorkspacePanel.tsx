@@ -9,6 +9,7 @@ import { CurrentWorkspaceCard } from '../workspace/CurrentWorkspaceCard'
 import { GncDashboardPanel } from '../workspace/GncDashboardPanel'
 import { getWorkspaceDisplayName, usesCatchSupportingTable } from '../workspace/workspaceVersion'
 import { ComplianceCheckInputConfigEditor } from './ComplianceCheckInputConfigEditor'
+import { GmatAnalysisPanel } from './GmatAnalysisPanel'
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { AgentFilesView } from './files/AgentFilesView'
 import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
@@ -125,12 +126,13 @@ export function AgentWorkspacePanel({
   ].filter(Boolean).join(' ')
   const toolTabs: AgentToolView[] = showGncConfig
     ? ['gnc-dashboard', 'gnc']
-    : ['cad', 'paraview', 'comsol']
+    : activeGmatRunPath ? ['gmat-analysis', 'cad', 'paraview', 'comsol'] : ['cad', 'paraview', 'comsol']
   const toolLabel = (tool: AgentToolView) => {
     if (tool === 'cad') return 'CAD'
     if (tool === 'paraview') return 'ParaView'
     if (tool === 'comsol') return 'COMSOL'
     if (tool === 'gnc-dashboard') return 'GNC Dashboard'
+    if (tool === 'gmat-analysis') return 'GMAT Analysis'
     return 'GNC'
   }
   const thermalConfigContent = usesCatchSupportingTable(activeContext) ? (
@@ -251,6 +253,8 @@ export function AgentWorkspacePanel({
           <div className="agent-empty-state">This task has no 3D preview.</div>
         ) : activeView === 'tools' && activeTool === 'gnc-dashboard' && showGncConfig ? (
           <GncDashboardPanel activeContext={activeContext} />
+        ) : activeView === 'tools' && activeTool === 'gmat-analysis' ? (
+          <GmatAnalysisPanel runPath={activeGmatRunPath} />
         ) : activeView === 'tools' ? (
           toolUrls[activeTool] ? (
             <iframe className="agent-embed-frame" title={activeTool} src={toolUrls[activeTool]} />

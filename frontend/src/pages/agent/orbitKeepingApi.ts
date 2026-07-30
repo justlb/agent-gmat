@@ -24,16 +24,97 @@ export type OrbitKeepingGenerateResult = {
   runId: string
   runPath: string
   scriptPath: string
+  timeSeriesPath: string
   valuesPath: string
+}
+
+export type OrbitKeepingProgressEvent = {
+  key: 'load_template' | 'llm_patch' | 'render_script' | 'run_gmat' | 'save_results'
+  percent: number
+  status: 'running' | 'completed'
+}
+
+export type OrbitKeepingDraft = {
+  assistantMessage?: string
+  conversation?: Array<{ assistant: string; user: string }>
+  confirmed: boolean
+  draftId: string
+  missing: string[]
+  safety: {
+    assumptions: Array<{ label: string; value: string }>
+    checks: Array<{ code: string; message: string; severity: 'error' | 'warning' }>
+  }
+  status: 'blocked' | 'collecting' | 'ready' | 'confirmed'
+  values: Record<string, string | number | null>
 }
 
 export type OrbitKeepingFile = {
   artifactId: string
   fileName: string
-  kind: 'log' | 'manifest' | 'report' | 'result' | 'script' | 'values'
+  kind: 'log' | 'manifest' | 'report' | 'result' | 'script' | 'timeseries' | 'values'
   mtimeMs: number
   relativePath: string
   size: number
+}
+
+export type OrbitKeepingTimeSeriesSample = {
+  altitudeKm: number
+  eccentricity: number
+  epochA1ModJulian: number
+  fuelMassKg: number
+  inclinationDeg: number
+  semiMajorAxisKm: number
+  totalMassKg: number
+}
+
+export type OrbitKeepingRunConversationTurn = { answer: string; askedAt: string; question: string }
+
+export async function getOrbitKeepingRunConversation(runPath: string, apiBase?: string) {
+  const url = `${joinApiPath(apiBase, '/gmat/orbit-keeping/analyze/history')}?${new URLSearchParams({ runPath }).toString()}`
+  const response = await fetch(url, { cache: 'no-store' })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  const payload = await response.json() as { conversation?: OrbitKeepingRunConversationTurn[] }
+  return Array.isArray(payload.conversation) ? payload.conversation : []
+}
+
+export async function getOrbitKeepingTimeSeries(runPath: string, apiBase?: string) {
+  const url = `${joinApiPath(apiBase, '/gmat/orbit-keeping/timeseries')}?${new URLSearchParams({ runPath }).toString()}`
+  const response = await fetch(url, { cache: 'no-store' })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  const payload = await response.json() as { samples?: OrbitKeepingTimeSeriesSample[] }
+  return Array.isArray(payload.samples) ? payload.samples : []
+}
+
+export async function createOrbitKeepingDraft(workspaceDir?: string | null) {
+  const response = await fetch(joinApiPath(undefined, '/gmat/orbit-keeping/drafts'), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(workspaceDir ? { workspaceDir } : {}) }),
+  })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  return response.json() as Promise<OrbitKeepingDraft>
+}
+
+export async function discussOrbitKeepingDraft(draftId: string, message: string, workspaceDir?: string | null) {
+  const response = await fetch(joinApiPath(undefined, `/gmat/orbit-keeping/drafts/${encodeURIComponent(draftId)}/messages`), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, ...(workspaceDir ? { workspaceDir } : {}) }),
+  })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  return response.json() as Promise<OrbitKeepingDraft>
+}
+
+export async function confirmOrbitKeepingDraft(draftId: string, workspaceDir?: string | null) {
+  const response = await fetch(joinApiPath(undefined, `/gmat/orbit-keeping/drafts/${encodeURIComponent(draftId)}/confirm`), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(workspaceDir ? { workspaceDir } : {}) }),
+  })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  return response.json() as Promise<OrbitKeepingDraft>
+}
+
+export async function executeOrbitKeepingDraft(draftId: string, workspaceDir?: string | null) {
+  const response = await fetch(joinApiPath(undefined, `/gmat/orbit-keeping/drafts/${encodeURIComponent(draftId)}/execute`), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(workspaceDir ? { workspaceDir } : {}) }),
+  })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  return response.json() as Promise<OrbitKeepingGenerateResult>
 }
 
 async function getResponseErrorMessage(response: Response) {
@@ -58,6 +139,52 @@ export async function generateOrbitKeeping(request: string, {
   })
   if (!response.ok) throw new Error(await getResponseErrorMessage(response))
   return response.json() as Promise<OrbitKeepingGenerateResult>
+}
+
+/** Runs the same deterministic pipeline, while receiving its actual backend stages. */
+export async function generateOrbitKeepingWithProgress(request: string, {
+  apiBase,
+  onProgress,
+  workspaceDir,
+}: {
+  apiBase?: string
+  onProgress: (event: OrbitKeepingProgressEvent) => void
+  workspaceDir?: string | null
+}) {
+  const response = await fetch(joinApiPath(apiBase, '/gmat/orbit-keeping/generate/events'), {
+    method: 'POST',
+    headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ request, ...(workspaceDir ? { workspaceDir } : {}) }),
+  })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  if (!response.body) throw new Error('GMAT progress stream is unavailable')
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let result: OrbitKeepingGenerateResult | null = null
+  let streamError = ''
+  for (;;) {
+    const chunk = await reader.read()
+    if (chunk.done) break
+    buffer += decoder.decode(chunk.value, { stream: true })
+    const frames = buffer.split(/\n\n/u)
+    buffer = frames.pop() ?? ''
+    for (const frame of frames) {
+      const event = /^event: ([^\n]+)$/mu.exec(frame)?.[1]
+      const source = /^data: (.+)$/mu.exec(frame)?.[1]
+      if (!event || !source) continue
+      const payload = JSON.parse(source) as OrbitKeepingProgressEvent | OrbitKeepingGenerateResult | { error?: unknown }
+      if (event === 'progress') onProgress(payload as OrbitKeepingProgressEvent)
+      if (event === 'result') result = payload as OrbitKeepingGenerateResult
+      if (event === 'error') streamError = typeof (payload as { error?: unknown }).error === 'string'
+        ? (payload as { error: string }).error
+        : 'GMAT generation failed'
+    }
+  }
+  if (streamError) throw new Error(streamError)
+  if (!result) throw new Error('GMAT progress stream ended without a result')
+  return result
 }
 
 export async function analyzeOrbitKeepingRun({

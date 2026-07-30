@@ -653,6 +653,28 @@
   transition: transform 160ms ease;
 }
 
+.agent-robot-chat.is-gmat-draft {
+  grid-template-columns: 210px minmax(0, 1fr) 62px;
+  width: min(820px, calc(100vw - 28px));
+  max-height: min(720px, calc(100vh - 120px));
+}
+
+.agent-robot-chat.is-gmat-run {
+  width: min(720px, calc(100vw - 28px));
+}
+
+.agent-robot-chat.is-gmat-run .agent-gmat-run-conversation {
+  grid-column: 1 / -1;
+}
+
+.agent-robot-chat.is-gmat-run textarea {
+  grid-column: 1;
+}
+
+.agent-robot-chat.is-gmat-run > button:last-child {
+  grid-column: 2;
+}
+
 .agent-chat-mode {
   grid-column: 1 / -1;
   display: flex;
@@ -668,6 +690,209 @@
   gap: 8px;
   color: #334155;
   font-size: 11px;
+}
+
+.agent-gmat-draft-requirements,
+.agent-gmat-draft-assumptions,
+.agent-gmat-conversation {
+  grid-column: 1 / -1;
+  border: 1px solid #d7e1ed;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.agent-robot-chat.is-gmat-draft .agent-gmat-draft-requirements {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.agent-robot-chat.is-gmat-draft .agent-gmat-draft-assumptions {
+  grid-column: 1;
+  grid-row: 4;
+}
+
+.agent-robot-chat.is-gmat-draft .agent-gmat-conversation {
+  grid-column: 2 / -1;
+  grid-row: 3;
+}
+
+.agent-gmat-draft-requirements header,
+.agent-gmat-draft-assumptions header,
+.agent-gmat-conversation header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #d7e1ed;
+  background: #eef4fb;
+  color: #243b53;
+  font-size: 12px;
+}
+
+.agent-gmat-draft-requirements header span,
+.agent-gmat-draft-assumptions header span,
+.agent-gmat-conversation header span {
+  color: #60758c;
+  font-size: 11px;
+}
+
+.agent-gmat-draft-requirements ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 10px;
+  list-style: none;
+}
+
+.agent-gmat-draft-requirements li {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #e1eaf5;
+  color: #40566e;
+  font-size: 11px;
+}
+
+.agent-gmat-optional-examples {
+  margin: auto 10px 10px;
+  padding-top: 9px;
+  border-top: 1px solid #d7e1ed;
+  color: #40566e;
+  font-size: 11px;
+}
+
+.agent-gmat-optional-examples strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.agent-gmat-optional-examples ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 0 16px;
+  list-style: disc;
+}
+
+.agent-gmat-optional-examples li {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #40566e;
+}
+
+.agent-gmat-draft-requirements p,
+.agent-gmat-draft-assumptions p,
+.agent-gmat-empty-state {
+  margin: 0;
+  padding: 10px;
+  color: #52677e;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.agent-gmat-conversation-history {
+  display: grid;
+  gap: 10px;
+  max-height: min(270px, 34vh);
+  overflow-y: auto;
+  padding: 10px;
+  scrollbar-width: thin;
+}
+
+.agent-gmat-turn {
+  display: grid;
+  gap: 7px;
+}
+
+.agent-gmat-turn p,
+.agent-gmat-conversation-history > p {
+  display: grid;
+  gap: 3px;
+  width: fit-content;
+  max-width: 86%;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.agent-gmat-conversation-history p span {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.agent-gmat-conversation-history .is-user {
+  justify-self: end;
+  background: linear-gradient(135deg, #315ee8, #713cc6);
+  color: #fff;
+}
+
+.agent-gmat-conversation-history .is-assistant {
+  justify-self: start;
+  border: 1px solid #dce6f0;
+  background: #fff;
+  color: #26384a;
+}
+
+.agent-robot-chat.is-gmat-draft textarea {
+  grid-column: 2;
+  grid-row: 4;
+  align-self: stretch;
+  min-height: 74px;
+  max-height: 110px;
+  border: 1px solid #d7e1ed;
+  border-radius: 9px;
+  background: #fff;
+  color: #1f2937;
+  padding: 10px;
+}
+
+.agent-robot-chat.is-gmat-draft textarea::placeholder {
+  color: #9ca3af;
+}
+
+.agent-robot-chat.is-gmat-draft > button:last-child {
+  grid-column: 3;
+  grid-row: 4;
+  align-self: stretch;
+  height: auto;
+  min-height: 74px;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  .agent-robot-chat.is-gmat-draft {
+    grid-template-columns: minmax(0, 1fr) 58px;
+    width: min(440px, calc(100vw - 20px));
+  }
+
+  .agent-robot-chat.is-gmat-draft .agent-gmat-draft-requirements,
+  .agent-robot-chat.is-gmat-draft .agent-gmat-draft-assumptions,
+  .agent-robot-chat.is-gmat-draft .agent-gmat-conversation {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .agent-robot-chat.is-gmat-draft textarea {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .agent-robot-chat.is-gmat-draft > button:last-child {
+    grid-column: 2;
+    grid-row: auto;
+  }
+}
+
+.agent-gmat-conversation-history .is-pending {
+  opacity: 0.68;
 }
 
 .agent-robot-chat .agent-gmat-chat-context button {

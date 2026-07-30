@@ -23,7 +23,7 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
     const fakeModel = Fastify()
     fakeModel.post("/v1/responses", async () => {
       modelCalls += 1
-      if (modelCalls > 1) return { output_text: "Run analysis: the saved result is available without rerunning GMAT." }
+      if (modelCalls > 2) return { output_text: "Run analysis: the saved result is available without rerunning GMAT." }
       return {
         output_text: `changes:\n  - id: ${dryMassId}\n    value: '200'\n  - id: ${dragAreaId}\n    value: '10'`,
       }
@@ -73,6 +73,7 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
         "gmat_result.json",
         "orbit_keeping.script",
         "orbit_keeping.values.yaml",
+        "orbit_timeseries.json",
         "run_manifest.json",
       ])
       assert.match(runDirectory, /^\d{2}-\d{2}-\d{2}_\d{2}-\d{2}$/u)
@@ -85,6 +86,24 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
       assert.equal(downloadResponse.statusCode, 200)
       assert.match(downloadResponse.body, /DefaultSC\.DryMass\s+= 200;/u)
 
+      const timeSeriesResponse = await server.inject({
+        method: "GET",
+        url: `/api/gmat/orbit-keeping/timeseries?runPath=${encodeURIComponent(body.runPath)}`,
+        headers: { "x-codex-user-id": "alice" },
+      })
+      assert.equal(timeSeriesResponse.statusCode, 200)
+      assert.deepEqual(timeSeriesResponse.json(), { samples: [] })
+
+      const eventsResponse = await server.inject({
+        method: "POST",
+        url: "/api/gmat/orbit-keeping/generate/events",
+        headers: { "x-codex-user-id": "alice" },
+        payload: { request: "Change dry mass to 200 kg." },
+      })
+      assert.equal(eventsResponse.statusCode, 200)
+      assert.match(eventsResponse.body, /event: progress\ndata: .*"key":"llm_patch"/u)
+      assert.match(eventsResponse.body, /event: result\ndata: .*"runPath":"gmat/u)
+
       const scriptMtimeBeforeAnalysis = (await fs.stat(body.scriptPath)).mtimeMs
       const analysisResponse = await server.inject({
         method: "POST",
@@ -94,7 +113,7 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
       })
       assert.equal(analysisResponse.statusCode, 200)
       assert.match(analysisResponse.json().answer, /without rerunning GMAT/u)
-      assert.equal(modelCalls, 2)
+      assert.equal(modelCalls, 3)
       assert.equal((await fs.stat(body.scriptPath)).mtimeMs, scriptMtimeBeforeAnalysis)
       await fs.access(path.join(path.dirname(body.scriptPath), "conversation.json"))
     } finally {

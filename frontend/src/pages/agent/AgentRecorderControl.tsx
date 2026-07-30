@@ -6,6 +6,16 @@ export type AgentChatMode = 'general' | 'gmat-orbit-keeping'
 
 type AgentRecorderControlProps = {
   activeGmatRunId?: string
+  gmatRunConversation?: Array<{ answer: string; askedAt: string; question: string }>
+  gmatDraft?: {
+    conversation?: Array<{ assistant: string; user: string }>
+    missing: string[]
+    safety?: {
+      assumptions: Array<{ label: string; value: string }>
+      checks: Array<{ code: string; message: string; severity: 'error' | 'warning' }>
+    }
+    status: 'blocked' | 'collecting' | 'ready' | 'confirmed'
+  } | null
   activeView: AgentWorkspaceView | null
   agentSpeechError: string
   agentSpeechState: AgentSpeechState
@@ -16,6 +26,7 @@ type AgentRecorderControlProps = {
   inputMode: AgentInputMode
   onButtonClick: () => void
   onChatModeChange: (mode: AgentChatMode) => void
+  onExecuteGmatDraft: () => void
   onStartNewGmatRun: () => void
   onTextChange: (value: string) => void
   onTextSubmit: () => void
@@ -30,6 +41,30 @@ type AgentRecorderControlProps = {
 const DOCKED_ROBOT_DRAG_THRESHOLD = 6
 const DOCKED_ROBOT_MARGIN = 12
 const STATUS_HINT_DURATION_MS = 3200
+
+const GMAT_REQUIRED_FIELD_LABELS: Record<string, string> = {
+  'endOfLife.finalAltitudeKm': 'Final altitude',
+  'initialOrbit.eccentricity': 'Eccentricity',
+  'initialOrbit.epoch': 'Initial epoch',
+  'initialOrbit.inclinationDeg': 'Inclination',
+  'initialOrbit.smaKm': 'Initial orbit altitude or semi-major axis',
+  'propulsion.ispSeconds': 'Specific impulse',
+  'spacecraft.dragAreaM2': 'Drag area',
+  'spacecraft.dragCoefficient': 'Drag coefficient',
+  'spacecraft.dryMassKg': 'Dry mass',
+  'spacecraft.initialFuelMassKg': 'Initial fuel mass',
+  'stationKeeping.fuelReserveKg': 'Fuel reserve',
+  'stationKeeping.minimumAltitudeKm': 'Minimum reboost altitude',
+  'stationKeeping.targetSmaKm': 'Target semi-major axis',
+}
+
+const GMAT_OPTIONAL_FIELD_EXAMPLES = [
+  'Target semi-major axis (defaults to the initial orbit)',
+  'RAAN, argument of periapsis, true anomaly',
+  'Drag area and drag coefficient',
+  'Specific impulse and fuel reserve',
+  'Final altitude',
+]
 
 function getBubbleTextSegments(value: string) {
   const normalized = value.replace(/\s+/g, ' ').trim()
@@ -51,9 +86,12 @@ export function AgentRecorderControl({
   chatMode,
   disabled,
   error,
+  gmatDraft,
+  gmatRunConversation,
   inputMode,
   onButtonClick,
   onChatModeChange,
+  onExecuteGmatDraft,
   onStartNewGmatRun,
   onTextChange,
   onTextSubmit,
@@ -91,7 +129,9 @@ export function AgentRecorderControl({
     if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
     event.preventDefault()
     onTextSubmit()
-    setTextDialogOpen(false)
+    // A GMAT mission draft is a multi-turn discussion: keep its workspace
+    // visible after every message. General chat preserves the compact behavior.
+    if (chatMode === 'general') setTextDialogOpen(false)
   }
   const triggerRobotAction = () => {
     if (busy) {
@@ -115,7 +155,7 @@ export function AgentRecorderControl({
   }
   const handleTextSubmitClick = () => {
     onTextSubmit()
-    setTextDialogOpen(false)
+    if (chatMode === 'general') setTextDialogOpen(false)
   }
   const handleRobotPointerMove = (event: PointerEvent<HTMLElement>) => {
     const drag = dragRef.current
@@ -218,6 +258,12 @@ export function AgentRecorderControl({
       ? 'User'
       : 'Status'
   const bubbleTextSegments = getBubbleTextSegments(bubbleText)
+  const showCompactBubble = Boolean(bubbleText) && !(
+    chatMode === 'gmat-orbit-keeping' &&
+    textDialogOpen &&
+    (Boolean(gmatDraft) || Boolean(activeGmatRunId)) &&
+    !displayError
+  )
 
   useEffect(() => {
     if (agentBubbleText || userBubbleText || showPersistentStatus || textDialogOpen) {
@@ -241,7 +287,7 @@ export function AgentRecorderControl({
       style={robotStyle}
     >
       <div className="agent-robot-anchor">
-        {bubbleText ? (
+        {showCompactBubble ? (
           <div className="agent-robot-bubble-stack" aria-live="polite">
             <article className={`agent-robot-bubble is-agent${displayError ? ' is-error' : ''}`}>
               <p className="agent-robot-bubble-text">
@@ -292,7 +338,7 @@ export function AgentRecorderControl({
           </span>
         </button>
         {inputMode === 'text' && textDialogOpen ? (
-          <div className="agent-robot-chat">
+          <div className={`agent-robot-chat ${chatMode === 'gmat-orbit-keeping' && !activeGmatRunId ? 'is-gmat-draft' : ''} ${chatMode === 'gmat-orbit-keeping' && activeGmatRunId ? 'is-gmat-run' : ''}`}>
             <div className="agent-chat-mode" role="group" aria-label="Chat mode">
               <button
                 aria-pressed={chatMode === 'general'}
@@ -317,6 +363,74 @@ export function AgentRecorderControl({
                 <button type="button" onClick={onStartNewGmatRun}>New GMAT run</button>
               </div>
             ) : null}
+            {chatMode === 'gmat-orbit-keeping' && activeGmatRunId ? (
+              <section className="agent-gmat-conversation agent-gmat-run-conversation" aria-label="GMAT run discussion" aria-live="polite">
+                <header><strong>Run discussion</strong><span>Saved with this GMAT run</span></header>
+                <div className="agent-gmat-conversation-history">
+                  {(gmatRunConversation ?? []).map((turn, index) => (
+                    <div className="agent-gmat-turn" key={`${index}-${turn.askedAt}`}>
+                      <p className="is-user"><span>You</span>{turn.question}</p>
+                      <p className="is-assistant"><span>GMAT assistant</span>{turn.answer}</p>
+                    </div>
+                  ))}
+                  {busy && text.trim() ? <p className="is-user is-pending"><span>You</span>{text}</p> : null}
+                  {busy ? <p className="is-assistant is-pending"><span>GMAT assistant</span>Analyzing saved results…</p> : null}
+                  {(gmatRunConversation?.length ?? 0) === 0 && !busy ? <p className="agent-gmat-empty-state">Ask a question about this run. GMAT will not be run again.</p> : null}
+                </div>
+              </section>
+            ) : null}
+            {chatMode === 'gmat-orbit-keeping' && !activeGmatRunId && gmatDraft ? (
+              <div className="agent-gmat-chat-context">
+                <span>{gmatDraft.status === 'blocked'
+                  ? 'Physical sanity checks must be resolved before GMAT can run.'
+                  : gmatDraft.status === 'ready'
+                    ? 'Mission draft is ready for engineering review.'
+                    : `${gmatDraft.missing.length} mandatory fields still required.`}</span>
+                {gmatDraft.status === 'ready' ? <button type="button" disabled={busy} onClick={onExecuteGmatDraft}>Confirm and run GMAT</button> : null}
+              </div>
+            ) : null}
+            {chatMode === 'gmat-orbit-keeping' && !activeGmatRunId && gmatDraft ? (
+              <>
+                <section className="agent-gmat-draft-requirements" aria-label="Mandatory mission parameters">
+                  <header>
+                    <strong>Required before GMAT can run</strong>
+                    <span>{gmatDraft.missing.length === 0 ? 'Complete' : `${gmatDraft.missing.length} remaining`}</span>
+                  </header>
+                  {gmatDraft.missing.length ? (
+                    <ul>
+                      {gmatDraft.missing.map(field => <li key={field}>{GMAT_REQUIRED_FIELD_LABELS[field] ?? field}</li>)}
+                    </ul>
+                  ) : <p>All mandatory mission parameters have been provided. You can confirm and run GMAT.</p>}
+                  <div className="agent-gmat-optional-examples">
+                    <strong>Optional parameters you can also change</strong>
+                    <ul>{GMAT_OPTIONAL_FIELD_EXAMPLES.map(example => <li key={example}>{example}</li>)}</ul>
+                  </div>
+                </section>
+                <section className="agent-gmat-draft-assumptions" aria-label="Assumed defaults to confirm">
+                  <header>
+                    <strong>Assumed defaults to confirm</strong>
+                    <span>Template defaults</span>
+                  </header>
+                  <div className="agent-gmat-optional-examples">
+                    <ul>{(gmatDraft.safety?.assumptions ?? []).map(assumption => <li key={assumption.label}>{assumption.label}: {assumption.value}</li>)}</ul>
+                  </div>
+                </section>
+                <section className="agent-gmat-conversation" aria-label="GMAT mission draft conversation" aria-live="polite">
+                  <header><strong>Mission discussion</strong><span>Draft assistant</span></header>
+                  <div className="agent-gmat-conversation-history">
+                    {(gmatDraft.conversation ?? []).map((turn, index) => (
+                      <div className="agent-gmat-turn" key={`${index}-${turn.user}`}>
+                        <p className="is-user"><span>You</span>{turn.user}</p>
+                        <p className="is-assistant"><span>GMAT assistant</span>{turn.assistant}</p>
+                      </div>
+                    ))}
+                    {busy && text.trim() ? <p className="is-user is-pending"><span>You</span>{text}</p> : null}
+                    {busy ? <p className="is-assistant is-pending"><span>GMAT assistant</span>Thinking…</p> : null}
+                    {(gmatDraft.conversation?.length ?? 0) === 0 && !busy ? <p className="agent-gmat-empty-state">Start by describing the mission or giving any available parameter.</p> : null}
+                  </div>
+                </section>
+              </>
+            ) : null}
             <textarea
               aria-label="Text input"
               autoFocus
@@ -324,7 +438,7 @@ export function AgentRecorderControl({
               onChange={event => onTextChange(event.target.value)}
               onKeyDown={handleTextKeyDown}
               placeholder={chatMode === 'gmat-orbit-keeping'
-                ? activeGmatRunId ? 'Ask a question about this completed run...' : 'Describe the GMAT values to change...'
+                ? activeGmatRunId ? 'Ask a question about this completed run...' : 'Describe the mission parameters to validate...'
                 : 'Describe your task...'}
               rows={3}
               value={textInputValue}

@@ -11,6 +11,17 @@ type RunConversationTurn = {
   question: string
 }
 
+export type OrbitKeepingRunConversationTurn = RunConversationTurn
+
+export async function loadOrbitKeepingRunConversation(runDir: string): Promise<RunConversationTurn[]> {
+  const source = await fs.readFile(path.join(runDir, "conversation.json"), "utf8").catch(() => "[]")
+  const parsed = JSON.parse(source) as unknown
+  if (!Array.isArray(parsed)) throw new Error("GMAT run conversation is invalid")
+  return parsed.filter((turn): turn is RunConversationTurn => Boolean(
+    turn && typeof turn === "object" && typeof (turn as RunConversationTurn).question === "string" && typeof (turn as RunConversationTurn).answer === "string",
+  ))
+}
+
 function extractResponseText(payload: unknown) {
   if (payload && typeof payload === "object" && typeof (payload as { output_text?: unknown }).output_text === "string") {
     return (payload as { output_text: string }).output_text.trim()
@@ -41,15 +52,14 @@ export async function analyzeOrbitKeepingRunWithLlm({
   fetchImpl?: typeof fetch
   timeoutMs?: number
 }) {
-  const [manifestSource, resultSource, reportSource] = await Promise.all([
+  const [manifestSource, resultSource, reportSource, timeSeriesSource] = await Promise.all([
     fs.readFile(path.join(runDir, "run_manifest.json"), "utf8"),
     fs.readFile(path.join(runDir, "gmat_result.json"), "utf8"),
     fs.readFile(path.join(runDir, "ReboostReport.txt"), "utf8").catch(() => ""),
+    fs.readFile(path.join(runDir, "orbit_timeseries.json"), "utf8").catch(() => ""),
   ])
   const conversationPath = path.join(runDir, "conversation.json")
-  const previousTurns = await fs.readFile(conversationPath, "utf8")
-    .then(source => JSON.parse(source) as RunConversationTurn[])
-    .catch(() => [])
+  const previousTurns = await loadOrbitKeepingRunConversation(runDir)
   const prompt = [
     "You are an engineering assistant analyzing one immutable GMAT orbit-keeping run.",
     "Answer only from the supplied run data. Do not claim that GMAT was rerun.",
@@ -59,6 +69,7 @@ export async function analyzeOrbitKeepingRunWithLlm({
     `Run manifest:\n${manifestSource}`,
     `Normalized result:\n${resultSource}`,
     reportSource ? `GMAT report samples:\n${reportSource.slice(0, 100_000)}` : "GMAT report samples: unavailable",
+    timeSeriesSource ? `GMAT engineering time series (epoch A1ModJulian; altitude km; fuel kg; total mass kg; SMA km; eccentricity; inclination deg):\n${timeSeriesSource.slice(0, 100_000)}` : "GMAT engineering time series: unavailable",
     previousTurns.length ? `Previous discussion:\n${JSON.stringify(previousTurns.slice(-10), null, 2)}` : "",
   ].filter(Boolean).join("\n\n")
   const startedAt = Date.now()

@@ -16,7 +16,7 @@ import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
 import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex, type ManagedModelBackend } from './agent/managedRun'
-import { analyzeOrbitKeepingRun, generateOrbitKeeping, type OrbitKeepingGenerateResult } from './agent/orbitKeepingApi'
+import { analyzeOrbitKeepingRun, confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraft, getOrbitKeepingRunConversation, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -62,7 +62,8 @@ export default function AgentPage() {
   const [textInputDisplay, setTextInputDisplay] = useState('')
   const [managedRunError, setManagedRunError] = useState('')
   const [gmatGenerating, setGmatGenerating] = useState(false)
-  const [activeGmatRun, setActiveGmatRun] = useState<{ runId: string; runPath: string } | null>(null)
+  const [activeGmatDraft, setActiveGmatDraft] = useState<OrbitKeepingDraft | null>(null)
+  const [activeGmatRun, setActiveGmatRun] = useState<{ conversation: OrbitKeepingRunConversationTurn[]; runId: string; runPath: string } | null>(null)
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
   const [remoteToolPortStatus, setRemoteToolPortStatus] = useState<RemoteToolPortSummary | null>(null)
   const [remoteToolPortError, setRemoteToolPortError] = useState('')
@@ -465,6 +466,9 @@ export default function AgentPage() {
   const progressUpdatedAt = formatProgressUpdatedAt(progressData, navigator.language || 'zh-CN', t)
   const progressPercent = workflowProgressSummary.percentage
   const progressStatusLabel = workflowProgressSummary.statusLabel || progressUpdatedAt
+  const displayedProgressUpdatedAt = progressUpdatedAt
+  const displayedProgressTitle = t('workspace.inspector.progressTitle')
+  const displayedProgressEntries = workflowLoopProgressEntries
   const recordButtonBusy = agentSpeechState === 'synthesizing' || agentSpeechPlaying
   const recordButtonDisabled = state === 'transcribing'
   const textComposerBusy = recordButtonBusy || state === 'transcribing' || gmatGenerating
@@ -488,31 +492,85 @@ export default function AgentPage() {
         question: prompt,
         runPath: activeGmatRun.runPath,
       })
-        .then(result => showSpeechText(result.answer))
+        .then(result => {
+          setActiveGmatRun(current => current && current.runPath === activeGmatRun.runPath
+            ? { ...current, conversation: [...current.conversation, { answer: result.answer, askedAt: new Date().toISOString(), question: prompt }] }
+            : current)
+          showSpeechText(result.answer)
+        })
         .catch(error => {
           setManagedRunError(error instanceof Error ? error.message : 'GMAT analysis failed')
         })
         .finally(() => setGmatGenerating(false))
       return
     }
-    void generateOrbitKeeping(prompt, { workspaceDir: activeContext.versionDir })
+    const describeDraft = (draft: OrbitKeepingDraft) => {
+      const labels: Record<string, string> = {
+        'endOfLife.finalAltitudeKm': 'final altitude',
+        'initialOrbit.eccentricity': 'eccentricity',
+        'initialOrbit.epoch': 'initial epoch',
+        'initialOrbit.inclinationDeg': 'inclination',
+        'initialOrbit.smaKm': 'initial orbit altitude or semi-major axis',
+        'propulsion.ispSeconds': 'specific impulse',
+        'spacecraft.dragAreaM2': 'drag area',
+        'spacecraft.dragCoefficient': 'drag coefficient',
+        'spacecraft.dryMassKg': 'dry mass',
+        'spacecraft.initialFuelMassKg': 'initial fuel mass',
+        'stationKeeping.fuelReserveKg': 'fuel reserve',
+        'stationKeeping.minimumAltitudeKm': 'minimum reboost altitude',
+        'stationKeeping.targetSmaKm': 'target semi-major axis',
+      }
+      const missing = draft.missing.length
+        ? `\nStill needed: ${draft.missing.map(field => labels[field] ?? field).join(', ')}.`
+        : ''
+      const safetyErrors = draft.safety.checks.filter(check => check.severity === 'error')
+      const safetyWarnings = draft.safety.checks.filter(check => check.severity === 'warning')
+      const safety = safetyErrors.length
+        ? `\nGMAT is blocked by physical sanity checks: ${safetyErrors.map(check => check.message).join(' ')}`
+        : safetyWarnings.length
+          ? `\nPhysical sanity checks passed with warnings: ${safetyWarnings.map(check => check.message).join(' ')}`
+          : draft.missing.length === 0
+            ? '\nPhysical sanity checks passed. Review the assumed defaults, then select Confirm and run GMAT.'
+            : ''
+      showSpeechText(`${draft.assistantMessage || 'Mission draft updated.'}${missing}${safety}`)
+    }
+    if (!activeGmatDraft) {
+      void createOrbitKeepingDraft(activeContext.versionDir)
+        .then(draft => discussOrbitKeepingDraft(draft.draftId, prompt, activeContext.versionDir))
+        .then(draft => { setActiveGmatDraft(draft); describeDraft(draft) })
+        .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft creation failed'))
+        .finally(() => setGmatGenerating(false))
+      return
+    }
+    void discussOrbitKeepingDraft(activeGmatDraft.draftId, prompt, activeContext.versionDir)
+      .then(draft => { setActiveGmatDraft(draft); describeDraft(draft) })
+      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft update failed'))
+      .finally(() => setGmatGenerating(false))
+  }, [activeContext.versionDir, activeGmatDraft, activeGmatRun, chatMode, clearAgentSpeechDisplay, refreshWorkspaceViews, runCodex, showSpeechText, textComposerBusy, textInput])
+  const handleExecuteGmatDraft = useCallback(() => {
+    if (!activeGmatDraft || gmatGenerating) return
+    setGmatGenerating(true)
+    void confirmOrbitKeepingDraft(activeGmatDraft.draftId, activeContext.versionDir)
+      .then(draft => { setActiveGmatDraft(draft); return executeOrbitKeepingDraft(draft.draftId, activeContext.versionDir) })
       .then((result: OrbitKeepingGenerateResult) => {
-        const changes = result.changes.map(change => `- ${change.id} = ${change.value}`).join('\n')
-        const metrics = [
-          `GMAT run ${result.runId}: ${result.result.status}`,
-          result.result.minimumReportedAltitudeKm !== undefined ? `Minimum reported altitude: ${result.result.minimumReportedAltitudeKm} km` : '',
-          result.result.finalFuelMassKg !== undefined ? `Final reported fuel: ${result.result.finalFuelMassKg} kg` : '',
-          result.result.error ?? '',
-        ].filter(Boolean).join('\n')
-        setActiveGmatRun({ runId: result.runId, runPath: result.runPath })
-        showSpeechText(`${metrics}\nGeneration latency: ${result.latencyMs} ms.\nAccepted changes:\n${changes || '- none'}`)
+        const runFailed = result.result.status === 'failed' || result.result.status === 'timeout'
+        const conversation: OrbitKeepingRunConversationTurn[] = [{
+          answer: runFailed
+            ? `GMAT ${result.result.status}: ${result.result.error || 'GMAT did not produce a usable result. Review the generated log file for details.'}`
+            : `GMAT completed successfully. You can now ask questions about the saved results without running GMAT again.`,
+          askedAt: new Date().toISOString(),
+          question: 'GMAT execution',
+        }]
+        setActiveGmatRun({ conversation, runId: result.runId, runPath: result.runPath })
+        setActiveGmatDraft(null)
+        showSpeechText(runFailed
+          ? `GMAT run ${result.runId} ${result.result.status}: ${result.result.error || 'see the run discussion for details.'}`
+          : `GMAT run ${result.runId}: ${result.result.status}. Accepted changes: ${result.changes.length}.`)
         refreshWorkspaceViews()
       })
-      .catch(error => {
-        setManagedRunError(error instanceof Error ? error.message : 'GMAT generation failed')
-      })
+      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft execution failed'))
       .finally(() => setGmatGenerating(false))
-  }, [activeContext.versionDir, activeGmatRun, chatMode, clearAgentSpeechDisplay, refreshWorkspaceViews, runCodex, showSpeechText, textComposerBusy, textInput])
+  }, [activeContext.versionDir, activeGmatDraft, gmatGenerating, refreshWorkspaceViews, showSpeechText])
   const displayedSessionStatus = managedVoiceRunning || latestManagedStatus?.status === 'running'
     ? 'running'
     : latestManagedStatus?.status === 'completed' || latestManagedStatus?.status === 'partial'
@@ -565,7 +623,7 @@ export default function AgentPage() {
         progressOpen={progressPanelOpen}
         progressPercent={progressPercent}
         progressStatusLabel={progressStatusLabel}
-        progressTitle={t('workspace.inspector.progressTitle')}
+        progressTitle={displayedProgressTitle}
         sessionStatus={displayedSessionStatus}
         sessionStatusLabel={sessionStatusLabel}
         stopSummaryPending={stopSummaryPending}
@@ -582,9 +640,9 @@ export default function AgentPage() {
         <AgentProgressRail
           className="agent-progress-popover"
           onClose={() => setProgressPanelOpen(false)}
-          progressUpdatedAt={progressUpdatedAt}
-          title={t('workspace.inspector.progressTitle')}
-          workflowLoopProgressEntries={workflowLoopProgressEntries}
+          progressUpdatedAt={displayedProgressUpdatedAt}
+          title={displayedProgressTitle}
+          workflowLoopProgressEntries={displayedProgressEntries}
         />
       ) : null}
       <section className="agent-stage" aria-live="polite">
@@ -608,7 +666,11 @@ export default function AgentPage() {
           handleSelectFile={handleSelectFile}
           manifestLoading={manifestLoading}
           onSelectGmatRun={run => {
-            setActiveGmatRun(run)
+            setActiveGmatRun({ ...run, conversation: [] })
+            void getOrbitKeepingRunConversation(run.runPath)
+              .then(conversation => setActiveGmatRun(current => current?.runPath === run.runPath ? { ...current, conversation } : current))
+              .catch(() => null)
+            setActiveTool('gmat-analysis')
             setChatMode('gmat-orbit-keeping')
             setInputMode('text')
             setManagedRunError('')
@@ -641,6 +703,7 @@ export default function AgentPage() {
 
         <AgentRecorderControl
           activeGmatRunId={activeGmatRun?.runId}
+          gmatRunConversation={activeGmatRun?.conversation}
           activeView={activeView}
           agentSpeechError={agentSpeechError}
           agentSpeechState={agentSpeechState}
@@ -648,11 +711,14 @@ export default function AgentPage() {
           chatMode={chatMode}
           disabled={recordButtonDisabled}
           error={error || managedRunError}
+          gmatDraft={activeGmatDraft}
           inputMode={inputMode}
           onButtonClick={handleButtonClick}
           onChatModeChange={handleChatModeChange}
+          onExecuteGmatDraft={handleExecuteGmatDraft}
           onStartNewGmatRun={() => {
             setActiveGmatRun(null)
+            setActiveGmatDraft(null)
             clearAgentSpeechDisplay()
             setManagedRunError('')
           }}

@@ -24,9 +24,7 @@ export function AgentProgressRail({ className = 'agent-right-rail', onClose, pro
         {workflowLoopProgressEntries.map(item => (
           <div className={`agent-task-row is-${item.status}`} key={item.key}>
             <span>{item.label}</span>
-            <small>{item.percent}%</small>
             <em>{item.statusLabel}</em>
-            <i style={{ inlineSize: `${item.percent}%` }} />
           </div>
         ))}
       </section>

@@ -24,9 +24,8 @@ from urllib.request import Request, urlopen
 
 
 DEFAULT_PROMPT = (
-    "set initial orbit to 200 km circular, "
-    "and minimum altitude to 190 km." \
-    "modify the fuel mass to maintain the orbite for a week "
+    "set the initial orbit to 200km circular, and keep it within 10 km of that altitude " \
+    "change the fuel mass to 50kg" \
 )
 DEFAULT_USER_ID = "justine"
 

@@ -20,6 +20,7 @@ describe("orbit keeping service", () => {
     assert.ok(dryMassId)
     assert.ok(dragAreaId)
     let calls = 0
+    const progress: Array<{ key: string; status: string }> = []
     const result = await generateOrbitKeepingMission({
       connection,
       request: "Change dry mass to 200 kg and drag area to 10 m2.",
@@ -29,9 +30,20 @@ describe("orbit keeping service", () => {
         calls += 1
         return new Response(JSON.stringify({ output_text: `changes:\n  - id: ${dryMassId}\n    value: '200'\n  - id: ${dragAreaId}\n    value: '10'` }), { status: 200 })
       },
+      onProgress: event => progress.push({ key: event.key, status: event.status }),
     })
 
     assert.equal(calls, 1)
+    assert.deepEqual(progress, [
+      { key: "load_template", status: "running" },
+      { key: "load_template", status: "completed" },
+      { key: "llm_patch", status: "running" },
+      { key: "llm_patch", status: "completed" },
+      { key: "render_script", status: "running" },
+      { key: "render_script", status: "completed" },
+      { key: "save_results", status: "running" },
+      { key: "save_results", status: "completed" },
+    ])
     assert.match(result.valuesPath, /gmat[\\/]orbit-keeping[\\/]test-mission[\\/]orbit_keeping\.values\.yaml$/u)
     const [sourceScript, script, values] = await Promise.all([
       fs.readFile(defaultOrbitKeepingTemplatePath(), "utf8"),
@@ -44,15 +56,17 @@ describe("orbit keeping service", () => {
       script
         .replace("= 200;", "= 300;")
         .replace("= 10;", "= 15;")
-        .replace(/ReboostReport\.Filename = '[^']+';/u, "ReboostReport.Filename = 'ReboostReport.txt';"),
+        .replace(/ReboostReport\.Filename = '[^']+';/u, "ReboostReport.Filename = 'ReboostReport.txt';")
+        .replace(/OrbitAnalysisReport\.Filename = '[^']+';/u, "OrbitAnalysisReport.Filename = 'OrbitAnalysisReport.txt';"),
       sourceScript,
     )
     assert.match(values, /value: "200"/u)
     assert.match(values, /value: "10"/u)
-    assert.deepEqual(result.result, { reportSampleCount: 0, status: "generated" })
+    assert.deepEqual(result.result, { reportSampleCount: 0, status: "generated", timeSeriesSampleCount: 0 })
     await Promise.all([
       fs.access(result.manifestPath),
       fs.access(result.resultPath),
+      fs.access(result.timeSeriesPath),
     ])
   })
 
