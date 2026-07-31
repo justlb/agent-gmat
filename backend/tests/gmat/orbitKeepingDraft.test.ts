@@ -82,6 +82,38 @@ describe("orbit keeping mission draft", () => {
     assert.equal(draft.conversation.length, 1)
   })
 
+  it("derives SMA from a perigee altitude and eccentricity", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-draft-"))
+    const initial = await createOrbitKeepingDraft(workspaceDir)
+    const draft = await discussOrbitKeepingDraft({
+      connection,
+      draft: initial,
+      message: "Set a 500 km perigee altitude with eccentricity 0.1.",
+      workspaceDir,
+      fetchImpl: async () => new Response(JSON.stringify({ output_text: "message: Perigee inputs recorded.\nupdates:\n  - path: initialOrbit.periapsisAltitudeKm\n    value: 500\n  - path: initialOrbit.eccentricity\n    value: 0.1" }), { status: 200 }),
+    })
+    assert.ok(Math.abs(Number(draft.values["initialOrbit.smaKm"]) - 7642.373666666667) < 1e-9)
+    assert.equal(draft.values["stationKeeping.targetSmaKm"], draft.values["initialOrbit.smaKm"])
+  })
+
+  it("accepts a Cartesian state and deterministically fills the Keplerian orbit", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-draft-"))
+    const initial = await createOrbitKeepingDraft(workspaceDir)
+    const updates = [
+      ["initialOrbit.epoch", "21545"], ["initialState.xKm", 7000], ["initialState.yKm", 0], ["initialState.zKm", 0],
+      ["initialState.vxKmPerSec", 0], ["initialState.vyKmPerSec", 7.546053290107542], ["initialState.vzKmPerSec", 0],
+      ["spacecraft.dryMassKg", 300], ["spacecraft.initialFuelMassKg", 200], ["stationKeeping.minimumAltitudeKm", 190],
+    ].map(([fieldPath, value]) => ({ path: fieldPath, value }))
+    const draft = await discussOrbitKeepingDraft({
+      connection, draft: initial, message: "Use this Cartesian state.", workspaceDir,
+      fetchImpl: async () => new Response(JSON.stringify({ output_text: `message: Cartesian state recorded.\nupdates: ${JSON.stringify(updates)}` }), { status: 200 }),
+    })
+    assert.equal(draft.status, "ready")
+    assert.ok(Math.abs(Number(draft.values["initialOrbit.smaKm"]) - 7000) < 1e-6)
+    assert.equal(draft.values["stationKeeping.targetSmaKm"], draft.values["initialOrbit.smaKm"])
+    assert.match(draft.assistantMessage ?? "", /Cartesian state converted to Keplerian elements/u)
+  })
+
   it("does not require optional propulsion, drag, end-of-life, or target-SMA values", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-draft-"))
     const draft = await createOrbitKeepingDraft(workspaceDir)

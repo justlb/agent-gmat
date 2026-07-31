@@ -2,11 +2,17 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, ty
 import type { AgentSpeechState, AgentWorkspaceView, RecorderState } from './types'
 
 type AgentInputMode = 'voice' | 'text'
-export type AgentChatMode = 'general' | 'gmat-orbit-keeping'
+export type AgentChatMode = 'general' | 'gmat-orbit-keeping' | 'gmat-electric-propulsion'
 
 type AgentRecorderControlProps = {
   activeGmatRunId?: string
   gmatRunConversation?: Array<{ answer: string; askedAt: string; question: string }>
+  gmatPendingMessage?: {
+    error?: string
+    kind: 'draft' | 'run'
+    message: string
+    status: 'sending' | 'failed'
+  } | null
   gmatDraft?: {
     conversation?: Array<{ assistant: string; user: string }>
     missing: string[]
@@ -15,6 +21,7 @@ type AgentRecorderControlProps = {
       checks: Array<{ code: string; message: string; severity: 'error' | 'warning' }>
     }
     status: 'blocked' | 'collecting' | 'ready' | 'confirmed'
+    values: Record<string, string | number | null>
   } | null
   activeView: AgentWorkspaceView | null
   agentSpeechError: string
@@ -25,10 +32,8 @@ type AgentRecorderControlProps = {
   error: string
   inputMode: AgentInputMode
   onButtonClick: () => void
-  onChatModeChange: (mode: AgentChatMode) => void
   onExecuteGmatDraft: () => void
-  onModifyGmatRun: () => void
-  onRerunGmat: () => void
+  onRetryGmatMessage: () => void
   onStartNewGmatRun: () => void
   onTextChange: (value: string) => void
   onTextSubmit: () => void
@@ -44,29 +49,34 @@ const DOCKED_ROBOT_DRAG_THRESHOLD = 6
 const DOCKED_ROBOT_MARGIN = 12
 const STATUS_HINT_DURATION_MS = 3200
 
-const GMAT_REQUIRED_FIELD_LABELS: Record<string, string> = {
-  'endOfLife.finalAltitudeKm': 'Final altitude',
-  'initialOrbit.eccentricity': 'Eccentricity',
-  'initialOrbit.epoch': 'Initial epoch',
-  'initialOrbit.inclinationDeg': 'Inclination',
-  'initialOrbit.smaKm': 'Initial orbit altitude or semi-major axis',
-  'propulsion.ispSeconds': 'Specific impulse',
-  'spacecraft.dragAreaM2': 'Drag area',
-  'spacecraft.dragCoefficient': 'Drag coefficient',
-  'spacecraft.dryMassKg': 'Dry mass',
-  'spacecraft.initialFuelMassKg': 'Initial fuel mass',
-  'stationKeeping.fuelReserveKg': 'Fuel reserve',
-  'stationKeeping.minimumAltitudeKm': 'Minimum reboost altitude',
-  'stationKeeping.targetSmaKm': 'Target semi-major axis',
-}
+type MandatoryGmatField = { label: string; path: string; unit?: string }
 
-const GMAT_OPTIONAL_FIELD_EXAMPLES = [
-  'Target semi-major axis (defaults to the initial orbit)',
-  'RAAN, argument of periapsis, true anomaly',
-  'Drag area and drag coefficient',
-  'Specific impulse and fuel reserve',
-  'Final altitude',
+const ORBIT_KEEPING_MANDATORY_FIELDS: MandatoryGmatField[] = [
+  { label: 'Epoch', path: 'initialOrbit.epoch' },
+  { label: 'Initial semi-major axis', path: 'initialOrbit.smaKm', unit: 'km' },
+  { label: 'Eccentricity', path: 'initialOrbit.eccentricity' },
+  { label: 'Inclination', path: 'initialOrbit.inclinationDeg', unit: 'deg' },
+  { label: 'Dry mass', path: 'spacecraft.dryMassKg', unit: 'kg' },
+  { label: 'Initial fuel mass', path: 'spacecraft.initialFuelMassKg', unit: 'kg' },
+  { label: 'Minimum reboost altitude', path: 'stationKeeping.minimumAltitudeKm', unit: 'km' },
 ]
+
+const ELECTRIC_TRANSFER_MANDATORY_FIELDS: MandatoryGmatField[] = [
+  { label: 'Epoch', path: 'initialOrbit.epoch' },
+  { label: 'Initial semi-major axis', path: 'initialOrbit.smaKm', unit: 'km' },
+  { label: 'Eccentricity', path: 'initialOrbit.eccentricity' },
+  { label: 'Inclination', path: 'initialOrbit.inclinationDeg', unit: 'deg' },
+  { label: 'RAAN', path: 'initialOrbit.raanDeg', unit: 'deg' },
+  { label: 'Argument of periapsis', path: 'initialOrbit.argPeriapsisDeg', unit: 'deg' },
+  { label: 'True anomaly', path: 'initialOrbit.trueAnomalyDeg', unit: 'deg' },
+  { label: 'Dry mass', path: 'spacecraft.dryMassKg', unit: 'kg' },
+  { label: 'Initial electric propellant mass', path: 'spacecraft.initialFuelMassKg', unit: 'kg' },
+  { label: 'Electric-thrust duration', path: 'transfer.burnDurationDays', unit: 'days' },
+]
+
+function mandatoryGmatFields(chatMode: AgentChatMode) {
+  return chatMode === 'gmat-electric-propulsion' ? ELECTRIC_TRANSFER_MANDATORY_FIELDS : ORBIT_KEEPING_MANDATORY_FIELDS
+}
 
 function getBubbleTextSegments(value: string) {
   const normalized = value.replace(/\s+/g, ' ').trim()
@@ -89,13 +99,12 @@ export function AgentRecorderControl({
   disabled,
   error,
   gmatDraft,
+  gmatPendingMessage,
   gmatRunConversation,
   inputMode,
   onButtonClick,
-  onChatModeChange,
   onExecuteGmatDraft,
-  onModifyGmatRun,
-  onRerunGmat,
+  onRetryGmatMessage,
   onStartNewGmatRun,
   onTextChange,
   onTextSubmit,
@@ -106,6 +115,8 @@ export function AgentRecorderControl({
   textInputValue,
   visibleAgentResponse,
 }: AgentRecorderControlProps) {
+  const isGmatChat = chatMode !== 'general'
+  const mandatoryFields = mandatoryGmatFields(chatMode)
   const [textDialogOpen, setTextDialogOpen] = useState(false)
   const [dockedPosition, setDockedPosition] = useState<DockedRobotPosition | null>(null)
   const [statusHintText, setStatusHintText] = useState('')
@@ -139,7 +150,7 @@ export function AgentRecorderControl({
   }
   const triggerRobotAction = () => {
     if (busy) {
-      if (chatMode === 'gmat-orbit-keeping') return
+      if (isGmatChat) return
       onButtonClick()
       return
     }
@@ -263,7 +274,7 @@ export function AgentRecorderControl({
       : 'Status'
   const bubbleTextSegments = getBubbleTextSegments(bubbleText)
   const showCompactBubble = Boolean(bubbleText) && !(
-    chatMode === 'gmat-orbit-keeping' &&
+    isGmatChat &&
     textDialogOpen &&
     (Boolean(gmatDraft) || Boolean(activeGmatRunId)) &&
     !displayError
@@ -342,50 +353,31 @@ export function AgentRecorderControl({
           </span>
         </button>
         {inputMode === 'text' && textDialogOpen ? (
-          <div className={`agent-robot-chat ${chatMode === 'gmat-orbit-keeping' && !activeGmatRunId ? 'is-gmat-draft' : ''} ${chatMode === 'gmat-orbit-keeping' && activeGmatRunId ? 'is-gmat-run' : ''}`}>
-            <div className="agent-chat-mode" role="group" aria-label="Chat mode">
-              <button
-                aria-pressed={chatMode === 'general'}
-                className={chatMode === 'general' ? 'is-selected' : ''}
-                onClick={() => onChatModeChange('general')}
-                type="button"
-              >
-                General
-              </button>
-              <button
-                aria-pressed={chatMode === 'gmat-orbit-keeping'}
-                className={chatMode === 'gmat-orbit-keeping' ? 'is-selected' : ''}
-                onClick={() => onChatModeChange('gmat-orbit-keeping')}
-                type="button"
-              >
-                GMAT Orbit Keeping
-              </button>
-            </div>
-            {chatMode === 'gmat-orbit-keeping' && activeGmatRunId ? (
+          <div className={`agent-robot-chat ${isGmatChat && !activeGmatRunId ? 'is-gmat-draft' : ''} ${isGmatChat && activeGmatRunId ? 'is-gmat-run' : ''}`}>
+            <div className="agent-chat-mode agent-chat-mode--general"><span>General</span></div>
+            {isGmatChat && activeGmatRunId ? (
               <div className="agent-gmat-chat-context">
                 <span>Discussing run: {activeGmatRunId}</span>
-                <button type="button" disabled={busy} onClick={onRerunGmat}>Rerun unchanged</button>
-                <button type="button" onClick={onModifyGmatRun}>Modify and rerun</button>
                 <button type="button" onClick={onStartNewGmatRun}>New GMAT run</button>
               </div>
             ) : null}
-            {chatMode === 'gmat-orbit-keeping' && activeGmatRunId ? (
+            {isGmatChat && activeGmatRunId ? (
               <section className="agent-gmat-conversation agent-gmat-run-conversation" aria-label="GMAT run discussion" aria-live="polite">
                 <header><strong>Run discussion</strong><span>Saved with this GMAT run; linked runs can be compared</span></header>
                 <div className="agent-gmat-conversation-history">
+                  {error ? <GmatStatusMessages chatMode={chatMode} error={error} /> : null}
                   {(gmatRunConversation ?? []).map((turn, index) => (
                     <div className="agent-gmat-turn" key={`${index}-${turn.askedAt}`}>
                       <p className="is-user"><span>You</span>{turn.question}</p>
                       <p className="is-assistant"><span>GMAT assistant</span>{turn.answer}</p>
                     </div>
                   ))}
-                  {busy && text.trim() ? <p className="is-user is-pending"><span>You</span>{text}</p> : null}
-                  {busy ? <p className="is-assistant is-pending"><span>GMAT assistant</span>Analyzing saved results…</p> : null}
-                  {(gmatRunConversation?.length ?? 0) === 0 && !busy ? <p className="agent-gmat-empty-state">Ask a question about this run. GMAT will not be run again.</p> : null}
+                  {gmatPendingMessage?.kind === 'run' ? <PendingGmatTurn pending={gmatPendingMessage} onRetry={onRetryGmatMessage} /> : null}
+                  {(gmatRunConversation?.length ?? 0) === 0 && !gmatPendingMessage ? <p className="agent-gmat-empty-state">Ask a question about this run. GMAT will not be run again.</p> : null}
                 </div>
               </section>
             ) : null}
-            {chatMode === 'gmat-orbit-keeping' && !activeGmatRunId && gmatDraft ? (
+            {isGmatChat && !activeGmatRunId && gmatDraft ? (
               <div className="agent-gmat-chat-context">
                 <span>{gmatDraft.status === 'blocked'
                   ? 'Physical sanity checks must be resolved before GMAT can run.'
@@ -395,44 +387,49 @@ export function AgentRecorderControl({
                 {gmatDraft.status === 'ready' ? <button type="button" disabled={busy} onClick={onExecuteGmatDraft}>Confirm and run GMAT</button> : null}
               </div>
             ) : null}
-            {chatMode === 'gmat-orbit-keeping' && !activeGmatRunId && gmatDraft ? (
+            {isGmatChat && !activeGmatRunId && (gmatDraft || gmatPendingMessage?.kind === 'draft') ? (
               <>
-                <section className="agent-gmat-draft-requirements" aria-label="Mandatory mission parameters">
-                  <header>
-                    <strong>Required before GMAT can run</strong>
-                    <span>{gmatDraft.missing.length === 0 ? 'Complete' : `${gmatDraft.missing.length} remaining`}</span>
-                  </header>
-                  {gmatDraft.missing.length ? (
-                    <ul>
-                      {gmatDraft.missing.map(field => <li key={field}>{GMAT_REQUIRED_FIELD_LABELS[field] ?? field}</li>)}
+                {gmatDraft ? <>
+                  <section className="agent-gmat-draft-requirements" aria-label="Mandatory mission parameters">
+                    <header>
+                      <strong>Required before GMAT can run</strong>
+                      <span>{gmatDraft.missing.length === 0 ? 'Complete' : `${gmatDraft.missing.length} remaining`}</span>
+                    </header>
+                    <ul className="agent-gmat-mandatory-fields">
+                      {mandatoryFields.map(field => {
+                        const value = gmatDraft.values[field.path]
+                        const missing = gmatDraft.missing.includes(field.path) || value === null || value === undefined || value === ''
+                        return (
+                          <li className={missing ? 'is-missing' : 'is-provided'} key={field.path}>
+                            <span>{field.label}</span>
+                            <b>{missing ? 'Not provided' : `${value}${field.unit ? ` ${field.unit}` : ''}`}</b>
+                          </li>
+                        )
+                      })}
                     </ul>
-                  ) : <p>All mandatory mission parameters have been provided. You can confirm and run GMAT.</p>}
-                  <div className="agent-gmat-optional-examples">
-                    <strong>Optional parameters you can also change</strong>
-                    <ul>{GMAT_OPTIONAL_FIELD_EXAMPLES.map(example => <li key={example}>{example}</li>)}</ul>
-                  </div>
-                </section>
-                <section className="agent-gmat-draft-assumptions" aria-label="Assumed defaults to confirm">
-                  <header>
-                    <strong>Assumed defaults to confirm</strong>
-                    <span>Template defaults</span>
-                  </header>
-                  <div className="agent-gmat-optional-examples">
-                    <ul>{(gmatDraft.safety?.assumptions ?? []).map(assumption => <li key={assumption.label}>{assumption.label}: {assumption.value}</li>)}</ul>
-                  </div>
-                </section>
+                  </section>
+                  <section className="agent-gmat-draft-assumptions" aria-label="Assumed defaults to confirm">
+                    <header>
+                      <strong>Assumed defaults to confirm</strong>
+                      <span>Template defaults</span>
+                    </header>
+                    <div className="agent-gmat-optional-examples">
+                      <ul>{(gmatDraft.safety?.assumptions ?? []).map(assumption => <li key={assumption.label}>{assumption.label}: {assumption.value}</li>)}</ul>
+                    </div>
+                  </section>
+                </> : null}
                 <section className="agent-gmat-conversation" aria-label="GMAT mission draft conversation" aria-live="polite">
                   <header><strong>Mission discussion</strong><span>Draft assistant</span></header>
                   <div className="agent-gmat-conversation-history">
-                    {(gmatDraft.conversation ?? []).map((turn, index) => (
+                    {gmatDraft ? <GmatStatusMessages chatMode={chatMode} draft={gmatDraft} error={gmatPendingMessage?.status === 'failed' ? '' : error} /> : error ? <GmatStatusMessages chatMode={chatMode} error={error} /> : null}
+                    {(gmatDraft?.conversation ?? []).map((turn, index) => (
                       <div className="agent-gmat-turn" key={`${index}-${turn.user}`}>
                         <p className="is-user"><span>You</span>{turn.user}</p>
                         <p className="is-assistant"><span>GMAT assistant</span>{turn.assistant}</p>
                       </div>
                     ))}
-                    {busy && text.trim() ? <p className="is-user is-pending"><span>You</span>{text}</p> : null}
-                    {busy ? <p className="is-assistant is-pending"><span>GMAT assistant</span>Thinking…</p> : null}
-                    {(gmatDraft.conversation?.length ?? 0) === 0 && !busy ? <p className="agent-gmat-empty-state">Start by describing the mission or giving any available parameter.</p> : null}
+                    {gmatPendingMessage?.kind === 'draft' ? <PendingGmatTurn pending={gmatPendingMessage} onRetry={onRetryGmatMessage} /> : null}
+                    {(gmatDraft?.conversation?.length ?? 0) === 0 && !gmatPendingMessage ? <p className="agent-gmat-empty-state">Start by describing the mission or giving any available parameter.</p> : null}
                   </div>
                 </section>
               </>
@@ -443,7 +440,7 @@ export function AgentRecorderControl({
               disabled={textInputDisabled}
               onChange={event => onTextChange(event.target.value)}
               onKeyDown={handleTextKeyDown}
-              placeholder={chatMode === 'gmat-orbit-keeping'
+              placeholder={isGmatChat
                 ? activeGmatRunId ? 'Ask a question about this completed run...' : 'Describe the mission parameters to validate...'
                 : 'Describe your task...'}
               rows={3}
@@ -463,6 +460,45 @@ export function AgentRecorderControl({
         <small className="agent-recorder-status">{recorderStatusText}</small>
       ) : null}
     </section>
+  )
+}
+
+function PendingGmatTurn({ pending, onRetry }: {
+  onRetry: () => void
+  pending: NonNullable<AgentRecorderControlProps['gmatPendingMessage']>
+}) {
+  return (
+    <div className="agent-gmat-turn">
+      <p className="is-user is-pending"><span>You</span>{pending.message}</p>
+      {pending.status === 'sending' ? (
+        <p className="is-assistant is-pending"><span>GMAT assistant</span>{pending.kind === 'run' ? 'Analyzing saved results…' : 'Thinking…'}</p>
+      ) : (
+        <div className="agent-gmat-message-failed" role="alert">
+          <span>GMAT assistant</span>
+          <p>Message was not sent: {pending.error || 'unknown error'}</p>
+          <button type="button" onClick={onRetry}>Retry</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GmatStatusMessages({ chatMode, draft, error = '' }: {
+  chatMode: AgentChatMode
+  draft?: NonNullable<AgentRecorderControlProps['gmatDraft']>
+  error?: string
+}) {
+  const missing = draft ? mandatoryGmatFields(chatMode)
+    .filter(field => draft.missing.includes(field.path))
+    .map(field => field.label) : []
+  const blockingChecks = draft?.safety?.checks.filter(check => check.severity === 'error') ?? []
+  if (!error && missing.length === 0 && blockingChecks.length === 0) return null
+  return (
+    <div className="agent-gmat-status-messages" role="status">
+      {missing.length ? <p className="is-blocked"><span>GMAT status</span>GMAT cannot run yet. Missing required data: {missing.join(', ')}.</p> : null}
+      {blockingChecks.map(check => <p className="is-blocked" key={check.code}><span>GMAT safety check</span>{check.message}</p>)}
+      {error ? <p className="is-error"><span>GMAT error</span>{error}</p> : null}
+    </div>
   )
 }
 

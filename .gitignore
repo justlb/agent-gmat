@@ -16,6 +16,7 @@ frontend/node_modules/
 
 # Generated GMAT mission artifacts; retained locally under data/output_data.
 /data/output_data/
+/data/users/
 
 .git.broken/
 .claude/settings.local.json

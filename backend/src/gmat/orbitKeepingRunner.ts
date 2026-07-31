@@ -111,10 +111,11 @@ export async function runOrbitKeepingGmat({
   const samples = parseOrbitKeepingReport(reportSource)
   const timeSeriesSamples = parseOrbitKeepingTimeSeriesReport(timeSeriesSource)
   const status = timedOut ? "timeout" : exitCode === 0 && samples.length > 0 ? "completed" : "failed"
+  const solverIterations = (Buffer.concat(chunks).toString("utf8").match(/DefaultDC Iteration \d+/gu) ?? []).length
   const error = status === "completed"
     ? undefined
     : timedOut
-      ? `GMAT timed out after ${timeoutMs} ms`
+      ? `GMAT timed out after ${timeoutMs} ms${solverIterations ? `. The DefaultDC reboost solver was still iterating (${solverIterations} iterations recorded); inspect gmat.log and review maneuver bounds or target convergence.` : ""}`
       : exitCode === null
         ? "GMAT could not be started"
         : samples.length === 0

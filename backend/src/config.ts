@@ -82,6 +82,7 @@ export interface AppConfig {
     }
     gmat: {
       bin: string | null
+      guiBin: string | null
       timeoutMs: number
     }
   }
@@ -457,6 +458,7 @@ export function loadConfig(): AppConfig {
       },
       gmat: {
         bin: optionalString(gmatTool.bin, "tools.gmat.bin"),
+        guiBin: optionalString(gmatTool.guiBin, "tools.gmat.guiBin"),
         timeoutMs: positiveInteger(
           gmatTool.timeoutMs,
           "tools.gmat.timeoutMs",

@@ -71,6 +71,24 @@ function getTurnViews(session: Record<string, unknown>, sessionIndex: number, in
   }).filter(turn => turn.prompt || turn.messages.length > 0)
 }
 
+function getSessionTimestamp(session: Record<string, unknown>) {
+  const direct = [session.updatedAt, session.updated_at, session.completedAt, session.createdAt, session.created_at]
+    .find(value => typeof value === "string") as string | undefined
+  const latestTurn = Array.isArray(session.turns) ? session.turns.filter(isRecord).at(-1) : null
+  const fromTurn = latestTurn && [latestTurn.updatedAt, latestTurn.completedAt, latestTurn.createdAt]
+    .find(value => typeof value === "string") as string | undefined
+  const value = fromTurn ?? direct
+  const timestamp = value ? Date.parse(value) : Number.NaN
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+function getSessionTitle(session: Record<string, unknown>, index: number) {
+  if (typeof session.title === "string" && session.title.trim()) return session.title.trim()
+  const firstTurn = Array.isArray(session.turns) ? session.turns.find(isRecord) : null
+  if (firstTurn && typeof firstTurn.userPrompt === "string" && firstTurn.userPrompt.trim()) return firstTurn.userPrompt.trim().slice(0, 48)
+  return `Conversation ${index + 1}`
+}
+
 function ConversationAgentMessage({ message }: { message: AgentMessage }) {
   return (
     <div className="wa-conversation-agent">
@@ -172,14 +190,23 @@ function ConversationTimeline({ turns }: { turns: ConversationTurnView[] }) {
 }
 
 export function ConversationLogView({ session }: { session: Record<string, unknown> }) {
-  const sessions = Array.isArray(session.sessions)
-    ? session.sessions.filter(isRecord).slice(-MAX_RENDERED_SESSIONS)
-    : [session]
+  const sessions = useMemo(() => (Array.isArray(session.sessions) ? session.sessions.filter(isRecord) : [session])
+    .map((item, index) => ({ item, index, timestamp: getSessionTimestamp(item), title: getSessionTitle(item, index) }))
+    .sort((left, right) => right.timestamp - left.timestamp || right.index - left.index)
+    .slice(0, MAX_RENDERED_SESSIONS), [session])
+  const [selectedSessionIndex, setSelectedSessionIndex] = useState(0)
+  useEffect(() => setSelectedSessionIndex(0), [sessions.length, sessions[0]?.timestamp])
+  const selected = sessions[Math.min(selectedSessionIndex, Math.max(0, sessions.length - 1))]
   const turns = useMemo(() => (
-    sessions.flatMap((item, index) => getTurnViews(item, index, sessions.length > 1))
-  ), [sessions])
+    selected ? getTurnViews(selected.item, selected.index, false) : []
+  ), [selected])
   return (
     <div className="wa-conversation-log">
+      {sessions.length > 1 ? <nav className="wa-conversation-session-nav" aria-label="Conversation navigation">
+        {sessions.map((item, index) => <button className={index === selectedSessionIndex ? "active" : ""} key={`${item.index}-${item.timestamp}`} onClick={() => setSelectedSessionIndex(index)} type="button">
+          <strong>{item.title}</strong><small>{item.timestamp ? new Date(item.timestamp).toLocaleString() : "Saved conversation"}</small>
+        </button>)}
+      </nav> : null}
       <ConversationTimeline turns={turns} />
     </div>
   )

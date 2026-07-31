@@ -1,0 +1,219 @@
+import type { FastifyInstance } from "fastify"
+import { spawn } from "node:child_process"
+import { createReadStream } from "node:fs"
+import fs from "node:fs/promises"
+import path from "node:path"
+
+import type { AppConfig } from "../config.js"
+import { resolveModelBackend } from "../modelBackends/modelBackends.js"
+import { getErrorMessage, isPathInside } from "../shared/index.js"
+import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
+import { analyzeElectricPropulsionRunWithLlm, loadElectricPropulsionRunConversation } from "./electricPropulsionAnalysis.js"
+import { confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussElectricPropulsionDraft, draftToElectricPropulsionChanges, loadElectricPropulsionDraft, recordElectricPropulsionDraftRun } from "./electricPropulsionDraft.js"
+import { generateElectricPropulsionMission } from "./electricPropulsion.service.js"
+import { extractElectricPropulsionValues } from "./electricPropulsionValues.js"
+import { defaultElectricPropulsionTemplatePath } from "./electricPropulsionTemplate.js"
+import { toGmatNativePath } from "./orbitKeepingRunner.js"
+
+type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
+type DraftWorkspaceBody = { workspaceDir?: unknown }
+type AnalyzeBody = { draftId?: unknown; question?: unknown; runPath?: unknown; workspaceDir?: unknown }
+type ElectricPropulsionFileKind = "log" | "manifest" | "report" | "result" | "script" | "timeseries" | "values"
+
+function electricPropulsionFileKind(fileName: string): ElectricPropulsionFileKind | null {
+  if (fileName.endsWith(".script")) return "script"
+  if (fileName.endsWith(".values.yaml")) return "values"
+  if (fileName === "gmat_result.json") return "result"
+  if (fileName === "electric_transfer_timeseries.json") return "timeseries"
+  if (fileName === "run_manifest.json") return "manifest"
+  if (fileName === "ElectricTransferReport.txt") return "report"
+  if (fileName === "gmat.log") return "log"
+  return null
+}
+
+async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
+  const root = path.resolve(userWorkspaceRoot)
+  const files: Array<{ artifactId: string; fileName: string; kind: ElectricPropulsionFileKind; mtimeMs: number; relativePath: string; size: number }> = []
+  const visit = async (directory: string, depth: number): Promise<void> => {
+    if (depth > 8) return
+    const entries = await fs.readdir(directory, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const child = path.join(directory, entry.name)
+      if (entry.name === "gmat") {
+        const outputDir = path.join(child, "electric-propulsion-transfer")
+        const outputEntries = await fs.readdir(outputDir, { withFileTypes: true }).catch(() => [])
+        for (const outputEntry of outputEntries) {
+          if (!outputEntry.isDirectory() || outputEntry.name === "drafts") continue
+          const runDir = path.join(outputDir, outputEntry.name)
+          const runEntries = await fs.readdir(runDir, { withFileTypes: true }).catch(() => [])
+          for (const runEntry of runEntries) {
+            if (!runEntry.isFile()) continue
+            const kind = electricPropulsionFileKind(runEntry.name)
+            if (!kind) continue
+            const filePath = path.join(runDir, runEntry.name)
+            const stat = await fs.stat(filePath)
+            files.push({ artifactId: outputEntry.name, fileName: runEntry.name, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), size: stat.size })
+          }
+        }
+        continue
+      }
+      await visit(child, depth + 1)
+    }
+  }
+  await visit(root, 0)
+  return files.sort((left, right) => right.mtimeMs - left.mtimeMs)
+}
+
+function resolveListedElectricPropulsionFilePath(userWorkspaceRoot: string, relativePath: unknown) {
+  if (typeof relativePath !== "string" || !relativePath.trim()) return null
+  const root = path.resolve(userWorkspaceRoot)
+  const filePath = path.resolve(root, relativePath)
+  const normalized = filePath.split(path.sep).join("/")
+  if (!isPathInside(root, filePath) || !/\/gmat\/electric-propulsion-transfer\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|electric_transfer_timeseries\.json|run_manifest\.json|ElectricTransferReport\.txt|gmat\.log)$/u.test(normalized)) return null
+  return filePath
+}
+
+function resolveOutputWorkspaceDir(userWorkspaceRoot: string, requestedWorkspaceDir: unknown) {
+  if (typeof requestedWorkspaceDir !== "string" || !requestedWorkspaceDir.trim()) return userWorkspaceRoot
+  const workspaceDir = path.resolve(requestedWorkspaceDir)
+  if (!isPathInside(path.resolve(userWorkspaceRoot), workspaceDir)) throw new Error("workspaceDir must be inside the current user workspace")
+  return workspaceDir
+}
+function resolveRunDir(userWorkspaceRoot: string, runPath: unknown) {
+  if (typeof runPath !== "string" || !runPath.trim()) return null
+  const root = path.resolve(userWorkspaceRoot)
+  const runDir = path.resolve(root, runPath)
+  const normalized = runDir.split(path.sep).join("/")
+  return isPathInside(root, runDir) && /\/gmat\/electric-propulsion-transfer\/[^/]+$/u.test(normalized) ? runDir : null
+}
+
+async function openGmatGui(guiBin: string | null, runDir: string) {
+  if (!guiBin) throw new Error("GMAT GUI is not configured (tools.gmat.guiBin)")
+  const script = (await fs.readdir(runDir)).find(file => file.endsWith(".script"))
+  if (!script) throw new Error("GMAT script is not available for this run")
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(guiBin, [toGmatNativePath(path.join(runDir, script))], { detached: true, stdio: "ignore", windowsHide: false })
+    child.once("error", reject)
+    child.once("spawn", () => { child.unref(); resolve() })
+  })
+}
+
+/** HTTP boundary for the draft-first electric-propulsion transfer workflow. */
+export async function electricPropulsionRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+  fastify.post<{ Body: { runPath?: unknown } }>("/api/gmat/electric-propulsion-transfer/open-gui", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    const runDir = root ? resolveRunDir(root, req.body?.runPath) : null
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    try {
+      await openGmatGui(config.tools.gmat.guiBin, runDir)
+      return reply.send({ ok: true })
+    } catch (error) {
+      return reply.status(422).send({ error: getErrorMessage(error, "failed to open GMAT GUI") })
+    }
+  })
+  fastify.get("/api/gmat/electric-propulsion-transfer/files", async (_req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    return reply.send({ files: await listElectricPropulsionFiles(root) })
+  })
+  fastify.get<{ Querystring: { relativePath?: string } }>("/api/gmat/electric-propulsion-transfer/files/download", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    const filePath = root ? resolveListedElectricPropulsionFilePath(root, req.query.relativePath) : null
+    if (!filePath) return reply.status(400).send({ error: "invalid GMAT artifact path" })
+    const stat = await fs.stat(filePath).catch(() => null)
+    if (!stat?.isFile()) return reply.status(404).send({ error: "GMAT artifact not found" })
+    const kind = electricPropulsionFileKind(path.basename(filePath))
+    return reply
+      .header("Content-Type", kind === "values" ? "application/x-yaml; charset=utf-8" : kind === "result" || kind === "manifest" || kind === "timeseries" ? "application/json; charset=utf-8" : "text/plain; charset=utf-8")
+      .header("Content-Disposition", `attachment; filename="${path.basename(filePath)}"`)
+      .header("Content-Length", String(stat.size))
+      .send(createReadStream(filePath))
+  })
+  fastify.post<{ Body: DraftWorkspaceBody }>("/api/gmat/electric-propulsion-transfer/drafts", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try { return reply.send(await createElectricPropulsionDraft(resolveOutputWorkspaceDir(root, req.body?.workspaceDir))) } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to create electric-propulsion GMAT draft") }) }
+  })
+  fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/gmat/electric-propulsion-transfer/drafts", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const workspaceDir = resolveOutputWorkspaceDir(root, req.query.workspaceDir)
+      const entries = await fs.readdir(path.join(workspaceDir, "gmat", "electric-propulsion-transfer", "drafts"), { withFileTypes: true }).catch(() => [])
+      const drafts = await Promise.all(entries.filter(entry => entry.isDirectory()).map(entry => loadElectricPropulsionDraft(workspaceDir, entry.name).catch(() => null)))
+      return reply.send({ drafts: drafts.filter((draft): draft is NonNullable<typeof draft> => draft !== null).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)) })
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to list electric-propulsion GMAT drafts") }) }
+  })
+  fastify.get<{ Params: { draftId: string }; Querystring: { workspaceDir?: string } }>("/api/gmat/electric-propulsion-transfer/drafts/:draftId", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try { return reply.send(await loadElectricPropulsionDraft(resolveOutputWorkspaceDir(root, req.query.workspaceDir), req.params.draftId)) } catch (error) { return reply.status(404).send({ error: getErrorMessage(error, "GMAT draft not found") }) }
+  })
+  fastify.post<{ Params: { draftId: string }; Body: DraftMessageBody }>("/api/gmat/electric-propulsion-transfer/drafts/:draftId/messages", async (req, reply) => {
+    const message = typeof req.body?.message === "string" ? req.body.message.trim() : ""
+    if (!message) return reply.status(400).send({ error: "message must be a non-empty string" })
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const workspaceDir = resolveOutputWorkspaceDir(root, req.body?.workspaceDir)
+      return reply.send(await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft: await loadElectricPropulsionDraft(workspaceDir, req.params.draftId), message, workspaceDir }))
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to update electric-propulsion GMAT draft") }) }
+  })
+  fastify.post<{ Params: { draftId: string }; Body: DraftWorkspaceBody }>("/api/gmat/electric-propulsion-transfer/drafts/:draftId/confirm", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try { return reply.send(await confirmElectricPropulsionDraft(resolveOutputWorkspaceDir(root, req.body?.workspaceDir), req.params.draftId)) } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to confirm electric-propulsion GMAT draft") }) }
+  })
+  fastify.post<{ Params: { draftId: string }; Body: DraftWorkspaceBody }>("/api/gmat/electric-propulsion-transfer/drafts/:draftId/execute/events", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const sendEvent = (event: string, payload: unknown) => reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+    reply.hijack()
+    reply.raw.writeHead(200, { "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "Content-Type": "text/event-stream; charset=utf-8", "X-Accel-Buffering": "no" })
+    try {
+      const workspaceDir = resolveOutputWorkspaceDir(root, req.body?.workspaceDir)
+      const draft = await loadElectricPropulsionDraft(workspaceDir, req.params.draftId)
+      const values = extractElectricPropulsionValues(await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8"))
+      const result = await generateElectricPropulsionMission({ changes: draftToElectricPropulsionChanges(draft, values), execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined, onProgress: progress => sendEvent("progress", progress), request: `Confirmed GMAT electric-propulsion draft ${draft.draftId}`, workspaceDir })
+      const runPath = path.relative(path.resolve(root), result.runDir)
+      await recordElectricPropulsionDraftRun(workspaceDir, draft.draftId, { changes: result.changes, completedAt: new Date().toISOString(), result: result.result, runId: result.runId, runPath })
+      sendEvent("result", { ...result, draftId: draft.draftId, runPath })
+    } catch (error) { sendEvent("error", { error: getErrorMessage(error, "failed to execute electric-propulsion GMAT draft") }) } finally { reply.raw.end() }
+  })
+  fastify.post<{ Body: AnalyzeBody }>("/api/gmat/electric-propulsion-transfer/analyze", async (req, reply) => {
+    const question = typeof req.body?.question === "string" ? req.body.question.trim() : ""
+    const root = getRequestUserWorkspaceRoot()
+    const runDir = root ? resolveRunDir(root, req.body?.runPath) : null
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    if (!question) return reply.status(400).send({ error: "question must be a non-empty string" })
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    try {
+      const workspaceDir = resolveOutputWorkspaceDir(root, req.body?.workspaceDir)
+      const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
+      const relatedRuns = draftId ? (await loadElectricPropulsionDraft(workspaceDir, draftId)).runs : []
+      return reply.send(await analyzeElectricPropulsionRunWithLlm({ connection: resolveModelBackend(config, "chatModel"), question, relatedRuns, runDir }))
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to analyze electric-propulsion GMAT run") }) }
+  })
+  fastify.get<{ Querystring: { runPath?: string } }>("/api/gmat/electric-propulsion-transfer/analyze/history", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const runDir = resolveRunDir(root, req.query.runPath)
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    try { return reply.send({ conversation: await loadElectricPropulsionRunConversation(runDir) }) } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to read electric-propulsion GMAT run conversation") }) }
+  })
+  fastify.get<{ Querystring: { runPath?: string } }>("/api/gmat/electric-propulsion-transfer/timeseries", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const runDir = resolveRunDir(root, req.query.runPath)
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    const source = await fs.readFile(path.join(runDir, "electric_transfer_timeseries.json"), "utf8").catch(() => null)
+    if (source === null) return reply.status(404).send({ error: "GMAT electric-transfer time series is not available for this run" })
+    try {
+      const samples: unknown = JSON.parse(source)
+      if (!Array.isArray(samples)) throw new Error("invalid time series")
+      return reply.send({ samples })
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "invalid GMAT electric-transfer time series") }) }
+  })
+}

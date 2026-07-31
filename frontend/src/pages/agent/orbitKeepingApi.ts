@@ -19,6 +19,7 @@ export type OrbitKeepingGenerateResult = {
     minimumReportedAltitudeKm?: number
     reportSampleCount: number
     status: 'generated' | 'completed' | 'failed' | 'timeout'
+    warnings?: string[]
   }
   resultPath: string
   runId: string
@@ -39,6 +40,8 @@ export type OrbitKeepingDraft = {
   assistantMessage?: string
   conversation?: Array<{ assistant: string; user: string }>
   confirmed: boolean
+  conversationStartedAt?: string | null
+  createdAt?: string
   draftId: string
   missing: string[]
   runs?: Array<{ runId: string; runPath: string; result: OrbitKeepingGenerateResult['result']; completedAt: string }>
@@ -47,6 +50,7 @@ export type OrbitKeepingDraft = {
     checks: Array<{ code: string; message: string; severity: 'error' | 'warning' }>
   }
   status: 'blocked' | 'collecting' | 'ready' | 'confirmed'
+  updatedAt?: string
   values: Record<string, string | number | null>
 }
 
@@ -93,6 +97,14 @@ export async function createOrbitKeepingDraft(workspaceDir?: string | null) {
   })
   if (!response.ok) throw new Error(await getResponseErrorMessage(response))
   return response.json() as Promise<OrbitKeepingDraft>
+}
+
+export async function listOrbitKeepingDrafts(workspaceDir?: string | null) {
+  const url = `${joinApiPath(undefined, '/gmat/orbit-keeping/drafts')}?${new URLSearchParams(workspaceDir ? { workspaceDir } : {}).toString()}`
+  const response = await fetch(url, { cache: 'no-store' })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
+  const payload = await response.json() as { drafts?: OrbitKeepingDraft[] }
+  return Array.isArray(payload.drafts) ? payload.drafts : []
 }
 
 export async function discussOrbitKeepingDraft(draftId: string, message: string, workspaceDir?: string | null) {
@@ -255,6 +267,13 @@ export async function listOrbitKeepingFiles(apiBase?: string) {
   if (!response.ok) throw new Error(await getResponseErrorMessage(response))
   const payload = await response.json() as { files?: OrbitKeepingFile[] }
   return Array.isArray(payload.files) ? payload.files : []
+}
+
+export async function openOrbitKeepingRunInGui(runPath: string, apiBase?: string) {
+  const response = await fetch(joinApiPath(apiBase, '/gmat/orbit-keeping/open-gui'), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runPath }),
+  })
+  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
 }
 
 export function orbitKeepingFileDownloadUrl(file: Pick<OrbitKeepingFile, 'relativePath'>, apiBase?: string) {

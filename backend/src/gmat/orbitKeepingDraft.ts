@@ -3,6 +3,7 @@ import path from "node:path"
 import { parseDocument } from "yaml"
 
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
+import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian, semiMajorAxisFromPeriapsisAltitude, type CartesianState, type KeplerianElements } from "./orbitCoordinates.js"
 import type { OrbitKeepingValueChange, OrbitKeepingValues } from "./orbitKeepingValues.js"
 
 type DraftValue = string | number | null
@@ -26,7 +27,6 @@ export type OrbitKeepingSafetyReview = {
   checks: OrbitKeepingSafetyCheck[]
 }
 
-const EARTH_EQUATORIAL_RADIUS_KM = 6378.1363
 const MINIMUM_SAFE_PERIGEE_ALTITUDE_KM = 120
 const JULIAN_DATE_AT_UNIX_EPOCH = 2440587.5
 const GMAT_MODIFIED_JULIAN_OFFSET = 2430000
@@ -44,6 +44,7 @@ export type OrbitKeepingDraft = {
   assistantMessage?: string
   conversation: DraftConversationTurn[]
   confirmed: boolean
+  conversationStartedAt: string | null
   createdAt: string
   draftId: string
   missing: string[]
@@ -113,6 +114,9 @@ export const ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT = {
 } as const
 
 const fields = ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.fields as readonly FieldDefinition[]
+const CARTESIAN_STATE_PATHS = ["initialState.xKm", "initialState.yKm", "initialState.zKm", "initialState.vxKmPerSec", "initialState.vyKmPerSec", "initialState.vzKmPerSec"] as const
+const KEPLERIAN_ORBIT_PATHS = ["initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg"] as const
+const DERIVED_INPUT_PATHS = ["initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", "initialOrbit.utcGregorian", "coordinateConversion.request", ...CARTESIAN_STATE_PATHS] as const
 
 function newDraftId() {
   return `draft_${crypto.randomUUID()}`
@@ -162,6 +166,48 @@ function validateValues(values: DraftValues) {
 function valueOrDefault(values: DraftValues, path: string, fallback: string | number) {
   const value = values[path]
   return value === null || value === undefined ? String(fallback) : String(value)
+}
+
+function numberAt(values: DraftValues, path: string) {
+  const value = values[path]
+  return typeof value === "number" && Number.isFinite(value) ? value : null
+}
+function cartesianStateFromValues(values: DraftValues): CartesianState | null {
+  const numbers = CARTESIAN_STATE_PATHS.map(path => numberAt(values, path))
+  if (numbers.some(value => value === null)) return null
+  const [xKm, yKm, zKm, vxKmPerSec, vyKmPerSec, vzKmPerSec] = numbers as number[]
+  return { xKm, yKm, zKm, vxKmPerSec, vyKmPerSec, vzKmPerSec }
+}
+function keplerianElementsFromValues(values: DraftValues): KeplerianElements | null {
+  const numbers = KEPLERIAN_ORBIT_PATHS.map(path => numberAt(values, path))
+  if (numbers.some(value => value === null)) return null
+  const [semiMajorAxisKm, eccentricity, inclinationDeg, raanDeg, argPeriapsisDeg, trueAnomalyDeg] = numbers as number[]
+  return { semiMajorAxisKm, eccentricity, inclinationDeg, raanDeg, argPeriapsisDeg, trueAnomalyDeg }
+}
+function applyKeplerianElements(values: DraftValues, elements: KeplerianElements) {
+  values["initialOrbit.smaKm"] = elements.semiMajorAxisKm
+  values["initialOrbit.eccentricity"] = elements.eccentricity
+  values["initialOrbit.inclinationDeg"] = elements.inclinationDeg
+  values["initialOrbit.raanDeg"] = elements.raanDeg
+  values["initialOrbit.argPeriapsisDeg"] = elements.argPeriapsisDeg
+  values["initialOrbit.trueAnomalyDeg"] = elements.trueAnomalyDeg
+}
+function formatCoordinateConversion(title: string, entries: Array<[string, number, string]>) {
+  return `${title}: ${entries.map(([label, value, unit]) => `${label}=${value.toFixed(6)}${unit ? ` ${unit}` : ""}`).join(", ")}.`
+}
+function coordinateConversionSummary(values: DraftValues, { cartesianWasUpdated, keplerianWasUpdated, request }: { cartesianWasUpdated: boolean; keplerianWasUpdated: boolean; request?: DraftValue }) {
+  if (cartesianWasUpdated) {
+    const cartesianState = cartesianStateFromValues(values)
+    if (!cartesianState) return ""
+    const elements = cartesianToKeplerian(cartesianState)
+    applyKeplerianElements(values, elements)
+    return formatCoordinateConversion("Cartesian state converted to Keplerian elements", [["SMA", elements.semiMajorAxisKm, "km"], ["ECC", elements.eccentricity, ""], ["INC", elements.inclinationDeg, "deg"], ["RAAN", elements.raanDeg, "deg"], ["AOP", elements.argPeriapsisDeg, "deg"], ["TA", elements.trueAnomalyDeg, "deg"]])
+  }
+  if (!keplerianWasUpdated && request !== "keplerian_to_cartesian") return ""
+  const elements = keplerianElementsFromValues(values)
+  if (!elements) return ""
+  const state = keplerianToCartesian(elements)
+  return formatCoordinateConversion("Keplerian elements converted to Cartesian state", [["X", state.xKm, "km"], ["Y", state.yKm, "km"], ["Z", state.zKm, "km"], ["VX", state.vxKmPerSec, "km/s"], ["VY", state.vyKmPerSec, "km/s"], ["VZ", state.vzKmPerSec, "km/s"]])
 }
 
 function buildSafetyReview(values: DraftValues, targetSmaFollowsInitial: boolean): OrbitKeepingSafetyReview {
@@ -293,7 +339,7 @@ async function saveDraft(workspaceDir: string, draft: OrbitKeepingDraft) {
 export async function createOrbitKeepingDraft(workspaceDir: string) {
   const values = Object.fromEntries(fields.map(field => [field.path, null])) as DraftValues
   const now = new Date().toISOString()
-  const draft = refreshDraft({ confirmed: false, conversation: [], createdAt: now, draftId: newDraftId(), runs: [], targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values })
+  const draft = refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, draftId: newDraftId(), runs: [], targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values })
   return saveDraft(workspaceDir, draft)
 }
 
@@ -307,7 +353,7 @@ export async function loadOrbitKeepingDraft(workspaceDir: string, draftId: strin
   if (targetSmaFollowsInitial && values["stationKeeping.targetSmaKm"] === null && typeof values["initialOrbit.smaKm"] === "number") {
     values["stationKeeping.targetSmaKm"] = values["initialOrbit.smaKm"]
   }
-  return refreshDraft({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], createdAt: parsed.createdAt, draftId: parsed.draftId, runs: Array.isArray(parsed.runs) ? parsed.runs : [], targetSmaFollowsInitial, templateId: parsed.templateId, values })
+  return refreshDraft({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], conversationStartedAt: typeof parsed.conversationStartedAt === "string" ? parsed.conversationStartedAt : null, createdAt: parsed.createdAt, draftId: parsed.draftId, runs: Array.isArray(parsed.runs) ? parsed.runs : [], targetSmaFollowsInitial, templateId: parsed.templateId, values })
 }
 
 function parseAssistantPatch(source: string) {
@@ -319,10 +365,13 @@ function parseAssistantPatch(source: string) {
   for (const item of parsed.updates) {
     if (!item || typeof item !== "object") throw new Error("LLM draft update is invalid")
     const candidate = item as { path?: unknown; value?: unknown }
-    if (typeof candidate.path !== "string" || (!["initialOrbit.altitudeKm", "initialOrbit.utcGregorian"].includes(candidate.path) && !fields.some(field => field.path === candidate.path))) throw new Error("LLM draft update references an unknown field")
+    if (typeof candidate.path !== "string" || (!DERIVED_INPUT_PATHS.includes(candidate.path as typeof DERIVED_INPUT_PATHS[number]) && !fields.some(field => field.path === candidate.path))) throw new Error("LLM draft update references an unknown field")
     if (typeof candidate.value !== "string" && typeof candidate.value !== "number") throw new Error("LLM draft update has an invalid value")
-    if (candidate.path === "initialOrbit.altitudeKm" && (typeof candidate.value !== "number" || !Number.isFinite(candidate.value) || candidate.value < 0)) {
-      throw new Error("initialOrbit.altitudeKm must be a non-negative finite number")
+    if (["initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", ...CARTESIAN_STATE_PATHS].includes(candidate.path as typeof DERIVED_INPUT_PATHS[number]) && (typeof candidate.value !== "number" || !Number.isFinite(candidate.value))) {
+      throw new Error(`${candidate.path} must be a finite number`)
+    }
+    if (["initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm"].includes(candidate.path as typeof DERIVED_INPUT_PATHS[number]) && Number(candidate.value) < 0) {
+      throw new Error(`${candidate.path} must be a non-negative number`)
     }
     if (candidate.path === "initialOrbit.utcGregorian" && typeof candidate.value !== "string") throw new Error("calendar epoch must be a UTC ISO string")
     updates.push({ path: candidate.path, value: candidate.path === "initialOrbit.epoch" ? String(candidate.value) : candidate.value })
@@ -369,7 +418,8 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
     "Return YAML only, with exactly: message: string; updates: [{ path: known path, value: string|number }]. Always include updates: [], even when no value is recorded.",
     "Use human language in message; never expose internal field paths there.",
     `Known fields: ${fields.map(field => `${field.path} (${field.label}${field.unit ? `, ${field.unit}` : ""}${field.required ? ", mandatory" : ", optional"})`).join("; ")}`,
-    `Derived input: when the engineer gives an initial orbit altitude in km, emit { path: initialOrbit.altitudeKm, value: number }. The backend deterministically converts it to initialOrbit.smaKm by adding Earth equatorial radius ${EARTH_EQUATORIAL_RADIUS_KM} km. Do not request SMA after a valid altitude has been supplied.`,
+    `Derived input: when the engineer gives a circular-orbit altitude in km, emit { path: initialOrbit.altitudeKm, value: number }. The backend deterministically converts it to initialOrbit.smaKm by adding Earth equatorial radius ${EARTH_EQUATORIAL_RADIUS_KM} km. For a perigee altitude and eccentricity, emit initialOrbit.periapsisAltitudeKm and initialOrbit.eccentricity; the backend computes SMA = (Earth equatorial radius + periapsis altitude) / (1 - ECC). Do not calculate either conversion yourself.`,
+    "Deterministic coordinate conversions are available. If a Cartesian initial state is supplied, emit initialState.xKm, initialState.yKm, initialState.zKm (km) and initialState.vxKmPerSec, initialState.vyKmPerSec, initialState.vzKmPerSec (km/s); the backend converts it to the Keplerian orbit fields. To display the Cartesian equivalent of complete Keplerian inputs, emit coordinateConversion.request with value keplerian_to_cartesian. Never calculate those conversions yourself.",
     "RAAN, argument of periapsis, true anomaly, drag area, drag coefficient, specific impulse, fuel reserve, and final altitude are optional. If omitted, the fixed template defaults are kept.",
     "Target semi-major axis follows the initial semi-major axis by default. Only emit stationKeeping.targetSmaKm when the engineer explicitly asks for a different target.",
     `Current values: ${JSON.stringify(draft.values)}`,
@@ -390,7 +440,7 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
   if (!responseText) throw new Error("LLM draft response contains no text")
   const patch = parseAssistantPatch(responseText)
   const updatedValues = { ...draft.values }
-  const initialSmaUpdate = patch.updates.find(update => update.path === "initialOrbit.smaKm" || update.path === "initialOrbit.altitudeKm")
+  const initialSmaUpdate = patch.updates.find(update => ["initialOrbit.smaKm", "initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", ...CARTESIAN_STATE_PATHS].includes(update.path))
   const targetSmaUpdate = patch.updates.find(update => update.path === "stationKeeping.targetSmaKm")
   for (const update of patch.updates) {
     if (update.path === "initialOrbit.altitudeKm") {
@@ -401,15 +451,26 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
       updatedValues[update.path] = update.value
     }
   }
+  if (patch.updates.some(update => update.path === "initialOrbit.periapsisAltitudeKm" || update.path === "initialOrbit.eccentricity")) {
+    const periapsisAltitudeKm = numberAt(updatedValues, "initialOrbit.periapsisAltitudeKm")
+    const eccentricity = numberAt(updatedValues, "initialOrbit.eccentricity")
+    if (periapsisAltitudeKm !== null && eccentricity !== null) updatedValues["initialOrbit.smaKm"] = semiMajorAxisFromPeriapsisAltitude(periapsisAltitudeKm, eccentricity)
+  }
+  const conversion = coordinateConversionSummary(updatedValues, {
+    cartesianWasUpdated: patch.updates.some(update => CARTESIAN_STATE_PATHS.includes(update.path as typeof CARTESIAN_STATE_PATHS[number])),
+    keplerianWasUpdated: patch.updates.some(update => KEPLERIAN_ORBIT_PATHS.includes(update.path as typeof KEPLERIAN_ORBIT_PATHS[number])) || patch.updates.some(update => update.path === "initialOrbit.altitudeKm" || update.path === "initialOrbit.periapsisAltitudeKm"),
+    request: patch.updates.find(update => update.path === "coordinateConversion.request")?.value,
+  })
   const targetSmaFollowsInitial = targetSmaUpdate ? false : draft.targetSmaFollowsInitial
   if (initialSmaUpdate && targetSmaFollowsInitial) {
     updatedValues["stationKeeping.targetSmaKm"] = updatedValues["initialOrbit.smaKm"]
   }
   const next = refreshDraft({
     ...draft,
-    assistantMessage: patch.message || "I have updated the mission draft. What would you like to define next?",
+    assistantMessage: [patch.message || "I have updated the mission draft. What would you like to define next?", conversion].filter(Boolean).join("\n\n"),
     confirmed: false,
-    conversation: [...draft.conversation, { assistant: patch.message || "Mission draft updated.", user: message }].slice(-20),
+    conversationStartedAt: draft.conversationStartedAt ?? new Date().toISOString(),
+    conversation: [...draft.conversation, { assistant: [patch.message || "Mission draft updated.", conversion].filter(Boolean).join("\n\n"), user: message }].slice(-20),
     targetSmaFollowsInitial,
     values: updatedValues,
   })

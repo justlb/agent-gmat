@@ -20,6 +20,7 @@ type AgentFilesViewProps = ComponentProps<typeof AgentFilesView>
 
 type AgentWorkspacePanelProps = {
   activeGmatRunPath?: string
+  activeGmatRunId?: AgentFilesViewProps['activeGmatRunId']
   activeContext: AgentFilesViewProps['activeContext'] & {
     versionDir?: string | null
     versionId?: string | null
@@ -41,6 +42,7 @@ type AgentWorkspacePanelProps = {
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
   manifestLoading: boolean
   onSelectGmatRun?: AgentFilesViewProps['onSelectGmatRun']
+  gmatMissionChat: AgentFilesViewProps['gmatMissionChat']
   selectedBom: BomStagePanelProps['selectedBom']
   selectedFileError: string
   selectedFileLoading: boolean
@@ -78,6 +80,7 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showCompl
 
 export function AgentWorkspacePanel({
   activeGmatRunPath,
+  activeGmatRunId,
   activeContext,
   activeManifestVersion,
   activeTool,
@@ -95,6 +98,7 @@ export function AgentWorkspacePanel({
   handleSelectFile,
   manifestLoading,
   onSelectGmatRun,
+  gmatMissionChat,
   selectedBom,
   selectedFileError,
   selectedFileLoading,
@@ -126,7 +130,7 @@ export function AgentWorkspacePanel({
   ].filter(Boolean).join(' ')
   const toolTabs: AgentToolView[] = showGncConfig
     ? ['gnc-dashboard', 'gnc']
-    : activeGmatRunPath ? ['gmat-analysis', 'cad', 'paraview', 'comsol'] : ['cad', 'paraview', 'comsol']
+    : ['gmat-analysis', 'cad', 'paraview', 'comsol']
   const toolLabel = (tool: AgentToolView) => {
     if (tool === 'cad') return 'CAD'
     if (tool === 'paraview') return 'ParaView'
@@ -264,9 +268,11 @@ export function AgentWorkspacePanel({
         ) : (
           <AgentFilesView
             activeGmatRunPath={activeGmatRunPath}
+            activeGmatRunId={activeGmatRunId}
             activeContext={activeContext}
             handleSelectFile={handleSelectFile}
             onSelectGmatRun={onSelectGmatRun}
+            gmatMissionChat={gmatMissionChat}
             selectedFileError={selectedFileError}
             selectedFileLoading={selectedFileLoading}
             selectedFilePath={selectedFilePath}

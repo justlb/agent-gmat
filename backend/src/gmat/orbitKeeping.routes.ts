@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify"
+import { spawn } from "node:child_process"
 import { createReadStream } from "node:fs"
 import fs from "node:fs/promises"
 import path from "node:path"
@@ -11,6 +12,7 @@ import { analyzeOrbitKeepingRunWithLlm, loadOrbitKeepingRunConversation } from "
 import { defaultOrbitKeepingValuesPath, generateOrbitKeepingMission, type OrbitKeepingProgress } from "./orbitKeeping.service.js"
 import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, draftToOrbitKeepingChanges, loadOrbitKeepingDraft, recordOrbitKeepingDraftRun } from "./orbitKeepingDraft.js"
 import { parseOrbitKeepingValues } from "./orbitKeepingValues.js"
+import { toGmatNativePath } from "./orbitKeepingRunner.js"
 
 type GenerateOrbitKeepingBody = { request?: unknown; workspaceDir?: unknown }
 type AnalyzeOrbitKeepingBody = { draftId?: unknown; question?: unknown; runPath?: unknown; workspaceDir?: unknown }
@@ -113,8 +115,31 @@ function resolveOutputWorkspaceDir(userWorkspaceRoot: string, requestedWorkspace
   return workspaceDir
 }
 
+async function openGmatGui(guiBin: string | null, runDir: string) {
+  if (!guiBin) throw new Error("GMAT GUI is not configured (tools.gmat.guiBin)")
+  const script = (await fs.readdir(runDir)).find(file => file.endsWith(".script"))
+  if (!script) throw new Error("GMAT script is not available for this run")
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(guiBin, [toGmatNativePath(path.join(runDir, script))], { detached: true, stdio: "ignore", windowsHide: false })
+    child.once("error", reject)
+    child.once("spawn", () => { child.unref(); resolve() })
+  })
+}
+
 /** HTTP boundary for the one-call, deterministic orbit-keeping pipeline. */
 export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+  fastify.post<{ Body: { runPath?: unknown } }>("/api/gmat/orbit-keeping/open-gui", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    const runDir = root ? resolveOrbitKeepingRunDir(root, req.body?.runPath) : null
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    try {
+      await openGmatGui(config.tools.gmat.guiBin, runDir)
+      return reply.send({ ok: true })
+    } catch (error) {
+      return reply.status(422).send({ error: getErrorMessage(error, "failed to open GMAT GUI") })
+    }
+  })
   fastify.post<{ Body: DraftWorkspaceBody }>("/api/gmat/orbit-keeping/drafts", async (req, reply) => {
     const userWorkspaceRoot = getRequestUserWorkspaceRoot()
     if (!userWorkspaceRoot) return reply.status(500).send({ error: "user workspace is unavailable" })
@@ -122,6 +147,20 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       return reply.send(await createOrbitKeepingDraft(resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)))
     } catch (err) {
       return reply.status(422).send({ error: getErrorMessage(err, "failed to create GMAT draft") })
+    }
+  })
+
+  fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/gmat/orbit-keeping/drafts", async (req, reply) => {
+    const userWorkspaceRoot = getRequestUserWorkspaceRoot()
+    if (!userWorkspaceRoot) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.query.workspaceDir)
+      const root = path.join(path.resolve(workspaceDir), "gmat", "drafts")
+      const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => [])
+      const drafts = await Promise.all(entries.filter(entry => entry.isDirectory()).map(entry => loadOrbitKeepingDraft(workspaceDir, entry.name).catch(() => null)))
+      return reply.send({ drafts: drafts.filter((draft): draft is NonNullable<typeof draft> => draft !== null).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) })
+    } catch (err) {
+      return reply.status(422).send({ error: getErrorMessage(err, "failed to list GMAT drafts") })
     }
   })
 

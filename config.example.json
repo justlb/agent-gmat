@@ -98,6 +98,7 @@
     },
     "gmat": {
       "bin": "/mnt/c/path/to/GMAT/bin/GmatConsole.exe",
+      "guiBin": "/mnt/c/path/to/GMAT/bin/GMAT.exe",
       "timeoutMs": 120000
     }
   },
