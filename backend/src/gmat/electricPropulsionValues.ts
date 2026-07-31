@@ -27,8 +27,22 @@ function asElectricPropulsionValues(values: OrbitKeepingValues): ElectricPropuls
   return { ...values, templateId: "electric-propulsion-transfer" }
 }
 
+// The template is immutable except for this explicit, engineering-facing set.
+// Keeping the values file narrow prevents a draft (or an LLM response) from
+// rewriting subscribers, force models, hardware topology, or mission commands.
+const EDITABLE_CONTEXT_PREFIXES = [
+  "DefaultSC.Epoch =", "DefaultSC.SMA =", "DefaultSC.ECC =", "DefaultSC.INC =", "DefaultSC.RAAN =", "DefaultSC.AOP =", "DefaultSC.TA =", "DefaultSC.DryMass =",
+  "ElectricTank1.FuelMass =", "daysofpropagation =", "ElectricThruster1.MaximumUsablePower =", "ElectricThruster1.MinimumUsablePower =",
+  "SolarPowerSystem1.InitialEpoch =", "SolarPowerSystem1.InitialMaxPower =", "ElectricTransferReport.Filename =", "ElectricTransferReport.Add =",
+] as const
+
+function isElectricPropulsionSlot(slot: OrbitKeepingValueSlot) {
+  return EDITABLE_CONTEXT_PREFIXES.some(prefix => slot.context.startsWith(prefix))
+}
+
 export function extractElectricPropulsionValues(template: string): ElectricPropulsionValues {
-  return asElectricPropulsionValues(extractOrbitKeepingValues(template))
+  const source = extractOrbitKeepingValues(template)
+  return asElectricPropulsionValues({ ...source, slots: source.slots.filter(isElectricPropulsionSlot) })
 }
 
 export function applyElectricPropulsionValueChanges(values: ElectricPropulsionValues, changes: ElectricPropulsionValueChange[]) {
@@ -37,5 +51,14 @@ export function applyElectricPropulsionValueChanges(values: ElectricPropulsionVa
 }
 
 export function renderElectricPropulsionValues(template: string, values: ElectricPropulsionValues) {
-  return renderOrbitKeepingValues(template, asOrbitKeepingValues(values))
+  const source = extractOrbitKeepingValues(template)
+  const sourceSlots = new Map(source.slots.map(slot => [slot.id, slot]))
+  for (const slot of values.slots) {
+    const expected = sourceSlots.get(slot.id)
+    if (!expected || !isElectricPropulsionSlot(expected) || expected.context !== slot.context) {
+      throw new Error(`values YAML does not match editable electric-propulsion template slot ${slot.id}`)
+    }
+  }
+  const renderedValues = applyOrbitKeepingValueChanges(source, values.slots.map(slot => ({ id: slot.id, value: slot.value })))
+  return renderOrbitKeepingValues(template, renderedValues)
 }

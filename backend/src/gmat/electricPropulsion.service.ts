@@ -1,4 +1,5 @@
 import fs from "node:fs/promises"
+import { createHash } from "node:crypto"
 import path from "node:path"
 import { stringify } from "yaml"
 
@@ -104,6 +105,7 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   if (!workspaceDir.trim() || !/^[A-Za-z0-9_-]+$/u.test(artifactId)) throw new Error("invalid GMAT electric-propulsion output path")
   onProgress?.({ key: "load_template", percent: 5, status: "running" })
   const template = await fs.readFile(templatePath, "utf8")
+  const templateSha256 = createHash("sha256").update(template).digest("hex")
   const sourceValues = extractElectricPropulsionValues(template)
   onProgress?.({ key: "load_template", percent: 20, status: "completed" })
   onProgress?.({ key: "llm_patch", percent: 25, status: "running" })
@@ -130,7 +132,7 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   const minimumUsablePowerKw = numericSlotValue(renderedValues, "ElectricThruster1.MinimumUsablePower")
   const result = summarizeElectricPropulsionExecution(executionResult, minimumUsablePowerKw)
   const runId = path.basename(runDir)
-  const manifest = { schemaVersion: 1, runId, tool: "GMAT", templateId: "electric-propulsion-transfer", status: result.status, request, createdAt: new Date().toISOString(), completedAt: executionResult?.completedAt ?? null, changes, inputs: { script: path.basename(scriptPath), values: path.basename(valuesPath) }, outputs: { result: path.basename(resultPath), report: executionResult ? path.basename(executionResult.reportPath) : null, log: executionResult ? path.basename(executionResult.logPath) : null } }
+  const manifest = { schemaVersion: 1, runId, tool: "GMAT", templateId: "electric-propulsion-transfer", templateSha256, status: result.status, request, createdAt: new Date().toISOString(), completedAt: executionResult?.completedAt ?? null, changes, inputs: { script: path.basename(scriptPath), values: path.basename(valuesPath) }, outputs: { result: path.basename(resultPath), report: executionResult ? path.basename(executionResult.reportPath) : null, log: executionResult ? path.basename(executionResult.logPath) : null } }
   onProgress?.({ key: "save_results", percent: 92, status: "running" })
   await Promise.all([
     fs.writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8"),

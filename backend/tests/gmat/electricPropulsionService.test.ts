@@ -7,9 +7,21 @@ import { describe, it } from "node:test"
 import { generateElectricPropulsionMission, summarizeElectricPropulsionExecution } from "../../src/gmat/electricPropulsion.service.js"
 import { parseElectricPropulsionReport } from "../../src/gmat/electricPropulsionRunner.js"
 import { defaultElectricPropulsionTemplatePath } from "../../src/gmat/electricPropulsionTemplate.js"
-import { applyElectricPropulsionValueChanges, extractElectricPropulsionValues } from "../../src/gmat/electricPropulsionValues.js"
+import { applyElectricPropulsionValueChanges, extractElectricPropulsionValues, renderElectricPropulsionValues } from "../../src/gmat/electricPropulsionValues.js"
 
 describe("electric-propulsion transfer renderer", () => {
+  it("preserves the fixed tutorial template byte-for-byte when no validated value changes are applied", async () => {
+    const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
+    const values = extractElectricPropulsionValues(template)
+    assert.equal(renderElectricPropulsionValues(template, values), template)
+    assert.match(template, /DefaultSC\.ECC = 0;/u)
+    assert.match(template, /DefaultSC\.INC = 0;/u)
+    assert.match(template, /DefaultSC\.DryMass = 850;/u)
+    assert.match(template, /ElectricTank1\.FuelMass = 756;/u)
+    assert.match(template, /SolarPowerSystem1\.InitialMaxPower = 1\.2;/u)
+    assert.match(template, /DefaultProp_ForceModel\.GravityField\.Earth\.StmLimit = 100;/u)
+  })
+
   it("parses the Keplerian report schema", () => {
     assert.deepEqual(parseElectricPropulsionReport("2 7191.938817629013 0.02454974900598137 12.85008005658097 306.6148021947984 314.1905515359921 99.8877493320488 755.5 1605.5 1.2\n"), [{
       elapsedDays: 2, semiMajorAxisKm: 7191.938817629013, eccentricity: 0.02454974900598137, inclinationDeg: 12.85008005658097,
@@ -62,6 +74,8 @@ describe("electric-propulsion transfer renderer", () => {
     assert.match(script, /DefaultSC\.SolarPowerSystem1\.ThrustPowerAvailable/u)
     await fs.access(result.valuesPath)
     await fs.access(result.manifestPath)
+    const manifest = JSON.parse(await fs.readFile(result.manifestPath, "utf8")) as { templateSha256?: unknown }
+    assert.match(String(manifest.templateSha256), /^[a-f0-9]{64}$/u)
   })
 
   it("rejects a patch that tries to change the fixed report structure", async () => {

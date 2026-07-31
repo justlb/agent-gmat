@@ -103,6 +103,21 @@ function utcGregorianToTaiModJulian(value: string) {
   const taiMinusUtcSeconds = TAI_UTC_LEAP_SECONDS.reduce((offset, [effectiveAt, candidate]) => milliseconds >= Date.parse(effectiveAt) ? candidate : offset, 0)
   return Number((milliseconds / 86_400_000 + JULIAN_DATE_AT_UNIX_EPOCH + taiMinusUtcSeconds / 86_400 - GMAT_MODIFIED_JULIAN_OFFSET).toFixed(12)).toString()
 }
+function taiModJulianToUtcGregorian(value: string) {
+  const taiModJulian = Number(value)
+  if (!Number.isFinite(taiModJulian)) throw new Error("initialOrbit.epoch must be a numeric TAIModJulian value")
+  const taiMilliseconds = (taiModJulian + GMAT_MODIFIED_JULIAN_OFFSET - JULIAN_DATE_AT_UNIX_EPOCH) * 86_400_000
+  let utcMilliseconds = taiMilliseconds - 37_000
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const taiMinusUtcSeconds = TAI_UTC_LEAP_SECONDS.reduce((offset, [effectiveAt, candidate]) => utcMilliseconds >= Date.parse(effectiveAt) ? candidate : offset, 0)
+    utcMilliseconds = taiMilliseconds - taiMinusUtcSeconds * 1000
+  }
+  const date = new Date(utcMilliseconds)
+  if (!Number.isFinite(date.getTime())) throw new Error("initialOrbit.epoch cannot be converted to UTC")
+  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][date.getUTCMonth()]
+  const pad = (number: number, width = 2) => String(number).padStart(width, "0")
+  return `''${pad(date.getUTCDate())} ${month} ${date.getUTCFullYear()} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}.${pad(date.getUTCMilliseconds(), 3)}''`
+}
 function validateValues(values: DraftValues) {
   const missing: string[] = []
   for (const field of fields) {
@@ -185,8 +200,9 @@ function buildSafetyReview(values: DraftValues): ElectricPropulsionSafetyReview 
   const maxPower = numberOrDefault(values, "propulsion.maximumUsablePowerKw", THRUST_POLYNOMIAL_MAX_POWER_KW)
   const minPower = numberOrDefault(values, "propulsion.minimumUsablePowerKw", THRUST_POLYNOMIAL_MIN_POWER_KW)
   const initialSolarPower = numberOrDefault(values, "power.initialMaxPowerKw", DEFAULT_INITIAL_SOLAR_POWER_KW)
-  // This is optimistic: the fixed template's eclipse, distance and degradation
-  // models can only reduce the power delivered to the electric thruster.
+  // The solar InitialEpoch is derived from the mission Epoch at render time, so
+  // InitialMaxPower represents a new array at the start of every mission.
+  // Eclipse, Earth-Sun distance, and penumbra can still reduce this estimate.
   const nominalThrustPower = Math.max(0, (initialSolarPower - POWER_SYSTEM_BUS_LOAD_KW) * (1 - POWER_SYSTEM_MARGIN))
   if (typeof dryMass === "number" && dryMass <= 0) checks.push({ code: "dry_mass", message: "Dry mass must be strictly positive.", severity: "error" })
   if (typeof fuelMass === "number" && fuelMass <= 0) checks.push({ code: "propellant_mass", message: "Electric propellant mass must be strictly positive.", severity: "error" })
@@ -207,6 +223,7 @@ function buildSafetyReview(values: DraftValues): ElectricPropulsionSafetyReview 
       { label: "Minimum usable power", value: `${valueOrDefault(values, "propulsion.minimumUsablePowerKw", 0.638)} kW` },
       { label: "Thrust model", value: "ThrustMassPolynomial (Isp is not used by this fixed model)" },
       { label: "Initial solar-array maximum power", value: `${valueOrDefault(values, "power.initialMaxPowerKw", DEFAULT_INITIAL_SOLAR_POWER_KW)} kW` },
+      { label: "Solar-array reference epoch", value: "Automatically synchronized to the mission epoch" },
       { label: "Optimistic initial thrust power", value: `${nominalThrustPower.toFixed(3)} kW (after fixed 0.3 kW bus load and 5% margin)` },
     ], checks,
   }
@@ -314,7 +331,7 @@ export async function recordElectricPropulsionDraftRun(workspaceDir: string, dra
 }
 export function draftToElectricPropulsionChanges(draft: ElectricPropulsionDraft, values: ElectricPropulsionValues): ElectricPropulsionValueChange[] {
   if (draft.status !== "confirmed" || draft.safety.checks.some(check => check.severity === "error")) throw new Error("GMAT electric-propulsion draft is not ready for execution")
-  return fields.flatMap(field => {
+  const changes = fields.flatMap(field => {
     const value = draft.values[field.path]
     if (value === null) return field.required ? (() => { throw new Error(`missing required field ${field.path}`) })() : []
     // The propagation duration is a dedicated variable. It is deliberately kept
@@ -325,4 +342,8 @@ export function draftToElectricPropulsionChanges(draft: ElectricPropulsionDraft,
     if (!slot) throw new Error(`template does not expose draft field ${field.path}`)
     return [{ id: slot.id, value: typeof value === "number" ? String(value) : `'${value.replace(/'/gu, "")}'` }]
   })
+  const solarEpochSlot = values.slots.find(slot => slot.context.startsWith("SolarPowerSystem1.InitialEpoch ="))
+  const missionEpoch = draft.values["initialOrbit.epoch"]
+  if (!solarEpochSlot || typeof missionEpoch !== "string") throw new Error("template does not expose SolarPowerSystem1.InitialEpoch")
+  return [...changes, { id: solarEpochSlot.id, value: taiModJulianToUtcGregorian(missionEpoch) }]
 }

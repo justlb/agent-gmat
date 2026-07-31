@@ -69,6 +69,22 @@ describe("electric-propulsion transfer mission draft", () => {
     assert.ok(blocked.safety.checks.some(check => check.code === "initial_power_below_minimum" && check.severity === "error"))
   })
 
+  it("synchronizes the solar-array reference epoch to the mission epoch", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "electric-draft-"))
+    const initial = await createElectricPropulsionDraft(workspaceDir)
+    const updated = await discussElectricPropulsionDraft({
+      connection, draft: initial, message: "Use a mission epoch in 2026.", workspaceDir,
+      fetchImpl: async () => new Response(JSON.stringify({ output_text: "message: Epoch recorded.\nupdates:\n  - path: initialOrbit.epoch\n    value: '31253.500428240746'" }), { status: 200 }),
+    })
+    const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
+    const changes = draftToElectricPropulsionChanges({ ...updated, confirmed: true, status: "confirmed", values: {
+      ...updated.values, "initialOrbit.smaKm": 7191.938817629013, "initialOrbit.eccentricity": 0, "initialOrbit.inclinationDeg": 0,
+      "spacecraft.dryMassKg": 850, "spacecraft.initialFuelMassKg": 756, "transfer.burnDurationDays": 30,
+    } }, extractElectricPropulsionValues(template))
+    const solarEpochChange = changes.find(change => change.id.includes("SolarPowerSystem1_InitialEpoch"))
+    assert.equal(solarEpochChange?.value, "''01 Aug 2026 00:00:00.000''")
+  })
+
   it("blocks a minimum usable power equal to the maximum usable power", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "electric-draft-"))
     const initial = await createElectricPropulsionDraft(workspaceDir)
