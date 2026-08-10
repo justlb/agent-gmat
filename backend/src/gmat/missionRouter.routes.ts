@@ -6,7 +6,8 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
-import { loadOrCreateDigitalThread, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
+import { getSatelliteDefinition } from "../digitalThread/satelliteLibrary.js"
+import { loadOrCreateDigitalThread } from "../digitalThread/digitalThreadStore.js"
 import { createElectricPropulsionDraft, discussElectricPropulsionDraft } from "./electricPropulsionDraft.js"
 import { createOrbitKeepingDraft, discussOrbitKeepingDraft } from "./orbitKeepingDraft.js"
 
@@ -78,23 +79,30 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
       const decision = await routeMissionMessage(config, message)
       if (decision.target === "general" || decision.target === "clarify") return reply.send({ kind: decision.target, message: decision.message })
       const currentDigitalThread = await loadOrCreateDigitalThread(workspaceDir)
-      if (!currentDigitalThread.digital_thread.satellite_definition) {
+      const satelliteSelection = currentDigitalThread.digital_thread.satellite_definition as { id?: unknown; version?: unknown } | null
+      if (!satelliteSelection || typeof satelliteSelection.id !== "string") {
         return reply.send({ kind: "clarify", message: "Select a satellite version in Satellite Library before defining a GMAT mission." })
       }
-      const digitalThreadUpdate = await updateDigitalThreadWithLlm({ connection: resolveModelBackend(config, "chatModel"), message, workspaceDir })
-      const adapted = adaptDigitalThreadToGmat(digitalThreadUpdate.document, decision.target)
+      const selectedSatellite = await getSatelliteDefinition(satelliteSelection.id, typeof satelliteSelection.version === "string" ? satelliteSelection.version : undefined)
+      if (!selectedSatellite.mission_templates.includes(decision.target)) {
+        return reply.send({
+          kind: "clarify",
+          message: `The selected satellite (${selectedSatellite.name}) is not compatible with the ${decision.target} GMAT template. Select a satellite with the required propulsion system or describe a compatible mission.`,
+        })
+      }
+      const adapted = adaptDigitalThreadToGmat(currentDigitalThread, decision.target)
+      const propulsionGuard = adapted.guards.find(guard => guard.code === "incompatible_propulsion")
+      if (propulsionGuard) return reply.send({ kind: "clarify", message: `${propulsionGuard.message} Select a compatible satellite before continuing.` })
       if (decision.target === "orbit-keeping") {
-        // The GMAT reference script is the baseline. The digital thread may be
-        // consulted by the assistant, but it must not silently overwrite it.
-        const draft = await createOrbitKeepingDraft(workspaceDir)
+        const draft = await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
         const updatedDraft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
         await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
-        return reply.send({ adapter: adapted, digitalThread: digitalThreadUpdate.document, draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
+        return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(workspaceDir), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
       }
       const draft = await createElectricPropulsionDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
       const updatedDraft = await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
       await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
-      return reply.send({ adapter: adapted, digitalThread: digitalThreadUpdate.document, draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
+      return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(workspaceDir), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
     } catch (error) {
       return reply.status(422).send({ error: getErrorMessage(error, "failed to route GMAT mission") })
     }

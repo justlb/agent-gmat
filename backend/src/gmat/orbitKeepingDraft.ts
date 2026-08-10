@@ -116,6 +116,9 @@ export const ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT = {
 } as const
 
 const fields = ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.fields as readonly FieldDefinition[]
+const SATELLITE_OWNED_FIELDS = new Set([
+  "spacecraft.dryMassKg", "spacecraft.initialFuelMassKg", "spacecraft.dragAreaM2", "spacecraft.dragCoefficient", "propulsion.ispSeconds",
+])
 /** Values embedded in the immutable reference script. A new draft starts here. */
 const TEMPLATE_DEFAULT_VALUES: DraftValues = {
   "endOfLife.finalAltitudeKm": 150,
@@ -382,7 +385,7 @@ export async function loadOrbitKeepingDraft(workspaceDir: string, draftId: strin
   return refreshDraft({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], conversationStartedAt: typeof parsed.conversationStartedAt === "string" ? parsed.conversationStartedAt : null, createdAt: parsed.createdAt, draftId: parsed.draftId, runs: Array.isArray(parsed.runs) ? parsed.runs : [], targetSmaFollowsInitial, templateId: parsed.templateId, values })
 }
 
-function parseAssistantPatch(source: string) {
+function parseAssistantPatch(source: string, lockedFields: ReadonlySet<string> = new Set()) {
   const document = parseDocument(source)
   if (document.errors.length) throw new Error("LLM draft response is not valid YAML")
   const parsed = document.toJS() as { message?: unknown; updates?: unknown }
@@ -392,6 +395,7 @@ function parseAssistantPatch(source: string) {
     if (!item || typeof item !== "object") throw new Error("LLM draft update is invalid")
     const candidate = item as { path?: unknown; value?: unknown }
     if (typeof candidate.path !== "string" || (!DERIVED_INPUT_PATHS.includes(candidate.path as typeof DERIVED_INPUT_PATHS[number]) && !fields.some(field => field.path === candidate.path))) throw new Error("LLM draft update references an unknown field")
+    if (lockedFields.has(candidate.path)) throw new Error(`${candidate.path} belongs to the selected satellite and must be changed in Satellite Library, not in a mission discussion`)
     if (typeof candidate.value !== "string" && typeof candidate.value !== "number") throw new Error("LLM draft update has an invalid value")
     if (["initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", ...CARTESIAN_STATE_PATHS].includes(candidate.path as typeof DERIVED_INPUT_PATHS[number]) && (typeof candidate.value !== "number" || !Number.isFinite(candidate.value))) {
       throw new Error(`${candidate.path} must be a finite number`)
@@ -445,6 +449,7 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
     "Use human language in message; never expose internal field paths there.",
     `Known fields: ${fields.map(field => `${field.path} (${field.label}${field.unit ? `, ${field.unit}` : ""}${field.required ? ", mandatory" : ", optional"})`).join("; ")}`,
     draft.digitalThreadRequiredPaths?.length ? `For this digital-thread-managed run, these fields are mandatory even if the legacy template marks them optional: ${draft.digitalThreadRequiredPaths.join(", ")}.` : "",
+    draft.digitalThreadRequiredPaths?.length ? `Satellite-owned values are locked for this mission: ${[...SATELLITE_OWNED_FIELDS].join(", ")}. Do not emit updates for them; explain that they come from the selected satellite.` : "",
     `Derived input: when the engineer gives a circular-orbit altitude in km, emit { path: initialOrbit.altitudeKm, value: number }. The backend deterministically converts it to initialOrbit.smaKm by adding Earth equatorial radius ${EARTH_EQUATORIAL_RADIUS_KM} km. For a perigee altitude and eccentricity, emit initialOrbit.periapsisAltitudeKm and initialOrbit.eccentricity; the backend computes SMA = (Earth equatorial radius + periapsis altitude) / (1 - ECC). Do not calculate either conversion yourself.`,
     "Deterministic coordinate conversions are available. If a Cartesian initial state is supplied, emit initialState.xKm, initialState.yKm, initialState.zKm (km) and initialState.vxKmPerSec, initialState.vyKmPerSec, initialState.vzKmPerSec (km/s); the backend converts it to the Keplerian orbit fields. To display the Cartesian equivalent of complete Keplerian inputs, emit coordinateConversion.request with value keplerian_to_cartesian. Never calculate those conversions yourself.",
     draft.digitalThreadRequiredPaths?.length ? "Only RAAN, argument of periapsis, and true anomaly may retain their explicit orientation defaults. Do not use legacy spacecraft or mission-policy defaults for a digital-thread-managed run." : "RAAN, argument of periapsis, true anomaly, drag area, drag coefficient, specific impulse, fuel reserve, and final altitude are optional. If omitted, the fixed template defaults are kept.",
@@ -464,7 +469,7 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
   try { payload = JSON.parse(body) as { output_text?: unknown } } catch { throw new Error("LLM draft response is invalid JSON") }
   const responseText = extractResponseText(payload)
   if (!responseText) throw new Error("LLM draft response contains no text")
-  const patch = parseAssistantPatch(responseText)
+  const patch = parseAssistantPatch(responseText, draft.digitalThreadRequiredPaths?.length ? SATELLITE_OWNED_FIELDS : undefined)
   const updatedValues = { ...draft.values }
   const initialSmaUpdate = patch.updates.find(update => ["initialOrbit.smaKm", "initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", ...CARTESIAN_STATE_PATHS].includes(update.path))
   const targetSmaUpdate = patch.updates.find(update => update.path === "stationKeeping.targetSmaKm")

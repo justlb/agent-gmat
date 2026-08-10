@@ -36,6 +36,17 @@ describe("GMAT digital-thread adapter", () => {
     assert.equal(result.values["power.initialMaxPowerKw"], 4.083)
   })
 
+  it("uses mission orbit values before the selected satellite baseline", () => {
+    const document = documentWithSolar({ total_power_generated_watts: 8500 })
+    ;((document.analysis_requests.gmat.electric_propulsion_transfer as Record<string, unknown>).initial_orbit = {
+      epoch_tai_mod_julian: "31270.25", semi_major_axis_km: 7300, eccentricity: 0.02, inclination_deg: 12, raan_deg: 1, arg_of_perigee_deg: 2, true_anomaly_deg: 3,
+    })
+    const result = adaptDigitalThreadToGmat(document, "electric-propulsion-transfer")
+    assert.equal(result.values["initialOrbit.epoch"], "31270.25")
+    assert.equal(result.values["initialOrbit.smaKm"], 7300)
+    assert.equal(result.values["initialOrbit.inclinationDeg"], 12)
+  })
+
   it("blocks execution when the solar model is incomplete", () => {
     const result = adaptDigitalThreadToGmat(documentWithSolar({ total_power_generated_watts: null, total_area_m2: null, efficiency_percent: 31.5 }), "electric-propulsion-transfer")
     assert.equal(result.ready, false)

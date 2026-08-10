@@ -91,6 +91,10 @@ export const ELECTRIC_PROPULSION_TRANSFER_CONTRACT = {
 } as const
 
 const fields = ELECTRIC_PROPULSION_TRANSFER_CONTRACT.fields as readonly FieldDefinition[]
+const SATELLITE_OWNED_FIELDS = new Set([
+  "spacecraft.dryMassKg", "spacecraft.initialFuelMassKg", "propulsion.maximumUsablePowerKw", "propulsion.minimumUsablePowerKw",
+  "power.initialMaxPowerKw", "power.busLoadKw", "power.systemMarginPercent",
+])
 const CARTESIAN_STATE_PATHS = ["initialState.xKm", "initialState.yKm", "initialState.zKm", "initialState.vxKmPerSec", "initialState.vyKmPerSec", "initialState.vzKmPerSec"] as const
 const KEPLERIAN_ORBIT_PATHS = ["initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg"] as const
 const DERIVED_INPUT_PATHS = ["initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", "initialOrbit.utcGregorian", "coordinateConversion.request", ...CARTESIAN_STATE_PATHS] as const
@@ -274,7 +278,7 @@ function extractResponseText(payload: unknown) {
   for (const item of Array.isArray(output) ? output : []) for (const part of Array.isArray(item && typeof item === "object" ? (item as { content?: unknown }).content : undefined) ? (item as { content: unknown[] }).content : []) if (part && typeof part === "object" && typeof (part as { text?: unknown }).text === "string") texts.push((part as { text: string }).text.trim())
   return texts.filter(Boolean).join("\n")
 }
-function parseAssistantPatch(source: string) {
+function parseAssistantPatch(source: string, lockedFields: ReadonlySet<string> = new Set()) {
   const document = parseDocument(source)
   if (document.errors.length) throw new Error("LLM electric-propulsion draft response is not valid YAML")
   const parsed = document.toJS() as { message?: unknown; updates?: unknown }
@@ -283,6 +287,7 @@ function parseAssistantPatch(source: string) {
   for (const item of parsed.updates) {
     const candidate = item && typeof item === "object" ? item as { path?: unknown; value?: unknown } : null
     if (!candidate || typeof candidate.path !== "string" || (!fields.some(field => field.path === candidate.path) && !DERIVED_INPUT_PATHS.includes(candidate.path as typeof DERIVED_INPUT_PATHS[number]))) throw new Error("LLM electric-propulsion draft update references an unknown field")
+    if (lockedFields.has(candidate.path)) throw new Error(`${candidate.path} belongs to the selected satellite and must be changed in Satellite Library, not in a mission discussion`)
     if (typeof candidate.value !== "string" && typeof candidate.value !== "number") throw new Error("LLM electric-propulsion draft update has an invalid value")
     if (["initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", ...CARTESIAN_STATE_PATHS].includes(candidate.path as typeof DERIVED_INPUT_PATHS[number]) && (typeof candidate.value !== "number" || !Number.isFinite(candidate.value))) throw new Error(`${candidate.path} must be a finite number`)
     if (["initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm"].includes(candidate.path as typeof DERIVED_INPUT_PATHS[number]) && Number(candidate.value) < 0) throw new Error(`${candidate.path} must be a non-negative number`)
@@ -302,6 +307,7 @@ export async function discussElectricPropulsionDraft({ connection, draft, messag
     "The GMAT epoch is TAIModJulian. For a calendar time with a timezone, emit initialOrbit.utcGregorian as a UTC ISO time; if timezone is absent, ask for it.",
     `Known fields: ${fields.map(field => `${field.path} (${field.label}${field.unit ? `, ${field.unit}` : ""}${field.required ? ", mandatory" : ", optional"})`).join("; ")}`,
     draft.digitalThreadRequiredPaths?.length ? `For this digital-thread-managed run, these fields are mandatory even if the legacy template marks them optional: ${draft.digitalThreadRequiredPaths.join(", ")}.` : "",
+    draft.digitalThreadRequiredPaths?.length ? `Satellite-owned values are locked for this mission: ${[...SATELLITE_OWNED_FIELDS].join(", ")}. Do not emit updates for them; explain that they come from the selected satellite.` : "",
     "Deterministic coordinate conversions are available. For an initial perigee altitude and eccentricity, emit initialOrbit.periapsisAltitudeKm and initialOrbit.eccentricity; the backend computes SMA = (Earth equatorial radius + periapsis altitude) / (1 - ECC). If a Cartesian initial state is supplied, emit initialState.xKm, initialState.yKm, initialState.zKm (km) and initialState.vxKmPerSec, initialState.vyKmPerSec, initialState.vzKmPerSec (km/s); the backend converts it to the six Keplerian inputs. To display the Cartesian equivalent of complete Keplerian inputs, emit coordinateConversion.request with value keplerian_to_cartesian. Never calculate these conversions yourself.",
     `RAAN, argument of periapsis, and true anomaly are optional assumptions of 0 degrees; do not ask for them unless the engineer explicitly supplies an orientation. Power generation, bus load, and margin should come from the satellite digital thread whenever available. The fixed thrust/mass-flow polynomials are only accepted from ${THRUST_POLYNOMIAL_MIN_POWER_KW} to ${THRUST_POLYNOMIAL_MAX_POWER_KW} kW; MinimumUsablePower must be strictly below MaximumUsablePower. Do not request or update Isp: ThrustMassPolynomial is fixed and GMAT does not use Isp for that model. The fixed DualCone Earth shadow model can interrupt thrust in eclipse.`,
     `Current values: ${JSON.stringify(draft.values)}`,
@@ -315,7 +321,7 @@ export async function discussElectricPropulsionDraft({ connection, draft, messag
   try { payload = JSON.parse(body) } catch { throw new Error("LLM electric-propulsion draft response is invalid JSON") }
   const responseText = extractResponseText(payload)
   if (!responseText) throw new Error("LLM electric-propulsion draft response contains no text")
-  const patch = parseAssistantPatch(responseText)
+  const patch = parseAssistantPatch(responseText, draft.digitalThreadRequiredPaths?.length ? SATELLITE_OWNED_FIELDS : undefined)
   const values = { ...draft.values }
   for (const update of patch.updates) values[update.path === "initialOrbit.utcGregorian" ? "initialOrbit.epoch" : update.path] = update.path === "initialOrbit.utcGregorian" ? utcGregorianToTaiModJulian(String(update.value)) : update.value
   const altitudeWasUpdated = patch.updates.some(update => update.path === "initialOrbit.altitudeKm" || update.path === "initialOrbit.periapsisAltitudeKm")

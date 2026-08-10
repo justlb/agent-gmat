@@ -27,6 +27,21 @@ function asObject(value: JsonValue | undefined): { [key: string]: JsonValue } | 
   return value && typeof value === "object" && !Array.isArray(value) ? value as { [key: string]: JsonValue } : null
 }
 
+/** Keeps older workspaces compatible when mission-only orbital inputs are added. */
+function ensureMissionRequestShape(document: DigitalThreadDocument) {
+  let changed = false
+  const analysis = document.analysis_requests
+  const gmat = asObject(analysis.gmat) ?? (analysis.gmat = {}, analysis.gmat as { [key: string]: JsonValue })
+  for (const template of ["orbit_keeping", "electric_propulsion_transfer"]) {
+    const request = asObject(gmat[template]) ?? (gmat[template] = {}, gmat[template] as { [key: string]: JsonValue })
+    const orbit = asObject(request.initial_orbit) ?? (request.initial_orbit = {}, request.initial_orbit as { [key: string]: JsonValue })
+    for (const field of ["epoch_tai_mod_julian", "semi_major_axis_km", "eccentricity", "inclination_deg", "raan_deg", "arg_of_perigee_deg", "true_anomaly_deg"]) {
+      if (!(field in orbit)) { orbit[field] = null; changed = true }
+    }
+  }
+  return changed
+}
+
 function getAtPath(document: DigitalThreadDocument, fieldPath: string): JsonValue | undefined {
   let current: JsonValue = document
   for (const key of fieldPath.split(".")) {
@@ -79,9 +94,11 @@ export async function loadOrCreateDigitalThread(workspaceDir: string) {
   if (existing !== null) {
     const parsed: unknown = JSON.parse(existing)
     assertDocument(parsed)
+    if (ensureMissionRequestShape(parsed)) await saveDigitalThread(workspaceDir, parsed)
     return parsed
   }
   const document = await readTemplate()
+  ensureMissionRequestShape(document)
   const now = new Date().toISOString()
   document.digital_thread.thread_id = crypto.randomUUID()
   document.digital_thread.created_at = now

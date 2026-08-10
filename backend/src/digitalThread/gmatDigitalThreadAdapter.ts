@@ -7,6 +7,10 @@ export type GmatDigitalThreadTemplate = "orbit-keeping" | "electric-propulsion-t
 export type DigitalThreadGuard = { code: string; message: string; path: string }
 export type DigitalThreadDerivation = { formula: string; inputs: string[]; output: string; value: number | string }
 
+function analysisTemplateKey(template: string) {
+  return template === "electric-propulsion-transfer" ? "electric_propulsion_transfer" : "orbit_keeping"
+}
+
 const JULIAN_DATE_AT_UNIX_EPOCH = 2440587.5
 const GMAT_MODIFIED_JULIAN_OFFSET = 2430000
 const TAI_UTC_LEAP_SECONDS: ReadonlyArray<readonly [string, number]> = [
@@ -21,6 +25,30 @@ function numberAt(document: DigitalThreadDocument, fieldPath: string) {
 function stringAt(document: DigitalThreadDocument, fieldPath: string) {
   const value = getAtPath(document, fieldPath)
   return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
+function firstNumber(document: DigitalThreadDocument, ...fieldPaths: string[]) {
+  for (const fieldPath of fieldPaths) {
+    const value = numberAt(document, fieldPath)
+    if (value !== null) return value
+  }
+  return null
+}
+
+function firstString(document: DigitalThreadDocument, ...fieldPaths: string[]) {
+  for (const fieldPath of fieldPaths) {
+    const value = stringAt(document, fieldPath)
+    if (value !== null) return value
+  }
+  return null
+}
+
+function taiEpochAt(document: DigitalThreadDocument, ...fieldPaths: string[]) {
+  for (const fieldPath of fieldPaths) {
+    const value = getAtPath(document, fieldPath)
+    if ((typeof value === "string" || typeof value === "number") && Number.isFinite(Number(value)) && String(value).trim()) return String(value).trim()
+  }
+  return null
 }
 
 function utcToTaiModJulian(value: string) {
@@ -78,7 +106,9 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   const values: Record<string, string | number | null> = {}
   const guards: DigitalThreadGuard[] = []
   const derivations: DigitalThreadDerivation[] = []
-  const taiEpoch = stringAt(document, "satellite.orbit.reference_epoch_tai_mod_julian")
+  const missionRoot = `analysis_requests.gmat.${analysisTemplateKey(template)}`
+  const missionOrbitRoot = `${missionRoot}.initial_orbit`
+  const taiEpoch = taiEpochAt(document, `${missionOrbitRoot}.epoch_tai_mod_julian`, "satellite.orbit.reference_epoch_tai_mod_julian")
   const utcEpoch = stringAt(document, "satellite.orbit.reference_epoch_utc")
   if (taiEpoch) values["initialOrbit.epoch"] = taiEpoch
   else if (utcEpoch) {
@@ -86,15 +116,18 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
     derivations.push({ formula: "UTC → GMAT TAIModJulian using the deterministic leap-second table", inputs: ["satellite.orbit.reference_epoch_utc"], output: "initialOrbit.epoch", value: values["initialOrbit.epoch"] as string })
   } else guards.push({ code: "missing_epoch", message: "A GMAT run requires satellite.orbit.reference_epoch_utc or reference_epoch_tai_mod_julian.", path: "satellite.orbit.reference_epoch_utc" })
 
-  requireNumber(document, "satellite.orbit.keplerian_elements.semi_major_axis_km", "initialOrbit.smaKm", values, guards)
-  requireNumber(document, "satellite.orbit.keplerian_elements.eccentricity", "initialOrbit.eccentricity", values, guards)
-  requireNumber(document, "satellite.orbit.keplerian_elements.inclination_deg", "initialOrbit.inclinationDeg", values, guards)
-  optionalNumber(document, "satellite.orbit.keplerian_elements.raan_deg", "initialOrbit.raanDeg", values)
-  optionalNumber(document, "satellite.orbit.keplerian_elements.arg_of_perigee_deg", "initialOrbit.argPeriapsisDeg", values)
-  optionalNumber(document, "satellite.orbit.keplerian_elements.true_anomaly_deg", "initialOrbit.trueAnomalyDeg", values)
+  const orbitFields: Array<[string, string, boolean]> = [
+    ["semi_major_axis_km", "initialOrbit.smaKm", true], ["eccentricity", "initialOrbit.eccentricity", true], ["inclination_deg", "initialOrbit.inclinationDeg", true],
+    ["raan_deg", "initialOrbit.raanDeg", false], ["arg_of_perigee_deg", "initialOrbit.argPeriapsisDeg", false], ["true_anomaly_deg", "initialOrbit.trueAnomalyDeg", false],
+  ]
+  for (const [sourceField, targetPath, required] of orbitFields) {
+    const value = firstNumber(document, `${missionOrbitRoot}.${sourceField}`, `satellite.orbit.keplerian_elements.${sourceField}`)
+    if (value === null && required) guards.push({ code: "missing_digital_thread_value", message: `Required digital-thread value is missing: ${missionOrbitRoot}.${sourceField} or satellite.orbit.keplerian_elements.${sourceField}`, path: targetPath })
+    else if (value !== null) values[targetPath] = value
+  }
   if (values["initialOrbit.trueAnomalyDeg"] === undefined) {
-    const meanAnomaly = numberAt(document, "satellite.orbit.keplerian_elements.mean_anomaly_deg")
-    const eccentricity = numberAt(document, "satellite.orbit.keplerian_elements.eccentricity")
+    const meanAnomaly = firstNumber(document, `${missionOrbitRoot}.mean_anomaly_deg`, "satellite.orbit.keplerian_elements.mean_anomaly_deg")
+    const eccentricity = firstNumber(document, `${missionOrbitRoot}.eccentricity`, "satellite.orbit.keplerian_elements.eccentricity")
     if (meanAnomaly !== null && eccentricity !== null && eccentricity >= 0 && eccentricity < 1) {
       values["initialOrbit.trueAnomalyDeg"] = meanToTrueAnomalyDeg(meanAnomaly, eccentricity)
       derivations.push({ formula: "solve Kepler's equation M = E - e·sin(E), then convert eccentric anomaly to true anomaly", inputs: ["satellite.orbit.keplerian_elements.mean_anomaly_deg", "satellite.orbit.keplerian_elements.eccentricity"], output: "initialOrbit.trueAnomalyDeg", value: values["initialOrbit.trueAnomalyDeg"] as number })
@@ -135,42 +168,41 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   return { derivations, guards, ready: guards.length === 0, requiredDraftPaths, template, values }
 }
 
-const DRAFT_TO_THREAD_PATHS: Record<string, string> = {
-  "initialOrbit.epoch": "satellite.orbit.reference_epoch_tai_mod_julian",
-  "initialOrbit.smaKm": "satellite.orbit.keplerian_elements.semi_major_axis_km",
-  "initialOrbit.eccentricity": "satellite.orbit.keplerian_elements.eccentricity",
-  "initialOrbit.inclinationDeg": "satellite.orbit.keplerian_elements.inclination_deg",
-  "initialOrbit.raanDeg": "satellite.orbit.keplerian_elements.raan_deg",
-  "initialOrbit.argPeriapsisDeg": "satellite.orbit.keplerian_elements.arg_of_perigee_deg",
-  "initialOrbit.trueAnomalyDeg": "satellite.orbit.keplerian_elements.true_anomaly_deg",
-  "spacecraft.dryMassKg": "satellite.bus.physical.mass_kg.dry",
-  "spacecraft.dragAreaM2": "satellite.bus.physical.drag_area_m2",
-  "spacecraft.dragCoefficient": "satellite.bus.physical.drag_coefficient",
-  "propulsion.ispSeconds": "satellite.bus.propulsion_subsystem.specific_impulse_seconds",
-  "stationKeeping.minimumAltitudeKm": "analysis_requests.gmat.orbit_keeping.minimum_reboost_altitude_km",
-  "stationKeeping.targetSmaKm": "analysis_requests.gmat.orbit_keeping.target_semi_major_axis_km",
-  "stationKeeping.fuelReserveKg": "analysis_requests.gmat.orbit_keeping.fuel_reserve_kg",
-  "endOfLife.finalAltitudeKm": "analysis_requests.gmat.orbit_keeping.final_altitude_km",
-  "transfer.burnDurationDays": "analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days",
-  "propulsion.minimumUsablePowerKw": "satellite.bus.propulsion_subsystem.electric_thruster.minimum_usable_power_kw",
-  "propulsion.maximumUsablePowerKw": "satellite.bus.propulsion_subsystem.electric_thruster.maximum_usable_power_kw",
-  "power.busLoadKw": "satellite.bus.electrical_subsystem.spacecraft_bus_load_kw",
-  "power.systemMarginPercent": "satellite.bus.electrical_subsystem.system_margin_percent",
+const MISSION_ORBIT_PATHS: Record<string, string> = {
+  "initialOrbit.epoch": "epoch_tai_mod_julian",
+  "initialOrbit.smaKm": "semi_major_axis_km",
+  "initialOrbit.eccentricity": "eccentricity",
+  "initialOrbit.inclinationDeg": "inclination_deg",
+  "initialOrbit.raanDeg": "raan_deg",
+  "initialOrbit.argPeriapsisDeg": "arg_of_perigee_deg",
+  "initialOrbit.trueAnomalyDeg": "true_anomaly_deg",
+}
+
+function missionDraftPaths(templateId: OrbitKeepingDraft["templateId"] | ElectricPropulsionDraft["templateId"]) {
+  const root = `analysis_requests.gmat.${analysisTemplateKey(templateId)}`
+  return {
+    ...Object.fromEntries(Object.entries(MISSION_ORBIT_PATHS).map(([draftPath, threadPath]) => [draftPath, `${root}.initial_orbit.${threadPath}`])),
+    ...(templateId === "electric-propulsion-transfer"
+      ? { "transfer.burnDurationDays": `${root}.burn_duration_days` }
+      : {
+          "stationKeeping.minimumAltitudeKm": `${root}.minimum_reboost_altitude_km`,
+          "stationKeeping.targetSmaKm": `${root}.target_semi_major_axis_km`,
+          "stationKeeping.fuelReserveKg": `${root}.fuel_reserve_kg`,
+          "endOfLife.finalAltitudeKm": `${root}.final_altitude_km`,
+        }),
+  }
 }
 
 export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft: Pick<OrbitKeepingDraft | ElectricPropulsionDraft, "templateId" | "values">) {
   const document = await loadOrCreateDigitalThread(workspaceDir)
   const provenance = document.provenance.values as { [key: string]: JsonValue }
-  for (const [draftPath, threadPath] of Object.entries(DRAFT_TO_THREAD_PATHS)) {
+  // A mission may update mission inputs only. Physical spacecraft values are
+  // owned by the selected satellite definition and cannot be overwritten by a
+  // conversation or a GMAT draft.
+  for (const [draftPath, threadPath] of Object.entries(missionDraftPaths(draft.templateId))) {
     const value = draft.values[draftPath]
     if (value === null || value === undefined || value === "") continue
     setAtPath(document, threadPath, value)
-    provenance[threadPath] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString() }
-  }
-  const propellantMass = draft.values["spacecraft.initialFuelMassKg"]
-  if (propellantMass !== null && propellantMass !== undefined && propellantMass !== "") {
-    const threadPath = draft.templateId === "electric-propulsion-transfer" ? "satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg" : "satellite.bus.physical.mass_kg.propellant"
-    setAtPath(document, threadPath, propellantMass)
     provenance[threadPath] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString() }
   }
   return saveDigitalThread(workspaceDir, document)
