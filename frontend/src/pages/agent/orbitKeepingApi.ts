@@ -57,7 +57,7 @@ export type OrbitKeepingDraft = {
 export type OrbitKeepingFile = {
   artifactId: string
   fileName: string
-  kind: 'log' | 'manifest' | 'report' | 'result' | 'script' | 'timeseries' | 'values'
+  kind: 'digital-thread' | 'ephemeris' | 'log' | 'manifest' | 'report' | 'result' | 'script' | 'timeseries' | 'values'
   mtimeMs: number
   relativePath: string
   size: number

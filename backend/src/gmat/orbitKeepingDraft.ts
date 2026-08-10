@@ -4,6 +4,7 @@ import { parseDocument } from "yaml"
 
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian, semiMajorAxisFromPeriapsisAltitude, type CartesianState, type KeplerianElements } from "./orbitCoordinates.js"
+import { requestGmatModel } from "./modelRequest.js"
 import type { OrbitKeepingValueChange, OrbitKeepingValues } from "./orbitKeepingValues.js"
 
 type DraftValue = string | number | null
@@ -47,6 +48,7 @@ export type OrbitKeepingDraft = {
   conversationStartedAt: string | null
   createdAt: string
   draftId: string
+  digitalThreadRequiredPaths?: string[]
   missing: string[]
   runs: OrbitKeepingDraftRun[]
   safety: OrbitKeepingSafetyReview
@@ -114,6 +116,25 @@ export const ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT = {
 } as const
 
 const fields = ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.fields as readonly FieldDefinition[]
+/** Values embedded in the immutable reference script. A new draft starts here. */
+const TEMPLATE_DEFAULT_VALUES: DraftValues = {
+  "endOfLife.finalAltitudeKm": 150,
+  "initialOrbit.argPeriapsisDeg": 0,
+  "initialOrbit.eccentricity": 0,
+  "initialOrbit.epoch": "31258.66709490726",
+  "initialOrbit.inclinationDeg": 15.00000000000002,
+  "initialOrbit.raanDeg": 0,
+  "initialOrbit.smaKm": 6631.1363,
+  "initialOrbit.trueAnomalyDeg": 0,
+  "propulsion.ispSeconds": 300,
+  "spacecraft.dragAreaM2": 15,
+  "spacecraft.dragCoefficient": 2.5,
+  "spacecraft.dryMassKg": 300,
+  "spacecraft.initialFuelMassKg": 10,
+  "stationKeeping.fuelReserveKg": 1,
+  "stationKeeping.minimumAltitudeKm": 250,
+  "stationKeeping.targetSmaKm": 6631.1363,
+}
 const CARTESIAN_STATE_PATHS = ["initialState.xKm", "initialState.yKm", "initialState.zKm", "initialState.vxKmPerSec", "initialState.vyKmPerSec", "initialState.vzKmPerSec"] as const
 const KEPLERIAN_ORBIT_PATHS = ["initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg"] as const
 const DERIVED_INPUT_PATHS = ["initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", "initialOrbit.utcGregorian", "coordinateConversion.request", ...CARTESIAN_STATE_PATHS] as const
@@ -141,7 +162,7 @@ function utcGregorianToTaiModJulian(utcGregorian: string) {
   return Number(taiModJulian.toFixed(12)).toString()
 }
 
-function validateValues(values: DraftValues) {
+function validateValues(values: DraftValues, additionalRequiredPaths: string[] = []) {
   const missing: string[] = []
   for (const field of fields) {
     const value = values[field.path]
@@ -159,6 +180,10 @@ function validateValues(values: DraftValues) {
     if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${field.path} must be a finite number`)
     if (field.min !== undefined && value < field.min) throw new Error(`${field.path} must be at least ${field.min}`)
     if (field.max !== undefined && value > field.max) throw new Error(`${field.path} must be at most ${field.max}`)
+  }
+  for (const fieldPath of additionalRequiredPaths) {
+    const value = values[fieldPath]
+    if ((value === null || value === undefined || value === "") && !missing.includes(fieldPath)) missing.push(fieldPath)
   }
   return missing
 }
@@ -317,7 +342,7 @@ export function assertOrbitKeepingSimulationSafety(values: OrbitKeepingValues) {
 }
 
 function refreshDraft(draft: Omit<OrbitKeepingDraft, "missing" | "safety" | "status" | "updatedAt">): OrbitKeepingDraft {
-  const missing = validateValues(draft.values)
+  const missing = validateValues(draft.values, draft.digitalThreadRequiredPaths)
   const safety = buildSafetyReview(draft.values, draft.targetSmaFollowsInitial)
   const hasSafetyErrors = safety.checks.some(check => check.severity === "error")
   return {
@@ -336,10 +361,11 @@ async function saveDraft(workspaceDir: string, draft: OrbitKeepingDraft) {
   return draft
 }
 
-export async function createOrbitKeepingDraft(workspaceDir: string) {
-  const values = Object.fromEntries(fields.map(field => [field.path, null])) as DraftValues
+export async function createOrbitKeepingDraft(workspaceDir: string, initialValues: Record<string, DraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
+  const values = Object.fromEntries(fields.map(field => [field.path, initialValues[field.path] ?? TEMPLATE_DEFAULT_VALUES[field.path] ?? null])) as DraftValues
+  if (values["stationKeeping.targetSmaKm"] === null && typeof values["initialOrbit.smaKm"] === "number") values["stationKeeping.targetSmaKm"] = values["initialOrbit.smaKm"]
   const now = new Date().toISOString()
-  const draft = refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, draftId: newDraftId(), runs: [], targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values })
+  const draft = refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values })
   return saveDraft(workspaceDir, draft)
 }
 
@@ -418,19 +444,19 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
     "Return YAML only, with exactly: message: string; updates: [{ path: known path, value: string|number }]. Always include updates: [], even when no value is recorded.",
     "Use human language in message; never expose internal field paths there.",
     `Known fields: ${fields.map(field => `${field.path} (${field.label}${field.unit ? `, ${field.unit}` : ""}${field.required ? ", mandatory" : ", optional"})`).join("; ")}`,
+    draft.digitalThreadRequiredPaths?.length ? `For this digital-thread-managed run, these fields are mandatory even if the legacy template marks them optional: ${draft.digitalThreadRequiredPaths.join(", ")}.` : "",
     `Derived input: when the engineer gives a circular-orbit altitude in km, emit { path: initialOrbit.altitudeKm, value: number }. The backend deterministically converts it to initialOrbit.smaKm by adding Earth equatorial radius ${EARTH_EQUATORIAL_RADIUS_KM} km. For a perigee altitude and eccentricity, emit initialOrbit.periapsisAltitudeKm and initialOrbit.eccentricity; the backend computes SMA = (Earth equatorial radius + periapsis altitude) / (1 - ECC). Do not calculate either conversion yourself.`,
     "Deterministic coordinate conversions are available. If a Cartesian initial state is supplied, emit initialState.xKm, initialState.yKm, initialState.zKm (km) and initialState.vxKmPerSec, initialState.vyKmPerSec, initialState.vzKmPerSec (km/s); the backend converts it to the Keplerian orbit fields. To display the Cartesian equivalent of complete Keplerian inputs, emit coordinateConversion.request with value keplerian_to_cartesian. Never calculate those conversions yourself.",
-    "RAAN, argument of periapsis, true anomaly, drag area, drag coefficient, specific impulse, fuel reserve, and final altitude are optional. If omitted, the fixed template defaults are kept.",
+    draft.digitalThreadRequiredPaths?.length ? "Only RAAN, argument of periapsis, and true anomaly may retain their explicit orientation defaults. Do not use legacy spacecraft or mission-policy defaults for a digital-thread-managed run." : "RAAN, argument of periapsis, true anomaly, drag area, drag coefficient, specific impulse, fuel reserve, and final altitude are optional. If omitted, the fixed template defaults are kept.",
     "Target semi-major axis follows the initial semi-major axis by default. Only emit stationKeeping.targetSmaKm when the engineer explicitly asks for a different target.",
     `Current values: ${JSON.stringify(draft.values)}`,
     conversation.length ? `Recent conversation: ${JSON.stringify(conversation)}` : "Recent conversation: none; begin by helping the engineer define the mission.",
     `Engineer message: ${message}`,
   ].join("\n\n")
-  const response = await fetchImpl(`${connection.baseUrl.replace(/\/+$/u, "")}/responses`, {
+  const response = await requestGmatModel(fetchImpl, `${connection.baseUrl.replace(/\/+$/u, "")}/responses`, {
     method: "POST",
     headers: { Authorization: `Bearer ${connection.apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: connection.model, input: prompt, max_output_tokens: 900 }),
-    signal: AbortSignal.timeout(60_000),
   })
   const body = await response.text()
   if (!response.ok) throw new Error(`LLM draft request failed: HTTP ${response.status}`)
@@ -477,8 +503,13 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
   return saveDraft(workspaceDir, next)
 }
 
-export async function confirmOrbitKeepingDraft(workspaceDir: string, draftId: string) {
-  const draft = await loadOrbitKeepingDraft(workspaceDir, draftId)
+export async function confirmOrbitKeepingDraft(workspaceDir: string, draftId: string, authoritativeValues?: Record<string, DraftValue>) {
+  let draft = await loadOrbitKeepingDraft(workspaceDir, draftId)
+  if (authoritativeValues) {
+    const values = { ...draft.values }
+    for (const field of fields) if (authoritativeValues[field.path] !== undefined) values[field.path] = authoritativeValues[field.path]
+    draft = await saveDraft(workspaceDir, refreshDraft({ ...draft, confirmed: false, values }))
+  }
   if (draft.missing.length) throw new Error(`GMAT draft is incomplete: ${draft.missing.join(", ")}`)
   const blockingChecks = draft.safety.checks.filter(check => check.severity === "error")
   if (blockingChecks.length) throw new Error(`GMAT physical sanity checks failed: ${blockingChecks.map(check => check.message).join(" ")}`)

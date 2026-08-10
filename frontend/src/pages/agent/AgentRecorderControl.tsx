@@ -58,7 +58,12 @@ const ORBIT_KEEPING_MANDATORY_FIELDS: MandatoryGmatField[] = [
   { label: 'Inclination', path: 'initialOrbit.inclinationDeg', unit: 'deg' },
   { label: 'Dry mass', path: 'spacecraft.dryMassKg', unit: 'kg' },
   { label: 'Initial fuel mass', path: 'spacecraft.initialFuelMassKg', unit: 'kg' },
+  { label: 'Drag area', path: 'spacecraft.dragAreaM2', unit: 'm²' },
+  { label: 'Drag coefficient', path: 'spacecraft.dragCoefficient' },
+  { label: 'Specific impulse', path: 'propulsion.ispSeconds', unit: 's' },
   { label: 'Minimum reboost altitude', path: 'stationKeeping.minimumAltitudeKm', unit: 'km' },
+  { label: 'Fuel reserve', path: 'stationKeeping.fuelReserveKg', unit: 'kg' },
+  { label: 'Final altitude', path: 'endOfLife.finalAltitudeKm', unit: 'km' },
 ]
 
 const ELECTRIC_TRANSFER_MANDATORY_FIELDS: MandatoryGmatField[] = [
@@ -72,6 +77,11 @@ const ELECTRIC_TRANSFER_MANDATORY_FIELDS: MandatoryGmatField[] = [
   { label: 'Dry mass', path: 'spacecraft.dryMassKg', unit: 'kg' },
   { label: 'Initial electric propellant mass', path: 'spacecraft.initialFuelMassKg', unit: 'kg' },
   { label: 'Electric-thrust duration', path: 'transfer.burnDurationDays', unit: 'days' },
+  { label: 'Solar-array maximum power', path: 'power.initialMaxPowerKw', unit: 'kW' },
+  { label: 'Spacecraft bus load', path: 'power.busLoadKw', unit: 'kW' },
+  { label: 'Power-system margin', path: 'power.systemMarginPercent', unit: '%' },
+  { label: 'Thruster minimum power', path: 'propulsion.minimumUsablePowerKw', unit: 'kW' },
+  { label: 'Thruster maximum power', path: 'propulsion.maximumUsablePowerKw', unit: 'kW' },
 ]
 
 function mandatoryGmatFields(chatMode: AgentChatMode) {

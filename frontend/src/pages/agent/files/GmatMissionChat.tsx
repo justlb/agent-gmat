@@ -2,9 +2,12 @@ import { useState, type KeyboardEvent } from 'react'
 import type { AgentChatMode } from '../AgentRecorderControl'
 
 type Draft = {
+  assistantMessage?: string
+  confirmed: boolean
   conversation?: Array<{ assistant: string; user: string }>
+  draftId: string
   missing: string[]
-  safety?: { assumptions: Array<{ label: string; value: string }>; checks: Array<{ code: string; message: string; severity: 'error' | 'warning' }> }
+  safety: { assumptions: Array<{ label: string; value: string }>; checks: Array<{ code: string; message: string; severity: 'error' | 'warning' }> }
   status: 'blocked' | 'collecting' | 'ready' | 'confirmed'
   values: Record<string, string | number | null>
 } | null
@@ -14,13 +17,18 @@ const ORBIT_FIELDS: Field[] = [
   { label: 'Epoch', path: 'initialOrbit.epoch' }, { label: 'Initial semi-major axis', path: 'initialOrbit.smaKm', unit: 'km' },
   { label: 'Eccentricity', path: 'initialOrbit.eccentricity' }, { label: 'Inclination', path: 'initialOrbit.inclinationDeg', unit: 'deg' },
   { label: 'Dry mass', path: 'spacecraft.dryMassKg', unit: 'kg' }, { label: 'Initial fuel mass', path: 'spacecraft.initialFuelMassKg', unit: 'kg' },
-  { label: 'Minimum reboost altitude', path: 'stationKeeping.minimumAltitudeKm', unit: 'km' },
+  { label: 'Drag area', path: 'spacecraft.dragAreaM2', unit: 'm²' }, { label: 'Drag coefficient', path: 'spacecraft.dragCoefficient' },
+  { label: 'Specific impulse', path: 'propulsion.ispSeconds', unit: 's' }, { label: 'Minimum reboost altitude', path: 'stationKeeping.minimumAltitudeKm', unit: 'km' },
+  { label: 'Fuel reserve', path: 'stationKeeping.fuelReserveKg', unit: 'kg' }, { label: 'Final altitude', path: 'endOfLife.finalAltitudeKm', unit: 'km' },
 ]
 const ELECTRIC_FIELDS: Field[] = [
   { label: 'Initial epoch', path: 'initialOrbit.epoch' }, { label: 'Initial semi-major axis', path: 'initialOrbit.smaKm', unit: 'km' },
   { label: 'Initial eccentricity', path: 'initialOrbit.eccentricity' }, { label: 'Initial inclination', path: 'initialOrbit.inclinationDeg', unit: 'deg' },
   { label: 'Dry mass', path: 'spacecraft.dryMassKg', unit: 'kg' },
   { label: 'Initial electric propellant mass', path: 'spacecraft.initialFuelMassKg', unit: 'kg' }, { label: 'Electric-thrust duration', path: 'transfer.burnDurationDays', unit: 'days' },
+  { label: 'Solar-array maximum power', path: 'power.initialMaxPowerKw', unit: 'kW' }, { label: 'Spacecraft bus load', path: 'power.busLoadKw', unit: 'kW' },
+  { label: 'Power-system margin', path: 'power.systemMarginPercent', unit: '%' }, { label: 'Thruster minimum power', path: 'propulsion.minimumUsablePowerKw', unit: 'kW' },
+  { label: 'Thruster maximum power', path: 'propulsion.maximumUsablePowerKw', unit: 'kW' },
 ]
 
 export type GmatMissionChatProps = {
@@ -31,20 +39,18 @@ export type GmatMissionChatProps = {
   error: string
   busy: boolean
   pending?: { error?: string; kind: 'draft' | 'run'; message: string; status: 'sending' | 'failed' } | null
-  onChangeMode: (mode: AgentChatMode) => void
   onExecute: () => void
   onNewRun: () => void
   onRetry: () => void
   onSend: (message: string, mode: AgentChatMode) => void
 }
 
-export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, onChangeMode, onExecute, onNewRun, onRetry, onSend, pending }: GmatMissionChatProps) {
+export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, onExecute, onNewRun, onRetry, onSend, pending }: GmatMissionChatProps) {
   const [message, setMessage] = useState('')
-  const isGeneral = chatMode === 'general'
   const fields = chatMode === 'gmat-electric-propulsion' ? ELECTRIC_FIELDS : ORBIT_FIELDS
   const submit = () => {
     const prompt = message.trim()
-    if (!prompt || busy || isGeneral) return
+    if (!prompt || busy) return
     setMessage('')
     onSend(prompt, chatMode)
   }
@@ -57,13 +63,8 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
 
   return (
     <section className="gmat-mission-chat" aria-label="GMAT mission conversation">
-      <div className="gmat-mission-chat-tabs" role="group" aria-label="GMAT template">
-        <button aria-pressed={isGeneral} className={isGeneral ? 'is-selected' : ''} onClick={() => onChangeMode('general')} type="button">General</button>
-        <button aria-pressed={chatMode === 'gmat-orbit-keeping'} className={chatMode === 'gmat-orbit-keeping' ? 'is-selected' : ''} onClick={() => onChangeMode('gmat-orbit-keeping')} type="button">GMAT Orbit Keeping</button>
-        <button aria-pressed={chatMode === 'gmat-electric-propulsion'} className={chatMode === 'gmat-electric-propulsion' ? 'is-selected' : ''} onClick={() => onChangeMode('gmat-electric-propulsion')} type="button">GMAT Electric Transfer</button>
-      </div>
-      {isGeneral ? <div className="gmat-mission-chat-empty"><strong>Select a GMAT template.</strong><span>Mission drafts, runs, files, and run discussions are managed here.</span></div> : (
-        <div className="gmat-mission-chat-layout">
+      <div className="gmat-mission-chat-tabs" aria-label="Conversation channel"><span>General</span></div>
+      <div className="gmat-mission-chat-layout">
           <aside className="gmat-mission-chat-sidebar">
             {activeRunId ? <><strong>Run values</strong><span>{activeRunId}</span></> : null}
             {draft ? <>
@@ -88,8 +89,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
             </div>
             <div className="gmat-mission-composer"><textarea disabled={busy} onChange={event => setMessage(event.target.value)} onKeyDown={onKeyDown} placeholder={activeRunId ? 'Ask a question about this completed run...' : 'Describe the mission parameters to validate...'} rows={3} value={message} /><button disabled={busy || !message.trim()} onClick={submit} type="button">Send</button></div>
           </section>
-        </div>
-      )}
+      </div>
     </section>
   )
 }

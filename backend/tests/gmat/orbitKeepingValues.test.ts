@@ -44,4 +44,29 @@ describe("orbit keeping values renderer", () => {
 
     assert.equal(await fs.readFile(outputPath, "utf8"), await fs.readFile(templatePath, "utf8"))
   })
+
+  it("keeps new immutable template defaults when rendering an older values file", () => {
+    const previousTemplate = "Create Variable duration;\nduration = 30;\n"
+    const values = extractOrbitKeepingValues(previousTemplate)
+    const currentTemplate = "Create Variable duration;\nduration = 30;\nCreate EphemerisFile EphemerisFile1;\nEphemerisFile1.Filename = 'EphemerisFile1.oem';\n"
+    assert.equal(renderOrbitKeepingValues(currentTemplate, values), currentTemplate)
+  })
+
+  it("matches a historical YAML context even when YAML wrapped its command", () => {
+    const previousTemplate = "Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode = DiscardAndContinue};\n"
+    const values = extractOrbitKeepingValues(previousTemplate)
+    values.slots[0].context = "Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode =\n  DiscardAndContinue};"
+    const currentTemplate = "Create EphemerisFile EphemerisFile1;\nTarget 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode = DiscardAndContinue};\n"
+    assert.equal(renderOrbitKeepingValues(currentTemplate, values), currentTemplate)
+  })
+
+  it("matches every literal from a historical command with the same context", () => {
+    const previousTemplate = "Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode = DiscardAndContinue, ShowProgressWindow = true};\n"
+    const values = extractOrbitKeepingValues(previousTemplate)
+    for (const slot of values.slots) {
+      slot.context = "Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode =\n  DiscardAndContinue, ShowProgressWindow = true};"
+    }
+    const currentTemplate = "Create EphemerisFile EphemerisFile1;\nTarget 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode = DiscardAndContinue, ShowProgressWindow = true};\n"
+    assert.equal(renderOrbitKeepingValues(currentTemplate, values), currentTemplate)
+  })
 })

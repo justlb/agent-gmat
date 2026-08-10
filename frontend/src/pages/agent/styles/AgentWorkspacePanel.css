@@ -167,6 +167,12 @@
   transition: opacity 180ms ease, transform 220ms ease;
 }
 
+/* Mission Studio is deliberately dense: its discussion is the primary work area. */
+.agent-workspace-panel.is-mission-view { margin: 10px 14px 3px; }
+.agent-workspace-panel.is-mission-view .agent-workspace-header { min-height: 46px; padding: 0 14px; }
+.agent-workspace-panel.is-mission-view .agent-workspace-header strong { font-size: 15px; }
+.agent-workspace-panel.is-mission-view .agent-workspace-header span { font-size: 10px; margin-top: 2px; }
+
 .agent-embed-frame {
   display: block;
   width: 100%;

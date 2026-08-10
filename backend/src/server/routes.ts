@@ -14,6 +14,8 @@ import { workspaceRoutes, stageLogsRoutes } from "../workspaces/index.js"
 import { responsesCompatRoutes } from "../codex-run/responsesCompat.js"
 import { orbitKeepingRoutes } from "../gmat/orbitKeeping.routes.js"
 import { electricPropulsionRoutes } from "../gmat/electricPropulsion.routes.js"
+import { missionRouterRoutes } from "../gmat/missionRouter.routes.js"
+import { digitalThreadRoutes } from "../digitalThread/digitalThread.routes.js"
 
 export async function registerApiRoutes(
   fastify: FastifyInstance,
@@ -36,4 +38,6 @@ export async function registerApiRoutes(
   await fastify.register(funasrRoutes, { config, logger })
   await fastify.register(orbitKeepingRoutes, { config })
   await fastify.register(electricPropulsionRoutes, { config })
+  await fastify.register(missionRouterRoutes, { config })
+  await fastify.register(digitalThreadRoutes, { config })
 }

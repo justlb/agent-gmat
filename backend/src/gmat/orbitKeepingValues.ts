@@ -30,6 +30,10 @@ function safeId(value: string) {
   return value.replace(/[^A-Za-z0-9]+/gu, "_").replace(/^_+|_+$/gu, "")
 }
 
+function stableContext(value: string) {
+  return value.replace(/\s+/gu, " ").trim()
+}
+
 function locateSlots(template: string): LocatedSlot[] {
   const slots: LocatedSlot[] = []
   let lineStart = 0
@@ -148,20 +152,39 @@ export function applyOrbitKeepingValueChanges(
 
 export function renderOrbitKeepingValues(template: string, values: OrbitKeepingValues) {
   const located = locateSlots(template)
-  if (located.length !== values.slots.length) {
-    throw new Error("values YAML slot count does not match the fixed orbit-keeping template")
+  const replacementsById = new Map(values.slots.map((slot) => [slot.id, slot]))
+  const replacementsByContext = new Map<string, OrbitKeepingValueSlot[]>()
+  for (const slot of values.slots) {
+    const key = stableContext(slot.context)
+    const matches = replacementsByContext.get(key) ?? []
+    matches.push(slot)
+    replacementsByContext.set(key, matches)
   }
-
-  const replacements = new Map(values.slots.map((slot) => [slot.id, slot]))
-  let rendered = template
-  for (const expected of [...located].reverse()) {
-    const replacement = replacements.get(expected.id)
-    if (!replacement || replacement.context !== expected.context) {
-      throw new Error(`values YAML does not match template slot ${expected.id}`)
-    }
+  const contextOccurrence = new Map<string, number>()
+  const used = new Set<OrbitKeepingValueSlot>()
+  const replacements: Array<{ expected: LocatedSlot; replacement: OrbitKeepingValueSlot }> = []
+  for (const expected of located) {
+    // A template may gain immutable defaults (such as a new EphemerisFile)
+    // after a draft was written. Match old slots by their stable context when
+    // their line-based ids have shifted, and keep new template defaults intact.
+    const byId = replacementsById.get(expected.id)
+    const context = stableContext(expected.context)
+    const occurrence = contextOccurrence.get(context) ?? 0
+    const replacement = byId && stableContext(byId.context) === context
+      ? byId
+      : replacementsByContext.get(context)?.[occurrence]
+    contextOccurrence.set(context, occurrence + 1)
+    if (!replacement) continue
     assertSafeValue(replacement.value, expected.id)
+    used.add(replacement)
+    replacements.push({ expected, replacement })
+  }
+  let rendered = template
+  for (const { expected, replacement } of replacements.reverse()) {
     rendered = `${rendered.slice(0, expected.start)}${replacement.value}${rendered.slice(expected.end)}`
   }
+  const unmatched = values.slots.filter(slot => !used.has(slot))
+  if (unmatched.length) throw new Error(`values YAML does not match template slot ${unmatched[0].id}`)
   return rendered
 }
 

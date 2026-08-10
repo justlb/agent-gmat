@@ -9,13 +9,11 @@ export type AgentNavItem = {
 }
 
 export const NAV_ITEMS: AgentNavItem[] = [
-  { label: 'Workspace', href: '#workspace', meta: 'Workspace' },
-  { label: 'Config', href: '#bom', meta: 'Config' },
-  { label: 'Preview', href: '#model', meta: 'Preview' },
-  { label: 'Tools', href: '#tools', meta: 'Tools' },
-  { label: 'Files', href: '#log', meta: 'Files' },
+  { label: 'Satellites', href: '#satellites', meta: 'Library' },
+  { label: 'Results', href: '#tools', meta: 'GMAT Analysis' },
+  { label: 'Mission Studio', href: '#mission', meta: 'Missions' },
 ]
-export const NAV_VIEWS: AgentWorkspaceView[] = ['workspace', 'bom', 'model', 'tools', 'log']
+export const NAV_VIEWS: AgentWorkspaceView[] = ['satellites', 'tools', 'mission']
 export const WORKSPACE_GEOMETRY_AFTER_GLB_PATH = '01_cad/geometry_after.glb'
 export const CONVERSATION_HISTORY_RELATIVE_PATH = 'logs/conversation-history.json'
 export const CONVERSATION_PREVIEW_SESSION_LIMIT = 3

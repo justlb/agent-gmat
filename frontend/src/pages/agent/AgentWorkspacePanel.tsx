@@ -12,6 +12,8 @@ import { ComplianceCheckInputConfigEditor } from './ComplianceCheckInputConfigEd
 import { GmatAnalysisPanel } from './GmatAnalysisPanel'
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { AgentFilesView } from './files/AgentFilesView'
+import { SatelliteLibrary } from './SatelliteLibrary'
+import { MissionStudio } from './MissionStudio'
 import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
 
 type CurrentWorkspaceCardProps = ComponentProps<typeof CurrentWorkspaceCard>
@@ -41,6 +43,7 @@ type AgentWorkspacePanelProps = {
   createVersionFromInput: CurrentWorkspaceCardProps['onCreateVersionFromInput']
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
   manifestLoading: boolean
+  onSelectGmatDraft?: AgentFilesViewProps['onSelectGmatDraft']
   onSelectGmatRun?: AgentFilesViewProps['onSelectGmatRun']
   gmatMissionChat: AgentFilesViewProps['gmatMissionChat']
   selectedBom: BomStagePanelProps['selectedBom']
@@ -66,6 +69,7 @@ type AgentWorkspacePanelProps = {
   workspaceChanging: boolean
   workspaceItems: CurrentWorkspaceCardProps['workspaceItems']
   workspaceRefreshNonce?: number
+  satelliteRefreshNonce?: number
 }
 
 function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showComplianceCheckConfig: boolean, showGncConfig: boolean) {
@@ -75,6 +79,8 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showCompl
   if (activeView === 'model') return 'Preview'
   if (activeView === 'tools') return showGncConfig ? 'GNC Tools' : 'Simulation Tools'
   if (activeView === 'log') return 'Workspace Files'
+  if (activeView === 'satellites') return 'Satellite Library'
+  if (activeView === 'mission') return 'Mission Studio'
   return 'Voice chat'
 }
 
@@ -97,6 +103,7 @@ export function AgentWorkspacePanel({
   createVersionFromInput,
   handleSelectFile,
   manifestLoading,
+  onSelectGmatDraft,
   onSelectGmatRun,
   gmatMissionChat,
   selectedBom,
@@ -122,6 +129,7 @@ export function AgentWorkspacePanel({
   workspaceChanging,
   workspaceItems,
   workspaceRefreshNonce = 0,
+  satelliteRefreshNonce = 0,
 }: AgentWorkspacePanelProps) {
   const panelClassName = [
     'agent-workspace-panel',
@@ -265,18 +273,40 @@ export function AgentWorkspacePanel({
           ) : (
             <div className="agent-empty-state">This simulation tool has no remote window available.</div>
           )
-        ) : (
-          <AgentFilesView
+        ) : activeView === 'satellites' ? (
+          <SatelliteLibrary workspaceDir={activeContext.versionDir} onSelected={refreshWorkspaceViews} />
+        ) : activeView === 'mission' ? (
+          <MissionStudio
             activeGmatRunPath={activeGmatRunPath}
             activeGmatRunId={activeGmatRunId}
             activeContext={activeContext}
             handleSelectFile={handleSelectFile}
+            onSelectGmatDraft={onSelectGmatDraft}
             onSelectGmatRun={onSelectGmatRun}
             gmatMissionChat={gmatMissionChat}
             selectedFileError={selectedFileError}
             selectedFileLoading={selectedFileLoading}
             selectedFilePath={selectedFilePath}
             selectedFilePreview={selectedFilePreview}
+            workspaceRefreshNonce={workspaceRefreshNonce}
+            workspaceDir={activeContext.versionDir}
+            refreshSatellite={satelliteRefreshNonce}
+            onSatelliteSelected={refreshWorkspaceViews}
+          />
+        ) : (
+          <AgentFilesView
+            activeGmatRunPath={activeGmatRunPath}
+            activeGmatRunId={activeGmatRunId}
+            activeContext={activeContext}
+            handleSelectFile={handleSelectFile}
+            onSelectGmatDraft={onSelectGmatDraft}
+            onSelectGmatRun={onSelectGmatRun}
+            gmatMissionChat={gmatMissionChat}
+            selectedFileError={selectedFileError}
+            selectedFileLoading={selectedFileLoading}
+            selectedFilePath={selectedFilePath}
+            selectedFilePreview={selectedFilePreview}
+            workspaceDir={activeContext.versionDir}
             workspaceRefreshNonce={workspaceRefreshNonce}
           />
         )}

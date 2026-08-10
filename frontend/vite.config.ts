@@ -89,6 +89,13 @@ export default defineConfig(({ mode }) => {
       host: frontend.host ?? "0.0.0.0",
       port: useHttps ? frontendHttpsPort : frontendPort,
       strictPort: frontend.strictPort ?? true,
+      // The development server may run in WSL while Codex edits files from
+      // Windows. In that setup filesystem events are not always forwarded,
+      // so polling keeps HMR reliable without restarting the backend.
+      watch: {
+        usePolling: true,
+        interval: 500,
+      },
       ...(useHttps ? { https: {} } : {}),
       proxy: {
         "/api": {

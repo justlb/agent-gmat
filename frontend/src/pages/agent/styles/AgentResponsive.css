@@ -10,7 +10,7 @@
 
   .agent-stage {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) 132px 104px;
+    grid-template-rows: minmax(0, 1fr) 0 78px;
   }
 
   .agent-file-stage {

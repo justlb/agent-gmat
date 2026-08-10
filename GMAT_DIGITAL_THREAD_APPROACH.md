@@ -33,6 +33,28 @@ AI-assisted interpretation and engineering discussion
 
 The language model is used to understand natural-language requests and explain results. It is not allowed to write arbitrary GMAT syntax or change the structure of an engineering model.
 
+## Satellite JSON as the source of truth
+
+Each workspace owns one versioned engineering document:
+
+```text
+digital-thread/satellite.json
+```
+
+It is created from `data/templates/satellite.digital-thread.template.json`. The template describes identity, orbit, bus subsystems, payload, lifecycle, analysis requests, provenance, and deterministic derivations. Empty values are `null`; tutorial values are never treated as satellite facts.
+
+For every managed mission discussion, the LLM may emit only value patches against known JSON leaf paths. The backend rejects unknown paths and records provenance. Before a tool can run, its adapter reads this JSON, derives tool-specific inputs, and returns explicit missing-data guards. GMAT execution reloads the JSON immediately before confirmation/execution, so the digital thread remains authoritative.
+
+The current GMAT adapter maps the orbital state, masses, drag, propulsion and mission-policy values. For an electric transfer it also derives the initial maximum solar power from either:
+
+```text
+declared total generated power
+or
+1361 W/m² × total array area × cell efficiency
+```
+
+Bus load, power margin, and electric-thruster usable-power limits also come from the JSON. Each managed run receives an immutable `satellite.digital-thread.json` snapshot; its schema version, revision, thread ID, and SHA-256 are recorded in `run_manifest.json`.
+
 ## GMAT orbit-keeping implementation
 
 ### Fixed template and controlled parameters

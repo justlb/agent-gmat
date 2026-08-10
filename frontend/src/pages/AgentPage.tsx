@@ -15,9 +15,11 @@ import { AgentRecorderControl } from './agent/AgentRecorderControl'
 import { AgentSideNav } from './agent/AgentSideNav'
 import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
+import type { GmatSavedDraft } from './agent/files/AgentFilesView'
 import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex, type ManagedModelBackend } from './agent/managedRun'
 import { analyzeElectricPropulsionRun, confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussElectricPropulsionDraft, executeElectricPropulsionDraftWithProgress, getElectricPropulsionRunConversation, listElectricPropulsionDrafts, openElectricPropulsionRunInGui } from './agent/electricPropulsionApi'
 import { analyzeOrbitKeepingRun, confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraftWithProgress, getOrbitKeepingRunConversation, listOrbitKeepingDrafts, openOrbitKeepingRunInGui, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingProgressEvent, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
+import { routeMissionMessage } from './agent/missionRoutingApi'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -83,6 +85,7 @@ export default function AgentPage() {
   const [conversationPanelOpen, setConversationPanelOpen] = useState(false)
   const [progressPanelOpen, setProgressPanelOpen] = useState(false)
   const [workspaceRefreshNonce, setWorkspaceRefreshNonce] = useState(0)
+  const [satelliteRefreshNonce, setSatelliteRefreshNonce] = useState(0)
   const [progressRefreshNonce, setProgressRefreshNonce] = useState(0)
   const [inputMode, setInputMode] = useState<AgentInputMode>('text')
   const [chatMode, setChatMode] = useState<ChatMode>('general')
@@ -109,6 +112,7 @@ export default function AgentPage() {
     setSelectedBomId('')
     setWorkspaceRefreshNonce(value => value + 1)
     setProgressRefreshNonce(value => value + 1)
+    setSatelliteRefreshNonce(value => value + 1)
   }, [])
   const versionState = useWorkspaceVersionState({
     fallbackWorkspaceName: 'Current workspace',
@@ -475,20 +479,6 @@ export default function AgentPage() {
     setInputMode(nextMode)
   }, [agentSpeechPlaying, agentSpeechState, cancelRecording, clearAgentSpeechDisplay, clearRecorderDisplay, inputMode, state, stopAgentSpeechPlayback])
 
-  const handleChatModeChange = useCallback((nextMode: ChatMode) => {
-    if (nextMode === chatMode) return
-    if (state === 'recording') cancelRecording()
-    if (agentSpeechPlaying || agentSpeechState === 'synthesizing') stopAgentSpeechPlayback()
-    clearAgentSpeechDisplay()
-    clearRecorderDisplay()
-    setManagedRunError('')
-    setTextInputDisplay('')
-    setActiveGmatDraft(null)
-    setActiveGmatRun(null)
-    setPendingGmatMessage(null)
-    setChatMode(nextMode)
-  }, [agentSpeechPlaying, agentSpeechState, cancelRecording, chatMode, clearAgentSpeechDisplay, clearRecorderDisplay, state, stopAgentSpeechPlayback])
-
   const handleNavSelect = useCallback((item: (typeof NAV_ITEMS)[number], _index: number, event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault()
     const nextView = NAV_VIEWS.find(view => item.href === `#${view}`) ?? 'workspace'
@@ -518,7 +508,34 @@ export default function AgentPage() {
     setTextInputDisplay(prompt)
     const selectedMode = forcedMode ?? chatMode
     if (selectedMode === 'general') {
-      void runCodex(prompt, 'text')
+      setGmatGenerating(true)
+      setPendingGmatMessage({ kind: 'draft', message: prompt, status: 'sending' })
+      setGmatWorkflowEntries(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'running'))
+      void routeMissionMessage(prompt, activeContext.versionDir)
+        .then(result => {
+          setPendingGmatMessage(null)
+          if (result.kind === 'mission') {
+            setChatMode(result.template === 'electric-propulsion-transfer' ? 'gmat-electric-propulsion' : 'gmat-orbit-keeping')
+            setActiveGmatDraft(result.draft)
+            showSpeechText(result.draft.assistantMessage || result.message)
+            setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'draft_llm', 'completed'), 'validate_draft', 'completed') : entries)
+            return
+          }
+          if (result.kind === 'general') {
+            setGmatWorkflowEntries(null)
+            void runCodex(prompt, 'text')
+            return
+          }
+          showSpeechText(result.message)
+          setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'completed') : entries)
+        })
+        .catch(reason => {
+          const message = reason instanceof Error ? reason.message : 'Mission routing failed'
+          setManagedRunError(message)
+          setPendingGmatMessage(current => current?.message === prompt ? { ...current, error: message, status: 'failed' } : current)
+          setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'failed') : entries)
+        })
+        .finally(() => setGmatGenerating(false))
       return
     }
     setGmatGenerating(true)
@@ -573,6 +590,8 @@ export default function AgentPage() {
         'propulsion.maximumUsablePowerKw': 'maximum usable power',
         'propulsion.minimumUsablePowerKw': 'minimum usable power',
         'power.initialMaxPowerKw': 'initial solar-array power',
+        'power.busLoadKw': 'spacecraft bus load',
+        'power.systemMarginPercent': 'power-system margin',
       }
       const missing = draft.missing.length
         ? `\nStill needed: ${draft.missing.map(field => labels[field] ?? field).join(', ')}.`
@@ -662,6 +681,26 @@ export default function AgentPage() {
       .catch(reason => { setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft execution failed'); setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_gmat', 'failed') : entries) })
       .finally(() => setGmatGenerating(false))
   }, [activeContext.versionDir, activeGmatDraft, gmatGenerating, refreshWorkspaceViews, showSpeechText])
+  const handleNewGmatDraft = useCallback(() => {
+    if (gmatGenerating) return
+    setActiveGmatRun(null)
+    setActiveGmatDraft(null)
+    setPendingGmatMessage(null)
+    setManagedRunError('')
+
+    // Persist the conversation before the assistant is contacted. This lets the
+    // Mission Files panel show and reopen it even if the model request fails.
+    const createDraft = chatMode === 'gmat-electric-propulsion' ? createElectricPropulsionDraft : createOrbitKeepingDraft
+    setGmatGenerating(true)
+    void createDraft(activeContext.versionDir)
+      .then(draft => {
+        setActiveGmatDraft(draft)
+        refreshWorkspaceViews()
+        showSpeechText(`New GMAT mission draft ${draft.draftId} created.`)
+      })
+      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft creation failed'))
+      .finally(() => setGmatGenerating(false))
+  }, [activeContext.versionDir, chatMode, gmatGenerating, refreshWorkspaceViews, showSpeechText])
   const displayedSessionStatus = managedVoiceRunning || latestManagedStatus?.status === 'running'
     ? 'running'
     : latestManagedStatus?.status === 'completed' || latestManagedStatus?.status === 'partial'
@@ -779,20 +818,22 @@ export default function AgentPage() {
             draft: activeGmatDraft,
             error: error || managedRunError,
             pending: pendingGmatMessage,
-            onChangeMode: handleChatModeChange,
             onExecute: handleExecuteGmatDraft,
-            onNewRun: () => {
-              setActiveGmatRun(null)
-              setActiveGmatDraft(null)
-              setPendingGmatMessage(null)
-              setManagedRunError('')
-            },
+            onNewRun: handleNewGmatDraft,
             onRetry: () => {
               if (pendingGmatMessage?.status === 'failed') handleTextSubmit(pendingGmatMessage.message, chatMode)
             },
             onSend: (message, mode) => handleTextSubmit(message, mode),
           }}
           manifestLoading={manifestLoading}
+          onSelectGmatDraft={(draft: GmatSavedDraft) => {
+            setActiveGmatRun(null)
+            setActiveGmatDraft(draft)
+            setPendingGmatMessage(null)
+            setChatMode(draft.missionType === 'electric-propulsion-transfer' ? 'gmat-electric-propulsion' : 'gmat-orbit-keeping')
+            setManagedRunError('')
+            showSpeechText(`Draft ${draft.draftId} reopened. You can continue the mission discussion without rerunning GMAT.`)
+          }}
           onSelectGmatRun={run => {
             setActiveGmatRun({ ...run, conversation: [] })
             const isElectricTransfer = run.runPath.includes('gmat/electric-propulsion-transfer/') || run.runPath.includes('gmat\\electric-propulsion-transfer\\')
@@ -833,8 +874,10 @@ export default function AgentPage() {
           workspaceChanging={workspaceChanging}
           workspaceItems={workspaceItems}
           workspaceRefreshNonce={workspaceRefreshNonce}
+          satelliteRefreshNonce={satelliteRefreshNonce}
         />
 
+        <div hidden aria-hidden="true">
         <AgentRecorderControl
           activeGmatRunId={activeGmatRun?.runId}
           gmatRunConversation={activeGmatRun?.conversation}
@@ -842,7 +885,7 @@ export default function AgentPage() {
           agentSpeechError={agentSpeechError}
           agentSpeechState={agentSpeechState}
           busy={recordButtonBusy}
-          chatMode="general"
+          chatMode={chatMode}
           disabled={recordButtonDisabled}
           error={error || managedRunError}
           gmatDraft={activeGmatDraft}
@@ -851,17 +894,14 @@ export default function AgentPage() {
           onButtonClick={handleButtonClick}
           onExecuteGmatDraft={handleExecuteGmatDraft}
           onStartNewGmatRun={() => {
-            setActiveGmatRun(null)
-            setActiveGmatDraft(null)
-            setPendingGmatMessage(null)
             clearAgentSpeechDisplay()
-            setManagedRunError('')
+            handleNewGmatDraft()
           }}
           onRetryGmatMessage={() => {
             if (pendingGmatMessage?.status === 'failed') handleTextSubmit(pendingGmatMessage.message, chatMode)
           }}
           onTextChange={setTextInput}
-          onTextSubmit={() => handleTextSubmit(undefined, 'general')}
+          onTextSubmit={() => handleTextSubmit()}
           recorderStatusText={inputMode === 'text' ? textRecorderStatusText : recorderStatusText}
           state={state}
           text={inputMode === 'text' ? textInputDisplay : text}
@@ -869,6 +909,7 @@ export default function AgentPage() {
           textInputValue={textInput}
           visibleAgentResponse={visibleAgentResponse}
         />
+        </div>
       </section>
     </main>
   )

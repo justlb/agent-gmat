@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "digital_thread": {
+    "thread_id": null,
+    "revision": 0,
+    "created_at": null,
+    "updated_at": null
+  },
+  "satellite": {
+    "identity": {
+      "name": null,
+      "cospar_id": null,
+      "norad_id": null,
+      "operator": null,
+      "country": null,
+      "mission_type": null,
+      "mission_objective": null,
+      "status": null
+    },
+    "orbit": {
+      "reference_epoch_utc": null,
+      "reference_epoch_tai_mod_julian": null,
+      "central_body": "Earth",
+      "reference_frame": "EarthMJ2000Eq",
+      "keplerian_elements": {
+        "semi_major_axis_km": null,
+        "eccentricity": null,
+        "inclination_deg": null,
+        "raan_deg": null,
+        "arg_of_perigee_deg": null,
+        "true_anomaly_deg": null,
+        "mean_anomaly_deg": null
+      },
+      "operational_parameters": {
+        "orbit_type": null,
+        "altitude_km": { "perigee": null, "apogee": null, "mean": null },
+        "orbital_period_minutes": null,
+        "local_solar_time": null,
+        "repeat_cycle_days": null
+      }
+    },
+    "bus": {
+      "physical": {
+        "mass_kg": { "dry": null, "wet_at_launch": null, "propellant": null },
+        "dimensions_meters": { "body_length": null, "body_width": null, "body_height": null, "solar_array_span": null },
+        "drag_area_m2": null,
+        "drag_coefficient": null,
+        "structure_material": null
+      },
+      "propulsion_subsystem": {
+        "type": null,
+        "main_engine_thrust_n": null,
+        "reaction_control_thrusters_n": null,
+        "specific_impulse_seconds": null,
+        "delta_v_mps": null,
+        "propellant_pressure_regulation": null,
+        "electric_thruster": {
+          "propellant_mass_kg": null,
+          "minimum_usable_power_kw": null,
+          "maximum_usable_power_kw": null
+        }
+      },
+      "electrical_subsystem": {
+        "solar_panels": {
+          "type": null,
+          "efficiency_percent": null,
+          "total_area_m2": null,
+          "total_power_generated_watts": null,
+          "array_orientation": null
+        },
+        "batteries": { "chemistry": null, "capacity_ah": null, "voltage_v": null, "depth_of_discharge_percent": null },
+        "bus_voltage_v": null,
+        "spacecraft_bus_load_kw": null,
+        "system_margin_percent": null
+      },
+      "attitude_control_subsystem": {
+        "pointing_accuracy_arcsec": null,
+        "pointing_stability_arcsec_per_sec": null,
+        "actuators": { "reaction_wheels": null, "magnetic_torquers": null, "thrusters": null },
+        "sensors": { "star_trackers": null, "sun_sensors": null, "inertial_measurement_unit": null, "earth_horizon_sensors": null }
+      },
+      "thermal_subsystem": {
+        "control_method": null,
+        "operational_temp_range_celsius": { "min": null, "max": null },
+        "radiators_area_m2": null
+      },
+      "telecom_subsystem": {
+        "ttc_band": null,
+        "ttc_uplink_frequency_ghz": null,
+        "ttc_downlink_frequency_ghz": null,
+        "telemetry_data_rate_kbps": null,
+        "command_data_rate_kbps": null,
+        "antenna_type": null,
+        "payload_data_downlink": { "band": null, "frequency_ghz": null, "max_data_rate_mbps": null }
+      }
+    },
+    "payload": {
+      "primary_instrument": {
+        "name": null,
+        "type": null,
+        "optical_system": { "aperture_meters": null, "focal_length_meters": null, "f_number": null },
+        "spectral_bands": [],
+        "swath_width_km": null,
+        "radiometric_resolution_bits": null,
+        "signal_to_noise_ratio": null,
+        "detector_cooling": null,
+        "onboard_processing": { "compression": null, "storage_capacity_gb": null, "processing_unit": null }
+      },
+      "secondary_instrument": { "name": null, "type": null, "ground_resolution_km": null, "bands_count": null }
+    },
+    "mission_lifecycle": {
+      "launch": { "launch_date": null, "launch_site": null, "launch_vehicle": null, "deployment_altitude_km": null, "injection_accuracy": null },
+      "lifetime": { "design_lifetime_years": null, "consumables_end_of_life_years": null, "expected_decommissioning_year": null },
+      "end_of_life_plan": { "strategy": null, "target_reentry_point": null, "passivation": null, "residual_propellant_required_kg": null, "graveyard_orbit_altitude_km": null }
+    }
+  },
+  "analysis_requests": {
+    "gmat": {
+      "orbit_keeping": { "minimum_reboost_altitude_km": null, "target_semi_major_axis_km": null, "fuel_reserve_kg": null, "final_altitude_km": null },
+      "electric_propulsion_transfer": { "burn_duration_days": null }
+    }
+  },
+  "provenance": {
+    "values": {},
+    "derivations": []
+  }
+}

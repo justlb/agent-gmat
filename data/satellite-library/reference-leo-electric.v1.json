@@ -1,0 +1,24 @@
+{
+  "id": "ref-leo-electric",
+  "version": "1.0.0",
+  "name": "Reference LEO Electric",
+  "description": "Reference spacecraft for a low-Earth-orbit electric-propulsion transfer.",
+  "capabilities": ["GMAT", "Simu-CIC", "OPALIS"],
+  "mission_templates": ["electric-propulsion-transfer"],
+  "satellite": {
+    "identity": { "name": "Reference LEO Electric", "operator": "Reference program", "mission_type": "Earth observation" },
+    "orbit": {
+      "reference_epoch_tai_mod_julian": 31253.500428240746,
+      "central_body": "Earth",
+      "reference_frame": "EarthMJ2000Eq",
+      "keplerian_elements": { "semi_major_axis_km": 7178.1363, "eccentricity": 0, "inclination_deg": 0, "raan_deg": 0, "arg_of_perigee_deg": 0, "true_anomaly_deg": 0, "mean_anomaly_deg": null },
+      "operational_parameters": { "orbit_type": "LEO", "altitude_km": { "perigee": 800, "apogee": 800, "mean": 800 } }
+    },
+    "bus": {
+      "physical": { "mass_kg": { "dry": 850, "wet_at_launch": 1606, "propellant": 756 }, "drag_area_m2": 8.0, "drag_coefficient": 2.2 },
+      "propulsion_subsystem": { "type": "Electric propulsion", "specific_impulse_seconds": 4200, "electric_thruster": { "propellant_mass_kg": 756, "minimum_usable_power_kw": 0.638, "maximum_usable_power_kw": 5 } },
+      "electrical_subsystem": { "solar_panels": { "type": "Triple-junction GaAs", "efficiency_percent": 30, "total_area_m2": 49.7, "total_power_generated_watts": 15000, "array_orientation": "Sun tracking" }, "batteries": { "chemistry": "Li-ion", "capacity_ah": 8.28 }, "bus_voltage_v": 100, "spacecraft_bus_load_kw": 1.5, "system_margin_percent": 15 }
+    }
+  },
+  "analysis_requests": { "gmat": { "electric_propulsion_transfer": { "burn_duration_days": 30 } } }
+}

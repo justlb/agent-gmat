@@ -4,6 +4,7 @@ import { parseDocument } from "yaml"
 
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian, semiMajorAxisFromPeriapsisAltitude, type CartesianState, type KeplerianElements } from "./orbitCoordinates.js"
+import { requestGmatModel } from "./modelRequest.js"
 import type { ElectricPropulsionValueChange, ElectricPropulsionValues } from "./electricPropulsionValues.js"
 
 type DraftValue = string | number | null
@@ -30,6 +31,7 @@ export type ElectricPropulsionDraft = {
   conversationStartedAt: string | null
   createdAt: string
   draftId: string
+  digitalThreadRequiredPaths?: string[]
   missing: string[]
   runs: ElectricPropulsionDraftRun[]
   safety: ElectricPropulsionSafetyReview
@@ -42,8 +44,8 @@ export type ElectricPropulsionDraft = {
 const MINIMUM_SAFE_ALTITUDE_KM = 120
 const THRUST_POLYNOMIAL_MIN_POWER_KW = 0.638
 const THRUST_POLYNOMIAL_MAX_POWER_KW = 7.266
-const POWER_SYSTEM_BUS_LOAD_KW = 0.3
-const POWER_SYSTEM_MARGIN = 0.05
+const DEFAULT_POWER_SYSTEM_BUS_LOAD_KW = 0.3
+const DEFAULT_POWER_SYSTEM_MARGIN_PERCENT = 5
 const DEFAULT_INITIAL_SOLAR_POWER_KW = 1.2
 const DEFAULT_INITIAL_ANGLE_DEG = 0
 const JULIAN_DATE_AT_UNIX_EPOCH = 2440587.5
@@ -83,6 +85,8 @@ export const ELECTRIC_PROPULSION_TRANSFER_CONTRACT = {
     { context: "ElectricThruster1.MaximumUsablePower", label: "Maximum usable thruster power", max: THRUST_POLYNOMIAL_MAX_POWER_KW, min: 0.001, path: "propulsion.maximumUsablePowerKw", required: false, unit: "kW" },
     { context: "ElectricThruster1.MinimumUsablePower", label: "Minimum usable thruster power", max: THRUST_POLYNOMIAL_MAX_POWER_KW, min: 0.001, path: "propulsion.minimumUsablePowerKw", required: false, unit: "kW" },
     { context: "SolarPowerSystem1.InitialMaxPower", label: "Initial solar-array maximum power", max: 50, min: 0.001, path: "power.initialMaxPowerKw", required: false, unit: "kW" },
+    { context: "SolarPowerSystem1.BusCoeff1", label: "Spacecraft bus load", max: 50, min: 0, path: "power.busLoadKw", required: false, unit: "kW" },
+    { context: "SolarPowerSystem1.Margin", label: "Power-system margin", max: 99, min: 0, path: "power.systemMarginPercent", required: false, unit: "%" },
   ] satisfies FieldDefinition[],
 } as const
 
@@ -118,7 +122,7 @@ function taiModJulianToUtcGregorian(value: string) {
   const pad = (number: number, width = 2) => String(number).padStart(width, "0")
   return `''${pad(date.getUTCDate())} ${month} ${date.getUTCFullYear()} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}.${pad(date.getUTCMilliseconds(), 3)}''`
 }
-function validateValues(values: DraftValues) {
+function validateValues(values: DraftValues, additionalRequiredPaths: string[] = []) {
   const missing: string[] = []
   for (const field of fields) {
     const value = values[field.path]
@@ -131,6 +135,10 @@ function validateValues(values: DraftValues) {
     if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${field.path} must be a finite number`)
     if (field.min !== undefined && value < field.min) throw new Error(`${field.path} must be at least ${field.min}`)
     if (field.max !== undefined && value > field.max) throw new Error(`${field.path} must be at most ${field.max}`)
+  }
+  for (const fieldPath of additionalRequiredPaths) {
+    const value = values[fieldPath]
+    if ((value === null || value === undefined || value === "") && !missing.includes(fieldPath)) missing.push(fieldPath)
   }
   return missing
 }
@@ -203,7 +211,9 @@ function buildSafetyReview(values: DraftValues): ElectricPropulsionSafetyReview 
   // The solar InitialEpoch is derived from the mission Epoch at render time, so
   // InitialMaxPower represents a new array at the start of every mission.
   // Eclipse, Earth-Sun distance, and penumbra can still reduce this estimate.
-  const nominalThrustPower = Math.max(0, (initialSolarPower - POWER_SYSTEM_BUS_LOAD_KW) * (1 - POWER_SYSTEM_MARGIN))
+  const busLoadKw = numberOrDefault(values, "power.busLoadKw", DEFAULT_POWER_SYSTEM_BUS_LOAD_KW)
+  const systemMarginPercent = numberOrDefault(values, "power.systemMarginPercent", DEFAULT_POWER_SYSTEM_MARGIN_PERCENT)
+  const nominalThrustPower = Math.max(0, (initialSolarPower - busLoadKw) * (1 - systemMarginPercent / 100))
   if (typeof dryMass === "number" && dryMass <= 0) checks.push({ code: "dry_mass", message: "Dry mass must be strictly positive.", severity: "error" })
   if (typeof fuelMass === "number" && fuelMass <= 0) checks.push({ code: "propellant_mass", message: "Electric propellant mass must be strictly positive.", severity: "error" })
   if (minPower >= maxPower) checks.push({ code: "power_range", message: "Minimum usable thruster power must be strictly lower than maximum usable power.", severity: "error" })
@@ -223,13 +233,15 @@ function buildSafetyReview(values: DraftValues): ElectricPropulsionSafetyReview 
       { label: "Minimum usable power", value: `${valueOrDefault(values, "propulsion.minimumUsablePowerKw", 0.638)} kW` },
       { label: "Thrust model", value: "ThrustMassPolynomial (Isp is not used by this fixed model)" },
       { label: "Initial solar-array maximum power", value: `${valueOrDefault(values, "power.initialMaxPowerKw", DEFAULT_INITIAL_SOLAR_POWER_KW)} kW` },
+      { label: "Spacecraft bus load", value: `${valueOrDefault(values, "power.busLoadKw", DEFAULT_POWER_SYSTEM_BUS_LOAD_KW)} kW` },
+      { label: "Power-system margin", value: `${valueOrDefault(values, "power.systemMarginPercent", DEFAULT_POWER_SYSTEM_MARGIN_PERCENT)} %` },
       { label: "Solar-array reference epoch", value: "Automatically synchronized to the mission epoch" },
-      { label: "Optimistic initial thrust power", value: `${nominalThrustPower.toFixed(3)} kW (after fixed 0.3 kW bus load and 5% margin)` },
+      { label: "Optimistic initial thrust power", value: `${nominalThrustPower.toFixed(3)} kW (after the digital-thread bus load and power margin)` },
     ], checks,
   }
 }
 function refreshDraft(draft: Omit<ElectricPropulsionDraft, "missing" | "safety" | "status" | "updatedAt">): ElectricPropulsionDraft {
-  const missing = validateValues(draft.values)
+  const missing = validateValues(draft.values, draft.digitalThreadRequiredPaths)
   const safety = buildSafetyReview(draft.values)
   return { ...draft, missing, safety, status: safety.checks.some(check => check.severity === "error") ? "blocked" : draft.confirmed ? "confirmed" : missing.length ? "collecting" : "ready", updatedAt: new Date().toISOString() }
 }
@@ -240,9 +252,9 @@ async function saveDraft(workspaceDir: string, draft: ElectricPropulsionDraft) {
   return draft
 }
 
-export async function createElectricPropulsionDraft(workspaceDir: string) {
+export async function createElectricPropulsionDraft(workspaceDir: string, initialValues: Record<string, DraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
   const now = new Date().toISOString()
-  return saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, draftId: newDraftId(), runs: [], templateId: "electric-propulsion-transfer", values: Object.fromEntries(fields.map(field => [field.path, null])) }))
+  return saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "electric-propulsion-transfer", values: Object.fromEntries(fields.map(field => [field.path, initialValues[field.path] ?? null])) }))
 }
 export async function loadElectricPropulsionDraft(workspaceDir: string, draftId: string) {
   const parsed = JSON.parse(await fs.readFile(draftPath(workspaceDir, draftId), "utf8")) as ElectricPropulsionDraft
@@ -289,13 +301,14 @@ export async function discussElectricPropulsionDraft({ connection, draft, messag
     "Return YAML only: message: string; updates: [{ path: known path, value: string|number }]. Include updates: [] when no value is recorded. Never expose internal paths in the message.",
     "The GMAT epoch is TAIModJulian. For a calendar time with a timezone, emit initialOrbit.utcGregorian as a UTC ISO time; if timezone is absent, ask for it.",
     `Known fields: ${fields.map(field => `${field.path} (${field.label}${field.unit ? `, ${field.unit}` : ""}${field.required ? ", mandatory" : ", optional"})`).join("; ")}`,
+    draft.digitalThreadRequiredPaths?.length ? `For this digital-thread-managed run, these fields are mandatory even if the legacy template marks them optional: ${draft.digitalThreadRequiredPaths.join(", ")}.` : "",
     "Deterministic coordinate conversions are available. For an initial perigee altitude and eccentricity, emit initialOrbit.periapsisAltitudeKm and initialOrbit.eccentricity; the backend computes SMA = (Earth equatorial radius + periapsis altitude) / (1 - ECC). If a Cartesian initial state is supplied, emit initialState.xKm, initialState.yKm, initialState.zKm (km) and initialState.vxKmPerSec, initialState.vyKmPerSec, initialState.vzKmPerSec (km/s); the backend converts it to the six Keplerian inputs. To display the Cartesian equivalent of complete Keplerian inputs, emit coordinateConversion.request with value keplerian_to_cartesian. Never calculate these conversions yourself.",
-    `RAAN, argument of periapsis, and true anomaly are optional assumptions of 0 degrees; do not ask for them unless the engineer explicitly supplies an orientation. The optional power fields keep the validated tutorial values when omitted. The fixed thrust/mass-flow polynomials are only accepted from ${THRUST_POLYNOMIAL_MIN_POWER_KW} to ${THRUST_POLYNOMIAL_MAX_POWER_KW} kW; MinimumUsablePower must be strictly below MaximumUsablePower. Do not request or update Isp: ThrustMassPolynomial is fixed and GMAT does not use Isp for that model. The fixed DualCone Earth shadow model can interrupt thrust in eclipse.`,
+    `RAAN, argument of periapsis, and true anomaly are optional assumptions of 0 degrees; do not ask for them unless the engineer explicitly supplies an orientation. Power generation, bus load, and margin should come from the satellite digital thread whenever available. The fixed thrust/mass-flow polynomials are only accepted from ${THRUST_POLYNOMIAL_MIN_POWER_KW} to ${THRUST_POLYNOMIAL_MAX_POWER_KW} kW; MinimumUsablePower must be strictly below MaximumUsablePower. Do not request or update Isp: ThrustMassPolynomial is fixed and GMAT does not use Isp for that model. The fixed DualCone Earth shadow model can interrupt thrust in eclipse.`,
     `Current values: ${JSON.stringify(draft.values)}`,
     draft.conversation.length ? `Recent conversation: ${JSON.stringify(draft.conversation.slice(-8))}` : "Recent conversation: none.",
     `Engineer message: ${message}`,
   ].join("\n\n")
-  const response = await fetchImpl(`${connection.baseUrl.replace(/\/+$/u, "")}/responses`, { method: "POST", headers: { Authorization: `Bearer ${connection.apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: connection.model, input: prompt, max_output_tokens: 900 }), signal: AbortSignal.timeout(60_000) })
+  const response = await requestGmatModel(fetchImpl, `${connection.baseUrl.replace(/\/+$/u, "")}/responses`, { method: "POST", headers: { Authorization: `Bearer ${connection.apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: connection.model, input: prompt, max_output_tokens: 900 }) })
   const body = await response.text()
   if (!response.ok) throw new Error(`LLM electric-propulsion draft request failed: HTTP ${response.status}`)
   let payload: unknown
@@ -316,8 +329,13 @@ export async function discussElectricPropulsionDraft({ connection, draft, messag
   const assistantMessage = [patch.message || "I have updated the electric-propulsion mission draft.", conversion].filter(Boolean).join("\n\n")
   return saveDraft(workspaceDir, refreshDraft({ ...draft, assistantMessage, confirmed: false, conversationStartedAt: draft.conversationStartedAt ?? new Date().toISOString(), conversation: [...draft.conversation, { assistant: assistantMessage, user: message }].slice(-20), values }))
 }
-export async function confirmElectricPropulsionDraft(workspaceDir: string, draftId: string) {
-  const draft = await loadElectricPropulsionDraft(workspaceDir, draftId)
+export async function confirmElectricPropulsionDraft(workspaceDir: string, draftId: string, authoritativeValues?: Record<string, DraftValue>) {
+  let draft = await loadElectricPropulsionDraft(workspaceDir, draftId)
+  if (authoritativeValues) {
+    const values = { ...draft.values }
+    for (const field of fields) if (authoritativeValues[field.path] !== undefined) values[field.path] = authoritativeValues[field.path]
+    draft = await saveDraft(workspaceDir, refreshDraft({ ...draft, confirmed: false, values }))
+  }
   if (draft.missing.length) throw new Error(`GMAT draft is incomplete: ${draft.missing.join(", ")}`)
   const errors = draft.safety.checks.filter(check => check.severity === "error")
   if (errors.length) throw new Error(`GMAT physical sanity checks failed: ${errors.map(check => check.message).join(" ")}`)

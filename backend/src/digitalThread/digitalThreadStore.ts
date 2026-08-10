@@ -1,0 +1,160 @@
+import crypto from "node:crypto"
+import fs from "node:fs/promises"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+
+import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
+
+export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
+export type DigitalThreadDocument = { [key: string]: JsonValue } & {
+  schema_version: number
+  digital_thread: { [key: string]: JsonValue }
+  satellite: { [key: string]: JsonValue }
+  analysis_requests: { [key: string]: JsonValue }
+  provenance: { [key: string]: JsonValue }
+}
+
+const CURRENT_SCHEMA_VERSION = 1
+const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
+const PROJECT_ROOT = path.resolve(SOURCE_DIR, "../../..")
+const TEMPLATE_PATH = path.join(PROJECT_ROOT, "data", "templates", "satellite.digital-thread.template.json")
+
+export function digitalThreadPath(workspaceDir: string) {
+  return path.join(path.resolve(workspaceDir), "digital-thread", "satellite.json")
+}
+
+function asObject(value: JsonValue | undefined): { [key: string]: JsonValue } | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as { [key: string]: JsonValue } : null
+}
+
+function getAtPath(document: DigitalThreadDocument, fieldPath: string): JsonValue | undefined {
+  let current: JsonValue = document
+  for (const key of fieldPath.split(".")) {
+    const record = asObject(current)
+    if (!record || !(key in record)) return undefined
+    current = record[key]
+  }
+  return current
+}
+
+function setAtPath(document: DigitalThreadDocument, fieldPath: string, value: JsonValue) {
+  const keys = fieldPath.split(".")
+  let current: { [key: string]: JsonValue } = document
+  for (const key of keys.slice(0, -1)) {
+    const next = asObject(current[key])
+    if (!next) throw new Error(`digital-thread path is not writable: ${fieldPath}`)
+    current = next
+  }
+  current[keys.at(-1)!] = value
+}
+
+function leafPaths(value: JsonValue, prefix = ""): string[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return prefix ? [prefix] : []
+  return Object.entries(value).flatMap(([key, child]) => leafPaths(child, prefix ? `${prefix}.${key}` : key))
+}
+
+function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true
+  if (typeof value === "number") return Number.isFinite(value)
+  if (Array.isArray(value)) return value.every(isJsonValue)
+  return Boolean(value) && typeof value === "object" && Object.values(value as Record<string, unknown>).every(isJsonValue)
+}
+
+function assertDocument(value: unknown): asserts value is DigitalThreadDocument {
+  const candidate = value as Partial<DigitalThreadDocument> | null
+  if (!candidate || typeof candidate !== "object" || candidate.schema_version !== CURRENT_SCHEMA_VERSION || !candidate.satellite || !candidate.analysis_requests || !candidate.digital_thread || !candidate.provenance) {
+    throw new Error(`unsupported satellite digital-thread schema; expected version ${CURRENT_SCHEMA_VERSION}`)
+  }
+}
+
+async function readTemplate() {
+  const parsed: unknown = JSON.parse(await fs.readFile(TEMPLATE_PATH, "utf8"))
+  assertDocument(parsed)
+  return parsed
+}
+
+export async function loadOrCreateDigitalThread(workspaceDir: string) {
+  const output = digitalThreadPath(workspaceDir)
+  const existing = await fs.readFile(output, "utf8").catch(() => null)
+  if (existing !== null) {
+    const parsed: unknown = JSON.parse(existing)
+    assertDocument(parsed)
+    return parsed
+  }
+  const document = await readTemplate()
+  const now = new Date().toISOString()
+  document.digital_thread.thread_id = crypto.randomUUID()
+  document.digital_thread.created_at = now
+  document.digital_thread.updated_at = now
+  await saveDigitalThread(workspaceDir, document, false)
+  return document
+}
+
+export async function saveDigitalThread(workspaceDir: string, document: DigitalThreadDocument, incrementRevision = true) {
+  assertDocument(document)
+  const metadata = document.digital_thread
+  metadata.revision = incrementRevision ? Number(metadata.revision ?? 0) + 1 : Number(metadata.revision ?? 0)
+  metadata.updated_at = new Date().toISOString()
+  const output = digitalThreadPath(workspaceDir)
+  await fs.mkdir(path.dirname(output), { recursive: true })
+  const temporary = `${output}.${crypto.randomUUID()}.tmp`
+  await fs.writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, "utf8")
+  await fs.rename(temporary, output)
+  return document
+}
+
+export async function snapshotDigitalThreadForRun(workspaceDir: string, runDir: string) {
+  const document = await loadOrCreateDigitalThread(workspaceDir)
+  const source = `${JSON.stringify(document, null, 2)}\n`
+  const fileName = "satellite.digital-thread.json"
+  await fs.writeFile(path.join(runDir, fileName), source, "utf8")
+  const sha256 = crypto.createHash("sha256").update(source).digest("hex")
+  const manifestPath = path.join(runDir, "run_manifest.json")
+  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<string, unknown>
+  manifest.digitalThread = { file: fileName, revision: document.digital_thread.revision, schemaVersion: document.schema_version, sha256, threadId: document.digital_thread.thread_id }
+  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
+  return { fileName, sha256 }
+}
+
+function extractResponseText(payload: unknown) {
+  if (payload && typeof payload === "object" && typeof (payload as { output_text?: unknown }).output_text === "string") return (payload as { output_text: string }).output_text.trim()
+  const output = payload && typeof payload === "object" ? (payload as { output?: unknown }).output : undefined
+  const texts: string[] = []
+  for (const item of Array.isArray(output) ? output : []) for (const part of Array.isArray(item && typeof item === "object" ? (item as { content?: unknown }).content : undefined) ? (item as { content: unknown[] }).content : []) if (part && typeof part === "object" && typeof (part as { text?: unknown }).text === "string") texts.push((part as { text: string }).text)
+  return texts.join("\n").trim()
+}
+
+export async function updateDigitalThreadWithLlm({ connection, message, workspaceDir, fetchImpl = fetch }: { connection: Pick<ResolvedModelBackend, "apiKey" | "baseUrl" | "model">; message: string; workspaceDir: string; fetchImpl?: typeof fetch }) {
+  const document = await loadOrCreateDigitalThread(workspaceDir)
+  const allowedPaths = leafPaths(document).filter(fieldPath => fieldPath.startsWith("satellite.") || fieldPath.startsWith("analysis_requests."))
+  const prompt = [
+    "You update a spacecraft digital-thread JSON document from an engineer message.",
+    "Never invent engineering values. Record only facts explicitly supplied or unambiguously stated by the engineer.",
+    "Return JSON only: {\"message\":\"short response\",\"updates\":[{\"path\":\"allowed.path\",\"value\":valid JSON value}]}",
+    "Use only paths from the allowed list. Do not calculate orbital conversions, power, or other derived values; deterministic adapters do that.",
+    `Allowed paths: ${allowedPaths.join(", ")}`,
+    `Current digital thread: ${JSON.stringify(document)}`,
+    `Engineer message: ${message}`,
+  ].join("\n\n")
+  const response = await fetchImpl(`${connection.baseUrl.replace(/\/+$/u, "")}/responses`, { method: "POST", headers: { Authorization: `Bearer ${connection.apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: connection.model, input: prompt, max_output_tokens: 1400 }), signal: AbortSignal.timeout(60_000) })
+  const body = await response.text()
+  if (!response.ok) throw new Error(`digital-thread LLM update failed: HTTP ${response.status}`)
+  let payload: unknown
+  try { payload = JSON.parse(body) } catch { throw new Error("digital-thread LLM response is invalid JSON") }
+  const source = extractResponseText(payload).replace(/^```(?:json)?\s*/iu, "").replace(/\s*```$/u, "")
+  const patch = JSON.parse(source) as { message?: unknown; updates?: unknown }
+  if (!Array.isArray(patch.updates)) throw new Error("digital-thread LLM response has no updates array")
+  const provenance = asObject(document.provenance.values) ?? {}
+  document.provenance.values = provenance
+  for (const item of patch.updates) {
+    const update = item && typeof item === "object" ? item as { path?: unknown; value?: unknown } : null
+    if (!update || typeof update.path !== "string" || !allowedPaths.includes(update.path)) throw new Error("digital-thread LLM response references an unknown path")
+    if (!isJsonValue(update.value)) throw new Error(`invalid digital-thread value for ${update.path}`)
+    setAtPath(document, update.path, update.value)
+    provenance[update.path] = { source: "engineer_message", recorded_at: new Date().toISOString() }
+  }
+  await saveDigitalThread(workspaceDir, document)
+  return { document, message: typeof patch.message === "string" ? patch.message.trim() : "Digital thread updated." }
+}
+
+export { getAtPath, setAtPath }
