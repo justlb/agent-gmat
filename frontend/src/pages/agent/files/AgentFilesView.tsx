@@ -113,6 +113,7 @@ export function AgentFilesView({
     return groups
   }, {})).map(run => ({ ...run, files: [...run.files].sort((left, right) => left.mtimeMs - right.mtimeMs || left.fileName.localeCompare(right.fileName)) })).sort(compareRunsNewestFirst)
 
+
   return (
     <div className="agent-file-stage">
       <aside className="agent-file-tree-pane">

@@ -158,8 +158,8 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
     if (solarPower !== null) values["power.initialMaxPowerKw"] = solarPower
   }
   const requiredDraftPaths = template === "orbit-keeping"
-    ? ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "spacecraft.dryMassKg", "spacecraft.initialFuelMassKg", "spacecraft.dragAreaM2", "spacecraft.dragCoefficient", "propulsion.ispSeconds", "stationKeeping.minimumAltitudeKm", "stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm"]
-    : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "spacecraft.dryMassKg", "spacecraft.initialFuelMassKg", "transfer.burnDurationDays", "propulsion.minimumUsablePowerKw", "propulsion.maximumUsablePowerKw", "power.initialMaxPowerKw", "power.busLoadKw", "power.systemMarginPercent"]
+    ? ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "stationKeeping.minimumAltitudeKm", "stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm"]
+    : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.burnDurationDays"]
   for (const fieldPath of requiredDraftPaths) {
     if ((values[fieldPath] === null || values[fieldPath] === undefined || values[fieldPath] === "") && !guards.some(guard => guard.path === fieldPath)) {
       guards.push({ code: "missing_adapter_input", message: `The GMAT adapter cannot produce required value ${fieldPath} from the digital thread.`, path: fieldPath })

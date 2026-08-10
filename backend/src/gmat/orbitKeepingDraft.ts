@@ -103,8 +103,8 @@ export const ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT = {
     { context: "DefaultSC.RAAN", label: "RAAN", max: 360, min: 0, path: "initialOrbit.raanDeg", required: false, unit: "deg" },
     { context: "DefaultSC.AOP", label: "Argument of periapsis", max: 360, min: 0, path: "initialOrbit.argPeriapsisDeg", required: false, unit: "deg" },
     { context: "DefaultSC.TA", label: "True anomaly", max: 360, min: 0, path: "initialOrbit.trueAnomalyDeg", required: false, unit: "deg" },
-    { context: "DefaultSC.DryMass", label: "Dry mass", min: 0.001, path: "spacecraft.dryMassKg", required: true, unit: "kg" },
-    { context: "ChemicalTank1.FuelMass", label: "Initial fuel mass", min: 0.001, path: "spacecraft.initialFuelMassKg", required: true, unit: "kg" },
+    { context: "DefaultSC.DryMass", label: "Dry mass", min: 0.001, path: "spacecraft.dryMassKg", required: false, unit: "kg" },
+    { context: "ChemicalTank1.FuelMass", label: "Initial fuel mass", min: 0.001, path: "spacecraft.initialFuelMassKg", required: false, unit: "kg" },
     { context: "DefaultSC.DragArea", label: "Drag area", min: 0.0001, path: "spacecraft.dragAreaM2", required: false, unit: "m2" },
     { context: "DefaultSC.Cd", label: "Drag coefficient", min: 0.0001, path: "spacecraft.dragCoefficient", required: false },
     { context: "TOI.Isp", label: "Specific impulse", min: 0.1, path: "propulsion.ispSeconds", required: false, unit: "s" },
@@ -118,6 +118,13 @@ export const ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT = {
 const fields = ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.fields as readonly FieldDefinition[]
 const SATELLITE_OWNED_FIELDS = new Set([
   "spacecraft.dryMassKg", "spacecraft.initialFuelMassKg", "spacecraft.dragAreaM2", "spacecraft.dragCoefficient", "propulsion.ispSeconds",
+])
+// These values describe one mission. They must always be collected for a new
+// run instead of inheriting a previous orbit or a template example.
+const MISSION_FIELD_PATHS = new Set([
+  "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg",
+  "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg",
+  "stationKeeping.minimumAltitudeKm", "stationKeeping.targetSmaKm", "stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm",
 ])
 /** Values embedded in the immutable reference script. A new draft starts here. */
 const TEMPLATE_DEFAULT_VALUES: DraftValues = {
@@ -365,8 +372,10 @@ async function saveDraft(workspaceDir: string, draft: OrbitKeepingDraft) {
 }
 
 export async function createOrbitKeepingDraft(workspaceDir: string, initialValues: Record<string, DraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
-  const values = Object.fromEntries(fields.map(field => [field.path, initialValues[field.path] ?? TEMPLATE_DEFAULT_VALUES[field.path] ?? null])) as DraftValues
-  if (values["stationKeeping.targetSmaKm"] === null && typeof values["initialOrbit.smaKm"] === "number") values["stationKeeping.targetSmaKm"] = values["initialOrbit.smaKm"]
+  const values = Object.fromEntries(fields.map(field => [
+    field.path,
+    MISSION_FIELD_PATHS.has(field.path) ? null : initialValues[field.path] ?? TEMPLATE_DEFAULT_VALUES[field.path] ?? null,
+  ])) as DraftValues
   const now = new Date().toISOString()
   const draft = refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values })
   return saveDraft(workspaceDir, draft)

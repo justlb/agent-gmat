@@ -3,13 +3,14 @@ import type { WorkflowLoopProgressEntry } from '../workspace/progressUtils'
 type AgentProgressRailProps = {
   className?: string
   gmatGuiAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
+  simuCicGuiAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
   onClose?: () => void
   progressUpdatedAt: string
   title: string
   workflowLoopProgressEntries: WorkflowLoopProgressEntry[]
 }
 
-export function AgentProgressRail({ className = 'agent-right-rail', gmatGuiAction, onClose, progressUpdatedAt, title, workflowLoopProgressEntries }: AgentProgressRailProps) {
+export function AgentProgressRail({ className = 'agent-right-rail', gmatGuiAction, simuCicGuiAction, onClose, progressUpdatedAt, title, workflowLoopProgressEntries }: AgentProgressRailProps) {
   return (
     <aside className={className}>
       <section>
@@ -29,6 +30,7 @@ export function AgentProgressRail({ className = 'agent-right-rail', gmatGuiActio
           </div>
         ))}
         {gmatGuiAction ? <button className="agent-progress-gmat-gui" disabled={gmatGuiAction.disabled} onClick={gmatGuiAction.onClick} title={gmatGuiAction.title} type="button">{gmatGuiAction.label}</button> : null}
+        {simuCicGuiAction ? <button className="agent-progress-gmat-gui" disabled={simuCicGuiAction.disabled} onClick={simuCicGuiAction.onClick} title={simuCicGuiAction.title} type="button">{simuCicGuiAction.label}</button> : null}
       </section>
     </aside>
   )

@@ -85,6 +85,15 @@ export interface AppConfig {
       guiBin: string | null
       timeoutMs: number
     }
+    opalis: {
+      baseScenario: string | null
+      celestlabDir: string | null
+      scilabBin: string | null
+      simucicDir: string | null
+      simuCicRunner: string | null
+      timeoutMs: number
+      workerPython: string | null
+    }
   }
   workspace: {
     filesystemGroup: string
@@ -356,6 +365,7 @@ export function loadConfig(): AppConfig {
   const comsolTool = tools.comsol ?? {} as Partial<AppConfig["tools"]["comsol"]>
   const gncTool = tools.gnc ?? {} as Partial<AppConfig["tools"]["gnc"]>
   const gmatTool = tools.gmat ?? {} as Partial<AppConfig["tools"]["gmat"]>
+  const opalisTool = tools.opalis ?? {} as Partial<AppConfig["tools"]["opalis"]>
   const workspace = (
     cfg.workspace ??
     (typeof cfg[LEGACY_CAD_CONFIG_KEY] === "object" && cfg[LEGACY_CAD_CONFIG_KEY] !== null
@@ -464,6 +474,15 @@ export function loadConfig(): AppConfig {
           "tools.gmat.timeoutMs",
           120_000,
         ),
+      },
+      opalis: {
+        baseScenario: optionalString(opalisTool.baseScenario, "tools.opalis.baseScenario"),
+        celestlabDir: optionalString(opalisTool.celestlabDir, "tools.opalis.celestlabDir"),
+        scilabBin: optionalString(opalisTool.scilabBin, "tools.opalis.scilabBin"),
+        simucicDir: optionalString(opalisTool.simucicDir, "tools.opalis.simucicDir"),
+        simuCicRunner: optionalString(opalisTool.simuCicRunner, "tools.opalis.simuCicRunner"),
+        timeoutMs: positiveInteger(opalisTool.timeoutMs, "tools.opalis.timeoutMs", 600_000),
+        workerPython: optionalString(opalisTool.workerPython, "tools.opalis.workerPython"),
       },
     },
     workspace: {

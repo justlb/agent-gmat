@@ -33,7 +33,7 @@ function asElectricPropulsionValues(values: OrbitKeepingValues): ElectricPropuls
 const EDITABLE_CONTEXT_PREFIXES = [
   "DefaultSC.Epoch =", "DefaultSC.SMA =", "DefaultSC.ECC =", "DefaultSC.INC =", "DefaultSC.RAAN =", "DefaultSC.AOP =", "DefaultSC.TA =", "DefaultSC.DryMass =",
   "ElectricTank1.FuelMass =", "daysofpropagation =", "ElectricThruster1.MaximumUsablePower =", "ElectricThruster1.MinimumUsablePower =",
-  "SolarPowerSystem1.InitialEpoch =", "SolarPowerSystem1.InitialMaxPower =", "ElectricTransferReport.Filename =", "ElectricTransferReport.Add =",
+  "SolarPowerSystem1.InitialEpoch =", "SolarPowerSystem1.InitialMaxPower =", "ElectricTransferReport.Filename =", "ElectricTransferReport.Add =", "EphemerisFile1.Filename =",
   "SolarPowerSystem1.Margin =", "SolarPowerSystem1.BusCoeff1 =",
 ] as const
 

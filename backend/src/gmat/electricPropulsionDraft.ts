@@ -77,8 +77,8 @@ export const ELECTRIC_PROPULSION_TRANSFER_CONTRACT = {
     { context: "DefaultSC.RAAN", label: "Initial right ascension of the ascending node", max: 360, min: 0, path: "initialOrbit.raanDeg", required: false, unit: "deg" },
     { context: "DefaultSC.AOP", label: "Initial argument of periapsis", max: 360, min: 0, path: "initialOrbit.argPeriapsisDeg", required: false, unit: "deg" },
     { context: "DefaultSC.TA", label: "Initial true anomaly", max: 360, min: 0, path: "initialOrbit.trueAnomalyDeg", required: false, unit: "deg" },
-    { context: "DefaultSC.DryMass", label: "Dry mass", min: 0.001, path: "spacecraft.dryMassKg", required: true, unit: "kg" },
-    { context: "ElectricTank1.FuelMass", label: "Initial electric propellant mass", min: 0.001, path: "spacecraft.initialFuelMassKg", required: true, unit: "kg" },
+    { context: "DefaultSC.DryMass", label: "Dry mass", min: 0.001, path: "spacecraft.dryMassKg", required: false, unit: "kg" },
+    { context: "ElectricTank1.FuelMass", label: "Initial electric propellant mass", min: 0.001, path: "spacecraft.initialFuelMassKg", required: false, unit: "kg" },
     { context: "daysofpropagation", label: "Electric-thrust duration", max: 3650, min: 0.0001, path: "transfer.burnDurationDays", required: true, unit: "days" },
     // The fixed thrust and mass-flow polynomials are accepted only over their
     // documented calibration range; chat edits cannot extrapolate them.
@@ -94,6 +94,10 @@ const fields = ELECTRIC_PROPULSION_TRANSFER_CONTRACT.fields as readonly FieldDef
 const SATELLITE_OWNED_FIELDS = new Set([
   "spacecraft.dryMassKg", "spacecraft.initialFuelMassKg", "propulsion.maximumUsablePowerKw", "propulsion.minimumUsablePowerKw",
   "power.initialMaxPowerKw", "power.busLoadKw", "power.systemMarginPercent",
+])
+const MISSION_FIELD_PATHS = new Set([
+  "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg",
+  "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg", "transfer.burnDurationDays",
 ])
 const CARTESIAN_STATE_PATHS = ["initialState.xKm", "initialState.yKm", "initialState.zKm", "initialState.vxKmPerSec", "initialState.vyKmPerSec", "initialState.vzKmPerSec"] as const
 const KEPLERIAN_ORBIT_PATHS = ["initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg"] as const
@@ -258,7 +262,7 @@ async function saveDraft(workspaceDir: string, draft: ElectricPropulsionDraft) {
 
 export async function createElectricPropulsionDraft(workspaceDir: string, initialValues: Record<string, DraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
   const now = new Date().toISOString()
-  return saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "electric-propulsion-transfer", values: Object.fromEntries(fields.map(field => [field.path, initialValues[field.path] ?? null])) }))
+  return saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "electric-propulsion-transfer", values: Object.fromEntries(fields.map(field => [field.path, MISSION_FIELD_PATHS.has(field.path) ? null : initialValues[field.path] ?? null])) }))
 }
 export async function loadElectricPropulsionDraft(workspaceDir: string, draftId: string) {
   const parsed = JSON.parse(await fs.readFile(draftPath(workspaceDir, draftId), "utf8")) as ElectricPropulsionDraft

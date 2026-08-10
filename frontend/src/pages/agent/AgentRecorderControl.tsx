@@ -85,7 +85,8 @@ const ELECTRIC_TRANSFER_MANDATORY_FIELDS: MandatoryGmatField[] = [
 ]
 
 function mandatoryGmatFields(chatMode: AgentChatMode) {
-  return chatMode === 'gmat-electric-propulsion' ? ELECTRIC_TRANSFER_MANDATORY_FIELDS : ORBIT_KEEPING_MANDATORY_FIELDS
+  return (chatMode === 'gmat-electric-propulsion' ? ELECTRIC_TRANSFER_MANDATORY_FIELDS : ORBIT_KEEPING_MANDATORY_FIELDS)
+    .filter(field => !field.path.startsWith('spacecraft.') && !field.path.startsWith('propulsion.') && !field.path.startsWith('power.'))
 }
 
 function getBubbleTextSegments(value: string) {

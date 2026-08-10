@@ -161,14 +161,20 @@ export async function generateOrbitKeepingMission({
   if (!reportSlot) throw new Error("orbit-keeping template does not expose ReboostReport.Filename")
   const timeSeriesSlot = edit.values.slots.find(slot => slot.context.includes("OrbitAnalysisReport.Filename"))
   if (!timeSeriesSlot) throw new Error("orbit-keeping template does not expose OrbitAnalysisReport.Filename")
+  const ephemerisSlot = edit.values.slots.find(slot => slot.context.includes("EphemerisFile1.Filename"))
+  if (!ephemerisSlot) throw new Error("orbit-keeping template does not expose EphemerisFile1.Filename")
   const reportPath = toGmatNativePath(path.join(outputDir, "ReboostReport.txt")).replace(/\\/gu, "/")
   const timeSeriesReportPath = toGmatNativePath(path.join(outputDir, "OrbitAnalysisReport.txt")).replace(/\\/gu, "/")
+  const ephemerisPath = toGmatNativePath(path.join(outputDir, "EphemerisFile1.oem")).replace(/\\/gu, "/")
   const renderedValues = applyOrbitKeepingValueChanges(edit.values, [{
     id: reportSlot.id,
     value: `'${reportPath}'`,
   }, {
     id: timeSeriesSlot.id,
     value: `'${timeSeriesReportPath}'`,
+  }, {
+    id: ephemerisSlot.id,
+    value: `'${ephemerisPath}'`,
   }])
   const renderedScript = renderOrbitKeepingValues(template, renderedValues)
   await Promise.all([

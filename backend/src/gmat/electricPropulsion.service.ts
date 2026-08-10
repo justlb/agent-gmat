@@ -118,13 +118,19 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   const runDir = await createRunOutputDir(outputRoot, artifactId)
   const reportSlot = editedValues.slots.find(slot => slot.context.includes("ElectricTransferReport.Filename"))
   if (!reportSlot) throw new Error("electric-propulsion template does not expose ElectricTransferReport.Filename")
+  const ephemerisSlot = editedValues.slots.find(slot => slot.context.includes("EphemerisFile1.Filename"))
+  if (!ephemerisSlot) throw new Error("electric-propulsion template does not expose EphemerisFile1.Filename")
   const reportPath = toGmatNativePath(path.join(runDir, "ElectricTransferReport.txt")).replace(/\\/gu, "/")
-  const renderedValues = applyElectricPropulsionValueChanges(editedValues, [{ id: reportSlot.id, value: `'${reportPath}'` }])
+  const ephemerisPath = path.join(runDir, "EphemerisFile1.oem")
+  const ephemerisOutputPath = toGmatNativePath(ephemerisPath).replace(/\\/gu, "/")
+  const renderedValues = applyElectricPropulsionValueChanges(editedValues, [
+    { id: reportSlot.id, value: `'${reportPath}'` },
+    { id: ephemerisSlot.id, value: `'${ephemerisOutputPath}'` },
+  ])
   const scriptPath = path.join(runDir, "electric_propulsion_transfer.script")
   const valuesPath = path.join(runDir, "electric_propulsion_transfer.values.yaml")
   const resultPath = path.join(runDir, "gmat_result.json")
   const timeSeriesPath = path.join(runDir, "electric_transfer_timeseries.json")
-  const ephemerisPath = path.join(runDir, "EphemerisFile1.oem")
   const manifestPath = path.join(runDir, "run_manifest.json")
   await Promise.all([fs.writeFile(scriptPath, renderElectricPropulsionValues(template, renderedValues), "utf8"), fs.writeFile(valuesPath, stringify(renderedValues), "utf8")])
   onProgress?.({ key: "render_script", percent: 60, status: "completed" })

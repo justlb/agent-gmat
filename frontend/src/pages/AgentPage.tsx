@@ -18,8 +18,9 @@ import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
 import type { GmatSavedDraft } from './agent/files/AgentFilesView'
 import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex, type ManagedModelBackend } from './agent/managedRun'
 import { analyzeElectricPropulsionRun, confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussElectricPropulsionDraft, executeElectricPropulsionDraftWithProgress, getElectricPropulsionRunConversation, listElectricPropulsionDrafts, openElectricPropulsionRunInGui } from './agent/electricPropulsionApi'
-import { analyzeOrbitKeepingRun, confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraftWithProgress, getOrbitKeepingRunConversation, listOrbitKeepingDrafts, openOrbitKeepingRunInGui, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingProgressEvent, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
+import { analyzeOrbitKeepingRun, confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraftWithProgress, getOrbitKeepingRunConversation, listOrbitKeepingDrafts, openOrbitKeepingRunInGui, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
 import { routeMissionMessage } from './agent/missionRoutingApi'
+import { openSimuCicGui, runSimuCic } from './agent/simuCicApi'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -48,14 +49,10 @@ type PendingGmatMessage = {
   status: 'sending' | 'failed'
 }
 
-const GMAT_WORKFLOW_LABELS: Record<OrbitKeepingProgressEvent['key'] | 'draft_llm' | 'validate_draft', string> = {
+const GMAT_WORKFLOW_LABELS: Record<'draft_llm' | 'run_gmat' | 'run_simucic', string> = {
   draft_llm: 'LLM mission discussion',
-  validate_draft: 'Validate mission inputs',
-  load_template: 'Prepare fixed GMAT template',
-  llm_patch: 'Apply confirmed changes',
-  render_script: 'Generate GMAT script',
   run_gmat: 'Run GMAT simulation',
-  save_results: 'Save GMAT results',
+  run_simucic: 'Run Simu-CIC simulation',
 }
 
 function newGmatWorkflow(): WorkflowLoopProgressEntry[] {
@@ -68,6 +65,18 @@ function setGmatWorkflowStatus(entries: WorkflowLoopProgressEntry[], key: string
   return entries.map(entry => entry.key === key ? {
     ...entry, completed: status === 'completed', rawStatus: status, status, statusLabel: status === 'completed' ? 'Completed' : status === 'running' ? 'Running' : status === 'failed' ? 'Failed' : 'Pending', updatedAt: new Date().toISOString(),
   } : entry)
+}
+
+function newSimuCicWorkflow() {
+  return setGmatWorkflowStatus(
+    setGmatWorkflowStatus(
+      setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'),
+      'run_gmat',
+      'completed',
+    ),
+    'run_simucic',
+    'running',
+  )
 }
 
 const AGENT_THEME_STORAGE_KEY = 'agent-theme'
@@ -95,6 +104,8 @@ export default function AgentPage() {
   const [managedRunError, setManagedRunError] = useState('')
   const [gmatGenerating, setGmatGenerating] = useState(false)
   const [gmatGuiOpening, setGmatGuiOpening] = useState(false)
+  const [simuCicGuiOpening, setSimuCicGuiOpening] = useState(false)
+  const [simuCicRunning, setSimuCicRunning] = useState(false)
   const [pendingGmatMessage, setPendingGmatMessage] = useState<PendingGmatMessage | null>(null)
   const [activeGmatDraft, setActiveGmatDraft] = useState<OrbitKeepingDraft | null>(null)
   const [activeGmatRun, setActiveGmatRun] = useState<{ conversation: OrbitKeepingRunConversationTurn[]; draftId?: string; result?: OrbitKeepingGenerateResult['result']; runId: string; runPath: string } | null>(null)
@@ -489,9 +500,9 @@ export default function AgentPage() {
   const progressUpdatedAt = formatProgressUpdatedAt(progressData, navigator.language || 'zh-CN', t)
   const gmatActiveEntry = gmatWorkflowEntries?.find(entry => entry.status === 'running') ?? gmatWorkflowEntries?.find(entry => entry.status === 'failed')
   const progressPercent = gmatWorkflowEntries ? undefined : workflowProgressSummary.percentage
-  const progressStatusLabel = gmatWorkflowEntries ? `GMAT workflow: ${gmatActiveEntry?.label ?? 'completed'}` : workflowProgressSummary.statusLabel || progressUpdatedAt
+  const progressStatusLabel = gmatWorkflowEntries ? `Mission workflow: ${gmatActiveEntry?.label ?? 'completed'}` : workflowProgressSummary.statusLabel || progressUpdatedAt
   const displayedProgressUpdatedAt = gmatWorkflowEntries?.find(entry => entry.status === 'running')?.updatedAt ?? progressUpdatedAt
-  const displayedProgressTitle = gmatWorkflowEntries ? 'GMAT workflow' : t('workspace.inspector.progressTitle')
+  const displayedProgressTitle = gmatWorkflowEntries ? 'Mission workflow' : t('workspace.inspector.progressTitle')
   const displayedProgressEntries = gmatWorkflowEntries ?? workflowLoopProgressEntries
   const recordButtonBusy = agentSpeechState === 'synthesizing' || agentSpeechPlaying
   const recordButtonDisabled = state === 'transcribing'
@@ -714,10 +725,37 @@ export default function AgentPage() {
     setManagedRunError('')
     const isElectricTransfer = activeGmatRun.runPath.includes('gmat/electric-propulsion-transfer/') || activeGmatRun.runPath.includes('gmat\\electric-propulsion-transfer\\')
     void (isElectricTransfer ? openElectricPropulsionRunInGui(activeGmatRun.runPath) : openOrbitKeepingRunInGui(activeGmatRun.runPath))
-      .then(() => showSpeechText(`GMAT GUI was opened for run ${activeGmatRun.runId}.`))
+      .then(() => showSpeechText('GMAT GUI was opened for run ' + activeGmatRun.runId + '.'))
       .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to open GMAT GUI'))
       .finally(() => setGmatGuiOpening(false))
   }, [activeGmatRun, gmatGuiOpening, showSpeechText])
+  const handleRunSimuCic = useCallback(() => {
+    if (!activeGmatRun || simuCicRunning) return
+    setSimuCicRunning(true)
+    setManagedRunError('')
+    setProgressPanelOpen(true)
+    setGmatWorkflowEntries(newSimuCicWorkflow())
+    void runSimuCic(activeGmatRun.runPath)
+      .then(result => {
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_simucic', 'completed') : entries)
+        showSpeechText('Simu-CIC completed for run ' + activeGmatRun.runId + '. CIC data: ' + result.cicSatDir + '.')
+        refreshWorkspaceViews()
+      })
+      .catch(reason => {
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_simucic', 'failed') : entries)
+        setManagedRunError(reason instanceof Error ? reason.message : 'Unable to run Simu-CIC')
+      })
+      .finally(() => setSimuCicRunning(false))
+  }, [activeGmatRun, refreshWorkspaceViews, showSpeechText, simuCicRunning])
+  const handleOpenSimuCicGui = useCallback(() => {
+    if (!activeGmatRun || simuCicGuiOpening) return
+    setSimuCicGuiOpening(true)
+    setManagedRunError('')
+    void openSimuCicGui(activeGmatRun.runPath)
+      .then(() => showSpeechText('Simu-CIC GUI was opened for run ' + activeGmatRun.runId + '.'))
+      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to open Simu-CIC GUI'))
+      .finally(() => setSimuCicGuiOpening(false))
+  }, [activeGmatRun, showSpeechText, simuCicGuiOpening])
   const sessionStatusLabel = t(`workspace.status.${displayedSessionStatus}`)
   const dataSourceLabel = activeContext.workspaceName
     ? getWorkspaceDisplayName(activeContext.workspaceName)
@@ -785,6 +823,12 @@ export default function AgentPage() {
             onClick: handleOpenActiveGmatGui,
             title: activeGmatRun ? 'Open the generated script for this run in GMAT.' : 'Select a GMAT run first.',
           }}
+          simuCicGuiAction={{
+            disabled: !activeGmatRun || simuCicGuiOpening || simuCicRunning,
+            label: simuCicGuiOpening ? 'Opening Simu-CIC GUI…' : 'Open Simu-CIC GUI',
+            onClick: handleOpenSimuCicGui,
+            title: activeGmatRun ? 'Open the generated Simu-CIC scenario for this run.' : 'Select a GMAT run first.',
+          }}
           onClose={() => setProgressPanelOpen(false)}
           progressUpdatedAt={displayedProgressUpdatedAt}
           title={displayedProgressTitle}
@@ -820,10 +864,12 @@ export default function AgentPage() {
             pending: pendingGmatMessage,
             onExecute: handleExecuteGmatDraft,
             onNewRun: handleNewGmatDraft,
+            onRunSimuCic: handleRunSimuCic,
             onRetry: () => {
               if (pendingGmatMessage?.status === 'failed') handleTextSubmit(pendingGmatMessage.message, chatMode)
             },
             onSend: (message, mode) => handleTextSubmit(message, mode),
+            simuCicRunning,
           }}
           manifestLoading={manifestLoading}
           onSelectGmatDraft={(draft: GmatSavedDraft) => {
