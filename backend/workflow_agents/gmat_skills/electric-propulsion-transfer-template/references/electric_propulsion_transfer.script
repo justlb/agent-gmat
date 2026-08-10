@@ -11,11 +11,11 @@
 Create Spacecraft DefaultSC;
 
 DefaultSC.DateFormat = TAIModJulian;
-DefaultSC.Epoch = '21545';
+DefaultSC.Epoch = '31262.66709490726';
 DefaultSC.CoordinateSystem = EarthMJ2000Eq;
 DefaultSC.DisplayStateType = Keplerian;
-DefaultSC.SMA = 7191.938817629013;
-DefaultSC.ECC = 0;
+DefaultSC.SMA = 7178.136300000001;
+DefaultSC.ECC = 1.279570234560536e-16;
 DefaultSC.INC = 0;
 DefaultSC.RAAN = 0;
 DefaultSC.AOP = 0;
@@ -105,7 +105,7 @@ ElectricThruster1.Tank = {ElectricTank1};
 ElectricThruster1.MixRatio = [ 1 ];
 ElectricThruster1.GravitationalAccel = 9.81;
 ElectricThruster1.ThrustModel = ThrustMassPolynomial;
-ElectricThruster1.MaximumUsablePower = 7.266;
+ElectricThruster1.MaximumUsablePower = 5;
 ElectricThruster1.MinimumUsablePower = 0.638;
 ElectricThruster1.ThrustCoeff1 = -5.19082;
 ElectricThruster1.ThrustCoeff2 = 2.96519;
@@ -124,11 +124,11 @@ ElectricThruster1.ConstantThrust = 5;
 Create SolarPowerSystem SolarPowerSystem1;
 
 SolarPowerSystem1.EpochFormat = 'UTCGregorian';
-SolarPowerSystem1.InitialEpoch = ''01 Jan 2000 11:59:28.000'';
-SolarPowerSystem1.InitialMaxPower = 1.2;
+SolarPowerSystem1.InitialEpoch = ''10 Aug 2026 03:59:59.999'';
+SolarPowerSystem1.InitialMaxPower = 15;
 SolarPowerSystem1.AnnualDecayRate = 5;
-SolarPowerSystem1.Margin = 5;
-SolarPowerSystem1.BusCoeff1 = 0.3;
+SolarPowerSystem1.Margin = 15;
+SolarPowerSystem1.BusCoeff1 = 1.5;
 SolarPowerSystem1.BusCoeff2 = 0;
 SolarPowerSystem1.BusCoeff3 = 0;
 SolarPowerSystem1.ShadowModel = 'DualCone';
@@ -302,18 +302,47 @@ XYPlot1.ShowPlot = true;
 % Application instrumentation: this is the only subscriber added to the
 % tutorial so the frontend can parse results and display its diagnostics.
 Create ReportFile ElectricTransferReport;
+ElectricTransferReport.SolverIterations = Current;
+ElectricTransferReport.UpperLeft = [ 0 0 ];
+ElectricTransferReport.Size = [ 0 0 ];
+ElectricTransferReport.RelativeZOrder = 0;
+ElectricTransferReport.Maximized = false;
 ElectricTransferReport.Filename = 'ElectricTransferReport.txt';
 ElectricTransferReport.Precision = 16;
+ElectricTransferReport.Add = {DefaultSC.ElapsedDays, DefaultSC.SMA, DefaultSC.ECC, DefaultSC.INC, DefaultSC.RAAN, DefaultSC.AOP, DefaultSC.TA, DefaultSC.ElectricTank1.FuelMass, DefaultSC.TotalMass, DefaultSC.SolarPowerSystem1.ThrustPowerAvailable, DefaultSC.ElectricThruster1.MassFlowRate};
 ElectricTransferReport.WriteHeaders = true;
 ElectricTransferReport.LeftJustify = On;
 ElectricTransferReport.ZeroFill = Off;
-ElectricTransferReport.Add = {DefaultSC.ElapsedDays, DefaultSC.SMA, DefaultSC.ECC, DefaultSC.INC, DefaultSC.RAAN, DefaultSC.AOP, DefaultSC.TA, DefaultSC.ElectricTank1.FuelMass, DefaultSC.TotalMass, DefaultSC.SolarPowerSystem1.ThrustPowerAvailable, DefaultSC.ElectricThruster1.MassFlowRate};
+ElectricTransferReport.FixedWidth = true;
+ElectricTransferReport.Delimiter = ' ';
+ElectricTransferReport.ColumnWidth = 23;
+ElectricTransferReport.WriteReport = true;
+ElectricTransferReport.AppendToExistingFile = false;
+
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.UpperLeft = [ 0 0 ];
+EphemerisFile1.Size = [ 0 0 ];
+EphemerisFile1.RelativeZOrder = 0;
+EphemerisFile1.Maximized = false;
+EphemerisFile1.Spacecraft = DefaultSC;
+EphemerisFile1.Filename = 'EphemerisFile1.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.OutputFormat = LittleEndian;
+EphemerisFile1.IncludeCovariance = None;
+EphemerisFile1.WriteEphemeris = true;
 
 %----------------------------------------
 %---------- Arrays, Variables, Strings
 %----------------------------------------
 Create Variable daysofpropagation;
-daysofpropagation = 30;
+daysofpropagation = 3;
 
 
 %----------------------------------------

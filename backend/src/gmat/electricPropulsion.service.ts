@@ -25,6 +25,7 @@ export type ElectricPropulsionRunResult = {
 }
 export type GenerateElectricPropulsionMissionResult = {
   changes: ElectricPropulsionValueChange[]
+  ephemerisPath: string
   latencyMs: number
   manifestPath: string
   result: ElectricPropulsionRunResult
@@ -123,6 +124,7 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   const valuesPath = path.join(runDir, "electric_propulsion_transfer.values.yaml")
   const resultPath = path.join(runDir, "gmat_result.json")
   const timeSeriesPath = path.join(runDir, "electric_transfer_timeseries.json")
+  const ephemerisPath = path.join(runDir, "EphemerisFile1.oem")
   const manifestPath = path.join(runDir, "run_manifest.json")
   await Promise.all([fs.writeFile(scriptPath, renderElectricPropulsionValues(template, renderedValues), "utf8"), fs.writeFile(valuesPath, stringify(renderedValues), "utf8")])
   onProgress?.({ key: "render_script", percent: 60, status: "completed" })
@@ -131,8 +133,11 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   if (execution) onProgress?.({ key: "run_gmat", percent: 90, status: "completed" })
   const minimumUsablePowerKw = numericSlotValue(renderedValues, "ElectricThruster1.MinimumUsablePower")
   const result = summarizeElectricPropulsionExecution(executionResult, minimumUsablePowerKw)
+  const ephemerisWritten = execution
+    ? await fs.stat(ephemerisPath).then(stat => stat.isFile()).catch(() => false)
+    : false
   const runId = path.basename(runDir)
-  const manifest = { schemaVersion: 1, runId, tool: "GMAT", templateId: "electric-propulsion-transfer", templateSha256, status: result.status, request, createdAt: new Date().toISOString(), completedAt: executionResult?.completedAt ?? null, changes, inputs: { script: path.basename(scriptPath), values: path.basename(valuesPath) }, outputs: { result: path.basename(resultPath), report: executionResult ? path.basename(executionResult.reportPath) : null, log: executionResult ? path.basename(executionResult.logPath) : null } }
+  const manifest = { schemaVersion: 1, runId, tool: "GMAT", templateId: "electric-propulsion-transfer", templateSha256, status: result.status, request, createdAt: new Date().toISOString(), completedAt: executionResult?.completedAt ?? null, changes, inputs: { script: path.basename(scriptPath), values: path.basename(valuesPath) }, outputs: { result: path.basename(resultPath), report: executionResult ? path.basename(executionResult.reportPath) : null, ephemeris: ephemerisWritten ? path.basename(ephemerisPath) : null, log: executionResult ? path.basename(executionResult.logPath) : null } }
   onProgress?.({ key: "save_results", percent: 92, status: "running" })
   await Promise.all([
     fs.writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8"),
@@ -140,5 +145,5 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
     fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8"),
   ])
   onProgress?.({ key: "save_results", percent: 100, status: "completed" })
-  return { changes, latencyMs: 0, manifestPath, result, resultPath, runDir, runId, scriptPath, timeSeriesPath, valuesPath }
+  return { changes, ephemerisPath, latencyMs: 0, manifestPath, result, resultPath, runDir, runId, scriptPath, timeSeriesPath, valuesPath }
 }
