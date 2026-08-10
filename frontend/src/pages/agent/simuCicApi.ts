@@ -19,6 +19,16 @@ export async function runSimuCic(runPath: string) {
   return response.json() as Promise<{ cicSatDir: string; scenarioPath: string | null }>
 }
 
+export async function convertSimuCicEphemeris(runPath: string) {
+  const response = await fetch(joinApiPath(undefined, "/opalis/simu-cic/convert-ephemeris"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runPath }),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+  return response.json() as Promise<{ convertedEphemeris: string; sourceEphemeris: string }>
+}
+
 export async function openSimuCicGui(runPath: string) {
   const response = await fetch(joinApiPath(undefined, "/opalis/simu-cic/open-gui"), {
     method: "POST",

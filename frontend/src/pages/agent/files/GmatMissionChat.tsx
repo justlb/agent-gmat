@@ -35,15 +35,17 @@ export type GmatMissionChatProps = {
   error: string
   busy: boolean
   pending?: { error?: string; kind: 'draft' | 'run'; message: string; status: 'sending' | 'failed' } | null
+  onConvertSimuCicEphemeris?: () => void
   onExecute: () => void
   onNewRun: () => void
   onRunSimuCic?: () => void
   onRetry: () => void
   onSend: (message: string, mode: AgentChatMode) => void
+  simuCicConverting?: boolean
   simuCicRunning?: boolean
 }
 
-export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, onExecute, onNewRun, onRunSimuCic, onRetry, onSend, pending, simuCicRunning = false }: GmatMissionChatProps) {
+export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, onConvertSimuCicEphemeris, onExecute, onNewRun, onRunSimuCic, onRetry, onSend, pending, simuCicConverting = false, simuCicRunning = false }: GmatMissionChatProps) {
   const [message, setMessage] = useState('')
   const fields = (chatMode === 'gmat-electric-propulsion' ? ELECTRIC_FIELDS : ORBIT_FIELDS)
     .filter(field => !field.path.startsWith('spacecraft.') && !field.path.startsWith('propulsion.') && !field.path.startsWith('power.'))
@@ -73,6 +75,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
               <section><header><strong>Assumed defaults to confirm</strong><span>Template defaults</span></header><ul className="assumptions">{(draft.safety?.assumptions ?? []).map(item => <li key={item.label}>{item.label}: {item.value}</li>)}</ul></section>
               {!activeRunId && draft.status === 'ready' ? <button className="gmat-mission-run-button" disabled={busy} type="button" onClick={onExecute}>Confirm and run GMAT</button> : null}
             </> : activeRunId ? <p>The mission values are not loaded for this saved run.</p> : <p>Describe the mission to start a new draft.</p>}
+            {activeRunId && onConvertSimuCicEphemeris ? <button disabled={simuCicConverting || simuCicRunning} type="button" onClick={onConvertSimuCicEphemeris}>{simuCicConverting ? 'Generating ephemeris...' : 'Generate Simu-CIC ephemeris'}</button> : null}
             {activeRunId && onRunSimuCic ? <button className="gmat-mission-run-button" disabled={simuCicRunning} type="button" onClick={onRunSimuCic}>{simuCicRunning ? 'Running Simu-CIC…' : 'Run Simu-CIC'}</button> : null}
             {activeRunId ? <button type="button" onClick={onNewRun}>New GMAT run</button> : null}
           </aside>

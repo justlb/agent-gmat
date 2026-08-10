@@ -9,6 +9,16 @@ import { runOrbitKeepingGmat, toGmatNativePath, type OrbitKeepingExecutionResult
 import { defaultOrbitKeepingTemplatePath } from "./orbitKeepingTemplate.js"
 import { applyOrbitKeepingValueChanges, parseOrbitKeepingValues, renderOrbitKeepingValues, type OrbitKeepingValueChange } from "./orbitKeepingValues.js"
 
+function enableEphemerisOutput(script: string) {
+  if (!script.includes("Create EphemerisFile EphemerisFile1;")) {
+    throw new Error("orbit-keeping template does not expose EphemerisFile1")
+  }
+  if (script.includes("Toggle EphemerisFile1 On;")) return script
+  const marker = "BeginMissionSequence;"
+  if (!script.includes(marker)) throw new Error("orbit-keeping template does not expose its mission sequence")
+  return script.replace(marker, `${marker}\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;`)
+}
+
 export type OrbitKeepingRunStatus = "generated" | OrbitKeepingExecutionResult["status"]
 
 /** A real pipeline state emitted while a GMAT run is being prepared/executed. */
@@ -176,7 +186,7 @@ export async function generateOrbitKeepingMission({
     id: ephemerisSlot.id,
     value: `'${ephemerisPath}'`,
   }])
-  const renderedScript = renderOrbitKeepingValues(template, renderedValues)
+  const renderedScript = enableEphemerisOutput(renderOrbitKeepingValues(template, renderedValues))
   await Promise.all([
     fs.writeFile(outputValuesPath, stringify(renderedValues), "utf8"),
     fs.writeFile(outputScriptPath, renderedScript, "utf8"),

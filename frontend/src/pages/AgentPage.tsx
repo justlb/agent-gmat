@@ -20,7 +20,7 @@ import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex,
 import { analyzeElectricPropulsionRun, confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussElectricPropulsionDraft, executeElectricPropulsionDraftWithProgress, getElectricPropulsionRunConversation, listElectricPropulsionDrafts, openElectricPropulsionRunInGui } from './agent/electricPropulsionApi'
 import { analyzeOrbitKeepingRun, confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraftWithProgress, getOrbitKeepingRunConversation, listOrbitKeepingDrafts, openOrbitKeepingRunInGui, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
 import { routeMissionMessage } from './agent/missionRoutingApi'
-import { openSimuCicGui, runSimuCic } from './agent/simuCicApi'
+import { convertSimuCicEphemeris, openSimuCicGui, runSimuCic } from './agent/simuCicApi'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -104,6 +104,7 @@ export default function AgentPage() {
   const [managedRunError, setManagedRunError] = useState('')
   const [gmatGenerating, setGmatGenerating] = useState(false)
   const [gmatGuiOpening, setGmatGuiOpening] = useState(false)
+  const [simuCicConverting, setSimuCicConverting] = useState(false)
   const [simuCicGuiOpening, setSimuCicGuiOpening] = useState(false)
   const [simuCicRunning, setSimuCicRunning] = useState(false)
   const [pendingGmatMessage, setPendingGmatMessage] = useState<PendingGmatMessage | null>(null)
@@ -747,6 +748,18 @@ export default function AgentPage() {
       })
       .finally(() => setSimuCicRunning(false))
   }, [activeGmatRun, refreshWorkspaceViews, showSpeechText, simuCicRunning])
+  const handleConvertSimuCicEphemeris = useCallback(() => {
+    if (!activeGmatRun || simuCicConverting || simuCicRunning) return
+    setSimuCicConverting(true)
+    setManagedRunError('')
+    void convertSimuCicEphemeris(activeGmatRun.runPath)
+      .then(result => {
+        showSpeechText('Simu-CIC ephemeris generated: ' + result.convertedEphemeris + '.')
+        refreshWorkspaceViews()
+      })
+      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to generate the Simu-CIC ephemeris'))
+      .finally(() => setSimuCicConverting(false))
+  }, [activeGmatRun, refreshWorkspaceViews, showSpeechText, simuCicConverting, simuCicRunning])
   const handleOpenSimuCicGui = useCallback(() => {
     if (!activeGmatRun || simuCicGuiOpening) return
     setSimuCicGuiOpening(true)
@@ -862,6 +875,7 @@ export default function AgentPage() {
             draft: activeGmatDraft,
             error: error || managedRunError,
             pending: pendingGmatMessage,
+            onConvertSimuCicEphemeris: handleConvertSimuCicEphemeris,
             onExecute: handleExecuteGmatDraft,
             onNewRun: handleNewGmatDraft,
             onRunSimuCic: handleRunSimuCic,
@@ -869,6 +883,7 @@ export default function AgentPage() {
               if (pendingGmatMessage?.status === 'failed') handleTextSubmit(pendingGmatMessage.message, chatMode)
             },
             onSend: (message, mode) => handleTextSubmit(message, mode),
+            simuCicConverting,
             simuCicRunning,
           }}
           manifestLoading={manifestLoading}

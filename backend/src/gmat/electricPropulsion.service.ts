@@ -37,6 +37,25 @@ export type GenerateElectricPropulsionMissionResult = {
   valuesPath: string
 }
 
+function enableEphemerisOutput(script: string) {
+  if (!script.includes("Create EphemerisFile EphemerisFile1;")) {
+    throw new Error("electric-propulsion template does not expose EphemerisFile1")
+  }
+  const marker = "BeginMissionSequence;"
+  if (!script.includes(marker)) throw new Error("electric-propulsion template does not expose its mission sequence")
+  const propagation = "Propagate 'Propagate' DefaultProp(DefaultSC) {DefaultSC.ElapsedDays = daysofpropagation};"
+  if (!script.includes(propagation)) throw new Error("electric-propulsion template does not expose its propagation command")
+  const withSubscriber = script.includes("Toggle EphemerisFile1 On;")
+    ? script
+    : script.replace(marker, `${marker}\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;`)
+  if (withSubscriber.includes("Sample electric transfer for OEM output")) return withSubscriber
+  return withSubscriber.replace(propagation, [
+    "While 'Sample electric transfer for OEM output' DefaultSC.ElapsedDays < daysofpropagation",
+    "  Propagate 'Propagate one output step' DefaultProp(DefaultSC);",
+    "EndWhile;",
+  ].join("\n"))
+}
+
 function runDirectoryName(date: Date) {
   const pad = (value: number) => String(value).padStart(2, "0")
   return `${pad(date.getFullYear() % 100)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}`
@@ -132,7 +151,8 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   const resultPath = path.join(runDir, "gmat_result.json")
   const timeSeriesPath = path.join(runDir, "electric_transfer_timeseries.json")
   const manifestPath = path.join(runDir, "run_manifest.json")
-  await Promise.all([fs.writeFile(scriptPath, renderElectricPropulsionValues(template, renderedValues), "utf8"), fs.writeFile(valuesPath, stringify(renderedValues), "utf8")])
+  const renderedScript = enableEphemerisOutput(renderElectricPropulsionValues(template, renderedValues))
+  await Promise.all([fs.writeFile(scriptPath, renderedScript, "utf8"), fs.writeFile(valuesPath, stringify(renderedValues), "utf8")])
   onProgress?.({ key: "render_script", percent: 60, status: "completed" })
   if (execution) onProgress?.({ key: "run_gmat", percent: 65, status: "running" })
   const executionResult = execution ? await runElectricPropulsionGmat({ ...execution, scriptPath }) : undefined
@@ -140,7 +160,7 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   const minimumUsablePowerKw = numericSlotValue(renderedValues, "ElectricThruster1.MinimumUsablePower")
   const result = summarizeElectricPropulsionExecution(executionResult, minimumUsablePowerKw)
   const ephemerisWritten = execution
-    ? await fs.stat(ephemerisPath).then(stat => stat.isFile()).catch(() => false)
+    ? await fs.stat(ephemerisPath).then(stat => stat.isFile() && stat.size > 0).catch(() => false)
     : false
   const runId = path.basename(runDir)
   const manifest = { schemaVersion: 1, runId, tool: "GMAT", templateId: "electric-propulsion-transfer", templateSha256, status: result.status, request, createdAt: new Date().toISOString(), completedAt: executionResult?.completedAt ?? null, changes, inputs: { script: path.basename(scriptPath), values: path.basename(valuesPath) }, outputs: { result: path.basename(resultPath), report: executionResult ? path.basename(executionResult.reportPath) : null, ephemeris: ephemerisWritten ? path.basename(ephemerisPath) : null, log: executionResult ? path.basename(executionResult.logPath) : null } }

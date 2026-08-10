@@ -87,6 +87,31 @@ async function runCommand(executable: string, args: string[], cwd: string, timeo
   })
 }
 
+async function convertGmatEphemeris(settings: ReturnType<typeof requiredSimuCicConfig>, runDir: string) {
+  const ephemeris = await findGmatEphemeris(runDir)
+  if (!ephemeris) {
+    throw new Error("GMAT did not produce a usable OEM ephemeris for this run. Regenerate the GMAT run, then launch Simu-CIC.")
+  }
+  const conversionDir = path.join(runDir, "opalis", "01-conversion_vers_SIMU-CIC")
+  const convertedEphemeris = path.join(conversionDir, "EphemerisFile1_SIMU.txt")
+  const converter = ephemerisConverterFor(settings.simuCicRunner)
+  await fs.mkdir(conversionDir, { recursive: true })
+  await fs.access(converter).catch(() => {
+    throw new Error("OPALIS ephemeris converter is unavailable: " + converter)
+  })
+  const output = await runCommand(settings.workerPython, [
+    nativePath(converter),
+    nativePath(ephemeris),
+    "--output", nativePath(convertedEphemeris),
+    "--json",
+  ], runDir, settings.timeoutMs)
+  const convertedStat = await fs.stat(convertedEphemeris).catch(() => null)
+  if (!convertedStat?.isFile() || convertedStat.size === 0) {
+    throw new Error("The GMAT ephemeris conversion did not produce a usable SIMU-CIC file")
+  }
+  return { convertedEphemeris, output, sourceEphemeris: ephemeris }
+}
+
 async function latestScenario(runDir: string) {
   const root = path.join(runDir, "opalis", "02-simu-cic", "01-execution-complete")
   const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => [])
@@ -108,7 +133,10 @@ async function openGui(config: AppConfig, runDir: string) {
     .replaceAll("__SCENARIO_FILE__", nativePath(scenario).replace(/\\/gu, "/"))
   const launcherPath = path.join(runDir, "opalis", "02-simu-cic", "open_simucic_gui.sce")
   await fs.writeFile(launcherPath, launcher, "utf8")
-  const guiBin = guiBinFor(settings.scilabBin)
+  // The backend can run under WSL while Scilab itself is a Windows process.
+  // Keep a /mnt/c path for WSL's spawn, but normalize it when Node runs on Windows.
+  const configuredGuiBin = guiBinFor(settings.scilabBin)
+  const guiBin = process.platform === "win32" ? nativePath(configuredGuiBin) : configuredGuiBin
   await new Promise<void>((resolve, reject) => {
     const child = spawn(guiBin, ["-f", nativePath(launcherPath)], { detached: true, stdio: "ignore", windowsHide: false })
     child.once("error", reject)
@@ -118,6 +146,23 @@ async function openGui(config: AppConfig, runDir: string) {
 }
 
 export async function simuCicRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+  fastify.post<{ Body: RunBody }>("/api/opalis/simu-cic/convert-ephemeris", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    const runDir = root ? resolveGmatRunDir(root, req.body?.runPath) : null
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    try {
+      const conversion = await convertGmatEphemeris(requiredSimuCicConfig(config), runDir)
+      return reply.send({
+        convertedEphemeris: path.relative(root, conversion.convertedEphemeris),
+        output: conversion.output,
+        sourceEphemeris: path.relative(root, conversion.sourceEphemeris),
+      })
+    } catch (error) {
+      return reply.status(422).send({ error: getErrorMessage(error, "failed to convert the GMAT ephemeris") })
+    }
+  })
+
   fastify.post<{ Body: RunBody }>("/api/opalis/simu-cic/run", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     const runDir = root ? resolveGmatRunDir(root, req.body?.runPath) : null
@@ -125,34 +170,14 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
       const settings = requiredSimuCicConfig(config)
-      const ephemeris = await findGmatEphemeris(runDir)
-      if (!ephemeris) {
-        throw new Error("GMAT did not produce a usable OEM ephemeris for this run. Regenerate the GMAT run, then launch Simu-CIC.")
-      }
-      const conversionDir = path.join(runDir, "opalis", "01-conversion_vers_SIMU-CIC")
-      const convertedEphemeris = path.join(conversionDir, "EphemerisFile1_SIMU.txt")
-      const converter = ephemerisConverterFor(settings.simuCicRunner)
-      await fs.mkdir(conversionDir, { recursive: true })
-      await fs.access(converter).catch(() => {
-        throw new Error("OPALIS ephemeris converter is unavailable: " + converter)
-      })
-      const conversionOutput = await runCommand(settings.workerPython, [
-        nativePath(converter),
-        nativePath(ephemeris),
-        "--output", nativePath(convertedEphemeris),
-        "--json",
-      ], runDir, settings.timeoutMs)
-      const convertedStat = await fs.stat(convertedEphemeris).catch(() => null)
-      if (!convertedStat?.isFile() || convertedStat.size === 0) {
-        throw new Error("The GMAT ephemeris conversion did not produce a usable SIMU-CIC file")
-      }
+      const conversion = await convertGmatEphemeris(settings, runDir)
       const saveRoot = path.join(runDir, "opalis", "02-simu-cic", "01-execution-complete")
       const cicOutput = path.join(runDir, "opalis", "02-simu-cic", "02-fichiers-cic")
       await fs.mkdir(saveRoot, { recursive: true })
       const args = [
-        nativePath(settings.simuCicRunner), "--gui",
+        nativePath(settings.simuCicRunner), "--gui", "--hide-window",
         "--scilab", nativePath(guiBinFor(settings.scilabBin)),
-        "--ephemeris", nativePath(convertedEphemeris),
+        "--ephemeris", nativePath(conversion.convertedEphemeris),
         "--simucic-dir", nativePath(settings.simucicDir),
         "--base-scenario", nativePath(settings.baseScenario),
         "--save-root", nativePath(saveRoot),
@@ -164,8 +189,9 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
       if (!cicFiles.some(file => file.endsWith(".TXT"))) throw new Error("Simu-CIC completed without producing CIC/Sat files")
       return reply.send({
         cicSatDir: path.relative(root, cicSatDir),
-        conversionOutput,
-        convertedEphemeris: path.relative(root, convertedEphemeris),
+        conversionOutput: conversion.output,
+        convertedEphemeris: path.relative(root, conversion.convertedEphemeris),
+        sourceEphemeris: path.relative(root, conversion.sourceEphemeris),
         output,
         scenarioPath: await latestScenario(runDir),
       })
