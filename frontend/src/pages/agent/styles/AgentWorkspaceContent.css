@@ -2270,4 +2270,39 @@
 .agent-simucic-actions { align-items: center; background: rgba(8, 27, 49, .88); border: 1px solid rgba(34, 211, 238, .28); border-radius: 8px; display: flex; flex-wrap: wrap; gap: 7px 12px; margin: 0 0 8px; padding: 8px 10px; }.agent-simucic-actions > div:first-child { display: grid; gap: 1px; margin-right: auto; }.agent-simucic-actions strong { color: #67e8f9; font-size: 11px; letter-spacing: .04em; }.agent-simucic-actions span, .agent-simucic-actions small { color: #9fb3ca; font-size: 10px; }.agent-simucic-actions > div:nth-child(2) { display: flex; gap: 6px; }.agent-simucic-actions button { background: rgba(24, 92, 173, .32); border: 1px solid rgba(96, 165, 250, .5); border-radius: 6px; color: #eaf7ff; cursor: pointer; font-size: 10px; font-weight: 800; padding: 6px 8px; }.agent-simucic-actions button:hover:not(:disabled) { background: rgba(37, 99, 235, .62); }.agent-simucic-actions button:disabled { cursor: wait; opacity: .55; }.agent-simucic-actions > small { flex-basis: 100%; }
 .gmat-mission-simucic-hint { margin: 8px 0 0; color: #9ec1da; font-size: 10px; line-height: 1.35; }
 .agent-gmat-current-digital-thread { display: grid; gap: 2px; margin: 8px 0; padding: 8px; border: 1px solid rgba(23, 231, 255, .24); border-radius: 7px; background: rgba(6, 31, 54, .62); text-decoration: none; }.agent-gmat-current-digital-thread span { color: #67e8f9; font-size: 11px; font-weight: 800; }.agent-gmat-current-digital-thread small { color: #9ec1da; font-size: 9px; }
+
+/* Laptop layout remains compact. On wider desktop displays, increase only the
+   reading and control typography; panel geometry still uses the available
+   workspace instead of a page-wide browser zoom. */
+@media (min-width: 1500px) {
+  .mission-studio .agent-gmat-files-card { padding: clamp(13px, 1vw, 19px); }
+  .mission-studio .agent-gmat-files-card header strong { font-size: clamp(16px, 1.1vw, 21px); }
+  .mission-studio .agent-gmat-files-card header span { font-size: clamp(11px, .75vw, 14px); }
+  .mission-studio .agent-gmat-files-list > section { padding: clamp(9px, .7vw, 13px); }
+  .mission-studio .agent-gmat-files-list > section > header strong { font-size: clamp(12px, .85vw, 16px); }
+  .mission-studio .agent-gmat-files-list > section > header button,
+  .mission-studio .agent-gmat-files-card a { font-size: clamp(11px, .72vw, 14px); }
+
+  .mission-studio .gmat-mission-chat { grid-template-rows: 35px minmax(0, 1fr); }
+  .mission-studio .gmat-mission-chat-tabs span { font-size: clamp(12px, .8vw, 15px); line-height: 35px; }
+  .mission-studio .gmat-mission-chat-thread > header strong { font-size: clamp(15px, 1vw, 19px); }
+  .mission-studio .gmat-mission-chat-thread > header span { font-size: clamp(11px, .72vw, 14px); }
+  .mission-studio .gmat-mission-chat-history { font-size: clamp(13px, .85vw, 16px); }
+  .mission-studio .gmat-mission-chat-sidebar { font-size: clamp(12px, .75vw, 14px); }
+  .mission-studio .gmat-mission-chat-sidebar section header,
+  .mission-studio .gmat-mission-chat-sidebar li,
+  .mission-studio .gmat-mission-chat-sidebar li b { font-size: clamp(11px, .72vw, 14px); }
+  .mission-studio .gmat-mission-composer textarea,
+  .mission-studio .gmat-mission-composer button,
+  .mission-studio .gmat-mission-chat-sidebar button { font-size: clamp(12px, .78vw, 15px); }
+
+  .satellite-definition-card h3,
+  .satellite-active-card h3 { font-size: clamp(20px, 1.35vw, 26px); }
+  .satellite-definition-card p,
+  .satellite-active-card p { font-size: clamp(14px, .9vw, 17px); }
+  .satellite-definition-card header,
+  .satellite-active-card > small,
+  .satellite-active-card dt,
+  .satellite-active-card dd { font-size: clamp(12px, .76vw, 15px); }
+}
 @media (max-width: 1100px) { .satellite-library-grid { grid-template-columns: 1fr; }.satellite-definition-list { grid-template-columns: 1fr; } }
