@@ -114,10 +114,10 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
             </> : activeRunId ? <p>The mission values are not loaded for this saved run.</p> : <p>Describe the mission to start a new draft.</p>}
             {activeRunId && onConvertSimuCicEphemeris ? <button disabled={simuCicConverting || simuCicRunning} type="button" onClick={onConvertSimuCicEphemeris}>{simuCicConverting ? 'Generating ephemeris...' : 'Generate Simu-CIC ephemeris'}</button> : null}
             {activeRunId && onRunSimuCic ? <button className="gmat-mission-run-button" disabled={simuCicRunning} type="button" onClick={onRunSimuCic}>{simuCicRunning ? 'Running Simu-CIC…' : 'Run Simu-CIC'}</button> : null}
-            {activeRunId ? <button type="button" onClick={onNewRun}>New GMAT run</button> : null}
+            {activeRunId ? <button type="button" onClick={onNewRun}>Start separate GMAT mission</button> : null}
           </aside>
           <section className="gmat-mission-chat-thread" aria-live="polite">
-            <header><strong>{activeRunId ? 'Run discussion' : 'Mission discussion'}</strong><span>{activeRunId ? 'Ask about saved results without rerunning GMAT' : 'Draft assistant'}</span></header>
+            <header><strong>{activeRunId ? 'Run discussion' : 'Mission discussion'}</strong><span>{activeRunId ? 'Ask about results or request changed values for a new run' : 'Draft assistant'}</span></header>
             <div className="gmat-mission-chat-history">
               {error && pending?.status !== 'failed' ? <StatusMessage text={error} variant="error" title="GMAT error" /> : null}
               {missing.length ? <StatusMessage text={`GMAT cannot run yet. Missing required data: ${missing.join(', ')}.`} title="GMAT status" /> : null}

@@ -42,11 +42,13 @@ export async function snapshotMissionConversationForRun(workspaceDir: string, ru
 type DraftTurn = { assistant: string; user: string }
 
 /**
- * Adds the full draft and Simu-CIC conversation to a run without deleting
- * later result-analysis questions. This also repairs historical runs on open.
+ * Adds only this draft's conversation to its run without deleting later
+ * result-analysis questions. The workspace-level mission archive deliberately
+ * is not included: it spans separate GMAT conversations and must never make a
+ * new mission appear to inherit another mission's discussion.
  */
 export async function mergeMissionConversationIntoRun(workspaceDir: string, runDir: string, draftConversation: DraftTurn[] = []) {
-  const missionTurns = await loadMissionConversation(workspaceDir)
+  void workspaceDir
   const draftTurns: MissionConversationTurn[] = draftConversation.map((turn, index) => ({
     answer: turn.assistant,
     askedAt: new Date(0 + index).toISOString(),
@@ -57,7 +59,7 @@ export async function mergeMissionConversationIntoRun(workspaceDir: string, runD
   const source = await fs.readFile(output, "utf8").catch(() => "[]")
   const existing: unknown = JSON.parse(source)
   if (!Array.isArray(existing)) throw new Error("GMAT run conversation is invalid")
-  const merged = [...missionTurns, ...draftTurns, ...existing.filter(validRunTurn)].filter((turn, index, turns) =>
+  const merged = [...draftTurns, ...existing.filter(validRunTurn)].filter((turn, index, turns) =>
     turns.findIndex(candidate => candidate.question === turn.question && candidate.answer === turn.answer) === index,
   )
   await fs.writeFile(output, `${JSON.stringify(merged, null, 2)}\n`, "utf8")

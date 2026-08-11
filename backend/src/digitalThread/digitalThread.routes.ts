@@ -53,6 +53,21 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to load satellite digital thread") }) }
   })
 
+  // The live source of truth is useful before a GMAT execution. Each executed
+  // run additionally receives its own immutable satellite.digital-thread.json
+  // snapshot, referenced from that run manifest.
+  fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/digital-thread/satellite/download", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const document = await loadOrCreateDigitalThread(resolveWorkspaceDir(root, req.query.workspaceDir))
+      return reply
+        .header("Content-Type", "application/json; charset=utf-8")
+        .header("Content-Disposition", "attachment; filename=satellite.json")
+        .send(`${JSON.stringify(document, null, 2)}\n`)
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download satellite digital thread") }) }
+  })
+
   fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/digital-thread/satellite/conversation", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })

@@ -7,9 +7,9 @@ import { loadOrCreateDigitalThread, updateDigitalThreadWithLlm } from "../digita
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
-import { analyzeElectricPropulsionRunWithLlm } from "./electricPropulsionAnalysis.js"
+import { analyzeElectricPropulsionRunWithLlm, loadElectricPropulsionRunConversation } from "./electricPropulsionAnalysis.js"
 import { discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
-import { analyzeOrbitKeepingRunWithLlm } from "./orbitKeepingAnalysis.js"
+import { analyzeOrbitKeepingRunWithLlm, loadOrbitKeepingRunConversation } from "./orbitKeepingAnalysis.js"
 import { discussOrbitKeepingDraft, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
 import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
@@ -94,12 +94,27 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
         const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
         if (!draftId || !activeRun) return reply.send({ answer: "To change mission values, open or create a GMAT draft first. Existing runs remain immutable; the change will create a new run.", intent, kind: "answer" })
         if (activeRun.template === "orbit-keeping") {
-          const draft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft: await loadOrbitKeepingDraft(workspaceDir, draftId), message, workspaceDir })
+          const existingDraft = await loadOrbitKeepingDraft(workspaceDir, draftId)
+          // A revision continues the same engineering discussion. Bring the
+          // saved result discussion into the draft before adding the requested
+          // change, while the old run itself stays immutable on disk.
+          const runConversation = await loadOrbitKeepingRunConversation(activeRun.runDir)
+          const draft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft: {
+            ...existingDraft,
+            conversation: [...existingDraft.conversation, ...runConversation.map(turn => ({ assistant: turn.answer, user: turn.question }))]
+              .filter((turn, index, turns) => turns.findIndex(candidate => candidate.user === turn.user && candidate.assistant === turn.assistant) === index),
+          }, message, workspaceDir })
           await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
           await appendMissionConversation(workspaceDir, { answer: draft.assistantMessage ?? "Mission draft updated.", askedAt: draft.updatedAt, channel: "gmat-draft", question: message })
           return reply.send({ draft, intent, kind: "draft" })
         }
-        const draft = await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft: await loadElectricPropulsionDraft(workspaceDir, draftId), message, workspaceDir })
+        const existingDraft = await loadElectricPropulsionDraft(workspaceDir, draftId)
+        const runConversation = await loadElectricPropulsionRunConversation(activeRun.runDir)
+        const draft = await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft: {
+          ...existingDraft,
+          conversation: [...existingDraft.conversation, ...runConversation.map(turn => ({ assistant: turn.answer, user: turn.question }))]
+            .filter((turn, index, turns) => turns.findIndex(candidate => candidate.user === turn.user && candidate.assistant === turn.assistant) === index),
+        }, message, workspaceDir })
         await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
         await appendMissionConversation(workspaceDir, { answer: draft.assistantMessage ?? "Mission draft updated.", askedAt: draft.updatedAt, channel: "gmat-draft", question: message })
         return reply.send({ draft, intent, kind: "draft" })
@@ -117,6 +132,7 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
         return reply.send({ answer: result.answer, intent, kind: "analysis" })
       }
       const answer = await answerFromContext(config, intent, message, workspaceDir)
+      if (activeRun) await appendRunConversation(activeRun.runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: message })
       return reply.send({ answer, intent, kind: "answer" })
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "mission assistant request failed") }) }
   })

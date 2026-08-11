@@ -550,6 +550,18 @@ export default function AgentPage() {
             setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'completed') : entries)
             return
           }
+          if (result.kind === 'clarify') {
+            // A rejected mission request (for example an electric transfer
+            // with a chemical-propulsion satellite) is still a meaningful
+            // conversation turn. Keep it visible instead of clearing the
+            // pending user message and leaving an empty chat.
+            const askedAt = new Date().toISOString()
+            setSimuCicConversation(current => [...current, { answer: result.message, askedAt, question: prompt }])
+            setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: result.message, askedAt, question: prompt }] } : current)
+            showSpeechText(result.message)
+            setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'completed') : entries)
+            return
+          }
           showSpeechText(result.message)
           setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'completed') : entries)
         })
@@ -687,7 +699,7 @@ export default function AgentPage() {
             ? `GMAT ${result.result.status}: ${result.result.error || 'GMAT did not produce a usable result. Review the generated log file for details.'}`
             : runWarnings.length
               ? `GMAT completed with safety warnings: ${runWarnings.join(' ')}`
-            : `GMAT completed successfully. You can now ask questions about the saved results without running GMAT again.`,
+            : `GMAT completed successfully. You can analyze these saved results or request changed mission values to create a new run.`,
           askedAt: new Date().toISOString(),
           question: 'GMAT execution',
         }]

@@ -10,7 +10,7 @@ import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { digitalThreadGmatSeed, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
 import { snapshotDigitalThreadForRun } from "../digitalThread/digitalThreadStore.js"
-import { appendMissionConversation, mergeMissionConversationIntoRun, snapshotMissionConversationForRun } from "../digitalThread/missionConversationStore.js"
+import { appendMissionConversation, appendRunConversation, mergeMissionConversationIntoRun, snapshotMissionConversationForRun } from "../digitalThread/missionConversationStore.js"
 import { analyzeOrbitKeepingRunWithLlm, loadOrbitKeepingRunConversation } from "./orbitKeepingAnalysis.js"
 import { defaultOrbitKeepingValuesPath, generateOrbitKeepingMission, type OrbitKeepingProgress } from "./orbitKeeping.service.js"
 import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, draftToOrbitKeepingChanges, loadOrbitKeepingDraft, recordOrbitKeepingDraftRun } from "./orbitKeepingDraft.js"
@@ -225,7 +225,8 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       })
       const runPath = path.relative(path.resolve(userWorkspaceRoot), result.runDir)
       await snapshotMissionConversationForRun(workspaceDir, result.runDir, draft.conversation)
-      if (draft.digitalThreadRequiredPaths?.length) await snapshotDigitalThreadForRun(workspaceDir, result.runDir)
+      await appendRunConversation(result.runDir, { answer: result.result.status === "failed" || result.result.status === "timeout" ? `GMAT ${result.result.status}: ${result.result.error || "GMAT did not produce a usable result. Review the generated log file for details."}` : "GMAT completed successfully. You can now ask questions about the saved results or request a revised run.", askedAt: new Date().toISOString(), channel: "gmat-draft", question: "GMAT execution" })
+      await snapshotDigitalThreadForRun(workspaceDir, result.runDir)
       await recordOrbitKeepingDraftRun(workspaceDir, draft.draftId, {
         changes: result.changes,
         completedAt: new Date().toISOString(),
@@ -259,7 +260,8 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       })
       const runPath = path.relative(path.resolve(userWorkspaceRoot), result.runDir)
       await snapshotMissionConversationForRun(workspaceDir, result.runDir, draft.conversation)
-      if (draft.digitalThreadRequiredPaths?.length) await snapshotDigitalThreadForRun(workspaceDir, result.runDir)
+      await appendRunConversation(result.runDir, { answer: result.result.status === "failed" || result.result.status === "timeout" ? `GMAT ${result.result.status}: ${result.result.error || "GMAT did not produce a usable result. Review the generated log file for details."}` : "GMAT completed successfully. You can now ask questions about the saved results or request a revised run.", askedAt: new Date().toISOString(), channel: "gmat-draft", question: "GMAT execution" })
+      await snapshotDigitalThreadForRun(workspaceDir, result.runDir)
       await recordOrbitKeepingDraftRun(workspaceDir, draft.draftId, { changes: result.changes, completedAt: new Date().toISOString(), result: result.result, runId: result.runId, runPath })
       sendEvent("result", { ...result, draftId: draft.draftId, runPath })
     } catch (err) {

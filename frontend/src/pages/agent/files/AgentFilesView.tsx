@@ -2,6 +2,7 @@ import { useEffect, useState, type ComponentProps, type ReactNode } from 'react'
 import type { GeneratedFilesTreeCard, GeneratedFileTreeEntry } from '../../workspace/GeneratedFilesTreeCard'
 import type { WorkspaceFilePreview } from '../types'
 import { WorkspaceFilePreviewPanel } from '../WorkspaceFilePreviewPanel'
+import { joinApiPath } from '../../../app/apiBase'
 import { listOrbitKeepingDrafts, listOrbitKeepingFiles, orbitKeepingFileDownloadUrl, type OrbitKeepingDraft, type OrbitKeepingFile } from '../orbitKeepingApi'
 import { electricPropulsionFileDownloadUrl, listElectricPropulsionDrafts, listElectricPropulsionFiles, type ElectricPropulsionFile } from '../electricPropulsionApi'
 import { GmatMissionChat, type GmatMissionChatProps } from './GmatMissionChat'
@@ -36,6 +37,11 @@ function compareRunsNewestFirst(left: GmatRun, right: GmatRun) {
 
 function draftUpdatedAt(draft: OrbitKeepingDraft) {
   return Date.parse(draft.updatedAt ?? draft.createdAt ?? '') || 0
+}
+
+function satelliteDigitalThreadDownloadUrl(workspaceDir?: string | null) {
+  const query = new URLSearchParams(workspaceDir ? { workspaceDir } : {}).toString()
+  return `${joinApiPath(undefined, '/digital-thread/satellite/download')}${query ? `?${query}` : ''}`
 }
 
 type AgentFilesViewProps = {
@@ -124,6 +130,10 @@ export function AgentFilesView({
               <span>Mission drafts and generated files</span>
             </div>
           </header>
+          <a className="agent-gmat-current-digital-thread" href={satelliteDigitalThreadDownloadUrl(workspaceDir)}>
+            <span>Satellite digital thread</span>
+            <small>satellite.json · Current source of truth · Download</small>
+          </a>
           {gmatFilesError ? <p className="agent-gmat-files-error">{gmatFilesError}</p> : null}
           {gmatRuns.length || displayedDrafts.length ? (
             <div className="agent-gmat-files-list">
