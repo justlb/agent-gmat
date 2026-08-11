@@ -17,6 +17,7 @@ import { electricPropulsionRoutes } from "../gmat/electricPropulsion.routes.js"
 import { missionRouterRoutes } from "../gmat/missionRouter.routes.js"
 import { digitalThreadRoutes } from "../digitalThread/digitalThread.routes.js"
 import { simuCicRoutes } from "../opalis/simuCic.routes.js"
+import { missionAssistantRoutes } from "../gmat/missionAssistant.routes.js"
 
 export async function registerApiRoutes(
   fastify: FastifyInstance,
@@ -40,6 +41,7 @@ export async function registerApiRoutes(
   await fastify.register(orbitKeepingRoutes, { config })
   await fastify.register(electricPropulsionRoutes, { config })
   await fastify.register(missionRouterRoutes, { config })
+  await fastify.register(missionAssistantRoutes, { config })
   await fastify.register(digitalThreadRoutes, { config })
   await fastify.register(simuCicRoutes, { config })
 }

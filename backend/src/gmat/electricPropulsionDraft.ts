@@ -337,7 +337,7 @@ export async function discussElectricPropulsionDraft({ connection, draft, messag
     request: patch.updates.find(update => update.path === "coordinateConversion.request")?.value,
   })
   const assistantMessage = [patch.message || "I have updated the electric-propulsion mission draft.", conversion].filter(Boolean).join("\n\n")
-  return saveDraft(workspaceDir, refreshDraft({ ...draft, assistantMessage, confirmed: false, conversationStartedAt: draft.conversationStartedAt ?? new Date().toISOString(), conversation: [...draft.conversation, { assistant: assistantMessage, user: message }].slice(-20), values }))
+  return saveDraft(workspaceDir, refreshDraft({ ...draft, assistantMessage, confirmed: false, conversationStartedAt: draft.conversationStartedAt ?? new Date().toISOString(), conversation: [...draft.conversation, { assistant: assistantMessage, user: message }], values }))
 }
 export async function confirmElectricPropulsionDraft(workspaceDir: string, draftId: string, authoritativeValues?: Record<string, DraftValue>) {
   let draft = await loadElectricPropulsionDraft(workspaceDir, draftId)

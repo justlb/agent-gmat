@@ -513,7 +513,7 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
     assistantMessage: [patch.message || "I have updated the mission draft. What would you like to define next?", conversion].filter(Boolean).join("\n\n"),
     confirmed: false,
     conversationStartedAt: draft.conversationStartedAt ?? new Date().toISOString(),
-    conversation: [...draft.conversation, { assistant: [patch.message || "Mission draft updated.", conversion].filter(Boolean).join("\n\n"), user: message }].slice(-20),
+    conversation: [...draft.conversation, { assistant: [patch.message || "Mission draft updated.", conversion].filter(Boolean).join("\n\n"), user: message }],
     targetSmaFollowsInitial,
     values: updatedValues,
   })

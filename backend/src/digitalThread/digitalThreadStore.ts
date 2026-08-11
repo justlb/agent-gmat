@@ -4,6 +4,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
+import { PREDEFINED_GROUND_STATIONS, assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 export type DigitalThreadDocument = { [key: string]: JsonValue } & {
@@ -38,6 +39,14 @@ function ensureMissionRequestShape(document: DigitalThreadDocument) {
     for (const field of ["epoch_tai_mod_julian", "semi_major_axis_km", "eccentricity", "inclination_deg", "raan_deg", "arg_of_perigee_deg", "true_anomaly_deg"]) {
       if (!(field in orbit)) { orbit[field] = null; changed = true }
     }
+  }
+  const simuCic = asObject(analysis.simu_cic) ?? (analysis.simu_cic = {}, analysis.simu_cic as { [key: string]: JsonValue })
+  for (const [field, defaultValue] of Object.entries({
+    attitude_mode: "nadir_pointing",
+    ground_station_ids: [],
+    simultaneous_visibility_policy: null,
+  } satisfies { [key: string]: JsonValue })) {
+    if (!(field in simuCic) || (field === "attitude_mode" && (simuCic[field] === null || simuCic[field] === "earth_pointing"))) { simuCic[field] = defaultValue; changed = true }
   }
   return changed
 }
@@ -149,6 +158,13 @@ export async function updateDigitalThreadWithLlm({ connection, message, workspac
     "Never invent engineering values. Record only facts explicitly supplied or unambiguously stated by the engineer.",
     "Return JSON only: {\"message\":\"short response\",\"updates\":[{\"path\":\"allowed.path\",\"value\":valid JSON value}]}",
     "Use only paths from the allowed list. Do not calculate orbital conversions, power, or other derived values; deterministic adapters do that.",
+    "The default Simu-CIC attitude is nadir_pointing. Use ground_station_tracking only when the engineer explicitly asks to point at one or more predefined stations; it must fall back to nadir when none are visible.",
+    "When setting one or more ground_station_ids, also set attitude_mode to ground_station_tracking and simultaneous_visibility_policy to first_visible_station_wins.",
+    "For analysis_requests.simu_cic.attitude_mode, use only nadir_pointing or ground_station_tracking.",
+    "For analysis_requests.simu_cic.ground_station_ids, use an array containing only predefined IDs. Do not create stations or coordinates.",
+    `Predefined Simu-CIC ground stations: ${PREDEFINED_GROUND_STATIONS.map(station => `${station.id} (${station.name})`).join(", ")}.`,
+    "If the engineer asks for available ground stations, answer with the matching predefined name(s) and ID(s) in message and return an empty updates array.",
+    "For analysis_requests.simu_cic.simultaneous_visibility_policy, use only null or first_visible_station_wins.",
     `Allowed paths: ${allowedPaths.join(", ")}`,
     `Current digital thread: ${JSON.stringify(document)}`,
     `Engineer message: ${message}`,
@@ -170,6 +186,9 @@ export async function updateDigitalThreadWithLlm({ connection, message, workspac
     setAtPath(document, update.path, update.value)
     provenance[update.path] = { source: "engineer_message", recorded_at: new Date().toISOString() }
   }
+  const simuCicRequest = asObject(document.analysis_requests.simu_cic)
+  if (!simuCicRequest) throw new Error("Simu-CIC request is missing from the digital thread")
+  assertValidSimuCicRequest(simuCicRequest)
   await saveDigitalThread(workspaceDir, document)
   return { document, message: typeof patch.message === "string" ? patch.message.trim() : "Digital thread updated." }
 }

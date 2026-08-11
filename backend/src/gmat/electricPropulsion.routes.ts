@@ -10,6 +10,7 @@ import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { digitalThreadGmatSeed, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
 import { snapshotDigitalThreadForRun } from "../digitalThread/digitalThreadStore.js"
+import { appendMissionConversation, mergeMissionConversationIntoRun, snapshotMissionConversationForRun } from "../digitalThread/missionConversationStore.js"
 import { analyzeElectricPropulsionRunWithLlm, loadElectricPropulsionRunConversation } from "./electricPropulsionAnalysis.js"
 import { confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussElectricPropulsionDraft, draftToElectricPropulsionChanges, loadElectricPropulsionDraft, recordElectricPropulsionDraftRun } from "./electricPropulsionDraft.js"
 import { generateElectricPropulsionMission } from "./electricPropulsion.service.js"
@@ -163,6 +164,7 @@ export async function electricPropulsionRoutes(fastify: FastifyInstance, { confi
     try {
       const workspaceDir = resolveOutputWorkspaceDir(root, req.body?.workspaceDir)
       const updatedDraft = await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft: await loadElectricPropulsionDraft(workspaceDir, req.params.draftId), message, workspaceDir })
+      await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
       if (updatedDraft.digitalThreadRequiredPaths?.length) await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
       return reply.send(updatedDraft)
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to update electric-propulsion GMAT draft") }) }
@@ -199,6 +201,7 @@ export async function electricPropulsionRoutes(fastify: FastifyInstance, { confi
       const values = extractElectricPropulsionValues(await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8"))
       const result = await generateElectricPropulsionMission({ changes: draftToElectricPropulsionChanges(draft, values), execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined, onProgress: progress => sendEvent("progress", progress), request: `Confirmed GMAT electric-propulsion draft ${draft.draftId}`, workspaceDir })
       const runPath = path.relative(path.resolve(root), result.runDir)
+      await snapshotMissionConversationForRun(workspaceDir, result.runDir, draft.conversation)
       if (draft.digitalThreadRequiredPaths?.length) await snapshotDigitalThreadForRun(workspaceDir, result.runDir)
       await recordElectricPropulsionDraftRun(workspaceDir, draft.draftId, { changes: result.changes, completedAt: new Date().toISOString(), result: result.result, runId: result.runId, runPath })
       sendEvent("result", { ...result, draftId: draft.draftId, runPath })
@@ -217,7 +220,9 @@ export async function electricPropulsionRoutes(fastify: FastifyInstance, { confi
     try {
       const workspaceDir = resolveOutputWorkspaceDir(root, req.body?.workspaceDir)
       const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
-      const relatedRuns = draftId ? (await loadElectricPropulsionDraft(workspaceDir, draftId)).runs : []
+      const draft = draftId ? await loadElectricPropulsionDraft(workspaceDir, draftId) : null
+      if (draft) await mergeMissionConversationIntoRun(workspaceDir, runDir, draft.conversation)
+      const relatedRuns = draft?.runs ?? []
       return reply.send(await analyzeElectricPropulsionRunWithLlm({ connection: resolveModelBackend(config, "chatModel"), question, relatedRuns, runDir }))
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to analyze electric-propulsion GMAT run") }) }
   })

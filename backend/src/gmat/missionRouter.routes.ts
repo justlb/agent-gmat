@@ -7,12 +7,24 @@ import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
 import { getSatelliteDefinition } from "../digitalThread/satelliteLibrary.js"
-import { loadOrCreateDigitalThread } from "../digitalThread/digitalThreadStore.js"
+import { loadOrCreateDigitalThread, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
 import { createElectricPropulsionDraft, discussElectricPropulsionDraft } from "./electricPropulsionDraft.js"
 import { createOrbitKeepingDraft, discussOrbitKeepingDraft } from "./orbitKeepingDraft.js"
+import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
 
 type MissionTemplate = "orbit-keeping" | "electric-propulsion-transfer"
 type RoutingDecision = { target: "clarify" | "general" | MissionTemplate; message: string }
+
+function isSimuCicRequest(message: string) {
+  return /simu\s*-?\s*cic|ground\s+(?:station|sat+ion)s?|station\s+au\s+sol|attitude|point(?:age|ing)|nadir/iu.test(message)
+}
+
+function resolveActiveGmatRunDir(root: string, requested: unknown) {
+  if (typeof requested !== "string" || !requested.trim()) return null
+  const runDir = path.resolve(root, requested)
+  const normalized = runDir.split(path.sep).join("/")
+  return isPathInside(path.resolve(root), runDir) && /\/gmat\/(?:orbit-keeping|electric-propulsion-transfer)\/[^/]+$/u.test(normalized) ? runDir : null
+}
 
 function responseText(payload: unknown) {
   if (payload && typeof payload === "object" && typeof (payload as { output_text?: unknown }).output_text === "string") {
@@ -68,7 +80,7 @@ async function routeMissionMessage(config: AppConfig, message: string) {
 
 /** One entry point for mission chat: route first, then use the selected draft workflow. */
 export async function missionRouterRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
-  fastify.post<{ Body: { message?: unknown; workspaceDir?: unknown } }>("/api/gmat/route", async (req, reply) => {
+  fastify.post<{ Body: { message?: unknown; runPath?: unknown; workspaceDir?: unknown } }>("/api/gmat/route", async (req, reply) => {
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : ""
     if (!message) return reply.status(400).send({ error: "message must be a non-empty string" })
     const root = getRequestUserWorkspaceRoot()
@@ -77,6 +89,14 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
     if (!isPathInside(path.resolve(root), workspaceDir)) return reply.status(400).send({ error: "workspaceDir must be inside the current user workspace" })
     try {
       const decision = await routeMissionMessage(config, message)
+      if (decision.target === "general" && isSimuCicRequest(message)) {
+        const result = await updateDigitalThreadWithLlm({ connection: resolveModelBackend(config, "chatModel"), message, workspaceDir })
+        const turn = { answer: result.message, askedAt: new Date().toISOString(), channel: "simu-cic" as const, question: message }
+        await appendMissionConversation(workspaceDir, turn)
+        const activeRunDir = resolveActiveGmatRunDir(root, req.body?.runPath)
+        if (activeRunDir) await appendRunConversation(activeRunDir, turn)
+        return reply.send({ digitalThread: result.document, kind: "simu-cic", message: result.message })
+      }
       if (decision.target === "general" || decision.target === "clarify") return reply.send({ kind: decision.target, message: decision.message })
       const currentDigitalThread = await loadOrCreateDigitalThread(workspaceDir)
       const satelliteSelection = currentDigitalThread.digital_thread.satellite_definition as { id?: unknown; version?: unknown } | null
@@ -90,17 +110,19 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
           message: `The selected satellite (${selectedSatellite.name}) is not compatible with the ${decision.target} GMAT template. Select a satellite with the required propulsion system or describe a compatible mission.`,
         })
       }
-      const adapted = adaptDigitalThreadToGmat(currentDigitalThread, decision.target)
+        const adapted = adaptDigitalThreadToGmat(currentDigitalThread, decision.target)
       const propulsionGuard = adapted.guards.find(guard => guard.code === "incompatible_propulsion")
       if (propulsionGuard) return reply.send({ kind: "clarify", message: `${propulsionGuard.message} Select a compatible satellite before continuing.` })
-      if (decision.target === "orbit-keeping") {
-        const draft = await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
-        const updatedDraft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
-        await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
+        if (decision.target === "orbit-keeping") {
+          const draft = await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
+          const updatedDraft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
+          await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
+          await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
         return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(workspaceDir), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
       }
       const draft = await createElectricPropulsionDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
       const updatedDraft = await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
+      await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
       await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
       return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(workspaceDir), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
     } catch (error) {

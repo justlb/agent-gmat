@@ -124,6 +124,11 @@
         "initial_orbit": { "epoch_tai_mod_julian": null, "semi_major_axis_km": null, "eccentricity": null, "inclination_deg": null, "raan_deg": null, "arg_of_perigee_deg": null, "true_anomaly_deg": null },
         "burn_duration_days": null
       }
+    },
+    "simu_cic": {
+      "attitude_mode": "nadir_pointing",
+      "ground_station_ids": [],
+      "simultaneous_visibility_policy": null
     }
   },
   "provenance": {

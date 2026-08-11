@@ -161,7 +161,7 @@ export function AgentFilesView({
       </aside>
       <div className="agent-file-log-pane">
         {topContent}
-        <GmatMissionChat activeRunId={activeGmatRunId} {...gmatMissionChat} />
+        <GmatMissionChat activeRunId={activeGmatRunId} workspaceDir={workspaceDir} {...gmatMissionChat} />
         {selectedFilePath ? <details className="agent-file-preview-details">
           <summary>Preview selected workspace file</summary>
           <WorkspaceFilePreviewPanel

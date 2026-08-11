@@ -10,7 +10,27 @@ export type SatelliteDefinition = {
   satellite: Record<string, unknown>
 }
 
-type DigitalThreadResponse = { document: { digital_thread?: { satellite_definition?: { id?: string; version?: string } } } }
+export type SimuCicConfiguration = {
+  attitude_mode: 'nadir_pointing' | 'ground_station_tracking' | null
+  ground_station_ids: string[]
+  simultaneous_visibility_policy: 'first_visible_station_wins' | null
+}
+
+export type PredefinedGroundStation = {
+  id: string
+  name: string
+  longitudeDeg: number
+  latitudeDeg: number
+  altitudeM: number
+  minElevationDeg: number
+}
+
+export type DigitalThreadResponse = {
+  document: {
+    digital_thread?: { satellite_definition?: { id?: string; version?: string } }
+    analysis_requests?: { simu_cic?: SimuCicConfiguration }
+  }
+}
 
 async function request<T>(path: string, options?: RequestInit) {
   const response = await fetch(joinApiPath(undefined, path), options)
@@ -26,4 +46,25 @@ export async function getSelectedSatellite(workspaceDir?: string | null) {
 }
 export async function selectSatelliteDefinition(id: string, version: string, workspaceDir?: string | null) {
   return request<{ definition: SatelliteDefinition }>('/satellite-library/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, version, workspaceDir }) })
+}
+export async function getMissionConversation(workspaceDir?: string | null) {
+  const query = workspaceDir ? `?workspaceDir=${encodeURIComponent(workspaceDir)}` : ''
+  const result = await request<{ conversation?: Array<{ answer: string; askedAt: string; question: string }> }>(`/digital-thread/satellite/conversation${query}`)
+  return Array.isArray(result.conversation) ? result.conversation : []
+}
+
+export async function listSimuCicGroundStations() {
+  return (await request<{ stations: PredefinedGroundStation[] }>('/opalis/simu-cic/ground-stations')).stations
+}
+
+export async function saveSimuCicConfiguration(configuration: Pick<SimuCicConfiguration, 'attitude_mode' | 'ground_station_ids'>, workspaceDir?: string | null) {
+  return request<DigitalThreadResponse>('/digital-thread/satellite/simu-cic', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      attitudeMode: configuration.attitude_mode,
+      groundStationIds: configuration.ground_station_ids,
+      workspaceDir,
+    }),
+  })
 }

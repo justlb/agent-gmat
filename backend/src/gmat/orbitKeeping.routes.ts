@@ -10,6 +10,7 @@ import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { digitalThreadGmatSeed, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
 import { snapshotDigitalThreadForRun } from "../digitalThread/digitalThreadStore.js"
+import { appendMissionConversation, mergeMissionConversationIntoRun, snapshotMissionConversationForRun } from "../digitalThread/missionConversationStore.js"
 import { analyzeOrbitKeepingRunWithLlm, loadOrbitKeepingRunConversation } from "./orbitKeepingAnalysis.js"
 import { defaultOrbitKeepingValuesPath, generateOrbitKeepingMission, type OrbitKeepingProgress } from "./orbitKeeping.service.js"
 import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, draftToOrbitKeepingChanges, loadOrbitKeepingDraft, recordOrbitKeepingDraftRun } from "./orbitKeepingDraft.js"
@@ -187,6 +188,7 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
       const draft = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
       const updatedDraft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
+      await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
       if (updatedDraft.digitalThreadRequiredPaths?.length) await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
       return reply.send(updatedDraft)
     } catch (err) {
@@ -222,6 +224,7 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
         workspaceDir,
       })
       const runPath = path.relative(path.resolve(userWorkspaceRoot), result.runDir)
+      await snapshotMissionConversationForRun(workspaceDir, result.runDir, draft.conversation)
       if (draft.digitalThreadRequiredPaths?.length) await snapshotDigitalThreadForRun(workspaceDir, result.runDir)
       await recordOrbitKeepingDraftRun(workspaceDir, draft.draftId, {
         changes: result.changes,
@@ -255,6 +258,7 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
         workspaceDir,
       })
       const runPath = path.relative(path.resolve(userWorkspaceRoot), result.runDir)
+      await snapshotMissionConversationForRun(workspaceDir, result.runDir, draft.conversation)
       if (draft.digitalThreadRequiredPaths?.length) await snapshotDigitalThreadForRun(workspaceDir, result.runDir)
       await recordOrbitKeepingDraftRun(workspaceDir, draft.draftId, { changes: result.changes, completedAt: new Date().toISOString(), result: result.result, runId: result.runId, runPath })
       sendEvent("result", { ...result, draftId: draft.draftId, runPath })
@@ -324,7 +328,9 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
     try {
       const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
       const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
-      const relatedRuns = draftId ? (await loadOrbitKeepingDraft(workspaceDir, draftId)).runs : []
+      const draft = draftId ? await loadOrbitKeepingDraft(workspaceDir, draftId) : null
+      if (draft) await mergeMissionConversationIntoRun(workspaceDir, runDir, draft.conversation)
+      const relatedRuns = draft?.runs ?? []
       return reply.send(await analyzeOrbitKeepingRunWithLlm({
         connection: resolveModelBackend(config, "chatModel"),
         question,

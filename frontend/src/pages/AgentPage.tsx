@@ -17,9 +17,10 @@ import { AgentTopbar, type RemoteToolPortSummary } from './agent/AgentTopbar'
 import { AgentWorkspacePanel } from './agent/AgentWorkspacePanel'
 import type { GmatSavedDraft } from './agent/files/AgentFilesView'
 import { cancelManagedCodex, getLatestManagedCodexStatus, summarizeManagedCodex, type ManagedModelBackend } from './agent/managedRun'
-import { analyzeElectricPropulsionRun, confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussElectricPropulsionDraft, executeElectricPropulsionDraftWithProgress, getElectricPropulsionRunConversation, listElectricPropulsionDrafts, openElectricPropulsionRunInGui } from './agent/electricPropulsionApi'
-import { analyzeOrbitKeepingRun, confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraftWithProgress, getOrbitKeepingRunConversation, listOrbitKeepingDrafts, openOrbitKeepingRunInGui, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
+import { confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussElectricPropulsionDraft, executeElectricPropulsionDraftWithProgress, getElectricPropulsionRunConversation, listElectricPropulsionDrafts, openElectricPropulsionRunInGui } from './agent/electricPropulsionApi'
+import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraftWithProgress, getOrbitKeepingRunConversation, listOrbitKeepingDrafts, openOrbitKeepingRunInGui, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
 import { routeMissionMessage } from './agent/missionRoutingApi'
+import { askMissionAssistant } from './agent/missionAssistantApi'
 import { convertSimuCicEphemeris, openSimuCicGui, runSimuCic } from './agent/simuCicApi'
 import {
   AGENT_HOME_PATH,
@@ -105,6 +106,7 @@ export default function AgentPage() {
   const [gmatGenerating, setGmatGenerating] = useState(false)
   const [gmatGuiOpening, setGmatGuiOpening] = useState(false)
   const [simuCicConverting, setSimuCicConverting] = useState(false)
+  const [simuCicConversation, setSimuCicConversation] = useState<OrbitKeepingRunConversationTurn[]>([])
   const [simuCicGuiOpening, setSimuCicGuiOpening] = useState(false)
   const [simuCicRunning, setSimuCicRunning] = useState(false)
   const [pendingGmatMessage, setPendingGmatMessage] = useState<PendingGmatMessage | null>(null)
@@ -519,11 +521,12 @@ export default function AgentPage() {
     setTextInput('')
     setTextInputDisplay(prompt)
     const selectedMode = forcedMode ?? chatMode
-    if (selectedMode === 'general') {
+    const isSimuCicPrompt = /simu\s*-?\s*cic|ground\s+(?:station|sat+ion)s?|station\s+au\s+sol|attitude|point(?:age|ing)|nadir/i.test(prompt)
+    if (selectedMode === 'general' || isSimuCicPrompt) {
       setGmatGenerating(true)
       setPendingGmatMessage({ kind: 'draft', message: prompt, status: 'sending' })
       setGmatWorkflowEntries(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'running'))
-      void routeMissionMessage(prompt, activeContext.versionDir)
+      void routeMissionMessage(prompt, activeContext.versionDir, activeGmatRun?.runPath)
         .then(result => {
           setPendingGmatMessage(null)
           if (result.kind === 'mission') {
@@ -536,6 +539,15 @@ export default function AgentPage() {
           if (result.kind === 'general') {
             setGmatWorkflowEntries(null)
             void runCodex(prompt, 'text')
+            return
+          }
+          if (result.kind === 'simu-cic') {
+            const askedAt = new Date().toISOString()
+            setSimuCicConversation(current => [...current, { answer: result.message, askedAt, question: prompt }])
+            setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: result.message, askedAt, question: prompt }] } : current)
+            setSatelliteRefreshNonce(value => value + 1)
+            showSpeechText(result.message)
+            setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'completed') : entries)
             return
           }
           showSpeechText(result.message)
@@ -556,18 +568,20 @@ export default function AgentPage() {
     setProgressPanelOpen(true)
     setGmatWorkflowEntries(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'running'))
     if (activeGmatRun) {
-      const analyzeRun = selectedMode === 'gmat-electric-propulsion' ? analyzeElectricPropulsionRun : analyzeOrbitKeepingRun
-      void analyzeRun({
-        draftId: activeGmatRun.draftId,
-        question: prompt,
-        runPath: activeGmatRun.runPath,
-        workspaceDir: activeContext.versionDir,
-      })
+      void askMissionAssistant({ draftId: activeGmatRun.draftId, message: prompt, runPath: activeGmatRun.runPath, workspaceDir: activeContext.versionDir })
         .then(result => {
-          setActiveGmatRun(current => current && current.runPath === activeGmatRun.runPath
-            ? { ...current, conversation: [...current.conversation, { answer: result.answer, askedAt: new Date().toISOString(), question: prompt }] }
-            : current)
-          showSpeechText(result.answer)
+          if (result.kind === 'draft') {
+            setActiveGmatDraft(result.draft)
+            setActiveGmatRun(null)
+            setChatMode(activeGmatRun.runPath.includes('electric-propulsion-transfer') ? 'gmat-electric-propulsion' : 'gmat-orbit-keeping')
+            showSpeechText(result.draft.assistantMessage || 'Mission draft updated.')
+          } else {
+            setActiveGmatRun(current => current && current.runPath === activeGmatRun.runPath
+              ? { ...current, conversation: [...current.conversation, { answer: result.answer, askedAt: new Date().toISOString(), question: prompt }] }
+              : current)
+            if (result.intent === 'simu-cic') setSatelliteRefreshNonce(value => value + 1)
+            showSpeechText(result.answer)
+          }
           setPendingGmatMessage(null)
           setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'completed') : entries)
         })
@@ -697,6 +711,7 @@ export default function AgentPage() {
     if (gmatGenerating) return
     setActiveGmatRun(null)
     setActiveGmatDraft(null)
+    setSimuCicConversation([])
     setPendingGmatMessage(null)
     setManagedRunError('')
 
@@ -884,6 +899,8 @@ export default function AgentPage() {
             },
             onSend: (message, mode) => handleTextSubmit(message, mode),
             simuCicConverting,
+            simuCicConversation,
+            simuCicRefreshNonce: satelliteRefreshNonce,
             simuCicRunning,
           }}
           manifestLoading={manifestLoading}
