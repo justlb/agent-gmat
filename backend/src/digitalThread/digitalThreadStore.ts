@@ -129,9 +129,21 @@ export async function saveDigitalThread(workspaceDir: string, document: DigitalT
   return document
 }
 
-export async function snapshotDigitalThreadForRun(workspaceDir: string, runDir: string) {
+export type DigitalThreadSnapshot = {
+  document: DigitalThreadDocument
+  source: string
+}
+
+/** Captures the exact source-of-truth state before a tool starts running. */
+export async function captureDigitalThreadSnapshot(workspaceDir: string): Promise<DigitalThreadSnapshot> {
   const document = await loadOrCreateDigitalThread(workspaceDir)
-  const source = `${JSON.stringify(document, null, 2)}\n`
+  return { document, source: `${JSON.stringify(document, null, 2)}\n` }
+}
+
+/** Writes a previously captured digital-thread state into an immutable run. */
+export async function snapshotDigitalThreadForRun(workspaceDir: string, runDir: string, snapshot?: DigitalThreadSnapshot) {
+  const captured = snapshot ?? await captureDigitalThreadSnapshot(workspaceDir)
+  const { document, source } = captured
   const fileName = "satellite.digital-thread.json"
   await fs.writeFile(path.join(runDir, fileName), source, "utf8")
   const sha256 = crypto.createHash("sha256").update(source).digest("hex")

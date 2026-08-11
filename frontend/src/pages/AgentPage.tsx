@@ -526,7 +526,13 @@ export default function AgentPage() {
       setGmatGenerating(true)
       setPendingGmatMessage({ kind: 'draft', message: prompt, status: 'sending' })
       setGmatWorkflowEntries(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'running'))
-      void routeMissionMessage(prompt, activeContext.versionDir, activeGmatRun?.runPath)
+      void routeMissionMessage(
+        prompt,
+        activeContext.versionDir,
+        activeGmatRun?.runPath,
+        activeGmatDraft?.draftId,
+        chatMode === 'gmat-electric-propulsion' ? 'electric-propulsion-transfer' : chatMode === 'gmat-orbit-keeping' ? 'orbit-keeping' : undefined,
+      )
         .then(result => {
           setPendingGmatMessage(null)
           if (result.kind === 'mission') {
@@ -543,7 +549,8 @@ export default function AgentPage() {
           }
           if (result.kind === 'simu-cic') {
             const askedAt = new Date().toISOString()
-            setSimuCicConversation(current => [...current, { answer: result.message, askedAt, question: prompt }])
+            if (result.draft) setActiveGmatDraft(result.draft)
+            else setSimuCicConversation(current => [...current, { answer: result.message, askedAt, question: prompt }])
             setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: result.message, askedAt, question: prompt }] } : current)
             setSatelliteRefreshNonce(value => value + 1)
             showSpeechText(result.message)
@@ -556,7 +563,8 @@ export default function AgentPage() {
             // conversation turn. Keep it visible instead of clearing the
             // pending user message and leaving an empty chat.
             const askedAt = new Date().toISOString()
-            setSimuCicConversation(current => [...current, { answer: result.message, askedAt, question: prompt }])
+            if (result.draft) setActiveGmatDraft(result.draft)
+            else setSimuCicConversation(current => [...current, { answer: result.message, askedAt, question: prompt }])
             setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: result.message, askedAt, question: prompt }] } : current)
             showSpeechText(result.message)
             setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'completed') : entries)

@@ -396,6 +396,12 @@ export async function loadOrbitKeepingDraft(workspaceDir: string, draftId: strin
   return refreshDraft({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], conversationStartedAt: typeof parsed.conversationStartedAt === "string" ? parsed.conversationStartedAt : null, createdAt: parsed.createdAt, draftId: parsed.draftId, runs: Array.isArray(parsed.runs) ? parsed.runs : [], targetSmaFollowsInitial, templateId: parsed.templateId, values })
 }
 
+/** Records a non-GMAT configuration exchange in this draft only. */
+export async function appendOrbitKeepingDraftConversation(workspaceDir: string, draftId: string, turn: DraftConversationTurn) {
+  const draft = await loadOrbitKeepingDraft(workspaceDir, draftId)
+  return saveDraft(workspaceDir, refreshDraft({ ...draft, conversation: [...draft.conversation, turn] }))
+}
+
 function parseAssistantPatch(source: string, lockedFields: ReadonlySet<string> = new Set()) {
   const document = parseDocument(source)
   if (document.errors.length) throw new Error("LLM draft response is not valid YAML")

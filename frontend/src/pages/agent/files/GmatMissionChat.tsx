@@ -84,7 +84,6 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
   ].filter((turn, index, turns) => turns.findIndex(candidate => candidate.question === turn.question && candidate.answer === turn.answer) === index)
   const draftConversation = [
     ...(draft?.conversation ?? []).map(turn => ({ answer: turn.assistant, askedAt: '', question: turn.user })),
-    ...simuCicConversation,
   ].filter((turn, index, turns) => turns.findIndex(candidate => candidate.question === turn.question && candidate.answer === turn.answer) === index)
 
   return (

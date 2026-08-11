@@ -8,9 +8,9 @@ import { appendMissionConversation, appendRunConversation } from "../digitalThre
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { analyzeElectricPropulsionRunWithLlm, loadElectricPropulsionRunConversation } from "./electricPropulsionAnalysis.js"
-import { discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
+import { appendElectricPropulsionDraftConversation, discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
 import { analyzeOrbitKeepingRunWithLlm, loadOrbitKeepingRunConversation } from "./orbitKeepingAnalysis.js"
-import { discussOrbitKeepingDraft, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
+import { appendOrbitKeepingDraftConversation, discussOrbitKeepingDraft, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
 import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
 
@@ -134,6 +134,18 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
       const answer = await answerFromContext(config, intent, message, workspaceDir)
       if (activeRun) await appendRunConversation(activeRun.runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: message })
       return reply.send({ answer, intent, kind: "answer" })
-    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "mission assistant request failed") }) }
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, "mission assistant request failed")
+      const answer = `Mission assistant error: ${errorMessage}`
+      const workspaceDir = (() => { try { return resolveWorkspaceDir(root, req.body?.workspaceDir) } catch { return null } })()
+      const activeRun = resolveRunDir(root, req.body?.runPath)
+      const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
+      if (workspaceDir && activeRun) {
+        await appendRunConversation(activeRun.runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: message }).catch(() => undefined)
+        if (draftId && activeRun.template === "orbit-keeping") await appendOrbitKeepingDraftConversation(workspaceDir, draftId, { assistant: answer, user: message }).catch(() => undefined)
+        if (draftId && activeRun.template === "electric-propulsion-transfer") await appendElectricPropulsionDraftConversation(workspaceDir, draftId, { assistant: answer, user: message }).catch(() => undefined)
+      }
+      return reply.status(422).send({ error: errorMessage })
+    }
   })
 }

@@ -9,10 +9,10 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { digitalThreadGmatSeed, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
-import { snapshotDigitalThreadForRun } from "../digitalThread/digitalThreadStore.js"
+import { captureDigitalThreadSnapshot, snapshotDigitalThreadForRun } from "../digitalThread/digitalThreadStore.js"
 import { appendMissionConversation, appendRunConversation, mergeMissionConversationIntoRun, snapshotMissionConversationForRun } from "../digitalThread/missionConversationStore.js"
 import { analyzeElectricPropulsionRunWithLlm, loadElectricPropulsionRunConversation } from "./electricPropulsionAnalysis.js"
-import { confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussElectricPropulsionDraft, draftToElectricPropulsionChanges, loadElectricPropulsionDraft, recordElectricPropulsionDraftRun } from "./electricPropulsionDraft.js"
+import { appendElectricPropulsionDraftConversation, confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussElectricPropulsionDraft, draftToElectricPropulsionChanges, loadElectricPropulsionDraft, recordElectricPropulsionDraftRun } from "./electricPropulsionDraft.js"
 import { generateElectricPropulsionMission } from "./electricPropulsion.service.js"
 import { extractElectricPropulsionValues } from "./electricPropulsionValues.js"
 import { defaultElectricPropulsionTemplatePath } from "./electricPropulsionTemplate.js"
@@ -161,13 +161,19 @@ export async function electricPropulsionRoutes(fastify: FastifyInstance, { confi
     if (!message) return reply.status(400).send({ error: "message must be a non-empty string" })
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const workspaceDir = resolveOutputWorkspaceDir(root, req.body?.workspaceDir)
     try {
-      const workspaceDir = resolveOutputWorkspaceDir(root, req.body?.workspaceDir)
       const updatedDraft = await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft: await loadElectricPropulsionDraft(workspaceDir, req.params.draftId), message, workspaceDir })
       await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
       if (updatedDraft.digitalThreadRequiredPaths?.length) await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
       return reply.send(updatedDraft)
-    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to update electric-propulsion GMAT draft") }) }
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, "failed to update electric-propulsion GMAT draft")
+      const answer = `Mission configuration error: ${errorMessage}`
+      await appendElectricPropulsionDraftConversation(workspaceDir, req.params.draftId, { assistant: answer, user: message }).catch(() => undefined)
+      await appendMissionConversation(workspaceDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: message }).catch(() => undefined)
+      return reply.status(422).send({ error: errorMessage })
+    }
   })
   fastify.post<{ Params: { draftId: string }; Body: DraftWorkspaceBody }>("/api/gmat/electric-propulsion-transfer/drafts/:draftId/confirm", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
@@ -199,11 +205,12 @@ export async function electricPropulsionRoutes(fastify: FastifyInstance, { confi
         ? await confirmElectricPropulsionDraft(workspaceDir, req.params.draftId, (await digitalThreadGmatSeed(workspaceDir, "electric-propulsion-transfer")).values)
         : currentDraft
       const values = extractElectricPropulsionValues(await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8"))
+      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(workspaceDir)
       const result = await generateElectricPropulsionMission({ changes: draftToElectricPropulsionChanges(draft, values), execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined, onProgress: progress => sendEvent("progress", progress), request: `Confirmed GMAT electric-propulsion draft ${draft.draftId}`, workspaceDir })
       const runPath = path.relative(path.resolve(root), result.runDir)
       await snapshotMissionConversationForRun(workspaceDir, result.runDir, draft.conversation)
       await appendRunConversation(result.runDir, { answer: result.result.status === "failed" || result.result.status === "timeout" ? `GMAT ${result.result.status}: ${result.result.error || "GMAT did not produce a usable result. Review the generated log file for details."}` : result.result.warnings?.length ? `GMAT completed with safety warnings: ${result.result.warnings.join(" ")}` : "GMAT completed successfully. You can now ask questions about the saved results or request a revised run.", askedAt: new Date().toISOString(), channel: "gmat-draft", question: "GMAT execution" })
-      await snapshotDigitalThreadForRun(workspaceDir, result.runDir)
+      await snapshotDigitalThreadForRun(workspaceDir, result.runDir, digitalThreadSnapshot)
       await recordElectricPropulsionDraftRun(workspaceDir, draft.draftId, { changes: result.changes, completedAt: new Date().toISOString(), result: result.result, runId: result.runId, runPath })
       sendEvent("result", { ...result, draftId: draft.draftId, runPath })
     } catch (error) { sendEvent("error", { error: getErrorMessage(error, "failed to execute electric-propulsion GMAT draft") }) } finally {

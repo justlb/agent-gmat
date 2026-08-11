@@ -275,6 +275,12 @@ export async function loadElectricPropulsionDraft(workspaceDir: string, draftId:
   }
   return refreshDraft({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], conversationStartedAt: typeof parsed.conversationStartedAt === "string" ? parsed.conversationStartedAt : null, runs: Array.isArray(parsed.runs) ? parsed.runs : [], values })
 }
+
+/** Records a non-GMAT configuration exchange in this draft only. */
+export async function appendElectricPropulsionDraftConversation(workspaceDir: string, draftId: string, turn: { assistant: string; user: string }) {
+  const draft = await loadElectricPropulsionDraft(workspaceDir, draftId)
+  return saveDraft(workspaceDir, refreshDraft({ ...draft, conversation: [...draft.conversation, turn] }))
+}
 function extractResponseText(payload: unknown) {
   if (payload && typeof payload === "object" && typeof (payload as { output_text?: unknown }).output_text === "string") return (payload as { output_text: string }).output_text.trim()
   const output = payload && typeof payload === "object" ? (payload as { output?: unknown }).output : undefined
