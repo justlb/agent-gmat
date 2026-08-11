@@ -12,17 +12,19 @@ type Draft = {
   values: Record<string, string | number | null>
 } | null
 
-type Field = { label: string; path: string; unit?: string }
+type Field = { derived?: 'initialAltitude'; label: string; path: string; unit?: string }
+const EARTH_EQUATORIAL_RADIUS_KM = 6378.1363
 const ORBIT_FIELDS: Field[] = [
   { label: 'Epoch', path: 'initialOrbit.epoch' }, { label: 'Initial semi-major axis', path: 'initialOrbit.smaKm', unit: 'km' },
+  { derived: 'initialAltitude', label: 'Initial altitude', path: 'initialOrbit.altitudeKm', unit: 'km' },
   { label: 'Eccentricity', path: 'initialOrbit.eccentricity' }, { label: 'Inclination', path: 'initialOrbit.inclinationDeg', unit: 'deg' },
   { label: 'Drag area', path: 'spacecraft.dragAreaM2', unit: 'm²' }, { label: 'Drag coefficient', path: 'spacecraft.dragCoefficient' },
+  { label: 'Initial fuel mass', path: 'spacecraft.initialFuelMassKg', unit: 'kg' },
   { label: 'Minimum reboost altitude', path: 'stationKeeping.minimumAltitudeKm', unit: 'km' },
-  { label: 'Target semi-major axis', path: 'stationKeeping.targetSmaKm', unit: 'km' },
-  { label: 'Fuel reserve', path: 'stationKeeping.fuelReserveKg', unit: 'kg' }, { label: 'Final altitude', path: 'endOfLife.finalAltitudeKm', unit: 'km' },
 ]
 const ELECTRIC_FIELDS: Field[] = [
   { label: 'Initial epoch', path: 'initialOrbit.epoch' }, { label: 'Initial semi-major axis', path: 'initialOrbit.smaKm', unit: 'km' },
+  { derived: 'initialAltitude', label: 'Initial altitude', path: 'initialOrbit.altitudeKm', unit: 'km' },
   { label: 'Initial eccentricity', path: 'initialOrbit.eccentricity' }, { label: 'Initial inclination', path: 'initialOrbit.inclinationDeg', unit: 'deg' },
   { label: 'Electric-thrust duration', path: 'transfer.burnDurationDays', unit: 'days' },
 ]
@@ -48,7 +50,7 @@ export type GmatMissionChatProps = {
 export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, onConvertSimuCicEphemeris, onExecute, onNewRun, onRunSimuCic, onRetry, onSend, pending, simuCicConverting = false, simuCicRunning = false }: GmatMissionChatProps) {
   const [message, setMessage] = useState('')
   const fields = (chatMode === 'gmat-electric-propulsion' ? ELECTRIC_FIELDS : ORBIT_FIELDS)
-    .filter(field => !field.path.startsWith('spacecraft.') && !field.path.startsWith('propulsion.') && !field.path.startsWith('power.'))
+    .filter(field => field.path === 'spacecraft.initialFuelMassKg' || (!field.path.startsWith('spacecraft.') && !field.path.startsWith('propulsion.') && !field.path.startsWith('power.')))
   const submit = () => {
     const prompt = message.trim()
     if (!prompt || busy) return
@@ -58,7 +60,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit() }
   }
-  const missing = draft ? fields.filter(field => draft.missing.includes(field.path)).map(field => field.label) : []
+  const missing = draft ? fields.filter(field => !field.derived && draft.missing.includes(field.path)).map(field => field.label) : []
   const blockers = draft?.safety?.checks.filter(check => check.severity === 'error') ?? []
   const warnings = draft?.safety?.checks.filter(check => check.severity === 'warning') ?? []
 
@@ -70,7 +72,15 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
             {activeRunId ? <><strong>Run values</strong><span>{activeRunId}</span></> : null}
             {draft ? <>
               <section><header><strong>Required before GMAT can run</strong><span>{draft.missing.length ? `${draft.missing.length} remaining` : 'Complete'}</span></header><ul>
-                {fields.map(field => { const value = draft.values[field.path]; const absent = draft.missing.includes(field.path) || value === null || value === undefined || value === ''; return <li className={absent ? 'is-missing' : ''} key={field.path}><span>{field.label}</span><b>{absent ? 'Not provided' : `${value}${field.unit ? ` ${field.unit}` : ''}`}</b></li> })}
+                {fields.map(field => {
+                  const semiMajorAxis = draft.values['initialOrbit.smaKm']
+                  const derivedAltitude = field.derived === 'initialAltitude' && typeof semiMajorAxis === 'number'
+                    ? Number((semiMajorAxis - EARTH_EQUATORIAL_RADIUS_KM).toFixed(3))
+                    : null
+                  const value = field.derived ? derivedAltitude : draft.values[field.path]
+                  const absent = field.derived ? derivedAltitude === null : draft.missing.includes(field.path) || value === null || value === undefined || value === ''
+                  return <li className={absent ? 'is-missing' : ''} key={field.derived ?? field.path}><span>{field.label}</span><b>{absent ? 'Not provided' : `${value}${field.unit ? ` ${field.unit}` : ''}`}</b></li>
+                })}
               </ul></section>
               <section><header><strong>Assumed defaults to confirm</strong><span>Template defaults</span></header><ul className="assumptions">{(draft.safety?.assumptions ?? []).map(item => <li key={item.label}>{item.label}: {item.value}</li>)}</ul></section>
               {!activeRunId && draft.status === 'ready' ? <button className="gmat-mission-run-button" disabled={busy} type="button" onClick={onExecute}>Confirm and run GMAT</button> : null}

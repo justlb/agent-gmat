@@ -346,7 +346,10 @@ OrbitView1_View.FOVy = 45;
 
 BeginMissionSequence;
 
-While DefaultSC.ChemicalTank1.FuelMass > fuelReserve
+% Do not issue a new "propagate to minAltitude" command after a reboost
+% sequence has left the spacecraft below that altitude.  In that case the
+% decaying orbit cannot cross minAltitude again and would propagate to entry.
+While DefaultSC.ChemicalTank1.FuelMass > fuelReserve & DefaultSC.Earth.Altitude > minAltitude
 
    Propagate 'Propagate to Reboost Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = minAltitude};
 
@@ -373,7 +376,11 @@ While DefaultSC.ChemicalTank1.FuelMass > fuelReserve
 
 EndWhile;
 
-Propagate 'Propagate to Final Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = finalAltitude};
+% Controlled end-of-life descent.  This propagation terminates at the
+% requested altitude (150 km by default), before the atmospheric model fails.
+If DefaultSC.Earth.Altitude > finalAltitude
+   Propagate 'Propagate to Final Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = finalAltitude};
+EndIf;
 
 Report ReboostReport DefaultSC.A1ModJulian DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;
 Report OrbitAnalysisReport DefaultSC.A1ModJulian DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass DefaultSC.TotalMass DefaultSC.Earth.SMA DefaultSC.Earth.ECC DefaultSC.EarthMJ2000Eq.INC;

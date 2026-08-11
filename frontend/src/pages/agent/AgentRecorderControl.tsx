@@ -49,11 +49,13 @@ const DOCKED_ROBOT_DRAG_THRESHOLD = 6
 const DOCKED_ROBOT_MARGIN = 12
 const STATUS_HINT_DURATION_MS = 3200
 
-type MandatoryGmatField = { label: string; path: string; unit?: string }
+type MandatoryGmatField = { derived?: 'initialAltitude'; label: string; path: string; unit?: string }
+const EARTH_EQUATORIAL_RADIUS_KM = 6378.1363
 
 const ORBIT_KEEPING_MANDATORY_FIELDS: MandatoryGmatField[] = [
   { label: 'Epoch', path: 'initialOrbit.epoch' },
   { label: 'Initial semi-major axis', path: 'initialOrbit.smaKm', unit: 'km' },
+  { derived: 'initialAltitude', label: 'Initial altitude', path: 'initialOrbit.altitudeKm', unit: 'km' },
   { label: 'Eccentricity', path: 'initialOrbit.eccentricity' },
   { label: 'Inclination', path: 'initialOrbit.inclinationDeg', unit: 'deg' },
   { label: 'Dry mass', path: 'spacecraft.dryMassKg', unit: 'kg' },
@@ -62,13 +64,12 @@ const ORBIT_KEEPING_MANDATORY_FIELDS: MandatoryGmatField[] = [
   { label: 'Drag coefficient', path: 'spacecraft.dragCoefficient' },
   { label: 'Specific impulse', path: 'propulsion.ispSeconds', unit: 's' },
   { label: 'Minimum reboost altitude', path: 'stationKeeping.minimumAltitudeKm', unit: 'km' },
-  { label: 'Fuel reserve', path: 'stationKeeping.fuelReserveKg', unit: 'kg' },
-  { label: 'Final altitude', path: 'endOfLife.finalAltitudeKm', unit: 'km' },
 ]
 
 const ELECTRIC_TRANSFER_MANDATORY_FIELDS: MandatoryGmatField[] = [
   { label: 'Epoch', path: 'initialOrbit.epoch' },
   { label: 'Initial semi-major axis', path: 'initialOrbit.smaKm', unit: 'km' },
+  { derived: 'initialAltitude', label: 'Initial altitude', path: 'initialOrbit.altitudeKm', unit: 'km' },
   { label: 'Eccentricity', path: 'initialOrbit.eccentricity' },
   { label: 'Inclination', path: 'initialOrbit.inclinationDeg', unit: 'deg' },
   { label: 'RAAN', path: 'initialOrbit.raanDeg', unit: 'deg' },
@@ -86,7 +87,7 @@ const ELECTRIC_TRANSFER_MANDATORY_FIELDS: MandatoryGmatField[] = [
 
 function mandatoryGmatFields(chatMode: AgentChatMode) {
   return (chatMode === 'gmat-electric-propulsion' ? ELECTRIC_TRANSFER_MANDATORY_FIELDS : ORBIT_KEEPING_MANDATORY_FIELDS)
-    .filter(field => !field.path.startsWith('spacecraft.') && !field.path.startsWith('propulsion.') && !field.path.startsWith('power.'))
+    .filter(field => field.path === 'spacecraft.initialFuelMassKg' || (!field.path.startsWith('spacecraft.') && !field.path.startsWith('propulsion.') && !field.path.startsWith('power.')))
 }
 
 function getBubbleTextSegments(value: string) {
@@ -408,10 +409,16 @@ export function AgentRecorderControl({
                     </header>
                     <ul className="agent-gmat-mandatory-fields">
                       {mandatoryFields.map(field => {
-                        const value = gmatDraft.values[field.path]
-                        const missing = gmatDraft.missing.includes(field.path) || value === null || value === undefined || value === ''
+                        const semiMajorAxis = gmatDraft.values['initialOrbit.smaKm']
+                        const derivedAltitude = field.derived === 'initialAltitude' && typeof semiMajorAxis === 'number'
+                          ? Number((semiMajorAxis - EARTH_EQUATORIAL_RADIUS_KM).toFixed(3))
+                          : null
+                        const value = field.derived ? derivedAltitude : gmatDraft.values[field.path]
+                        const missing = field.derived
+                          ? derivedAltitude === null
+                          : gmatDraft.missing.includes(field.path) || value === null || value === undefined || value === ''
                         return (
-                          <li className={missing ? 'is-missing' : 'is-provided'} key={field.path}>
+                          <li className={missing ? 'is-missing' : 'is-provided'} key={field.derived ?? field.path}>
                             <span>{field.label}</span>
                             <b>{missing ? 'Not provided' : `${value}${field.unit ? ` ${field.unit}` : ''}`}</b>
                           </li>

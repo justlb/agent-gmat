@@ -15,10 +15,10 @@
       "operational_parameters": { "orbit_type": "LEO", "altitude_km": { "perigee": 493, "apogee": 507, "mean": 500 } }
     },
     "bus": {
-      "physical": { "mass_kg": { "dry": 300, "wet_at_launch": 305, "propellant": 5 }, "drag_area_m2": 15, "drag_coefficient": 2.2 },
+      "physical": { "mass_kg": { "dry": 300, "wet_at_launch": 400, "propellant": 100 }, "drag_area_m2": 15, "drag_coefficient": 2.2 },
       "propulsion_subsystem": { "type": "Bipropellant chemical propulsion", "main_engine_thrust_n": 22, "specific_impulse_seconds": 320, "delta_v_mps": 180 },
       "electrical_subsystem": { "solar_panels": { "type": "Triple-junction GaAs", "efficiency_percent": 30, "total_area_m2": 12, "total_power_generated_watts": 3000, "array_orientation": "Sun tracking" }, "batteries": { "chemistry": "Li-ion", "capacity_ah": 50 }, "bus_voltage_v": 28, "spacecraft_bus_load_kw": 0.8, "system_margin_percent": 15 }
     }
   },
-  "analysis_requests": { "gmat": { "orbit_keeping": { "minimum_reboost_altitude_km": 480, "target_semi_major_axis_km": 6878.1363, "fuel_reserve_kg": 20, "final_altitude_km": 500 } } }
+  "analysis_requests": { "gmat": { "orbit_keeping": { "minimum_reboost_altitude_km": 480, "target_semi_major_axis_km": 6878.1363, "fuel_reserve_kg": 1, "final_altitude_km": 150 } } }
 }

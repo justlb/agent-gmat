@@ -20,7 +20,7 @@ describe("orbit keeping mission draft", () => {
     const updates = [
       ["initialOrbit.epoch", "21545"], ["initialOrbit.smaKm", 6578.1363], ["initialOrbit.eccentricity", 0],
       ["initialOrbit.inclinationDeg", 0], ["initialOrbit.raanDeg", 0], ["initialOrbit.argPeriapsisDeg", 0], ["initialOrbit.trueAnomalyDeg", 0],
-      ["spacecraft.dryMassKg", 300], ["spacecraft.initialFuelMassKg", 200], ["spacecraft.dragAreaM2", 15], ["spacecraft.dragCoefficient", 2.5],
+      ["spacecraft.dryMassKg", 300], ["spacecraft.initialFuelMassKg", 100], ["spacecraft.dragAreaM2", 15], ["spacecraft.dragCoefficient", 2.5],
       ["propulsion.ispSeconds", 300], ["stationKeeping.minimumAltitudeKm", 190], ["stationKeeping.targetSmaKm", 6578.1363], ["stationKeeping.fuelReserveKg", 7], ["endOfLife.finalAltitudeKm", 150],
     ].map(([fieldPath, value]) => ({ path: fieldPath, value }))
     const discussed = await discussOrbitKeepingDraft({
@@ -36,7 +36,7 @@ describe("orbit keeping mission draft", () => {
     const template = await fs.readFile(defaultOrbitKeepingTemplatePath(), "utf8")
     const changes = draftToOrbitKeepingChanges(confirmed, extractOrbitKeepingValues(template))
     assert.ok(changes.some(change => change.id.includes("DefaultSC_DryMass") && change.value === "300"))
-    assert.ok(changes.some(change => change.id.includes("ChemicalTank1_FuelMass") && change.value === "200"))
+    assert.ok(changes.some(change => change.id.includes("ChemicalTank1_FuelMass") && change.value === "100"))
     const withRun = await recordOrbitKeepingDraftRun(workspaceDir, confirmed.draftId, {
       changes,
       completedAt: "2026-07-30T10:00:00Z",
@@ -102,7 +102,7 @@ describe("orbit keeping mission draft", () => {
     const updates = [
       ["initialOrbit.epoch", "21545"], ["initialState.xKm", 7000], ["initialState.yKm", 0], ["initialState.zKm", 0],
       ["initialState.vxKmPerSec", 0], ["initialState.vyKmPerSec", 7.546053290107542], ["initialState.vzKmPerSec", 0],
-      ["spacecraft.dryMassKg", 300], ["spacecraft.initialFuelMassKg", 200], ["stationKeeping.minimumAltitudeKm", 190],
+      ["spacecraft.dryMassKg", 300], ["spacecraft.initialFuelMassKg", 100], ["stationKeeping.minimumAltitudeKm", 190],
     ].map(([fieldPath, value]) => ({ path: fieldPath, value }))
     const draft = await discussOrbitKeepingDraft({
       connection, draft: initial, message: "Use this Cartesian state.", workspaceDir,
@@ -123,6 +123,7 @@ describe("orbit keeping mission draft", () => {
     ]) {
       assert.equal(draft.missing.includes(optional), false)
     }
+    assert.equal(draft.missing.includes("spacecraft.initialFuelMassKg"), true)
   })
 
   it("confirms and renders a draft containing only the essential mission inputs", async () => {
@@ -204,7 +205,7 @@ describe("orbit keeping mission draft", () => {
     assert.throws(() => assertOrbitKeepingSimulationSafety(unsafe), /physical sanity checks failed/u)
   })
 
-  it("blocks non-positive masses and a reboost threshold above the initial orbit", async () => {
+  it("accepts fuel within the satellite capacity and blocks a reboost threshold above the initial orbit", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-draft-"))
     const initial = await createOrbitKeepingDraft(workspaceDir)
     const updates = [
@@ -213,13 +214,14 @@ describe("orbit keeping mission draft", () => {
       { path: "spacecraft.dryMassKg", value: 100 }, { path: "spacecraft.initialFuelMassKg", value: 0 },
       { path: "stationKeeping.minimumAltitudeKm", value: 250 },
     ]
-    await assert.rejects(() => discussOrbitKeepingDraft({
+    const noFuelMission = await discussOrbitKeepingDraft({
       connection,
       draft: initial,
-      message: "Set unsafe values.",
+      message: "Set a zero-fuel mission.",
       workspaceDir,
       fetchImpl: async () => new Response(JSON.stringify({ output_text: `message: Unsafe inputs recorded.\nupdates: ${JSON.stringify(updates)}` }), { status: 200 }),
-    }), /initialFuelMassKg must be at least 0.001/u)
+    })
+    assert.equal(noFuelMission.values["spacecraft.initialFuelMassKg"], 0)
 
     const validFuelUpdates = updates.map(update => update.path === "spacecraft.initialFuelMassKg" ? { ...update, value: 10 } : update)
     const blocked = await discussOrbitKeepingDraft({
@@ -231,6 +233,12 @@ describe("orbit keeping mission draft", () => {
     })
     assert.equal(blocked.status, "blocked")
     assert.ok(blocked.safety.checks.some(check => check.code === "reboost_above_initial_orbit"))
+
+    const overCapacity = updates.map(update => update.path === "spacecraft.initialFuelMassKg" ? { ...update, value: 101 } : update)
+    await assert.rejects(() => discussOrbitKeepingDraft({
+      connection, draft: initial, message: "Use 101 kg.", workspaceDir,
+      fetchImpl: async () => new Response(JSON.stringify({ output_text: `message: Inputs recorded.\nupdates: ${JSON.stringify(overCapacity)}` }), { status: 200 }),
+    }), /initialFuelMassKg must be at most 100/u)
   })
 
   it("rejects a final altitude below 150 km", async () => {

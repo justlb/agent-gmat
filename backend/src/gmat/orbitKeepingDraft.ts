@@ -104,7 +104,7 @@ export const ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT = {
     { context: "DefaultSC.AOP", label: "Argument of periapsis", max: 360, min: 0, path: "initialOrbit.argPeriapsisDeg", required: false, unit: "deg" },
     { context: "DefaultSC.TA", label: "True anomaly", max: 360, min: 0, path: "initialOrbit.trueAnomalyDeg", required: false, unit: "deg" },
     { context: "DefaultSC.DryMass", label: "Dry mass", min: 0.001, path: "spacecraft.dryMassKg", required: false, unit: "kg" },
-    { context: "ChemicalTank1.FuelMass", label: "Initial fuel mass", min: 0.001, path: "spacecraft.initialFuelMassKg", required: false, unit: "kg" },
+    { context: "ChemicalTank1.FuelMass", label: "Initial fuel mass", max: 100, min: 0, path: "spacecraft.initialFuelMassKg", required: true, unit: "kg" },
     { context: "DefaultSC.DragArea", label: "Drag area", min: 0.0001, path: "spacecraft.dragAreaM2", required: false, unit: "m2" },
     { context: "DefaultSC.Cd", label: "Drag coefficient", min: 0.0001, path: "spacecraft.dragCoefficient", required: false },
     { context: "TOI.Isp", label: "Specific impulse", min: 0.1, path: "propulsion.ispSeconds", required: false, unit: "s" },
@@ -117,15 +117,18 @@ export const ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT = {
 
 const fields = ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.fields as readonly FieldDefinition[]
 const SATELLITE_OWNED_FIELDS = new Set([
-  "spacecraft.dryMassKg", "spacecraft.initialFuelMassKg", "spacecraft.dragAreaM2", "spacecraft.dragCoefficient", "propulsion.ispSeconds",
+  "spacecraft.dryMassKg", "spacecraft.dragAreaM2", "spacecraft.dragCoefficient", "propulsion.ispSeconds",
 ])
 // These values describe one mission. They must always be collected for a new
 // run instead of inheriting a previous orbit or a template example.
 const MISSION_FIELD_PATHS = new Set([
   "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg",
   "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg",
-  "stationKeeping.minimumAltitudeKm", "stationKeeping.targetSmaKm", "stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm",
+  "stationKeeping.minimumAltitudeKm", "stationKeeping.targetSmaKm", "stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm", "spacecraft.initialFuelMassKg",
 ])
+// These mission policies are explicit, reviewable defaults rather than data
+// the assistant must collect before every GMAT run.
+const ASSUMED_MISSION_FIELD_PATHS = new Set(["stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm"])
 /** Values embedded in the immutable reference script. A new draft starts here. */
 const TEMPLATE_DEFAULT_VALUES: DraftValues = {
   "endOfLife.finalAltitudeKm": 150,
@@ -265,9 +268,6 @@ function buildSafetyReview(values: DraftValues, targetSmaFollowsInitial: boolean
   if (typeof dryMass === "number" && dryMass <= 0) {
     checks.push({ code: "dry_mass", message: "Dry mass must be strictly positive.", severity: "error" })
   }
-  if (typeof initialFuelMass === "number" && initialFuelMass <= 0) {
-    checks.push({ code: "initial_fuel_mass", message: "Initial fuel mass must be strictly positive for this reboost template.", severity: "error" })
-  }
   if (typeof dragArea === "number" && dragArea <= 0) {
     checks.push({ code: "drag_area", message: "Drag area must be strictly positive.", severity: "error" })
   }
@@ -295,7 +295,7 @@ function buildSafetyReview(values: DraftValues, targetSmaFollowsInitial: boolean
   if (typeof minimumAltitude === "number" && minimumAltitude < MINIMUM_SAFE_PERIGEE_ALTITUDE_KM) {
     checks.push({ code: "reboost_altitude", message: `Minimum reboost altitude is ${minimumAltitude} km; it must be at least ${MINIMUM_SAFE_PERIGEE_ALTITUDE_KM} km.`, severity: "error" })
   }
-  if (typeof initialFuelMass === "number" && typeof fuelReserve === "number" && fuelReserve >= initialFuelMass) {
+  if (typeof initialFuelMass === "number" && initialFuelMass > 0 && typeof fuelReserve === "number" && fuelReserve >= initialFuelMass) {
     checks.push({ code: "fuel_reserve", message: "Fuel reserve must be lower than the initial fuel mass so that a reboost can begin.", severity: "error" })
   }
   if (typeof finalAltitude === "number" && finalAltitude < 150) {
@@ -313,9 +313,9 @@ function buildSafetyReview(values: DraftValues, targetSmaFollowsInitial: boolean
     { label: "Drag area", value: valueOrDefault(values, "spacecraft.dragAreaM2", 15) + " m²" },
     { label: "Drag coefficient", value: valueOrDefault(values, "spacecraft.dragCoefficient", 2.5) },
     { label: "Specific impulse", value: valueOrDefault(values, "propulsion.ispSeconds", 300) + " s" },
-    { label: "Fuel reserve", value: valueOrDefault(values, "stationKeeping.fuelReserveKg", 7) + " kg" },
+    { label: "Fuel reserve", value: valueOrDefault(values, "stationKeeping.fuelReserveKg", 1) + " kg" },
     { label: "Final altitude", value: valueOrDefault(values, "endOfLife.finalAltitudeKm", 150) + " km" },
-    { label: "Target semi-major axis", value: targetSmaFollowsInitial ? "Follows the initial semi-major axis" : valueOrDefault(values, "stationKeeping.targetSmaKm", 6578.1363) + " km" },
+    { label: "Target semi-major axis", value: targetSmaFollowsInitial ? "Not provided" : valueOrDefault(values, "stationKeeping.targetSmaKm", 6578.1363) + " km" },
   ]
   return { assumptions, checks }
 }
@@ -374,7 +374,9 @@ async function saveDraft(workspaceDir: string, draft: OrbitKeepingDraft) {
 export async function createOrbitKeepingDraft(workspaceDir: string, initialValues: Record<string, DraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
   const values = Object.fromEntries(fields.map(field => [
     field.path,
-    MISSION_FIELD_PATHS.has(field.path) ? null : initialValues[field.path] ?? TEMPLATE_DEFAULT_VALUES[field.path] ?? null,
+    MISSION_FIELD_PATHS.has(field.path) && !ASSUMED_MISSION_FIELD_PATHS.has(field.path)
+      ? null
+      : initialValues[field.path] ?? TEMPLATE_DEFAULT_VALUES[field.path] ?? null,
   ])) as DraftValues
   const now = new Date().toISOString()
   const draft = refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values })
@@ -461,7 +463,8 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
     draft.digitalThreadRequiredPaths?.length ? `Satellite-owned values are locked for this mission: ${[...SATELLITE_OWNED_FIELDS].join(", ")}. Do not emit updates for them; explain that they come from the selected satellite.` : "",
     `Derived input: when the engineer gives a circular-orbit altitude in km, emit { path: initialOrbit.altitudeKm, value: number }. The backend deterministically converts it to initialOrbit.smaKm by adding Earth equatorial radius ${EARTH_EQUATORIAL_RADIUS_KM} km. For a perigee altitude and eccentricity, emit initialOrbit.periapsisAltitudeKm and initialOrbit.eccentricity; the backend computes SMA = (Earth equatorial radius + periapsis altitude) / (1 - ECC). Do not calculate either conversion yourself.`,
     "Deterministic coordinate conversions are available. If a Cartesian initial state is supplied, emit initialState.xKm, initialState.yKm, initialState.zKm (km) and initialState.vxKmPerSec, initialState.vyKmPerSec, initialState.vzKmPerSec (km/s); the backend converts it to the Keplerian orbit fields. To display the Cartesian equivalent of complete Keplerian inputs, emit coordinateConversion.request with value keplerian_to_cartesian. Never calculate those conversions yourself.",
-    draft.digitalThreadRequiredPaths?.length ? "Only RAAN, argument of periapsis, and true anomaly may retain their explicit orientation defaults. Do not use legacy spacecraft or mission-policy defaults for a digital-thread-managed run." : "RAAN, argument of periapsis, true anomaly, drag area, drag coefficient, specific impulse, fuel reserve, and final altitude are optional. If omitted, the fixed template defaults are kept.",
+    draft.digitalThreadRequiredPaths?.length ? "Only RAAN, argument of periapsis, and true anomaly may retain their explicit orientation defaults. Do not use legacy spacecraft defaults for a digital-thread-managed run." : "RAAN, argument of periapsis, true anomaly, drag area, drag coefficient, and specific impulse are optional. If omitted, the fixed template defaults are kept.",
+    "Initial fuel mass is a required mission input. It may be any value from 0 to 100 kg. Fuel reserve and final altitude are optional assumptions; use 1 kg and 150 km unless the engineer changes them.",
     "Target semi-major axis follows the initial semi-major axis by default. Only emit stationKeeping.targetSmaKm when the engineer explicitly asks for a different target.",
     `Current values: ${JSON.stringify(draft.values)}`,
     conversation.length ? `Recent conversation: ${JSON.stringify(conversation)}` : "Recent conversation: none; begin by helping the engineer define the mission.",

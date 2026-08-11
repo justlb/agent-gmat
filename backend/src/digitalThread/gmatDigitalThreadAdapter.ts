@@ -137,12 +137,12 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   const propulsionType = stringAt(document, "satellite.bus.propulsion_subsystem.type")?.toLowerCase() ?? ""
 
   if (template === "orbit-keeping") {
-    requireNumber(document, "satellite.bus.physical.mass_kg.propellant", "spacecraft.initialFuelMassKg", values, guards)
     if (!propulsionType || !/(chemical|bipropellant|monopropellant)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: "The orbit-keeping template requires an explicitly identified chemical propulsion subsystem.", path: "satellite.bus.propulsion_subsystem.type" })
     requireNumber(document, "analysis_requests.gmat.orbit_keeping.minimum_reboost_altitude_km", "stationKeeping.minimumAltitudeKm", values, guards)
     optionalNumber(document, "analysis_requests.gmat.orbit_keeping.target_semi_major_axis_km", "stationKeeping.targetSmaKm", values)
     optionalNumber(document, "analysis_requests.gmat.orbit_keeping.fuel_reserve_kg", "stationKeeping.fuelReserveKg", values)
     optionalNumber(document, "analysis_requests.gmat.orbit_keeping.final_altitude_km", "endOfLife.finalAltitudeKm", values)
+    optionalNumber(document, "analysis_requests.gmat.orbit_keeping.initial_fuel_mass_kg", "spacecraft.initialFuelMassKg", values)
     optionalNumber(document, "satellite.bus.physical.drag_area_m2", "spacecraft.dragAreaM2", values)
     optionalNumber(document, "satellite.bus.physical.drag_coefficient", "spacecraft.dragCoefficient", values)
     optionalNumber(document, "satellite.bus.propulsion_subsystem.specific_impulse_seconds", "propulsion.ispSeconds", values)
@@ -158,7 +158,7 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
     if (solarPower !== null) values["power.initialMaxPowerKw"] = solarPower
   }
   const requiredDraftPaths = template === "orbit-keeping"
-    ? ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "stationKeeping.minimumAltitudeKm", "stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm"]
+    ? ["spacecraft.dryMassKg"]
     : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.burnDurationDays"]
   for (const fieldPath of requiredDraftPaths) {
     if ((values[fieldPath] === null || values[fieldPath] === undefined || values[fieldPath] === "") && !guards.some(guard => guard.path === fieldPath)) {
@@ -187,6 +187,7 @@ function missionDraftPaths(templateId: OrbitKeepingDraft["templateId"] | Electri
       : {
           "stationKeeping.minimumAltitudeKm": `${root}.minimum_reboost_altitude_km`,
           "stationKeeping.targetSmaKm": `${root}.target_semi_major_axis_km`,
+          "spacecraft.initialFuelMassKg": `${root}.initial_fuel_mass_kg`,
           "stationKeeping.fuelReserveKg": `${root}.fuel_reserve_kg`,
           "endOfLife.finalAltitudeKm": `${root}.final_altitude_km`,
         }),

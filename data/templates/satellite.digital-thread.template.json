@@ -118,7 +118,7 @@
     "gmat": {
       "orbit_keeping": {
         "initial_orbit": { "epoch_tai_mod_julian": null, "semi_major_axis_km": null, "eccentricity": null, "inclination_deg": null, "raan_deg": null, "arg_of_perigee_deg": null, "true_anomaly_deg": null },
-        "minimum_reboost_altitude_km": null, "target_semi_major_axis_km": null, "fuel_reserve_kg": null, "final_altitude_km": null
+        "minimum_reboost_altitude_km": null, "target_semi_major_axis_km": null, "initial_fuel_mass_kg": null, "fuel_reserve_kg": null, "final_altitude_km": null
       },
       "electric_propulsion_transfer": {
         "initial_orbit": { "epoch_tai_mod_julian": null, "semi_major_axis_km": null, "eccentricity": null, "inclination_deg": null, "raan_deg": null, "arg_of_perigee_deg": null, "true_anomaly_deg": null },
