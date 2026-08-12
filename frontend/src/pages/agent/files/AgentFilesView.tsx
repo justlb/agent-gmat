@@ -68,9 +68,17 @@ function draftValuesDownloadUrl(draft: GmatSavedDraft, workspaceDir?: string | n
   return `${joinApiPath(undefined, `${base}/${encodeURIComponent(draft.draftId)}/download`)}?${query}`
 }
 
-function planningDigitalThreadDownloadUrl(planningRun: PlanningDiscussion) {
+function missionRunFileDownloadUrl(planningRun: PlanningDiscussion, file: string) {
+  const query = new URLSearchParams({ file, workspaceDir: planningRun.workspaceDir }).toString()
+  return `${joinApiPath(undefined, '/digital-thread/mission-run/download')}?${query}`
+}
+
+async function listMissionRunFiles(planningRun: PlanningDiscussion) {
   const query = new URLSearchParams({ workspaceDir: planningRun.workspaceDir }).toString()
-  return `${joinApiPath(undefined, '/digital-thread/satellite/download')}?${query}`
+  const response = await fetch(`${joinApiPath(undefined, '/digital-thread/mission-run/files')}?${query}`, { cache: 'no-store' })
+  if (!response.ok) throw new Error('Unable to load mission-run files')
+  const payload = await response.json() as { files?: Array<{ fileName: string }> }
+  return Array.isArray(payload.files) ? payload.files.map(file => file.fileName) : []
 }
 
 type AgentFilesViewProps = {
@@ -110,6 +118,7 @@ export function AgentFilesView({
   const [gmatFiles, setGmatFiles] = useState<MissionFile[]>([])
   const [gmatDrafts, setGmatDrafts] = useState<GmatSavedDraft[]>([])
   const [gmatFilesError, setGmatFilesError] = useState('')
+  const [missionRunFiles, setMissionRunFiles] = useState<string[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -132,6 +141,12 @@ export function AgentFilesView({
     })
     return () => { cancelled = true }
   }, [gmatMissionChat.draft, workspaceDir, workspaceRefreshNonce])
+  useEffect(() => {
+    let cancelled = false
+    if (!planningDiscussion) { setMissionRunFiles([]); return () => { cancelled = true } }
+    void listMissionRunFiles(planningDiscussion).then(files => { if (!cancelled) setMissionRunFiles(files) }).catch(() => { if (!cancelled) setMissionRunFiles([]) })
+    return () => { cancelled = true }
+  }, [gmatMissionChat.draft, planningDiscussion, workspaceRefreshNonce])
   // The API list is asynchronous. Merge the active draft so a freshly opened
   // conversation is visible in the Mission Files panel in the same render.
   const activeDraft = gmatMissionChat.draft?.draftId
@@ -140,6 +155,11 @@ export function AgentFilesView({
   const displayedDrafts = activeDraft && !gmatDrafts.some(draft => draft.draftId === activeDraft.draftId && draft.missionType === activeDraft.missionType)
     ? [activeDraft, ...gmatDrafts]
     : gmatDrafts
+  // The active draft belongs to the dated mission-run card above. Do not
+  // duplicate it as a second card while that mission is open.
+  const visibleDrafts = planningDiscussion && activeDraft
+    ? displayedDrafts.filter(draft => draft.draftId !== activeDraft.draftId)
+    : displayedDrafts
   const gmatRuns = Object.values(gmatFiles.reduce<Record<string, GmatRun>>((groups, file) => {
     const runPath = file.relativePath.replace(/[\\/][^\\/]+$/u, '')
     const runId = runPath.split(/[\\/]/u).at(-1) ?? file.artifactId
@@ -163,19 +183,15 @@ export function AgentFilesView({
             </div>
           </header>
           {gmatFilesError ? <p className="agent-gmat-files-error">{gmatFilesError}</p> : null}
-          {gmatRuns.length || displayedDrafts.length || showPlanningDiscussion ? (
+          {gmatRuns.length || visibleDrafts.length || showPlanningDiscussion ? (
             <div className="agent-gmat-files-list">
               {showPlanningDiscussion && planningDiscussion ? (
-                <section className="agent-gmat-planning-discussion">
+                <section className="agent-gmat-saved-draft agent-gmat-planning-discussion">
                   <header>
                     <strong>Mission discussion · {draftTimestamp({ createdAt: planningDiscussion.createdAt, draftId: planningDiscussion.planningRunId } as OrbitKeepingDraft)}</strong>
                     <small>Routing the GMAT template</small>
                   </header>
-                  <a className="agent-gmat-draft-digital-thread" href={planningDigitalThreadDownloadUrl(planningDiscussion)}>
-                    <span>Satellite digital thread</span>
-                    <small>satellite.json · This discussion's source of truth · Download</small>
-                  </a>
-                  <p>Your mission description is being saved. Select a satellite, then continue the discussion to create the matching GMAT draft.</p>
+                  {missionRunFiles.map(file => <a className="agent-gmat-draft-file" href={missionRunFileDownloadUrl(planningDiscussion, file)} key={file}><span>{file}</span><small>Download</small></a>)}
                 </section>
               ) : null}
               {gmatRuns.map(run => (
@@ -196,7 +212,7 @@ export function AgentFilesView({
                   ))}
                 </section>
               ))}
-              {displayedDrafts.map(draft => (
+              {visibleDrafts.map(draft => (
                 <section className="agent-gmat-saved-draft" key={`${draft.missionType}:${draft.draftId}`}>
                   <header>
                     <strong>{draft.missionType === 'electric-propulsion-transfer' ? 'Electric Transfer' : 'Orbit Keeping'} · {draftTimestamp(draft)}</strong>

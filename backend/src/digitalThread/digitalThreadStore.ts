@@ -31,8 +31,17 @@ export function digitalThreadPath(workspaceDir: string) {
 }
 
 export function planningRunWorkspaceDir(workspaceDir: string, planningRunId: string) {
-  if (!/^planning_[A-Za-z0-9_-]+$/u.test(planningRunId)) throw new Error("invalid planning run id")
-  return path.join(path.resolve(workspaceDir), "planning-runs", planningRunId)
+  if (!/^\d{2}-\d{2}-\d{2}_\d{2}-\d{2}(?:_\d{2})?$/u.test(planningRunId)) throw new Error("invalid planning run id")
+  return path.join(path.resolve(workspaceDir), "gmat", "mission-runs", planningRunId)
+}
+
+function formatMissionRunId(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0")
+  return `${pad(date.getFullYear() % 100)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}`
+}
+
+export function isMissionRunWorkspace(workspaceDir: string) {
+  return path.resolve(workspaceDir).split(path.sep).includes("mission-runs")
 }
 
 /** A draft owns a private digital-thread workspace. GMAT artifacts remain in the
@@ -130,15 +139,25 @@ async function createEmptyDigitalThread() {
 
 /** Creates the empty source-of-truth context at the beginning of a user run. */
 export async function createPlanningRun(workspaceDir: string): Promise<PlanningRun> {
-  const planningRunId = `planning_${crypto.randomUUID()}`
-  const planningWorkspaceDir = planningRunWorkspaceDir(workspaceDir, planningRunId)
-  await loadOrCreateDigitalThread(planningWorkspaceDir)
+  const root = path.resolve(workspaceDir)
+  let planningRunId = formatMissionRunId(new Date())
+  let planningWorkspaceDir = planningRunWorkspaceDir(root, planningRunId)
+  for (let suffix = 2; await fs.stat(planningWorkspaceDir).then(() => true).catch(() => false); suffix += 1) {
+    planningRunId = `${formatMissionRunId(new Date())}_${String(suffix).padStart(2, "0")}`
+    planningWorkspaceDir = planningRunWorkspaceDir(root, planningRunId)
+  }
+  const document = await loadOrCreateDigitalThread(planningWorkspaceDir)
   const planningRun: PlanningRun = {
     createdAt: new Date().toISOString(),
     planningRunId,
     workspaceDir: planningWorkspaceDir,
   }
-  await fs.writeFile(path.join(planningWorkspaceDir, "planning-run.json"), `${JSON.stringify(planningRun, null, 2)}\n`, "utf8")
+  await Promise.all([
+    fs.writeFile(path.join(planningWorkspaceDir, "satellite.json"), `${JSON.stringify(document, null, 2)}\n`, "utf8"),
+    fs.writeFile(path.join(planningWorkspaceDir, "conversation.json"), "[]\n", "utf8"),
+    fs.writeFile(path.join(planningWorkspaceDir, "mission.values.yaml"), "template: null\nvalues: {}\n", "utf8"),
+    fs.writeFile(path.join(planningWorkspaceDir, "run_manifest.json"), `${JSON.stringify({ createdAt: planningRun.createdAt, runId: planningRunId, status: "drafting", tool: "GMAT" }, null, 2)}\n`, "utf8"),
+  ])
   return planningRun
 }
 
@@ -199,6 +218,9 @@ export async function saveDigitalThread(workspaceDir: string, document: DigitalT
   const temporary = `${output}.${crypto.randomUUID()}.tmp`
   await fs.writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, "utf8")
   await fs.rename(temporary, output)
+  if (isMissionRunWorkspace(workspaceDir)) {
+    await fs.writeFile(path.join(path.resolve(workspaceDir), "satellite.json"), `${JSON.stringify(document, null, 2)}\n`, "utf8")
+  }
   return document
 }
 

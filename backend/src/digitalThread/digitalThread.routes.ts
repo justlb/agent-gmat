@@ -1,4 +1,5 @@
 import path from "node:path"
+import fs from "node:fs/promises"
 import type { FastifyInstance } from "fastify"
 
 import type { AppConfig } from "../config.js"
@@ -15,6 +16,13 @@ function resolveWorkspaceDir(root: string, requested: unknown) {
   const workspaceDir = typeof requested === "string" && requested.trim() ? path.resolve(requested) : path.resolve(root)
   if (!isPathInside(path.resolve(root), workspaceDir)) throw new Error("workspaceDir must be inside the current user workspace")
   return workspaceDir
+}
+
+function resolveMissionRunArtifact(root: string, workspaceDir: string, fileName: string) {
+  const allowedFiles = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer|mission)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
+  const resolvedWorkspace = path.resolve(workspaceDir)
+  if (!isPathInside(path.resolve(root), resolvedWorkspace) || !resolvedWorkspace.split(path.sep).includes("mission-runs") || !allowedFiles.test(fileName)) return null
+  return path.join(resolvedWorkspace, fileName)
 }
 
 function response(document: Awaited<ReturnType<typeof loadOrCreateDigitalThread>>) {
@@ -102,6 +110,33 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
       const document = await loadOrCreateDigitalThread(draftDigitalThreadWorkspaceDir(workspaceDir, template, draftId))
       return reply.header("Content-Type", "application/json; charset=utf-8").header("Content-Disposition", "attachment; filename=satellite.json").send(`${JSON.stringify(document, null, 2)}\n`)
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download draft satellite digital thread") }) }
+  })
+
+  fastify.get<{ Querystring: { file?: string; workspaceDir?: string } }>("/api/digital-thread/mission-run/download", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const workspaceDir = resolveWorkspaceDir(root, req.query.workspaceDir)
+      const fileName = typeof req.query.file === "string" ? req.query.file : ""
+      const filePath = resolveMissionRunArtifact(root, workspaceDir, fileName)
+      const source = filePath ? await fs.readFile(filePath, "utf8").catch(() => null) : null
+      if (source === null) return reply.status(404).send({ error: "mission-run file is not available" })
+      const contentType = fileName.endsWith(".yaml") ? "application/x-yaml; charset=utf-8" : "application/json; charset=utf-8"
+      return reply.header("Content-Type", contentType).header("Content-Disposition", `attachment; filename="${fileName}"`).send(source)
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download mission-run file") }) }
+  })
+
+  fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/digital-thread/mission-run/files", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const workspaceDir = resolveWorkspaceDir(root, req.query.workspaceDir)
+      if (!workspaceDir.split(path.sep).includes("mission-runs")) return reply.status(400).send({ error: "workspaceDir is not a mission run" })
+      const allowed = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer|mission)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
+      const entries = await fs.readdir(workspaceDir, { withFileTypes: true })
+      const files = await Promise.all(entries.filter(entry => entry.isFile() && allowed.test(entry.name)).map(async entry => ({ fileName: entry.name, mtimeMs: (await fs.stat(path.join(workspaceDir, entry.name))).mtimeMs })))
+      return reply.send({ files: files.sort((left, right) => left.fileName.localeCompare(right.fileName)) })
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to list mission-run files") }) }
   })
 
   fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/digital-thread/satellite/conversation", async (req, reply) => {

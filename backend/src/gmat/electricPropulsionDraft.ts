@@ -2,7 +2,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { parseDocument, stringify } from "yaml"
 
-import { initializeDraftDigitalThread } from "../digitalThread/digitalThreadStore.js"
+import { initializeDraftDigitalThread, isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian, semiMajorAxisFromPeriapsisAltitude, type CartesianState, type KeplerianElements } from "./orbitCoordinates.js"
 import { requestGmatModel } from "./modelRequest.js"
@@ -260,9 +260,14 @@ async function saveDraft(workspaceDir: string, draft: ElectricPropulsionDraft) {
   // This live draft YAML changes with every assistant turn. It is not the
   // immutable values file that is emitted later inside a completed GMAT run.
   const valuesPath = path.join(path.dirname(output), "electric_propulsion_transfer.values.yaml")
+  const valuesSource = stringify({ draft_id: draft.draftId, template_id: draft.templateId, updated_at: draft.updatedAt, values: draft.values })
   await Promise.all([
     fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`, "utf8"),
-    fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, updated_at: draft.updatedAt, values: draft.values }), "utf8"),
+    fs.writeFile(valuesPath, valuesSource, "utf8"),
+    ...(isMissionRunWorkspace(workspaceDir) ? [
+      fs.writeFile(path.join(path.resolve(workspaceDir), "electric_propulsion_transfer.values.yaml"), valuesSource, "utf8"),
+      fs.writeFile(path.join(path.resolve(workspaceDir), "mission.values.yaml"), valuesSource, "utf8"),
+    ] : []),
   ])
   return draft
 }

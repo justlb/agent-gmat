@@ -171,6 +171,7 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
           await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
           const createdDraftThreadWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId)
           await syncDigitalThreadFromGmatDraft(createdDraftThreadWorkspace, updatedDraft)
+          await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
         return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId)), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
       }
       const draft = await createElectricPropulsionDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
@@ -178,6 +179,7 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
       await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
       const createdDraftThreadWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", updatedDraft.draftId)
       await syncDigitalThreadFromGmatDraft(createdDraftThreadWorkspace, updatedDraft)
+      await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
       return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(createdDraftThreadWorkspace), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
     } catch (error) {
       const errorMessage = getErrorMessage(error, "failed to route GMAT mission")

@@ -2,7 +2,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { parseDocument, stringify } from "yaml"
 
-import { initializeDraftDigitalThread } from "../digitalThread/digitalThreadStore.js"
+import { initializeDraftDigitalThread, isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian, semiMajorAxisFromPeriapsisAltitude, type CartesianState, type KeplerianElements } from "./orbitCoordinates.js"
 import { requestGmatModel } from "./modelRequest.js"
@@ -372,9 +372,14 @@ async function saveDraft(workspaceDir: string, draft: OrbitKeepingDraft) {
   // It is deliberately separate from the immutable values YAML emitted with a
   // generated GMAT run.
   const valuesPath = path.join(path.dirname(output), "orbit_keeping.values.yaml")
+  const valuesSource = stringify({ draft_id: draft.draftId, template_id: draft.templateId, updated_at: draft.updatedAt, values: draft.values })
   await Promise.all([
     fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`, "utf8"),
-    fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, updated_at: draft.updatedAt, values: draft.values }), "utf8"),
+    fs.writeFile(valuesPath, valuesSource, "utf8"),
+    ...(isMissionRunWorkspace(workspaceDir) ? [
+      fs.writeFile(path.join(path.resolve(workspaceDir), "orbit_keeping.values.yaml"), valuesSource, "utf8"),
+      fs.writeFile(path.join(path.resolve(workspaceDir), "mission.values.yaml"), valuesSource, "utf8"),
+    ] : []),
   ])
   return draft
 }

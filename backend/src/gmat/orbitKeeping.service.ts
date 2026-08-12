@@ -7,6 +7,7 @@ import { assertOrbitKeepingSimulationSafety } from "./orbitKeepingDraft.js"
 import { editOrbitKeepingValuesWithLlm, type OrbitKeepingLlmEditResult } from "./orbitKeepingLlmEdit.js"
 import { runOrbitKeepingGmat, toGmatNativePath, type OrbitKeepingExecutionResult } from "./orbitKeepingRunner.js"
 import { defaultOrbitKeepingTemplatePath } from "./orbitKeepingTemplate.js"
+import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import { applyOrbitKeepingValueChanges, parseOrbitKeepingValues, renderOrbitKeepingValues, type OrbitKeepingValueChange } from "./orbitKeepingValues.js"
 
 function enableEphemerisOutput(script: string) {
@@ -161,7 +162,9 @@ export async function generateOrbitKeepingMission({
   onProgress?.({ key: "render_script", percent: 50, status: "running" })
   const outputRoot = path.join(path.resolve(workspaceDir), "gmat", "orbit-keeping")
   await fs.mkdir(outputRoot, { recursive: true })
-  const outputDir = await createRunOutputDir(outputRoot, artifactId)
+  const outputDir = isMissionRunWorkspace(workspaceDir)
+    ? path.resolve(workspaceDir)
+    : await createRunOutputDir(outputRoot, artifactId)
   const outputValuesPath = path.join(outputDir, "orbit_keeping.values.yaml")
   const outputScriptPath = path.join(outputDir, "orbit_keeping.script")
   const outputResultPath = path.join(outputDir, "gmat_result.json")

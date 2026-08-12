@@ -12,6 +12,11 @@ function conversationPath(workspaceDir: string) {
   return path.join(path.resolve(workspaceDir), "digital-thread", "mission-conversation.json")
 }
 
+function missionRunConversationPath(workspaceDir: string) {
+  const resolved = path.resolve(workspaceDir)
+  return resolved.split(path.sep).includes("mission-runs") ? path.join(resolved, "conversation.json") : null
+}
+
 function validTurn(value: unknown): value is MissionConversationTurn {
   return Boolean(value && typeof value === "object" && typeof (value as MissionConversationTurn).question === "string" && typeof (value as MissionConversationTurn).answer === "string" && typeof (value as MissionConversationTurn).askedAt === "string" && ((value as MissionConversationTurn).channel === "gmat-draft" || (value as MissionConversationTurn).channel === "simu-cic"))
 }
@@ -31,7 +36,10 @@ export async function appendMissionConversation(workspaceDir: string, turn: Miss
   const previous = await loadMissionConversation(workspaceDir)
   const output = conversationPath(workspaceDir)
   await fs.mkdir(path.dirname(output), { recursive: true })
-  await fs.writeFile(output, `${JSON.stringify([...previous, turn], null, 2)}\n`, "utf8")
+  const source = `${JSON.stringify([...previous, turn], null, 2)}\n`
+  await fs.writeFile(output, source, "utf8")
+  const missionRunOutput = missionRunConversationPath(workspaceDir)
+  if (missionRunOutput) await fs.writeFile(missionRunOutput, source, "utf8")
 }
 
 /** Stores the immutable conversation context that led to one GMAT run. */

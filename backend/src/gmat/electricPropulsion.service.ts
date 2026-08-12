@@ -6,6 +6,7 @@ import { stringify } from "yaml"
 import { applyElectricPropulsionValueChanges, extractElectricPropulsionValues, renderElectricPropulsionValues, type ElectricPropulsionValueChange } from "./electricPropulsionValues.js"
 import { runElectricPropulsionGmat, type ElectricPropulsionExecutionResult } from "./electricPropulsionRunner.js"
 import { defaultElectricPropulsionTemplatePath } from "./electricPropulsionTemplate.js"
+import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 
 export type ElectricPropulsionProgress = { key: "load_template" | "llm_patch" | "render_script" | "run_gmat" | "save_results"; percent: number; status: "running" | "completed" }
@@ -134,7 +135,9 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   onProgress?.({ key: "render_script", percent: 50, status: "running" })
   const outputRoot = path.join(path.resolve(workspaceDir), "gmat", "electric-propulsion-transfer")
   await fs.mkdir(outputRoot, { recursive: true })
-  const runDir = await createRunOutputDir(outputRoot, artifactId)
+  const runDir = isMissionRunWorkspace(workspaceDir)
+    ? path.resolve(workspaceDir)
+    : await createRunOutputDir(outputRoot, artifactId)
   const reportSlot = editedValues.slots.find(slot => slot.context.includes("ElectricTransferReport.Filename"))
   if (!reportSlot) throw new Error("electric-propulsion template does not expose ElectricTransferReport.Filename")
   const ephemerisSlot = editedValues.slots.find(slot => slot.context.includes("EphemerisFile1.Filename"))

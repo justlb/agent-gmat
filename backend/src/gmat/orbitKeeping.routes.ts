@@ -112,7 +112,7 @@ function resolveOrbitKeepingRunDir(userWorkspaceRoot: string, runPath: unknown) 
   const root = path.resolve(userWorkspaceRoot)
   const runDir = path.resolve(root, runPath)
   const normalized = runDir.split(path.sep).join("/")
-  if (!isPathInside(root, runDir) || !/\/gmat\/orbit-keeping\/[^/]+$/u.test(normalized)) return null
+  if (!isPathInside(root, runDir) || !/\/gmat\/(?:orbit-keeping|mission-runs)\/[^/]+$/u.test(normalized)) return null
   return runDir
 }
 

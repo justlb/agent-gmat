@@ -95,7 +95,7 @@ function resolveRunDir(userWorkspaceRoot: string, runPath: unknown) {
   const root = path.resolve(userWorkspaceRoot)
   const runDir = path.resolve(root, runPath)
   const normalized = runDir.split(path.sep).join("/")
-  return isPathInside(root, runDir) && /\/gmat\/electric-propulsion-transfer\/[^/]+$/u.test(normalized) ? runDir : null
+  return isPathInside(root, runDir) && /\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized) ? runDir : null
 }
 
 async function openGmatGui(guiBin: string | null, runDir: string) {
