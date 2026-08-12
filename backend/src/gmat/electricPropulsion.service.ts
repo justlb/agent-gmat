@@ -25,6 +25,7 @@ export type ElectricPropulsionRunResult = {
   warnings?: string[]
 }
 export type GenerateElectricPropulsionMissionResult = {
+  calibrationPath?: string
   changes: ElectricPropulsionValueChange[]
   ephemerisPath: string
   latencyMs: number
@@ -36,6 +37,70 @@ export type GenerateElectricPropulsionMissionResult = {
   scriptPath: string
   timeSeriesPath: string
   valuesPath: string
+}
+
+/**
+ * The source template remains a validated GMAT reference.  This describes the
+ * per-run translation of the selected satellite's electric propulsion model
+ * into the generated GMAT script, rather than editing that reference file.
+ */
+type SatelliteElectricPropulsionCalibration = {
+  dutyCycle: number
+  fixedEfficiency: number
+  ispSeconds: number
+  nominalPowerKw: number
+  nominalThrustNewtons: number
+  source: {
+    isp: string
+    dutyCycle: string
+    power: string
+    thrust: string
+  }
+}
+
+function positiveNumberAt(value: unknown, path: string) {
+  const result = path.split(".").reduce<unknown>((current, key) => current && typeof current === "object" ? (current as Record<string, unknown>)[key] : undefined, value)
+  return typeof result === "number" && Number.isFinite(result) && result > 0 ? result : null
+}
+
+async function loadSatelliteElectricPropulsionCalibration(workspaceDir: string): Promise<SatelliteElectricPropulsionCalibration | null> {
+  const satellitePath = path.join(path.resolve(workspaceDir), "satellite.json")
+  const document = await fs.readFile(satellitePath, "utf8").then(source => JSON.parse(source) as unknown).catch(() => null)
+  if (!document) return null
+  const thrustPath = "satellite.bus.propulsion_subsystem.nominal_thrust_newtons"
+  const ispPath = "satellite.bus.propulsion_subsystem.specific_impulse_seconds"
+  const powerPath = "satellite.bus.propulsion_subsystem.electric_thruster.nominal_thruster_power_kw"
+  const dutyCyclePath = "satellite.bus.propulsion_subsystem.nominal_duty_cycle"
+  const nominalThrustNewtons = positiveNumberAt(document, thrustPath)
+  const ispSeconds = positiveNumberAt(document, ispPath)
+  const nominalPowerKw = positiveNumberAt(document, powerPath)
+  const dutyCycle = positiveNumberAt(document, dutyCyclePath) ?? 1
+  if (nominalThrustNewtons === null || ispSeconds === null || nominalPowerKw === null || dutyCycle > 1) return null
+  return {
+    // FixedEfficiency keeps SolarPowerSystem1 in the propulsion calculation.
+    // F = 2 * efficiency * P / (Isp * g0); calibrate it at the satellite's
+    // declared nominal thrust/power operating point.
+    fixedEfficiency: nominalThrustNewtons * ispSeconds * 9.80665 / (2 * nominalPowerKw * 1000 * dutyCycle),
+    dutyCycle,
+    nominalPowerKw,
+    nominalThrustNewtons,
+    ispSeconds,
+    source: { isp: ispPath, thrust: thrustPath, power: powerPath, dutyCycle: dutyCyclePath },
+  }
+}
+
+function applySatelliteElectricPropulsionCalibration(script: string, calibration: SatelliteElectricPropulsionCalibration | null) {
+  if (!calibration) return script
+  const replacements: Array<[RegExp, string, string]> = [
+    [/^ElectricThruster1\.ThrustModel = ThrustMassPolynomial;$/mu, "ElectricThruster1.ThrustModel = FixedEfficiency;", "ElectricThruster1.ThrustModel"],
+    [/^ElectricThruster1\.Isp = [^;]+;$/mu, `ElectricThruster1.Isp = ${calibration.ispSeconds};`, "ElectricThruster1.Isp"],
+    [/^ElectricThruster1\.FixedEfficiency = [^;]+;$/mu, `ElectricThruster1.FixedEfficiency = ${calibration.fixedEfficiency};`, "ElectricThruster1.FixedEfficiency"],
+    [/^ElectricThruster1\.DutyCycle = [^;]+;$/mu, `ElectricThruster1.DutyCycle = ${calibration.dutyCycle};`, "ElectricThruster1.DutyCycle"],
+  ]
+  return replacements.reduce((rendered, [pattern, replacement, label]) => {
+    if (!pattern.test(rendered)) throw new Error(`electric-propulsion template does not expose ${label} for satellite calibration`)
+    return rendered.replace(pattern, replacement)
+  }, script)
 }
 
 function enableEphemerisOutput(script: string) {
@@ -151,11 +216,20 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   ])
   const scriptPath = path.join(runDir, "electric_propulsion_transfer.script")
   const valuesPath = path.join(runDir, "electric_propulsion_transfer.values.yaml")
+  const calibrationPath = path.join(runDir, "electric_propulsion_calibration.json")
   const resultPath = path.join(runDir, "gmat_result.json")
   const timeSeriesPath = path.join(runDir, "electric_transfer_timeseries.json")
   const manifestPath = path.join(runDir, "run_manifest.json")
-  const renderedScript = enableEphemerisOutput(renderElectricPropulsionValues(template, renderedValues))
-  await Promise.all([fs.writeFile(scriptPath, renderedScript, "utf8"), fs.writeFile(valuesPath, stringify(renderedValues), "utf8")])
+  const calibration = await loadSatelliteElectricPropulsionCalibration(workspaceDir)
+  const renderedScript = applySatelliteElectricPropulsionCalibration(
+    enableEphemerisOutput(renderElectricPropulsionValues(template, renderedValues)),
+    calibration,
+  )
+  await Promise.all([
+    fs.writeFile(scriptPath, renderedScript, "utf8"),
+    fs.writeFile(valuesPath, stringify(renderedValues), "utf8"),
+    ...(calibration ? [fs.writeFile(calibrationPath, `${JSON.stringify({ schemaVersion: 1, model: "fixed-efficiency", ...calibration }, null, 2)}\n`, "utf8")] : []),
+  ])
   onProgress?.({ key: "render_script", percent: 60, status: "completed" })
   if (execution) onProgress?.({ key: "run_gmat", percent: 65, status: "running" })
   const executionResult = execution ? await runElectricPropulsionGmat({ ...execution, scriptPath }) : undefined
@@ -166,7 +240,7 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
     ? await fs.stat(ephemerisPath).then(stat => stat.isFile() && stat.size > 0).catch(() => false)
     : false
   const runId = path.basename(runDir)
-  const manifest = { schemaVersion: 1, runId, tool: "GMAT", templateId: "electric-propulsion-transfer", templateSha256, status: result.status, request, createdAt: new Date().toISOString(), completedAt: executionResult?.completedAt ?? null, changes, inputs: { script: path.basename(scriptPath), values: path.basename(valuesPath) }, outputs: { result: path.basename(resultPath), report: executionResult ? path.basename(executionResult.reportPath) : null, ephemeris: ephemerisWritten ? path.basename(ephemerisPath) : null, log: executionResult ? path.basename(executionResult.logPath) : null } }
+  const manifest = { schemaVersion: 1, runId, tool: "GMAT", templateId: "electric-propulsion-transfer", templateSha256, status: result.status, request, createdAt: new Date().toISOString(), completedAt: executionResult?.completedAt ?? null, changes, inputs: { script: path.basename(scriptPath), values: path.basename(valuesPath), calibration: calibration ? path.basename(calibrationPath) : null }, outputs: { result: path.basename(resultPath), report: executionResult ? path.basename(executionResult.reportPath) : null, ephemeris: ephemerisWritten ? path.basename(ephemerisPath) : null, log: executionResult ? path.basename(executionResult.logPath) : null } }
   onProgress?.({ key: "save_results", percent: 92, status: "running" })
   await Promise.all([
     fs.writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8"),
@@ -174,5 +248,5 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
     fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8"),
   ])
   onProgress?.({ key: "save_results", percent: 100, status: "completed" })
-  return { changes, ephemerisPath, latencyMs: 0, manifestPath, result, resultPath, runDir, runId, scriptPath, timeSeriesPath, valuesPath }
+  return { changes, ...(calibration ? { calibrationPath } : {}), ephemerisPath, latencyMs: 0, manifestPath, result, resultPath, runDir, runId, scriptPath, timeSeriesPath, valuesPath }
 }

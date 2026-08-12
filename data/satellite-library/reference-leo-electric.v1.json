@@ -1,47 +1,62 @@
 {
-  "id": "ref-leo-electric",
+  "id": "ref-starlink-v1-5-public-rf",
   "version": "1.0.0",
-  "name": "Starlink V1.5",
-  "description": "Physical reference definition for a Starlink V1.5-class electric-propulsion satellite. Mission orbit and GMAT mission values are intentionally excluded.",
-  "capabilities": ["GMAT", "Simu-CIC", "OPALIS"],
+  "name": "Starlink V1.5 public RF reference",
+  "description": "Non-flight public-data reference for a Starlink V1.5-class spacecraft. Public regulatory values and explicit engineering assumptions are retained for GMAT, Simu-CIC, OPALIS and RF-COMLINK preparation.",
+  "derived_from": { "source_file": "C:/Users/justl/Downloads/ref-leo-electric.1.0.0.json", "source_id": "ref-leo-electric", "source_version": "1.0.0", "original_file_modified": false },
+  "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
   "mission_templates": ["electric-propulsion-transfer"],
+  "limitations": [
+    "This reference does not identify a specific NORAD object, spacecraft serial number, operational beam, gateway assignment, user-terminal generation, modulation/coding profile, or network scheduling state.",
+    "SpaceX does not publicly disclose exact Starlink V1.5 RF payload EIRP, antenna patterns, receiver G/T, TT&C waveform, coding, or operational bit rates needed to claim a flight-accurate link budget.",
+    "RF-COMLINK may be run only after a selected geometry CIC set and a selected Earth endpoint are supplied. Engineering-assumption results are proxy/sensitivity results, not measured Starlink performance."
+  ],
+  "data_status_values": { "public_confirmed": "Directly stated in a public regulator or operator source.", "public_site_specific": "Public, but valid only for the named ground site, authorization and timeframe.", "engineering_assumption": "Needed to make a test model executable; not asserted to be a Starlink V1.5 value.", "not_public": "No defensible public numerical value located; do not silently replace with an assumption.", "derived": "Computed from other values; retain equation and inputs." },
+  "sources": [
+    { "id": "fcc_gen1_modification_2021", "url": "https://fcc.report/IBFS/SAT-MOD-20200417-00037/6601582.pdf", "title": "FCC 21-48, SpaceX Gen1 Ku/Ka NGSO modification", "used_for": ["authorized_frequency_bands", "orbital_shells", "minimum_elevation", "TT&C_authority"] },
+    { "id": "fcc_baxley_gateway_2020", "url": "https://fcc.report/IBFS/SES-LIC-20200616-00646/2445341", "title": "SpaceX Baxley, Georgia gateway application", "used_for": ["gateway_antenna_diameter", "gateway_gain", "gateway_EIRP", "gateway_frequency_bands", "gateway_modulation_envelope"] },
+    { "id": "fcc_hamshire_gateway_sta_2021", "url": "https://fcc.report/IBFS/SES-STA-20201222-01442/3870841.pdf", "title": "SpaceX Hamshire, Texas gateway special temporary authority", "used_for": ["gateway_max_EIRP_per_carrier", "gateway_EIRP_density", "gateway_frequency_bands"] }
+  ],
   "satellite": {
-    "identity": { "name": "Starlink V1.5", "operator": "SpaceX", "mission_type": "Broadband internet constellation" },
+    "identity": { "name": "Starlink V1.5-class", "operator": "SpaceX", "mission_type": "NGSO fixed-satellite-service broadband relay", "data_status": "public_confirmed" },
     "bus": {
-        "physical": {
-            "mass_kg": {
-                "dry": 303.7,
-                "wet_at_launch": 306,
-                "propellant": 2.3
-            },
-            "drag_area_m2": 23,
-            "drag_coefficient": 2.2
+      "physical": { "mass_kg": { "dry": 296, "wet_at_launch": 306, "propellant": 10, "data_status": "engineering_assumption", "note": "Simulation proxy revised for mass consistency and a usable V1.5-class delta-V reserve. It is not a published SpaceX mass breakdown." }, "drag_area_m2": 23, "drag_coefficient": 2.2 },
+      "propulsion_subsystem": {
+        "type": "Krypton Hall-effect electric propulsion (V1.5-class simulation proxy)", "propellant": "Krypton", "specific_impulse_seconds": 1600, "specific_impulse_status": "engineering_assumption", "nominal_thrust_newtons": 0.01, "maximum_thrust_newtons": 0.06, "thrust_status": "engineering_assumption", "nominal_duty_cycle": 0.25, "duty_cycle_status": "engineering_assumption", "operational_rule": "Use nominal thrust and duty cycle for long orbit-raising/station-keeping scenarios. Use maximum thrust only for explicitly scheduled manoeuvre arcs; never model maximum thrust continuously unless that scenario is intentional.",
+        "derived_performance": { "wet_mass_kg": 306, "propellant_mass_kg": 10, "delta_v_m_per_s": 521.3, "delta_v_equation": "Isp * 9.80665 * ln(wet_mass / dry_mass)", "nominal_acceleration_m_per_s2": 0.0000327, "maximum_acceleration_m_per_s2": 0.0001961, "nominal_propellant_flow_mg_per_s": 0.637, "maximum_propellant_flow_mg_per_s": 3.824, "note": "Derived values assume one effective spacecraft thrust vector and use the wet mass." },
+        "electric_thruster": { "propellant_mass_kg": 10, "minimum_usable_power_kw": 1, "maximum_usable_power_kw": 4.2, "nominal_thruster_power_kw": 1, "power_status": "engineering_assumption", "note": "The former 2500 s / 4.2 kW model is not used as a V1.5 nominal operating point. A 4.2 kW point may be used only together with the explicit maximum-thrust manoeuvre setting." }
+      },
+      "electrical_subsystem": { "solar_panels": { "type": "Triple-junction GaAs", "efficiency_percent": 30, "total_area_m2": 23, "total_power_generated_watts": 4200, "array_orientation": "Sun tracking" }, "batteries": { "chemistry": "Li-ion", "capacity_ah": 100 }, "bus_voltage_v": 120, "spacecraft_bus_load_kw": 3.5, "electric_propulsion_mode": { "bus_load_kw": 2.8, "data_status": "engineering_assumption", "note": "Payload-reduced orbit-raising allocation. With 4.2 kW generation and 20% system margin it leaves 1.12 kW nominally available to the thruster, close to the 1.0 kW nominal operating point." }, "system_margin_percent": 20, "data_status": "engineering_assumption", "note": "The nominal 3.5 kW load is retained for spacecraft-level accounting. GMAT electric-transfer uses the explicit electric-propulsion mission-mode allocation when present." }
+    },
+    "constellation_context": {
+      "authorized_gen1_shells": [
+        { "altitude_km": 540, "inclination_deg": 53.2, "satellites": 1584, "planes": 72, "satellites_per_plane": 22, "data_status": "public_confirmed" },
+        { "altitude_km": 550, "inclination_deg": 53, "satellites": 1584, "planes": 72, "satellites_per_plane": 22, "data_status": "public_confirmed" },
+        { "altitude_km": 570, "inclination_deg": 70, "satellites": 720, "planes": 36, "satellites_per_plane": 20, "data_status": "public_confirmed" },
+        { "altitude_km": 560, "inclination_deg": 97.6, "satellites": 520, "planes": 10, "data_status": "public_confirmed" }
+      ],
+      "default_model_shell": { "altitude_km": 550, "inclination_deg": 53, "data_status": "engineering_assumption", "note": "Default only. Replace with the shell and state vector for the selected Starlink object before generating Simu-CIC files." }
+    },
+    "rf_payload": {
+      "architecture": {
+        "user_service": {
+          "user_terminal_to_satellite": { "direction": "Earth-to-space", "band": "Ku", "authorized_frequency_ranges_GHz": [[13.85, 14.5]], "earth_endpoint": "Starlink user terminal", "satellite_endpoint": "Ku user-link receiver", "minimum_elevation_deg": 25, "data_status": "public_confirmed" },
+          "satellite_to_user_terminal": { "direction": "Space-to-Earth", "band": "Ku", "authorized_frequency_ranges_GHz": [[10.7, 12.7]], "earth_endpoint": "Starlink user terminal", "satellite_endpoint": "Ku user-link transmitter", "minimum_elevation_deg": 25, "data_status": "public_confirmed" }
         },
-        "propulsion_subsystem": {
-            "type": "Electric propulsion (Hall-effect thruster)",
-            "specific_impulse_seconds": 2500,
-            "electric_thruster": {
-                "propellant_mass_kg": 2.3,
-                "minimum_usable_power_kw": 1.0,
-                "maximum_usable_power_kw": 4.2
-            }
+        "gateway_feeder_service": {
+          "gateway_to_satellite": { "direction": "Earth-to-space", "band": "Ka", "authorized_frequency_ranges_GHz": [[27.5, 29.1], [29.5, 30]], "earth_endpoint": "Starlink gateway", "satellite_endpoint": "Ka gateway-link receiver", "minimum_elevation_deg": 25, "data_status": "public_confirmed" },
+          "satellite_to_gateway": { "direction": "Space-to-Earth", "band": "Ka", "authorized_frequency_ranges_GHz": [[17.8, 18.6], [18.8, 19.3]], "earth_endpoint": "Starlink gateway", "satellite_endpoint": "Ka gateway-link transmitter", "minimum_elevation_deg": 25, "data_status": "public_confirmed" }
         },
-        "electrical_subsystem": {
-            "solar_panels": {
-                "type": "Triple-junction GaAs",
-                "efficiency_percent": 30.0,
-                "total_area_m2": 23,
-                "total_power_generated_watts": 4200,
-                "array_orientation": "Sun tracking"
-            },
-            "batteries": {
-                "chemistry": "Li-ion",
-                "capacity_ah": 100.0
-            },
-            "bus_voltage_v": 120.0,
-            "spacecraft_bus_load_kw": 3.5,
-            "system_margin_percent": 20.0
-        }
+        "TT_and_C": { "mission_function": "telemetry, tracking and command during de-orbit; payload testing and LEOP authority is publicly described", "exact_frequency_assignment": null, "exact_modulation_coding_data_rate": null, "exact_satellite_EIRP_dBW": null, "exact_ground_G_over_T_dB_per_K": null, "data_status": "not_public", "rfcomlink_rule": "Do not create a flight-labelled TT&C budget. A proxy TT&C link requires an explicitly approved engineering assumption set." },
+        "inter_satellite_links": { "medium": "optical laser", "represented_by_RF_COMLINK": false, "data_status": "public_confirmed", "note": "Model this separately from RF-COMLINK." }
+      },
+      "satellite_rf_parameters_not_public": ["per-beam spacecraft EIRP and EIRP density", "spacecraft receiver G/T and noise temperature", "spacecraft antenna gain patterns and beam steering loss", "active beam count and frequency reuse state", "modulation, coding, frame structure and allocation per beam", "TT&C waveform and data rate"]
     }
-  }
+  },
+  "earth_endpoint_library": {
+    "gateway_baxley_ga_proxy": { "purpose": "Public, site-specific feeder-link reference. It is suitable as a starting RF-COMLINK ground-station profile for a Ka gateway calculation, not as a universal Starlink gateway.", "data_status": "public_site_specific", "antenna": { "manufacturer": "SpaceX", "model": "1.47M", "quantity_at_site": 8, "diameter_m": 1.47, "gain_dBi": { "receive_at_19_GHz": 46.9, "transmit_at_28_GHz": 49.5 }, "polarization": "Left and Right Circular" }, "transmit": { "total_EIRP_all_carriers_dBW": 66.5, "maximum_EIRP_per_carrier_dBW": 60.5, "maximum_EIRP_density_dBW_per_4kHz": 9.7, "frequency_ranges_GHz": [[27.5, 29.1], [29.5, 30]], "allowed_modulation_envelope": "BPSK up to 64 QAM; digital data" }, "receive": { "frequency_ranges_GHz": [[17.8, 18.6], [18.8, 19.3]], "G_over_T_dB_per_K": null, "data_status": "not_public", "rfcomlink_rule": "A numerical G/T is required for a full downlink budget. Do not derive it from gain alone without a documented receiver noise-temperature assumption." }, "minimum_elevation_deg": 25 },
+    "starlink_user_terminal_generic": { "purpose": "Endpoint category only; terminal hardware varies by generation and service. Select a terminal FCC authorization or a measured terminal profile before calculating a user-link margin.", "data_status": "not_public", "known_public_interface": { "uplink_frequency_range_GHz": [14, 14.5], "downlink_frequency_range_GHz": [10.7, 12.7], "antenna_type": "electronically steered phased array" }, "missing_for_RF_COMLINK": ["specific terminal model", "transmit EIRP or power density", "receive G/T or receiver noise temperature", "antenna gain pattern", "pointing performance", "selected channel centre frequency and bandwidth"] }
+  },
+  "rfcomlink_input_contract": { "required_external_inputs": { "from_Simu_CIC": ["range_file", "satellite_direction_file when a spacecraft antenna pattern is used", "ground_station_direction_file when a ground antenna pattern is used", "geometrical_visibility_file", "elevation_file or a geometry source sufficient for atmospheric modelling"], "from_scenario_or_network_planner": ["selected Starlink shell and actual satellite state", "selected gateway or terminal site", "selected service link and channel centre frequency", "bandwidth, modulation, coding, data rate and required BER", "weather availability target"] }, "run_profiles": { "gateway_uplink_public_profile": { "link_type": "EarthSpace", "endpoint": "gateway_baxley_ga_proxy", "frequency_MHz": 28600, "frequency_selection_status": "engineering_assumption; centre of an authorized 28.6-29.1 GHz sub-band", "ground_EIRP_dBW": 60.5, "ground_EIRP_status": "public_site_specific maximum per carrier", "satellite_receive_G_over_T_dB_per_K": null, "blocking_missing_input": "Spacecraft receiver G/T is not public; do not report a completed margin without an approved assumption." }, "gateway_downlink_public_profile": { "link_type": "SpaceEarth", "endpoint": "gateway_baxley_ga_proxy", "frequency_MHz": 18200, "frequency_selection_status": "engineering_assumption; centre of an authorized 17.8-18.6 GHz sub-band", "ground_receive_gain_dBi": 46.9, "ground_G_over_T_dB_per_K": null, "satellite_EIRP_dBW": null, "blocking_missing_inputs": ["gateway G/T", "spacecraft EIRP"] }, "user_link_proxy_profile": { "link_type": "two directional cases required", "uplink_frequency_MHz": 14250, "downlink_frequency_MHz": 11700, "frequency_selection_status": "engineering_assumption; mid-band frequencies only", "use_case": "sensitivity study, not Starlink performance reproduction", "blocking_missing_inputs": ["selected user-terminal RF profile", "spacecraft beam EIRP", "spacecraft receiver G/T", "channel bandwidth and spectral allocation", "modulation/coding/BER"] } } },
+  "ai_governance": { "allowed_automatic_actions": ["Read public values with source URL and access date.", "Select values only when they match the named endpoint, authorization and direction.", "Generate a Simu-CIC geometry request from a selected shell, state vector and site.", "Calculate derived quantities while retaining formulas and source inputs."], "human_approval_required": ["Any engineering_assumption inserted into an RF-COMLINK execution profile.", "Any choice of modulation, coding, BER, data rate, spacecraft EIRP, antenna pattern, G/T or noise temperature that is not explicitly public for the selected configuration.", "Any claim that a result represents actual Starlink performance."], "prohibited_automatic_actions": ["Inventing a proprietary Starlink V1.5 TT&C parameter.", "Treating a regulatory maximum as an operational setpoint.", "Reusing site-specific gateway values for another Starlink gateway without marking the change as an assumption."] }
 }

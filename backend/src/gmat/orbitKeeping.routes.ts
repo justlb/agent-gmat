@@ -48,6 +48,24 @@ function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
 async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
   const root = path.resolve(userWorkspaceRoot)
   const files: Array<{ artifactId: string; fileName: string; kind: OrbitKeepingFileKind; mtimeMs: number; relativePath: string; size: number }> = []
+  const addMissionRunFiles = async (runsDir: string) => {
+    const runs = await fs.readdir(runsDir, { withFileTypes: true }).catch(() => [])
+    for (const run of runs) {
+      if (!run.isDirectory()) continue
+      const runDir = path.join(runsDir, run.name)
+      const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
+      if (manifest.templateId !== "orbit-keeping") continue
+      const entries = await fs.readdir(runDir, { withFileTypes: true }).catch(() => [])
+      for (const entry of entries) {
+        if (!entry.isFile()) continue
+        const kind = orbitKeepingFileKind(entry.name)
+        if (!kind) continue
+        const filePath = path.join(runDir, entry.name)
+        const stat = await fs.stat(filePath)
+        files.push({ artifactId: run.name, fileName: entry.name, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), size: stat.size })
+      }
+    }
+  }
   const visit = async (directory: string, depth: number): Promise<void> => {
     if (depth > 8) return
     const entries = await fs.readdir(directory, { withFileTypes: true }).catch(() => [])
@@ -55,6 +73,7 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
       if (!entry.isDirectory()) continue
       const child = path.join(directory, entry.name)
       if (entry.name === "gmat") {
+        await addMissionRunFiles(path.join(child, "mission-runs"))
         const outputDir = path.join(child, "orbit-keeping")
         const outputEntries = await fs.readdir(outputDir, { withFileTypes: true }).catch(() => [])
         if (outputEntries.length === 0) {
@@ -102,7 +121,7 @@ function resolveListedOrbitKeepingFilePath(userWorkspaceRoot: string, relativePa
   const normalized = filePath.split(path.sep).join("/")
   if (
     !isPathInside(root, filePath) ||
-    !/\/gmat\/orbit-keeping(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite\.digital-thread\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)
+    !/\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite\.digital-thread\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)
   ) return null
   return filePath
 }
@@ -205,7 +224,8 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       const draft = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
       const updatedDraft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
       await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
-      if (updatedDraft.digitalThreadRequiredPaths?.length) await syncDigitalThreadFromGmatDraft(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId), updatedDraft)
+      await syncDigitalThreadFromGmatDraft(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId), updatedDraft)
+      await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
       return reply.send(updatedDraft)
     } catch (err) {
       const error = getErrorMessage(err, "failed to update GMAT draft")

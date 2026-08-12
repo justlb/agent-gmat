@@ -81,6 +81,38 @@ describe("electric-propulsion transfer renderer", () => {
     assert.match(String(manifest.templateSha256), /^[a-f0-9]{64}$/u)
   })
 
+  it("calibrates the generated script from the selected satellite without modifying the reference template", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-electric-calibration-"))
+    await fs.writeFile(path.join(workspaceDir, "satellite.json"), JSON.stringify({
+      satellite: { bus: { propulsion_subsystem: {
+        nominal_thrust_newtons: 0.01,
+        nominal_duty_cycle: 0.25,
+        specific_impulse_seconds: 1600,
+        electric_thruster: { nominal_thruster_power_kw: 1 },
+      } } },
+    }), "utf8")
+    const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
+    const values = extractElectricPropulsionValues(template)
+    const duration = values.slots.find(slot => slot.context.startsWith("daysofpropagation ="))
+    assert.ok(duration)
+    const result = await generateElectricPropulsionMission({
+      artifactId: "calibrated", request: "calibrated transfer", workspaceDir,
+      changes: [{ id: duration.id, value: "21" }],
+    })
+    const generatedScript = await fs.readFile(result.scriptPath, "utf8")
+    const calibration = JSON.parse(await fs.readFile(path.join(result.runDir, "electric_propulsion_calibration.json"), "utf8")) as { dutyCycle: number; fixedEfficiency: number; ispSeconds: number; nominalPowerKw: number; nominalThrustNewtons: number }
+    assert.match(generatedScript, /ElectricThruster1\.ThrustModel = FixedEfficiency;/u)
+    assert.match(generatedScript, /ElectricThruster1\.Isp = 1600;/u)
+    assert.match(generatedScript, /ElectricThruster1\.FixedEfficiency = 0\.3138128;/u)
+    assert.match(generatedScript, /ElectricThruster1\.DutyCycle = 0\.25;/u)
+    assert.equal(calibration.nominalThrustNewtons, 0.01)
+    assert.equal(calibration.nominalPowerKw, 1)
+    assert.equal(calibration.dutyCycle, 0.25)
+    assert.equal(calibration.fixedEfficiency, 0.3138128)
+    assert.equal(calibration.ispSeconds, 1600)
+    assert.equal(await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8"), template)
+  })
+
   it("rejects a patch that tries to change the fixed report structure", async () => {
     const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
     const values = extractElectricPropulsionValues(template)

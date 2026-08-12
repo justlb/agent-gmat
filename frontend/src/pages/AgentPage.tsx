@@ -112,7 +112,7 @@ export default function AgentPage() {
   const [simuCicRunning, setSimuCicRunning] = useState(false)
   const [pendingGmatMessage, setPendingGmatMessage] = useState<PendingGmatMessage | null>(null)
   const [activeGmatDraft, setActiveGmatDraft] = useState<OrbitKeepingDraft | null>(null)
-  const [activeGmatRun, setActiveGmatRun] = useState<{ conversation: OrbitKeepingRunConversationTurn[]; draftId?: string; result?: OrbitKeepingGenerateResult['result']; runId: string; runPath: string } | null>(null)
+  const [activeGmatRun, setActiveGmatRun] = useState<{ conversation: OrbitKeepingRunConversationTurn[]; draftId?: string; result?: OrbitKeepingGenerateResult['result']; runId: string; runPath: string; template?: 'electric-propulsion-transfer' | 'orbit-keeping' } | null>(null)
   const [activePlanningRun, setActivePlanningRun] = useState<PlanningRun | null>(null)
   const [gmatWorkflowEntries, setGmatWorkflowEntries] = useState<WorkflowLoopProgressEntry[] | null>(null)
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
@@ -610,7 +610,7 @@ export default function AgentPage() {
           if (result.kind === 'draft') {
             setActiveGmatDraft(result.draft)
             setActiveGmatRun(null)
-            setChatMode(activeGmatRun.runPath.includes('electric-propulsion-transfer') ? 'gmat-electric-propulsion' : 'gmat-orbit-keeping')
+            setChatMode(activeGmatRun.template === 'electric-propulsion-transfer' ? 'gmat-electric-propulsion' : 'gmat-orbit-keeping')
             showSpeechText(result.draft.assistantMessage || 'Mission draft updated.')
           } else {
             setActiveGmatRun(current => current && current.runPath === activeGmatRun.runPath
@@ -728,7 +728,7 @@ export default function AgentPage() {
           askedAt: new Date().toISOString(),
           question: 'GMAT execution',
         }]
-        setActiveGmatRun({ conversation, draftId: result.draftId ?? activeGmatDraft.draftId, result: result.result, runId: result.runId, runPath: result.runPath })
+        setActiveGmatRun({ conversation, draftId: result.draftId ?? activeGmatDraft.draftId, result: result.result, runId: result.runId, runPath: result.runPath, template: chatMode === 'gmat-electric-propulsion' ? 'electric-propulsion-transfer' : 'orbit-keeping' })
         setActiveGmatDraft(current => current?.draftId === activeGmatDraft.draftId ? {
           ...current,
           runs: [...(current.runs ?? []).filter(run => run.runId !== result.runId), { completedAt: new Date().toISOString(), result: result.result, runId: result.runId, runPath: result.runPath }],
@@ -781,7 +781,7 @@ export default function AgentPage() {
     if (!activeGmatRun || gmatGuiOpening) return
     setGmatGuiOpening(true)
     setManagedRunError('')
-    const isElectricTransfer = activeGmatRun.runPath.includes('gmat/electric-propulsion-transfer/') || activeGmatRun.runPath.includes('gmat\\electric-propulsion-transfer\\')
+    const isElectricTransfer = activeGmatRun.template === 'electric-propulsion-transfer'
     void (isElectricTransfer ? openElectricPropulsionRunInGui(activeGmatRun.runPath) : openOrbitKeepingRunInGui(activeGmatRun.runPath))
       .then(() => showSpeechText('GMAT GUI was opened for run ' + activeGmatRun.runId + '.'))
       .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to open GMAT GUI'))
@@ -910,9 +910,16 @@ export default function AgentPage() {
         <AgentWorkspacePanel
           activeGmatRunPath={activeGmatRun?.runPath}
           activeGmatRunId={activeGmatRun?.runId}
+          activeGmatRunTemplate={activeGmatRun?.template}
           activeContext={activeContext}
           missionWorkspaceDir={gmatWorkspaceDir}
           planningDiscussion={activePlanningRun}
+          onMissionSatelliteSelected={() => {
+            refreshWorkspaceViews()
+            const initialMissionMessage = activeGmatDraft?.conversation?.[0]?.user
+            const waitingForSatellite = /select a satellite version/i.test(activeGmatDraft?.assistantMessage ?? '')
+            if (initialMissionMessage && waitingForSatellite) handleTextSubmit(initialMissionMessage, chatMode)
+          }}
           activeManifestVersion={activeManifestVersion}
           activeTool={activeTool}
           activeView={visibleActiveView}
@@ -958,7 +965,7 @@ export default function AgentPage() {
           }}
           onSelectGmatRun={run => {
             setActiveGmatRun({ ...run, conversation: [] })
-            const isElectricTransfer = run.runPath.includes('gmat/electric-propulsion-transfer/') || run.runPath.includes('gmat\\electric-propulsion-transfer\\')
+            const isElectricTransfer = run.missionType === 'electric-propulsion-transfer'
             setActiveGmatDraft(null)
             void (isElectricTransfer ? getElectricPropulsionRunConversation(run.runPath) : getOrbitKeepingRunConversation(run.runPath))
               .then(conversation => setActiveGmatRun(current => current?.runPath === run.runPath ? { ...current, conversation } : current))
@@ -969,6 +976,7 @@ export default function AgentPage() {
                 if (draft) setActiveGmatDraft(draft)
               })
               .catch(() => null)
+            setActiveGmatRun(current => current?.runPath === run.runPath ? { ...current, template: run.missionType } : current)
             setChatMode(isElectricTransfer ? 'gmat-electric-propulsion' : 'gmat-orbit-keeping')
             setManagedRunError('')
             showSpeechText(`Run ${run.runId} is now the active GMAT conversation context. Questions will use its saved results without rerunning GMAT.`)

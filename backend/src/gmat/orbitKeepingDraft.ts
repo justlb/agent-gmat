@@ -557,7 +557,7 @@ export async function confirmOrbitKeepingDraft(workspaceDir: string, draftId: st
 export async function recordOrbitKeepingDraftRun(workspaceDir: string, draftId: string, run: OrbitKeepingDraftRun) {
   const draft = await loadOrbitKeepingDraft(workspaceDir, draftId)
   if (draft.status !== "confirmed") throw new Error("GMAT draft must be confirmed before recording a run")
-  if (!/^[-A-Za-z0-9_]+$/u.test(run.runId) || !/^gmat[\\/]orbit-keeping[\\/][-A-Za-z0-9_]+$/u.test(run.runPath)) {
+  if (!/^[-A-Za-z0-9_]+$/u.test(run.runId) || !/^gmat[\\/](?:orbit-keeping|mission-runs)[\\/][-A-Za-z0-9_]+$/u.test(run.runPath)) {
     throw new Error("invalid GMAT run reference")
   }
   const runs = [...draft.runs.filter(existing => existing.runId !== run.runId), run]

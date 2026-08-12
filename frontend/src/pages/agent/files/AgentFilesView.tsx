@@ -87,7 +87,7 @@ type AgentFilesViewProps = {
   activeContext: ComponentProps<typeof GeneratedFilesTreeCard>['activeContext']
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
   onSelectGmatDraft?: (draft: GmatSavedDraft) => void
-  onSelectGmatRun?: (run: { runId: string; runPath: string }) => void
+  onSelectGmatRun?: (run: { missionType: MissionFile['missionType']; runId: string; runPath: string }) => void
   gmatMissionChat: Omit<GmatMissionChatProps, 'activeRunId'>
   selectedFileError: string
   selectedFileLoading: boolean
@@ -199,7 +199,7 @@ export function AgentFilesView({
                   <header>
                     <strong>{run.missionType === 'electric-propulsion-transfer' ? 'Electric Transfer' : 'Orbit Keeping'} · {run.runId}</strong>
                     {run.files.some(file => file.kind === 'manifest') && run.files.some(file => file.kind === 'result') ? (
-                      <button type="button" onClick={() => onSelectGmatRun?.({ runId: run.runId, runPath: run.runPath })}>
+                      <button type="button" onClick={() => onSelectGmatRun?.({ missionType: run.missionType, runId: run.runId, runPath: run.runPath })}>
                         {activeGmatRunPath === run.runPath ? 'Active conversation' : 'Discuss this run'}
                       </button>
                     ) : <small>Legacy run</small>}

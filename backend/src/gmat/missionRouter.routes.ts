@@ -8,8 +8,8 @@ import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
 import { getSatelliteDefinition } from "../digitalThread/satelliteLibrary.js"
 import { draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
-import { appendElectricPropulsionDraftConversation, createElectricPropulsionDraft, discussElectricPropulsionDraft } from "./electricPropulsionDraft.js"
-import { appendOrbitKeepingDraftConversation, createOrbitKeepingDraft, discussOrbitKeepingDraft } from "./orbitKeepingDraft.js"
+import { appendElectricPropulsionDraftConversation, createElectricPropulsionDraft, discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
+import { appendOrbitKeepingDraftConversation, createOrbitKeepingDraft, discussOrbitKeepingDraft, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
 
 type MissionTemplate = "orbit-keeping" | "electric-propulsion-transfer"
@@ -23,7 +23,7 @@ function resolveActiveGmatRunDir(root: string, requested: unknown) {
   if (typeof requested !== "string" || !requested.trim()) return null
   const runDir = path.resolve(root, requested)
   const normalized = runDir.split(path.sep).join("/")
-  return isPathInside(path.resolve(root), runDir) && /\/gmat\/(?:orbit-keeping|electric-propulsion-transfer)\/[^/]+$/u.test(normalized) ? runDir : null
+  return isPathInside(path.resolve(root), runDir) && /\/gmat\/(?:orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized) ? runDir : null
 }
 
 async function appendRequestedDraftTurn(workspaceDir: string, draftId: string, template: unknown, assistant: string, user: string) {
@@ -166,7 +166,15 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         return reply.send({ draft, kind: "clarify", message: clarification })
       }
         if (decision.target === "orbit-keeping") {
-          const draft = await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
+          // A first mission message can arrive before the satellite choice.
+          // Continue that same draft after the physical definition is selected
+          // instead of discarding the user's original mission description.
+          const existingDraft = draftId && template === "orbit-keeping"
+            ? await loadOrbitKeepingDraft(workspaceDir, draftId)
+            : null
+          const draft = existingDraft
+            ? { ...existingDraft, digitalThreadRequiredPaths: adapted.requiredDraftPaths, values: { ...existingDraft.values, ...Object.fromEntries(Object.entries(adapted.values).filter(([, value]) => value !== null)) } }
+            : await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
           const updatedDraft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
           await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
           const createdDraftThreadWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId)
@@ -174,7 +182,14 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
           await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
         return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId)), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
       }
-      const draft = await createElectricPropulsionDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
+      // See the orbit-keeping branch above: retain the draft and the first
+      // message that asked for a mission before a satellite was selected.
+      const existingDraft = draftId && template === "electric-propulsion-transfer"
+        ? await loadElectricPropulsionDraft(workspaceDir, draftId)
+        : null
+      const draft = existingDraft
+        ? { ...existingDraft, digitalThreadRequiredPaths: adapted.requiredDraftPaths, values: { ...existingDraft.values, ...Object.fromEntries(Object.entries(adapted.values).filter(([, value]) => value !== null)) } }
+        : await createElectricPropulsionDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
       const updatedDraft = await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
       await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
       const createdDraftThreadWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", updatedDraft.draftId)

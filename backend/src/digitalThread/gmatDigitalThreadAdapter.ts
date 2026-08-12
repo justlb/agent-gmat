@@ -17,6 +17,19 @@ const TAI_UTC_LEAP_SECONDS: ReadonlyArray<readonly [string, number]> = [
   ["1972-01-01T00:00:00Z", 10], ["1972-07-01T00:00:00Z", 11], ["1973-01-01T00:00:00Z", 12], ["1974-01-01T00:00:00Z", 13], ["1975-01-01T00:00:00Z", 14], ["1976-01-01T00:00:00Z", 15], ["1977-01-01T00:00:00Z", 16], ["1978-01-01T00:00:00Z", 17], ["1979-01-01T00:00:00Z", 18], ["1980-01-01T00:00:00Z", 19], ["1981-07-01T00:00:00Z", 20], ["1982-07-01T00:00:00Z", 21], ["1983-07-01T00:00:00Z", 22], ["1985-07-01T00:00:00Z", 23], ["1988-01-01T00:00:00Z", 24], ["1990-01-01T00:00:00Z", 25], ["1991-01-01T00:00:00Z", 26], ["1992-07-01T00:00:00Z", 27], ["1993-07-01T00:00:00Z", 28], ["1994-07-01T00:00:00Z", 29], ["1996-01-01T00:00:00Z", 30], ["1997-07-01T00:00:00Z", 31], ["1999-01-01T00:00:00Z", 32], ["2006-01-01T00:00:00Z", 33], ["2009-01-01T00:00:00Z", 34], ["2012-07-01T00:00:00Z", 35], ["2015-07-01T00:00:00Z", 36], ["2017-01-01T00:00:00Z", 37],
 ]
 
+function taiModJulianToUtcIso(value: string) {
+  const taiModJulian = Number(value)
+  if (!Number.isFinite(taiModJulian)) return null
+  const taiMilliseconds = (taiModJulian + GMAT_MODIFIED_JULIAN_OFFSET - JULIAN_DATE_AT_UNIX_EPOCH) * 86_400_000
+  let utcMilliseconds = taiMilliseconds - 37_000
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const taiMinusUtcSeconds = TAI_UTC_LEAP_SECONDS.reduce((offset, [effectiveAt, candidate]) => utcMilliseconds >= Date.parse(effectiveAt) ? candidate : offset, 0)
+    utcMilliseconds = taiMilliseconds - taiMinusUtcSeconds * 1000
+  }
+  const date = new Date(utcMilliseconds)
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null
+}
+
 function numberAt(document: DigitalThreadDocument, fieldPath: string) {
   const value = getAtPath(document, fieldPath)
   return typeof value === "number" && Number.isFinite(value) ? value : null
@@ -152,7 +165,15 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
     requireNumber(document, "analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days", "transfer.burnDurationDays", values, guards)
     requireNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.minimum_usable_power_kw", "propulsion.minimumUsablePowerKw", values, guards)
     requireNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.maximum_usable_power_kw", "propulsion.maximumUsablePowerKw", values, guards)
-    requireNumber(document, "satellite.bus.electrical_subsystem.spacecraft_bus_load_kw", "power.busLoadKw", values, guards)
+    // The satellite may declare a reduced payload load during orbit raising.
+    // It is an operational allocation, not a replacement for the nominal bus
+    // load used by the other tools and mission phases.
+    const orbitRaisingBusLoadPath = "satellite.bus.electrical_subsystem.electric_propulsion_mode.bus_load_kw"
+    const orbitRaisingBusLoad = numberAt(document, orbitRaisingBusLoadPath)
+    if (orbitRaisingBusLoad !== null) {
+      values["power.busLoadKw"] = orbitRaisingBusLoad
+      derivations.push({ formula: "electric-propulsion mission-mode bus allocation", inputs: [orbitRaisingBusLoadPath], output: "power.busLoadKw", value: orbitRaisingBusLoad })
+    } else requireNumber(document, "satellite.bus.electrical_subsystem.spacecraft_bus_load_kw", "power.busLoadKw", values, guards)
     requireNumber(document, "satellite.bus.electrical_subsystem.system_margin_percent", "power.systemMarginPercent", values, guards)
     const solarPower = initialSolarPowerKw(document, guards, derivations)
     if (solarPower !== null) values["power.initialMaxPowerKw"] = solarPower
@@ -205,6 +226,25 @@ export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft
     if (value === null || value === undefined || value === "") continue
     setAtPath(document, threadPath, value)
     provenance[threadPath] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString() }
+  }
+  // `analysis_requests` preserves the exact mission inputs for each tool.
+  // `satellite.orbit` is the active orbital state of this mission and is the
+  // compact, top-level representation that downstream tools consume.
+  const epoch = draft.values["initialOrbit.epoch"]
+  if (typeof epoch === "string" && epoch.trim()) {
+    setAtPath(document, "satellite.orbit.reference_epoch_tai_mod_julian", epoch)
+    const utcEpoch = taiModJulianToUtcIso(epoch)
+    if (utcEpoch) setAtPath(document, "satellite.orbit.reference_epoch_utc", utcEpoch)
+    provenance["satellite.orbit.reference_epoch_tai_mod_julian"] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString() }
+    if (utcEpoch) provenance["satellite.orbit.reference_epoch_utc"] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString() }
+  }
+  for (const [draftPath, orbitField] of Object.entries(MISSION_ORBIT_PATHS)) {
+    if (draftPath === "initialOrbit.epoch") continue
+    const value = draft.values[draftPath]
+    if (value === null || value === undefined || value === "") continue
+    const targetPath = `satellite.orbit.keplerian_elements.${orbitField}`
+    setAtPath(document, targetPath, value)
+    provenance[targetPath] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString() }
   }
   return saveDigitalThread(workspaceDir, document)
 }

@@ -21,7 +21,7 @@ import { toGmatNativePath } from "./orbitKeepingRunner.js"
 type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
 type AnalyzeBody = { draftId?: unknown; question?: unknown; runPath?: unknown; workspaceDir?: unknown }
-type ElectricPropulsionFileKind = "digital-thread" | "ephemeris" | "log" | "manifest" | "report" | "result" | "script" | "timeseries" | "values"
+type ElectricPropulsionFileKind = "calibration" | "digital-thread" | "ephemeris" | "log" | "manifest" | "report" | "result" | "script" | "timeseries" | "values"
 
 function resolveElectricPropulsionDraftArtifact(workspaceDir: string, draftId: string, fileName: string) {
   if (!/^electric_draft_[a-f0-9-]+$/u.test(draftId) || !["electric_propulsion_transfer.values.yaml"].includes(fileName)) return null
@@ -34,6 +34,7 @@ function electricPropulsionFileKind(fileName: string): ElectricPropulsionFileKin
   if (fileName === "gmat_result.json") return "result"
   if (fileName === "satellite.digital-thread.json") return "digital-thread"
   if (fileName === "electric_transfer_timeseries.json") return "timeseries"
+  if (fileName === "electric_propulsion_calibration.json") return "calibration"
   if (fileName === "run_manifest.json") return "manifest"
   if (fileName === "ElectricTransferReport.txt") return "report"
   if (fileName === "gmat.log") return "log"
@@ -44,6 +45,24 @@ function electricPropulsionFileKind(fileName: string): ElectricPropulsionFileKin
 async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
   const root = path.resolve(userWorkspaceRoot)
   const files: Array<{ artifactId: string; fileName: string; kind: ElectricPropulsionFileKind; mtimeMs: number; relativePath: string; size: number }> = []
+  const addMissionRunFiles = async (runsDir: string) => {
+    const runs = await fs.readdir(runsDir, { withFileTypes: true }).catch(() => [])
+    for (const run of runs) {
+      if (!run.isDirectory()) continue
+      const runDir = path.join(runsDir, run.name)
+      const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
+      if (manifest.templateId !== "electric-propulsion-transfer") continue
+      const entries = await fs.readdir(runDir, { withFileTypes: true }).catch(() => [])
+      for (const entry of entries) {
+        if (!entry.isFile()) continue
+        const kind = electricPropulsionFileKind(entry.name)
+        if (!kind) continue
+        const filePath = path.join(runDir, entry.name)
+        const stat = await fs.stat(filePath)
+        files.push({ artifactId: run.name, fileName: entry.name, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), size: stat.size })
+      }
+    }
+  }
   const visit = async (directory: string, depth: number): Promise<void> => {
     if (depth > 8) return
     const entries = await fs.readdir(directory, { withFileTypes: true }).catch(() => [])
@@ -51,6 +70,7 @@ async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
       if (!entry.isDirectory()) continue
       const child = path.join(directory, entry.name)
       if (entry.name === "gmat") {
+        await addMissionRunFiles(path.join(child, "mission-runs"))
         const outputDir = path.join(child, "electric-propulsion-transfer")
         const outputEntries = await fs.readdir(outputDir, { withFileTypes: true }).catch(() => [])
         for (const outputEntry of outputEntries) {
@@ -80,7 +100,7 @@ function resolveListedElectricPropulsionFilePath(userWorkspaceRoot: string, rela
   const root = path.resolve(userWorkspaceRoot)
   const filePath = path.resolve(root, relativePath)
   const normalized = filePath.split(path.sep).join("/")
-  if (!isPathInside(root, filePath) || !/\/gmat\/electric-propulsion-transfer\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite\.digital-thread\.json|electric_transfer_timeseries\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)) return null
+  if (!isPathInside(root, filePath) || !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite\.digital-thread\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)) return null
   return filePath
 }
 
@@ -181,7 +201,8 @@ export async function electricPropulsionRoutes(fastify: FastifyInstance, { confi
     try {
       const updatedDraft = await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft: await loadElectricPropulsionDraft(workspaceDir, req.params.draftId), message, workspaceDir })
       await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
-      if (updatedDraft.digitalThreadRequiredPaths?.length) await syncDigitalThreadFromGmatDraft(draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", updatedDraft.draftId), updatedDraft)
+      await syncDigitalThreadFromGmatDraft(draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", updatedDraft.draftId), updatedDraft)
+      await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
       return reply.send(updatedDraft)
     } catch (error) {
       const errorMessage = getErrorMessage(error, "failed to update electric-propulsion GMAT draft")

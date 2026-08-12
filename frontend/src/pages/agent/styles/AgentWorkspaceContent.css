@@ -972,6 +972,7 @@
 .gmat-mission-chat-sidebar .assumptions { color: #9ec1da; }
 .gmat-mission-chat-sidebar .assumptions li { display: list-item; margin-left: 16px; padding-left: 0; }
 .gmat-mission-run-button { padding: 10px; }
+.gmat-mission-run-blocker { color: #f3d39b; font-size: 11px; line-height: 1.35; margin: 7px 0 0; }
 
 .gmat-mission-chat-thread { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
 .gmat-mission-chat-thread > header { align-items: center; padding: 13px 16px; border-bottom: 1px solid rgba(92, 152, 195, 0.18); color: #eaf7ff; }
@@ -985,12 +986,14 @@
 .gmat-mission-turn .is-assistant { background: rgba(13, 32, 50, 0.75); color: #eaf7ff; }
 .gmat-mission-turn .is-user > div { --text: #fff; --text-2: rgba(255, 255, 255, 0.84); --text-3: rgba(255, 255, 255, 0.7); --border: rgba(255, 255, 255, 0.24); --blue: #d8edff; --code-bg: rgba(1, 10, 20, 0.28); }
 .gmat-mission-turn .is-assistant > div { --text: #eef9ff; --text-2: #c7ddeb; --text-3: #9ec1da; --border: rgba(92, 152, 195, 0.3); --blue: #8cceff; --code-bg: rgba(1, 10, 20, 0.68); }
-.gmat-mission-status > div { --text: inherit; --text-2: inherit; --text-3: inherit; --border: currentColor; --blue: #bde6ff; --code-bg: rgba(1, 10, 20, 0.35); }
+.gmat-mission-status > div { --text: #fff; --text-2: #fff; --text-3: #fff; --border: currentColor; --blue: #fff; --code-bg: rgba(1, 10, 20, 0.35); color: #fff !important; }
 .gmat-mission-turn .is-user > div > :last-child,
 .gmat-mission-turn .is-assistant > div > :last-child,
 .gmat-mission-status > div > :last-child { margin-bottom: 0 !important; }
-.gmat-mission-status { margin-bottom: 14px; border-color: rgba(240, 180, 71, 0.36); background: rgba(133, 88, 23, 0.16); color: #f3d39b; }
-.gmat-mission-status.is-error, .gmat-mission-send-error { border-color: rgba(255, 112, 112, 0.45); background: rgba(133, 31, 31, 0.18); color: #ffd1d1; }
+.gmat-mission-status { margin-bottom: 14px; border-color: rgba(240, 180, 71, 0.36); background: rgba(133, 88, 23, 0.16); color: #fff; }
+.gmat-mission-status.is-error, .gmat-mission-send-error { border-color: rgba(255, 112, 112, 0.45); background: rgba(133, 31, 31, 0.18); color: #fff; }
+.gmat-mission-status :is(p, span, strong, em, li, code, pre, a, div),
+.gmat-mission-send-error :is(p, span, strong, em, li, code, pre, a, div) { color: #fff !important; }
 .gmat-mission-send-error p { margin: 0 0 9px; }
 .gmat-mission-send-error button { min-height: 28px; padding: 0 10px; }
 .gmat-mission-chat-placeholder { color: #9ec1da; }
