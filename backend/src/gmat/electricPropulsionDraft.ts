@@ -1,7 +1,8 @@
 import fs from "node:fs/promises"
 import path from "node:path"
-import { parseDocument } from "yaml"
+import { parseDocument, stringify } from "yaml"
 
+import { initializeDraftDigitalThread } from "../digitalThread/digitalThreadStore.js"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian, semiMajorAxisFromPeriapsisAltitude, type CartesianState, type KeplerianElements } from "./orbitCoordinates.js"
 import { requestGmatModel } from "./modelRequest.js"
@@ -256,13 +257,21 @@ function refreshDraft(draft: Omit<ElectricPropulsionDraft, "missing" | "safety" 
 async function saveDraft(workspaceDir: string, draft: ElectricPropulsionDraft) {
   const output = draftPath(workspaceDir, draft.draftId)
   await fs.mkdir(path.dirname(output), { recursive: true })
-  await fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`, "utf8")
+  // This live draft YAML changes with every assistant turn. It is not the
+  // immutable values file that is emitted later inside a completed GMAT run.
+  const valuesPath = path.join(path.dirname(output), "electric_propulsion_transfer.values.yaml")
+  await Promise.all([
+    fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`, "utf8"),
+    fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, updated_at: draft.updatedAt, values: draft.values }), "utf8"),
+  ])
   return draft
 }
 
 export async function createElectricPropulsionDraft(workspaceDir: string, initialValues: Record<string, DraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
   const now = new Date().toISOString()
-  return saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "electric-propulsion-transfer", values: Object.fromEntries(fields.map(field => [field.path, MISSION_FIELD_PATHS.has(field.path) ? null : initialValues[field.path] ?? null])) }))
+  const draft = await saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "electric-propulsion-transfer", values: Object.fromEntries(fields.map(field => [field.path, MISSION_FIELD_PATHS.has(field.path) ? null : initialValues[field.path] ?? null])) }))
+  await initializeDraftDigitalThread(workspaceDir, "electric-propulsion-transfer", draft.draftId)
+  return draft
 }
 export async function loadElectricPropulsionDraft(workspaceDir: string, draftId: string) {
   const parsed = JSON.parse(await fs.readFile(draftPath(workspaceDir, draftId), "utf8")) as ElectricPropulsionDraft

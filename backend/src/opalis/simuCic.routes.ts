@@ -9,7 +9,7 @@ import { toGmatNativePath } from "../gmat/orbitKeepingRunner.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { PREDEFINED_GROUND_STATIONS } from "./groundStationCatalog.js"
-import { loadOrCreateDigitalThread } from "../digitalThread/digitalThreadStore.js"
+import { loadRunDigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { writeSimuCicDefinition } from "./simuCicDefinition.js"
 
 type RunBody = { runPath?: unknown }
@@ -177,7 +177,9 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
       const settings = requiredSimuCicConfig(config)
-      const simuCicDefinition = await writeSimuCicDefinition(runDir, await loadOrCreateDigitalThread(root))
+      // Simu-CIC must use the exact satellite/mission state that generated this
+      // GMAT run, never the mutable workspace-level selection.
+      const simuCicDefinition = await writeSimuCicDefinition(runDir, await loadRunDigitalThreadSnapshot(runDir))
       const conversion = await convertGmatEphemeris(settings, runDir)
       const saveRoot = path.join(runDir, "opalis", "02-simu-cic", "01-execution-complete")
       const cicOutput = path.join(runDir, "opalis", "02-simu-cic", "02-fichiers-cic")

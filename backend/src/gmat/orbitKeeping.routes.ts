@@ -9,7 +9,7 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { digitalThreadGmatSeed, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
-import { captureDigitalThreadSnapshot, snapshotDigitalThreadForRun } from "../digitalThread/digitalThreadStore.js"
+import { captureDigitalThreadSnapshot, draftDigitalThreadWorkspaceDir, snapshotDigitalThreadForRun } from "../digitalThread/digitalThreadStore.js"
 import { appendMissionConversation, appendRunConversation, mergeMissionConversationIntoRun, snapshotMissionConversationForRun } from "../digitalThread/missionConversationStore.js"
 import { analyzeOrbitKeepingRunWithLlm, loadOrbitKeepingRunConversation } from "./orbitKeepingAnalysis.js"
 import { defaultOrbitKeepingValuesPath, generateOrbitKeepingMission, type OrbitKeepingProgress } from "./orbitKeeping.service.js"
@@ -22,6 +22,11 @@ type AnalyzeOrbitKeepingBody = { draftId?: unknown; question?: unknown; runPath?
 type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
 type OrbitKeepingFileKind = "digital-thread" | "ephemeris" | "log" | "manifest" | "report" | "result" | "script" | "timeseries" | "values"
+
+function resolveOrbitKeepingDraftArtifact(workspaceDir: string, draftId: string, fileName: string) {
+  if (!/^draft_[a-f0-9-]+$/u.test(draftId) || !["orbit_keeping.values.yaml"].includes(fileName)) return null
+  return path.join(path.resolve(workspaceDir), "gmat", "drafts", draftId, fileName)
+}
 
 function getOrbitKeepingOutputDir(userWorkspaceRoot: string) {
   return path.join(path.resolve(userWorkspaceRoot), "gmat", "orbit-keeping")
@@ -178,6 +183,17 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       return reply.status(404).send({ error: getErrorMessage(err, "GMAT draft not found") })
     }
   })
+  fastify.get<{ Params: { draftId: string }; Querystring: { file?: string; workspaceDir?: string } }>("/api/gmat/orbit-keeping/drafts/:draftId/download", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const fileName = typeof req.query.file === "string" ? req.query.file : ""
+      const filePath = resolveOrbitKeepingDraftArtifact(resolveOutputWorkspaceDir(root, req.query.workspaceDir), req.params.draftId, fileName)
+      const stat = filePath ? await fs.stat(filePath).catch(() => null) : null
+      if (!filePath || !stat?.isFile()) return reply.status(404).send({ error: "GMAT draft artifact not found" })
+      return reply.header("Content-Type", "application/x-yaml; charset=utf-8").header("Content-Disposition", `attachment; filename="${fileName}"`).send(createReadStream(filePath))
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download GMAT draft artifact") }) }
+  })
 
   fastify.post<{ Params: { draftId: string }; Body: DraftMessageBody }>("/api/gmat/orbit-keeping/drafts/:draftId/messages", async (req, reply) => {
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : ""
@@ -189,7 +205,7 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       const draft = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
       const updatedDraft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
       await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
-      if (updatedDraft.digitalThreadRequiredPaths?.length) await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
+      if (updatedDraft.digitalThreadRequiredPaths?.length) await syncDigitalThreadFromGmatDraft(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId), updatedDraft)
       return reply.send(updatedDraft)
     } catch (err) {
       const error = getErrorMessage(err, "failed to update GMAT draft")
@@ -206,7 +222,7 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
     try {
       const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
       const current = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
-      const authoritative = current.digitalThreadRequiredPaths?.length ? (await digitalThreadGmatSeed(workspaceDir, "orbit-keeping")).values : undefined
+      const authoritative = current.digitalThreadRequiredPaths?.length ? (await digitalThreadGmatSeed(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", current.draftId), "orbit-keeping")).values : undefined
       return reply.send(await confirmOrbitKeepingDraft(workspaceDir, req.params.draftId, authoritative))
     } catch (err) {
       return reply.status(422).send({ error: getErrorMessage(err, "failed to confirm GMAT draft") })
@@ -220,7 +236,7 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
       const draft = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
       const values = parseOrbitKeepingValues(await fs.readFile(defaultOrbitKeepingValuesPath(), "utf8"))
-      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(workspaceDir)
+      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", draft.draftId))
       const result = await generateOrbitKeepingMission({
         changes: draftToOrbitKeepingChanges(draft, values),
         connection: resolveModelBackend(config, "chatModel"),
@@ -255,7 +271,7 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
       const draft = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
       const values = parseOrbitKeepingValues(await fs.readFile(defaultOrbitKeepingValuesPath(), "utf8"))
-      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(workspaceDir)
+      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", draft.draftId))
       const result = await generateOrbitKeepingMission({
         changes: draftToOrbitKeepingChanges(draft, values),
         connection: resolveModelBackend(config, "chatModel"),

@@ -22,6 +22,7 @@ import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingD
 import { routeMissionMessage } from './agent/missionRoutingApi'
 import { askMissionAssistant } from './agent/missionAssistantApi'
 import { convertSimuCicEphemeris, openSimuCicGui, runSimuCic } from './agent/simuCicApi'
+import { createPlanningRun, type PlanningRun } from './agent/planningRunApi'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -112,6 +113,7 @@ export default function AgentPage() {
   const [pendingGmatMessage, setPendingGmatMessage] = useState<PendingGmatMessage | null>(null)
   const [activeGmatDraft, setActiveGmatDraft] = useState<OrbitKeepingDraft | null>(null)
   const [activeGmatRun, setActiveGmatRun] = useState<{ conversation: OrbitKeepingRunConversationTurn[]; draftId?: string; result?: OrbitKeepingGenerateResult['result']; runId: string; runPath: string } | null>(null)
+  const [activePlanningRun, setActivePlanningRun] = useState<PlanningRun | null>(null)
   const [gmatWorkflowEntries, setGmatWorkflowEntries] = useState<WorkflowLoopProgressEntry[] | null>(null)
   const [stopSummaryPending, setStopSummaryPending] = useState(false)
   const [remoteToolPortStatus, setRemoteToolPortStatus] = useState<RemoteToolPortSummary | null>(null)
@@ -154,6 +156,7 @@ export default function AgentPage() {
     workspaceItems,
     workspaces,
   } = versionState
+  const gmatWorkspaceDir = activePlanningRun?.workspaceDir ?? activeContext.versionDir
   const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce, {
     enabled: !!activeContext.versionDir,
     versionDir: activeContext.versionDir,
@@ -526,25 +529,39 @@ export default function AgentPage() {
       setGmatGenerating(true)
       setPendingGmatMessage({ kind: 'draft', message: prompt, status: 'sending' })
       setGmatWorkflowEntries(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'running'))
-      void routeMissionMessage(
-        prompt,
-        activeContext.versionDir,
-        activeGmatRun?.runPath,
-        activeGmatDraft?.draftId,
-        chatMode === 'gmat-electric-propulsion' ? 'electric-propulsion-transfer' : chatMode === 'gmat-orbit-keeping' ? 'orbit-keeping' : undefined,
-      )
+      // The first message in Mission discussion starts an isolated planning
+      // run. The router will then create the matching GMAT draft in this
+      // workspace, so it immediately appears in GMAT Mission Files.
+      const planningRunPromise = activePlanningRun
+        ? Promise.resolve(activePlanningRun)
+        : createPlanningRun(activeContext.versionDir).then(planningRun => {
+            setActivePlanningRun(planningRun)
+            return planningRun
+          })
+      void planningRunPromise
+        .then(planningRun => routeMissionMessage(
+          prompt,
+          planningRun.workspaceDir,
+          activeGmatRun?.runPath,
+          activeGmatDraft?.draftId,
+          chatMode === 'gmat-electric-propulsion' ? 'electric-propulsion-transfer' : chatMode === 'gmat-orbit-keeping' ? 'orbit-keeping' : undefined,
+        ))
         .then(result => {
           setPendingGmatMessage(null)
           if (result.kind === 'mission') {
             setChatMode(result.template === 'electric-propulsion-transfer' ? 'gmat-electric-propulsion' : 'gmat-orbit-keeping')
             setActiveGmatDraft(result.draft)
+            refreshWorkspaceViews()
             showSpeechText(result.draft.assistantMessage || result.message)
             setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'draft_llm', 'completed'), 'validate_draft', 'completed') : entries)
             return
           }
           if (result.kind === 'general') {
             setGmatWorkflowEntries(null)
-            void runCodex(prompt, 'text')
+            // Keep the first Mission Studio exchange attached to its newly
+            // created planning run. A non-mission question must not switch to
+            // the unrelated general assistant and make the dated card vanish.
+            showSpeechText(result.message)
             return
           }
           if (result.kind === 'simu-cic') {
@@ -588,7 +605,7 @@ export default function AgentPage() {
     setProgressPanelOpen(true)
     setGmatWorkflowEntries(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'running'))
     if (activeGmatRun) {
-      void askMissionAssistant({ draftId: activeGmatRun.draftId, message: prompt, runPath: activeGmatRun.runPath, workspaceDir: activeContext.versionDir })
+      void askMissionAssistant({ draftId: activeGmatRun.draftId, message: prompt, runPath: activeGmatRun.runPath, workspaceDir: gmatWorkspaceDir })
         .then(result => {
           if (result.kind === 'draft') {
             setActiveGmatDraft(result.draft)
@@ -656,11 +673,11 @@ export default function AgentPage() {
     if (!activeGmatDraft) {
       const createDraft = selectedMode === 'gmat-electric-propulsion' ? createElectricPropulsionDraft : createOrbitKeepingDraft
       const discussDraft = selectedMode === 'gmat-electric-propulsion' ? discussElectricPropulsionDraft : discussOrbitKeepingDraft
-      void createDraft(activeContext.versionDir)
+      void createDraft(gmatWorkspaceDir)
         .then(draft => {
           // Keep the empty draft locally: a failed LLM call can be retried without losing its context.
           setActiveGmatDraft(draft)
-          return discussDraft(draft.draftId, prompt, activeContext.versionDir)
+          return discussDraft(draft.draftId, prompt, gmatWorkspaceDir)
         })
         .then(draft => { setActiveGmatDraft(draft); setPendingGmatMessage(null); describeDraft(draft); setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'draft_llm', 'completed'), 'validate_draft', 'completed') : entries) })
         .catch(reason => {
@@ -673,7 +690,7 @@ export default function AgentPage() {
       return
     }
     const discussDraft = selectedMode === 'gmat-electric-propulsion' ? discussElectricPropulsionDraft : discussOrbitKeepingDraft
-    void discussDraft(activeGmatDraft.draftId, prompt, activeContext.versionDir)
+    void discussDraft(activeGmatDraft.draftId, prompt, gmatWorkspaceDir)
       .then(draft => { setActiveGmatDraft(draft); setPendingGmatMessage(null); describeDraft(draft); setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'draft_llm', 'completed'), 'validate_draft', 'completed') : entries) })
       .catch(reason => {
         const message = reason instanceof Error ? reason.message : 'GMAT draft update failed'
@@ -682,7 +699,7 @@ export default function AgentPage() {
         setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'failed') : entries)
       })
       .finally(() => setGmatGenerating(false))
-  }, [activeContext.versionDir, activeGmatDraft, activeGmatRun, chatMode, clearAgentSpeechDisplay, refreshWorkspaceViews, runCodex, showSpeechText, textComposerBusy, textInput])
+  }, [activeContext.versionDir, activeGmatDraft, activeGmatRun, activePlanningRun, chatMode, clearAgentSpeechDisplay, gmatWorkspaceDir, refreshWorkspaceViews, runCodex, showSpeechText, textComposerBusy, textInput])
   const handleExecuteGmatDraft = useCallback(() => {
     if (!activeGmatDraft || gmatGenerating) return
     setGmatGenerating(true)
@@ -690,12 +707,12 @@ export default function AgentPage() {
     setGmatWorkflowEntries(setGmatWorkflowStatus(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'), 'validate_draft', 'running'))
     const confirmDraft = chatMode === 'gmat-electric-propulsion' ? confirmElectricPropulsionDraft : confirmOrbitKeepingDraft
     const executeDraft = chatMode === 'gmat-electric-propulsion' ? executeElectricPropulsionDraftWithProgress : executeOrbitKeepingDraftWithProgress
-    void confirmDraft(activeGmatDraft.draftId, activeContext.versionDir)
+    void confirmDraft(activeGmatDraft.draftId, gmatWorkspaceDir)
       .then(draft => {
         setActiveGmatDraft(draft)
         setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'validate_draft', 'completed') : entries)
         return executeDraft(draft.draftId, {
-          workspaceDir: activeContext.versionDir,
+          workspaceDir: gmatWorkspaceDir,
           onProgress: event => setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, event.key, event.status) : entries),
         })
       })
@@ -726,7 +743,7 @@ export default function AgentPage() {
       })
       .catch(reason => { setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft execution failed'); setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_gmat', 'failed') : entries) })
       .finally(() => setGmatGenerating(false))
-  }, [activeContext.versionDir, activeGmatDraft, gmatGenerating, refreshWorkspaceViews, showSpeechText])
+  }, [activeGmatDraft, gmatGenerating, gmatWorkspaceDir, refreshWorkspaceViews, showSpeechText])
   const handleNewGmatDraft = useCallback(() => {
     if (gmatGenerating) return
     setActiveGmatRun(null)
@@ -739,11 +756,16 @@ export default function AgentPage() {
     // Mission Files panel show and reopen it even if the model request fails.
     const createDraft = chatMode === 'gmat-electric-propulsion' ? createElectricPropulsionDraft : createOrbitKeepingDraft
     setGmatGenerating(true)
-    void createDraft(activeContext.versionDir)
-      .then(draft => {
+    void createPlanningRun(activeContext.versionDir)
+      .then(async planningRun => {
+        setActivePlanningRun(planningRun)
+        const draft = await createDraft(planningRun.workspaceDir)
+        return { draft, planningRun }
+      })
+      .then(({ draft, planningRun }) => {
         setActiveGmatDraft(draft)
         refreshWorkspaceViews()
-        showSpeechText(`New GMAT mission draft ${draft.draftId} created.`)
+        showSpeechText(`New planning run ${planningRun.planningRunId} and GMAT mission draft ${draft.draftId} created.`)
       })
       .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft creation failed'))
       .finally(() => setGmatGenerating(false))
@@ -889,6 +911,8 @@ export default function AgentPage() {
           activeGmatRunPath={activeGmatRun?.runPath}
           activeGmatRunId={activeGmatRun?.runId}
           activeContext={activeContext}
+          missionWorkspaceDir={gmatWorkspaceDir}
+          planningDiscussion={activePlanningRun}
           activeManifestVersion={activeManifestVersion}
           activeTool={activeTool}
           activeView={visibleActiveView}
@@ -939,7 +963,7 @@ export default function AgentPage() {
             void (isElectricTransfer ? getElectricPropulsionRunConversation(run.runPath) : getOrbitKeepingRunConversation(run.runPath))
               .then(conversation => setActiveGmatRun(current => current?.runPath === run.runPath ? { ...current, conversation } : current))
               .catch(() => null)
-            void (isElectricTransfer ? listElectricPropulsionDrafts(activeContext.versionDir) : listOrbitKeepingDrafts(activeContext.versionDir))
+            void (isElectricTransfer ? listElectricPropulsionDrafts(gmatWorkspaceDir) : listOrbitKeepingDrafts(gmatWorkspaceDir))
               .then(drafts => {
                 const draft = drafts.find(candidate => candidate.runs?.some(savedRun => savedRun.runPath === run.runPath))
                 if (draft) setActiveGmatDraft(draft)

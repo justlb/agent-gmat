@@ -7,7 +7,7 @@ import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
 import { getSatelliteDefinition } from "../digitalThread/satelliteLibrary.js"
-import { loadOrCreateDigitalThread, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
+import { draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
 import { appendElectricPropulsionDraftConversation, createElectricPropulsionDraft, discussElectricPropulsionDraft } from "./electricPropulsionDraft.js"
 import { appendOrbitKeepingDraftConversation, createOrbitKeepingDraft, discussOrbitKeepingDraft } from "./orbitKeepingDraft.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
@@ -96,11 +96,14 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
     if (!isPathInside(path.resolve(root), workspaceDir)) return reply.status(400).send({ error: "workspaceDir must be inside the current user workspace" })
     const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
     const template = req.body?.template
+    const draftThreadWorkspace = draftId && (template === "orbit-keeping" || template === "electric-propulsion-transfer")
+      ? draftDigitalThreadWorkspaceDir(workspaceDir, template, draftId)
+      : workspaceDir
     const activeRunDir = resolveActiveGmatRunDir(root, req.body?.runPath)
     try {
       const decision = await routeMissionMessage(config, message)
       if (decision.target === "general" && isSimuCicRequest(message)) {
-        const result = await updateDigitalThreadWithLlm({ connection: resolveModelBackend(config, "chatModel"), message, workspaceDir })
+        const result = await updateDigitalThreadWithLlm({ connection: resolveModelBackend(config, "chatModel"), message, workspaceDir: draftThreadWorkspace })
         const turn = { answer: result.message, askedAt: new Date().toISOString(), channel: "simu-cic" as const, question: message }
         await appendMissionConversation(workspaceDir, turn)
         if (activeRunDir) await appendRunConversation(activeRunDir, turn)
@@ -115,12 +118,39 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         const draft = await appendRequestedDraftTurn(workspaceDir, draftId, template, decision.message, message)
         return reply.send({ draft, kind: "clarify", message: decision.message })
       }
-      const currentDigitalThread = await loadOrCreateDigitalThread(workspaceDir)
-      const satelliteSelection = currentDigitalThread.digital_thread.satellite_definition as { id?: unknown; version?: unknown } | null
+      let currentDigitalThread = await loadOrCreateDigitalThread(draftThreadWorkspace)
+      let satelliteSelection = currentDigitalThread.digital_thread.satellite_definition as { id?: unknown; version?: unknown } | null
+      // Satellite Library writes to the planning workspace. A draft owns a
+      // private digital thread, so copy a newly selected physical definition
+      // into that draft without replacing the mission data it already holds.
+      if ((!satelliteSelection || typeof satelliteSelection.id !== "string") && draftThreadWorkspace !== workspaceDir) {
+        const planningDigitalThread = await loadOrCreateDigitalThread(workspaceDir)
+        const planningSelection = planningDigitalThread.digital_thread.satellite_definition as { id?: unknown; version?: unknown } | null
+        if (planningSelection && typeof planningSelection.id === "string") {
+          currentDigitalThread.satellite = JSON.parse(JSON.stringify(planningDigitalThread.satellite))
+          currentDigitalThread.digital_thread.satellite_definition = JSON.parse(JSON.stringify(planningSelection))
+          const provenance = currentDigitalThread.provenance.values && typeof currentDigitalThread.provenance.values === "object" && !Array.isArray(currentDigitalThread.provenance.values)
+            ? currentDigitalThread.provenance.values as Record<string, unknown>
+            : {}
+          provenance.satellite = { copied_from: "planning_run", source: "satellite_library", synchronized_at: new Date().toISOString() }
+          currentDigitalThread.provenance.values = provenance as typeof currentDigitalThread.provenance.values
+          await saveDigitalThread(draftThreadWorkspace, currentDigitalThread)
+          satelliteSelection = planningSelection
+        }
+      }
       if (!satelliteSelection || typeof satelliteSelection.id !== "string") {
         const clarification = "Select a satellite version in Satellite Library before defining a GMAT mission."
-        const draft = await appendRequestedDraftTurn(workspaceDir, draftId, template, clarification, message)
-        return reply.send({ draft, kind: "clarify", message: clarification })
+        // A mission discussion needs a visible, persistent GMAT draft even
+        // before its satellite is selected.  It owns the empty satellite.json
+        // that will later be populated by Satellite Library.
+        const draft = decision.target === "orbit-keeping"
+          ? await createOrbitKeepingDraft(workspaceDir)
+          : await createElectricPropulsionDraft(workspaceDir)
+        const savedDraft = decision.target === "orbit-keeping"
+          ? await appendOrbitKeepingDraftConversation(workspaceDir, draft.draftId, { assistant: clarification, user: message })
+          : await appendElectricPropulsionDraftConversation(workspaceDir, draft.draftId, { assistant: clarification, user: message })
+        await appendMissionConversation(workspaceDir, { answer: clarification, askedAt: savedDraft.updatedAt, channel: "gmat-draft", question: message })
+        return reply.send({ draft: savedDraft, kind: "mission", message: clarification, template: decision.target })
       }
       const selectedSatellite = await getSatelliteDefinition(satelliteSelection.id, typeof satelliteSelection.version === "string" ? satelliteSelection.version : undefined)
       if (!selectedSatellite.mission_templates.includes(decision.target)) {
@@ -139,14 +169,16 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
           const draft = await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
           const updatedDraft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
           await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
-          await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
-        return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(workspaceDir), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
+          const createdDraftThreadWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId)
+          await syncDigitalThreadFromGmatDraft(createdDraftThreadWorkspace, updatedDraft)
+        return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId)), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
       }
       const draft = await createElectricPropulsionDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
       const updatedDraft = await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
       await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
-      await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
-      return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(workspaceDir), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
+      const createdDraftThreadWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", updatedDraft.draftId)
+      await syncDigitalThreadFromGmatDraft(createdDraftThreadWorkspace, updatedDraft)
+      return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(createdDraftThreadWorkspace), draft: updatedDraft, kind: "mission", message: decision.message, template: decision.target })
     } catch (error) {
       const errorMessage = getErrorMessage(error, "failed to route GMAT mission")
       const turn = { answer: `Mission configuration error: ${errorMessage}`, askedAt: new Date().toISOString(), channel: "gmat-draft" as const, question: message }

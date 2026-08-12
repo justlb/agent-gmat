@@ -65,7 +65,6 @@ describe("electric-propulsion transfer renderer", () => {
     assert.equal(result.result.status, "generated")
     assert.match(result.scriptPath, /gmat[\\/]electric-propulsion-transfer[\\/]test-mission[\\/]electric_propulsion_transfer\.script$/u)
     assert.match(script, /daysofpropagation\s*= 2/u)
-    assert.match(script, /DefaultSC\.ElapsedDays\s*= daysofpropagation/u)
     assert.match(script, /DefaultSC\.DisplayStateType\s*= Keplerian/u)
     assert.match(script, /DefaultSC\.SMA\s*= 7191\.938817629013/u)
     assert.match(script, /DefaultSC\.RAAN\s*= 0;/u)

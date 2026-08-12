@@ -5,7 +5,7 @@ import path from "node:path"
 import { describe, it } from "node:test"
 
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../../src/digitalThread/gmatDigitalThreadAdapter.js"
-import { loadOrCreateDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
+import { createPlanningRun, draftDigitalThreadWorkspaceDir, initializeDraftDigitalThread, loadOrCreateDigitalThread, saveDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
 import { selectSatelliteDefinition } from "../../src/digitalThread/satelliteLibrary.js"
 
 describe("digital thread to GMAT flow", () => {
@@ -48,5 +48,36 @@ describe("digital thread to GMAT flow", () => {
     assert.equal(missionValues.values["initialOrbit.smaKm"], 7300, "mission orbit takes precedence over the satellite reference orbit")
     assert.equal(missionValues.values["transfer.burnDurationDays"], 7)
     assert.equal(missionValues.values["spacecraft.dryMassKg"], 850, "satellite mass is still used to build the GMAT YAML")
+  })
+
+  it("isolates each GMAT draft while retaining the selected satellite", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-draft-isolation-"))
+    await selectSatelliteDefinition(workspaceDir, "ref-leo-electric", "1.0.0")
+
+    const firstWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", "draft_first")
+    const first = await initializeDraftDigitalThread(workspaceDir, "electric-propulsion-transfer", "draft_first")
+    assert.equal(first.satellite.bus.physical.mass_kg.dry, 850)
+    assert.equal(first.analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days, null)
+    first.analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days = 7
+    await saveDigitalThread(firstWorkspace, first)
+
+    const secondWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", "draft_second")
+    const second = await initializeDraftDigitalThread(workspaceDir, "electric-propulsion-transfer", "draft_second")
+    assert.notEqual(first.digital_thread.thread_id, second.digital_thread.thread_id)
+    assert.equal(second.satellite.bus.physical.mass_kg.dry, 850)
+    assert.equal(second.analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days, null)
+    assert.equal((await loadOrCreateDigitalThread(secondWorkspace)).analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days, null)
+  })
+
+  it("creates an empty satellite.json at the beginning of a planning run", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-planning-run-"))
+    const planningRun = await createPlanningRun(workspaceDir)
+    const document = await loadOrCreateDigitalThread(planningRun.workspaceDir)
+
+    assert.match(planningRun.planningRunId, /^planning_/u)
+    assert.equal(document.satellite.bus.physical.mass_kg.dry, null)
+    assert.equal(document.digital_thread.satellite_definition, undefined)
+    await fs.access(path.join(planningRun.workspaceDir, "planning-run.json"))
+    await fs.access(path.join(planningRun.workspaceDir, "digital-thread", "satellite.json"))
   })
 })

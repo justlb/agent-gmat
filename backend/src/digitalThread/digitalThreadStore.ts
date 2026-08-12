@@ -20,8 +20,30 @@ const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(SOURCE_DIR, "../../..")
 const TEMPLATE_PATH = path.join(PROJECT_ROOT, "data", "templates", "satellite.digital-thread.template.json")
 
+export type PlanningRun = {
+  createdAt: string
+  planningRunId: string
+  workspaceDir: string
+}
+
 export function digitalThreadPath(workspaceDir: string) {
   return path.join(path.resolve(workspaceDir), "digital-thread", "satellite.json")
+}
+
+export function planningRunWorkspaceDir(workspaceDir: string, planningRunId: string) {
+  if (!/^planning_[A-Za-z0-9_-]+$/u.test(planningRunId)) throw new Error("invalid planning run id")
+  return path.join(path.resolve(workspaceDir), "planning-runs", planningRunId)
+}
+
+/** A draft owns a private digital-thread workspace. GMAT artifacts remain in the
+ * parent workspace, while this context prevents another draft from changing its
+ * satellite or mission inputs. */
+export function draftDigitalThreadWorkspaceDir(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer", draftId: string) {
+  if (!/^[A-Za-z0-9_-]+$/u.test(draftId)) throw new Error("invalid GMAT draft id")
+  const root = path.resolve(workspaceDir)
+  return template === "orbit-keeping"
+    ? path.join(root, "gmat", "drafts", draftId)
+    : path.join(root, "gmat", "electric-propulsion-transfer", "drafts", draftId)
 }
 
 function asObject(value: JsonValue | undefined): { [key: string]: JsonValue } | null {
@@ -97,6 +119,29 @@ async function readTemplate() {
   return parsed
 }
 
+async function createEmptyDigitalThread() {
+  const document = await readTemplate()
+  const now = new Date().toISOString()
+  document.digital_thread.thread_id = crypto.randomUUID()
+  document.digital_thread.created_at = now
+  document.digital_thread.updated_at = now
+  return document
+}
+
+/** Creates the empty source-of-truth context at the beginning of a user run. */
+export async function createPlanningRun(workspaceDir: string): Promise<PlanningRun> {
+  const planningRunId = `planning_${crypto.randomUUID()}`
+  const planningWorkspaceDir = planningRunWorkspaceDir(workspaceDir, planningRunId)
+  await loadOrCreateDigitalThread(planningWorkspaceDir)
+  const planningRun: PlanningRun = {
+    createdAt: new Date().toISOString(),
+    planningRunId,
+    workspaceDir: planningWorkspaceDir,
+  }
+  await fs.writeFile(path.join(planningWorkspaceDir, "planning-run.json"), `${JSON.stringify(planningRun, null, 2)}\n`, "utf8")
+  return planningRun
+}
+
 export async function loadOrCreateDigitalThread(workspaceDir: string) {
   const output = digitalThreadPath(workspaceDir)
   const existing = await fs.readFile(output, "utf8").catch(() => null)
@@ -106,13 +151,41 @@ export async function loadOrCreateDigitalThread(workspaceDir: string) {
     if (ensureMissionRequestShape(parsed)) await saveDigitalThread(workspaceDir, parsed)
     return parsed
   }
-  const document = await readTemplate()
+  const document = await createEmptyDigitalThread()
   ensureMissionRequestShape(document)
-  const now = new Date().toISOString()
-  document.digital_thread.thread_id = crypto.randomUUID()
-  document.digital_thread.created_at = now
-  document.digital_thread.updated_at = now
   await saveDigitalThread(workspaceDir, document, false)
+  return document
+}
+
+/** Starts a clean, per-draft digital thread from the selected satellite only.
+ * Earlier mission values deliberately do not leak into a new draft. */
+export async function initializeDraftDigitalThread(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer", draftId: string) {
+  const draftWorkspaceDir = draftDigitalThreadWorkspaceDir(workspaceDir, template, draftId)
+  const output = digitalThreadPath(draftWorkspaceDir)
+  const existing = await fs.readFile(output, "utf8").catch(() => null)
+  if (existing !== null) {
+    const parsed: unknown = JSON.parse(existing)
+    assertDocument(parsed)
+    return parsed
+  }
+  const selected = await loadOrCreateDigitalThread(workspaceDir)
+  const document = await createEmptyDigitalThread()
+  document.satellite = JSON.parse(JSON.stringify(selected.satellite)) as DigitalThreadDocument["satellite"]
+  const selection = selected.digital_thread.satellite_definition
+  if (selection !== undefined) document.digital_thread.satellite_definition = JSON.parse(JSON.stringify(selection)) as JsonValue
+  const provenance = asObject(document.provenance.values) ?? {}
+  if (selection !== undefined) provenance.satellite = { source: "satellite_library", copied_from_workspace_at: new Date().toISOString() }
+  document.provenance.values = provenance
+  ensureMissionRequestShape(document)
+  await saveDigitalThread(draftWorkspaceDir, document, false)
+  return document
+}
+
+/** Reads the immutable digital-thread snapshot belonging to an executed run. */
+export async function loadRunDigitalThreadSnapshot(runDir: string) {
+  const source = await fs.readFile(path.join(path.resolve(runDir), "satellite.digital-thread.json"), "utf8")
+  const document: unknown = JSON.parse(source)
+  assertDocument(document)
   return document
 }
 

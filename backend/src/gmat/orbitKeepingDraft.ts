@@ -1,7 +1,8 @@
 import fs from "node:fs/promises"
 import path from "node:path"
-import { parseDocument } from "yaml"
+import { parseDocument, stringify } from "yaml"
 
+import { initializeDraftDigitalThread } from "../digitalThread/digitalThreadStore.js"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian, semiMajorAxisFromPeriapsisAltitude, type CartesianState, type KeplerianElements } from "./orbitCoordinates.js"
 import { requestGmatModel } from "./modelRequest.js"
@@ -367,7 +368,14 @@ function refreshDraft(draft: Omit<OrbitKeepingDraft, "missing" | "safety" | "sta
 async function saveDraft(workspaceDir: string, draft: OrbitKeepingDraft) {
   const output = draftPath(workspaceDir, draft.draftId)
   await fs.mkdir(path.dirname(output), { recursive: true })
-  await fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`, "utf8")
+  // This is the live, download-ready representation of the mission values.
+  // It is deliberately separate from the immutable values YAML emitted with a
+  // generated GMAT run.
+  const valuesPath = path.join(path.dirname(output), "orbit_keeping.values.yaml")
+  await Promise.all([
+    fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`, "utf8"),
+    fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, updated_at: draft.updatedAt, values: draft.values }), "utf8"),
+  ])
   return draft
 }
 
@@ -379,8 +387,9 @@ export async function createOrbitKeepingDraft(workspaceDir: string, initialValue
       : initialValues[field.path] ?? TEMPLATE_DEFAULT_VALUES[field.path] ?? null,
   ])) as DraftValues
   const now = new Date().toISOString()
-  const draft = refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values })
-  return saveDraft(workspaceDir, draft)
+  const draft = await saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values }))
+  await initializeDraftDigitalThread(workspaceDir, "orbit-keeping", draft.draftId)
+  return draft
 }
 
 export async function loadOrbitKeepingDraft(workspaceDir: string, draftId: string) {

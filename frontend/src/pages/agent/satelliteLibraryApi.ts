@@ -40,6 +40,9 @@ async function request<T>(path: string, options?: RequestInit) {
 }
 
 export async function listSatelliteDefinitions() { return (await request<{ definitions: SatelliteDefinition[] }>('/satellite-library')).definitions }
+export function satelliteDefinitionDownloadUrl(definition: Pick<SatelliteDefinition, 'id' | 'version'>) {
+  return joinApiPath(undefined, `/satellite-library/${encodeURIComponent(definition.id)}/download?${new URLSearchParams({ version: definition.version }).toString()}`)
+}
 export async function getSelectedSatellite(workspaceDir?: string | null) {
   const query = workspaceDir ? `?workspaceDir=${encodeURIComponent(workspaceDir)}` : ''
   return request<DigitalThreadResponse>(`/digital-thread/satellite${query}`)

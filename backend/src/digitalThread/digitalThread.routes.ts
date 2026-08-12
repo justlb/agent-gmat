@@ -6,8 +6,8 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { adaptDigitalThreadToGmat } from "./gmatDigitalThreadAdapter.js"
-import { loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
-import { listSatelliteDefinitions, selectSatelliteDefinition } from "./satelliteLibrary.js"
+import { createPlanningRun, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
+import { getSatelliteDefinition, listSatelliteDefinitions, selectSatelliteDefinition } from "./satelliteLibrary.js"
 import { assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
 import { loadMissionConversation } from "./missionConversationStore.js"
 
@@ -33,6 +33,25 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
   fastify.get("/api/satellite-library", async (_req, reply) => {
     try { return reply.send({ definitions: await listSatelliteDefinitions() }) }
     catch (error) { return reply.status(500).send({ error: getErrorMessage(error, "failed to load satellite library") }) }
+  })
+
+  fastify.get<{ Params: { id: string }; Querystring: { version?: string } }>("/api/satellite-library/:id/download", async (req, reply) => {
+    try {
+      const definition = await getSatelliteDefinition(req.params.id, req.query.version)
+      return reply
+        .header("Content-Type", "application/json; charset=utf-8")
+        .header("Content-Disposition", `attachment; filename="${definition.id}.${definition.version}.json"`)
+        .send(`${JSON.stringify(definition, null, 2)}\n`)
+    } catch (error) { return reply.status(404).send({ error: getErrorMessage(error, "satellite definition was not found") }) }
+  })
+
+  fastify.post<{ Body: { workspaceDir?: unknown } }>("/api/digital-thread/planning-runs", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const planningRun = await createPlanningRun(resolveWorkspaceDir(root, req.body?.workspaceDir))
+      return reply.status(201).send({ planningRun })
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to start a planning run") }) }
   })
 
   fastify.post<{ Body: { id?: unknown; version?: unknown; workspaceDir?: unknown } }>("/api/satellite-library/select", async (req, reply) => {
@@ -66,6 +85,23 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
         .header("Content-Disposition", "attachment; filename=satellite.json")
         .send(`${JSON.stringify(document, null, 2)}\n`)
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download satellite digital thread") }) }
+  })
+
+  // A draft owns its own live satellite.json. It starts when the first
+  // mission message creates the draft and evolves with that discussion.
+  fastify.get<{ Querystring: { draftId?: string; template?: string; workspaceDir?: string } }>("/api/digital-thread/satellite/draft/download", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const draftId = typeof req.query.draftId === "string" ? req.query.draftId : ""
+    const template = req.query.template
+    if (!draftId || (template !== "orbit-keeping" && template !== "electric-propulsion-transfer")) {
+      return reply.status(400).send({ error: "draftId and a supported template are required" })
+    }
+    try {
+      const workspaceDir = resolveWorkspaceDir(root, req.query.workspaceDir)
+      const document = await loadOrCreateDigitalThread(draftDigitalThreadWorkspaceDir(workspaceDir, template, draftId))
+      return reply.header("Content-Type", "application/json; charset=utf-8").header("Content-Disposition", "attachment; filename=satellite.json").send(`${JSON.stringify(document, null, 2)}\n`)
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download draft satellite digital thread") }) }
   })
 
   fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/digital-thread/satellite/conversation", async (req, reply) => {
