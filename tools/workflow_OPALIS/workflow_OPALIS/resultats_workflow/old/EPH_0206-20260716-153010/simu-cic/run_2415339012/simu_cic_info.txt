@@ -1,0 +1,67 @@
+#=======================
+# Simulation synthesis
+#=======================
+Name: simu
+Start (UTC): 2000/01/01 00:00:00.000
+Stop (UTC): 2000/01/01 10:00:00.000
+
+#-----------------------
+# Satellite 1
+#-----------------------
+Name: Sat
+
+# Initial conditions (osculating orbital elements, frame = ECI)
+Date (UTC): 2000/01/01 00:00:00.000
+Semi-major axis (km): 6777.999
+Semi-major axis minus equ. radius (km): 399.863
+Eccentricity: 0.0000001
+Inclination (deg): 28.498
+Argument of perigee (deg): 189.448
+Right ascension of ascending node (deg): 0.003
+Mean anomaly (deg): 170.549
+True anomaly (deg): 170.549
+Mean local time of ascending node (h): 17.336
+Mean argument of latitude (deg): 359.997
+Keplerian orbital period (h, sec): 1.5426 5553.5
+
+#-----------------------
+# Stations
+#-----------------------
+1: Aussaguel 
+Longitude (deg): 1.499
+Latitude (deg): 43.430
+Altitude (m): 154.000
+Minimal elevation (deg): 0.000
+
+2: Kourou 
+Longitude (deg): -52.640
+Latitude (deg): 5.100
+Altitude (m): 94.000
+Minimal elevation (deg): 0.000
+
+#-----------------------
+# Station visibility
+#-----------------------
+# Satellite 1
+# Station name, total visibility durations (min)
+Aussaguel            138.0
+Kourou               213.0
+-ALL-                252.0 
+
+#-----------------------
+# Satellites modes
+#-----------------------
+# Satellite 1
+# attitude mode, fraction of simulation time (%)
+NadirTrace_XY        100.0
+
+#-----------------------
+# Sun visibility
+#-----------------------
+# Satellite 1
+# situation, fraction of simulation time (%)
+Sun visibility        67.7
+Sun eclipse           31.3
+Penumbra               1.0
+
+

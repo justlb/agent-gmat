@@ -1,0 +1,34 @@
+{
+  "name": "opalis-7-sections-audit",
+  "status": "success",
+  "started_at": "2026-07-16T09:04:55+00:00",
+  "input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\1-conversion_vers_SIMU-CIC\\EPH_GMAT.txt",
+  "input_copy": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\00-entrees\\ephemeride-source\\EPH_GMAT.txt",
+  "inputs_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\00-entrees",
+  "simulation_source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+  "run_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit",
+  "steps": {
+    "conversion": {
+      "type": "gmat_ephemeris",
+      "records": 133,
+      "output": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\01-conversion\\EPH_GMAT_SIMU.txt"
+    },
+    "simu_cic": {
+      "ephemeris": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\01-conversion\\EPH_GMAT_SIMU.txt",
+      "scenario_scd": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\01-execution-complete\\run_2415344697.scd",
+      "scenario_sod": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\01-execution-complete\\run_2415344697.sod",
+      "cic_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat",
+      "files": 39
+    },
+    "opalis": {
+      "cic_input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat",
+      "simulation_source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+      "simulation_working_copy": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\03-opalis\\00-cas-reference\\cas A.opalis",
+      "case": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\03-opalis\\02-resultats\\opalis-7-sections-audit.opalis",
+      "summary": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\03-opalis\\02-resultats\\opalis-7-sections-audit.json",
+      "simulation_executed": false,
+      "quality_warnings": []
+    }
+  },
+  "finished_at": "2026-07-16T09:05:02+00:00"
+}

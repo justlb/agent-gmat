@@ -1,0 +1,24 @@
+{
+  "name": "EPH_GMAT-20260716-161230",
+  "status": "failed",
+  "started_at": "2026-07-16T08:12:30+00:00",
+  "input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\1-conversion_vers_SIMU-CIC\\EPH_GMAT.txt",
+  "input_copy": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-161230\\00-entrees\\ephemeride-source\\EPH_GMAT.txt",
+  "inputs_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-161230\\00-entrees",
+  "simulation_source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+  "run_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-161230",
+  "steps": {
+    "conversion": {
+      "type": "gmat_ephemeris",
+      "records": 133,
+      "output": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-161230\\01-conversion\\EPH_GMAT_SIMU.txt"
+    },
+    "simu_cic": {
+      "ephemeris": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-161230\\01-conversion\\EPH_GMAT_SIMU.txt",
+      "cic_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-161230\\02-simu-cic\\02-fichiers-cic\\Sat",
+      "files": 39
+    }
+  },
+  "finished_at": "2026-07-16T08:12:34+00:00",
+  "error": "La commande a echoue avec le code 2 : C:\\Users\\justine\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe C:\\JUSTINE\\APP\\workflow_OPALIS\\3-run_OPALIS\\opalis_pipeline.py \"C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis\" --ephemeris-dir C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-161230\\02-simu-cic\\02-fichiers-cic\\Sat --opalis-dir C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0 --output-dir C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-161230\\03-opalis --name EPH_GMAT-20260716-161230 --section 0"
+}

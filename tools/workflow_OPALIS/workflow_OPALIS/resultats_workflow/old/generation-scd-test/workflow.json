@@ -1,0 +1,19 @@
+{
+  "name": "generation-scd-test",
+  "status": "failed",
+  "started_at": "2026-07-16T08:39:46+00:00",
+  "input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\1-conversion_vers_SIMU-CIC\\EPH_GMAT.txt",
+  "input_copy": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-test\\00-entrees\\ephemeride-source\\EPH_GMAT.txt",
+  "inputs_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-test\\00-entrees",
+  "simulation_source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+  "run_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-test",
+  "steps": {
+    "conversion": {
+      "type": "gmat_ephemeris",
+      "records": 133,
+      "output": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-test\\01-conversion\\EPH_GMAT_SIMU.txt"
+    }
+  },
+  "finished_at": "2026-07-16T08:39:49+00:00",
+  "error": "La commande a echoue avec le code 1 : C:\\Users\\justine\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe C:\\JUSTINE\\APP\\workflow_OPALIS\\2-run_SIMU-CIC\\run_scilab_simulation.py --ephemeris C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-test\\01-conversion\\EPH_GMAT_SIMU.txt --base-scenario C:\\JUSTINE\\APP\\SIMU_CIC\\simu_cic\\GUI\\examples\\Example_1.scd --simucic-dir C:\\JUSTINE\\APP\\SIMU_CIC\\simu_cic --save-root C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-test\\02-simu-cic\\01-execution-complete --cic-output C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-test\\02-simu-cic\\02-fichiers-cic --nadir-axis +X --trace-axis +Y"
+}

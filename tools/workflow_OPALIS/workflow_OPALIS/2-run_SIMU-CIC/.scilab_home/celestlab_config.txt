@@ -1,0 +1,31 @@
+// -----------------------------------------  
+// CelestLab configuration (preferences) 
+// See dedicated help page for more details
+//
+// Syntax: conf.name = value  
+// -----------------------------------------
+    
+// Display CelestLab menu or not
+conf.DISPLAY_MENU = "yes"
+
+// Mode for warning messages
+conf.WARNING_MODE = "standard"
+
+// "Verbosity" mode
+conf.VERBOSE_MODE = "standard"
+
+// Mode for deprecated functions (warning or not)
+conf.WARN_DEPRECATED = "yes"
+
+// Frame defined as ECI
+conf.ECI_FRAME = "CIRS"
+
+// Set of constants used for TLEs
+conf.TLE_WHICHCONST = "wgs72"
+
+// Mode of operation for TLEs
+conf.TLE_OPSMODE = "afspc"
+
+// Set of constants used by STELA orbit propagation model
+conf.STELA_WHICHCONST = "ST"
+
