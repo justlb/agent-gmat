@@ -7,7 +7,8 @@ import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
 import { getSatelliteDefinition } from "../digitalThread/satelliteLibrary.js"
-import { draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
+import { draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, saveDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
+import { PREDEFINED_GROUND_STATIONS } from "../opalis/groundStationCatalog.js"
 import { appendElectricPropulsionDraftConversation, createElectricPropulsionDraft, discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
 import { appendOrbitKeepingDraftConversation, createOrbitKeepingDraft, discussOrbitKeepingDraft, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
@@ -16,7 +17,9 @@ type MissionTemplate = "orbit-keeping" | "electric-propulsion-transfer"
 type RoutingDecision = { target: "clarify" | "general" | MissionTemplate; message: string }
 
 function isSimuCicRequest(message: string) {
-  return /simu\s*-?\s*cic|ground\s+(?:station|sat+ion)s?|station\s+au\s+sol|attitude|point(?:age|ing)|nadir/iu.test(message)
+  const normalized = message.toLocaleLowerCase()
+  return /simu\s*-?\s*cic|ground\s+(?:station|sat+ion)s?|station\s+au\s+sol|attitude|point(?:age|ing)|nadir|\b(?:follow|track|suiv\w*)\b/iu.test(message)
+    || PREDEFINED_GROUND_STATIONS.some(station => normalized.includes(station.id.toLocaleLowerCase()) || normalized.includes(station.name.toLocaleLowerCase()))
 }
 
 function resolveActiveGmatRunDir(root: string, requested: unknown) {
@@ -101,15 +104,29 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
       : workspaceDir
     const activeRunDir = resolveActiveGmatRunDir(root, req.body?.runPath)
     try {
-      const decision = await routeMissionMessage(config, message)
-      if (decision.target === "general" && isSimuCicRequest(message)) {
+      if (isSimuCicRequest(message)) {
         const result = await updateDigitalThreadWithLlm({ connection: resolveModelBackend(config, "chatModel"), message, workspaceDir: draftThreadWorkspace })
+        // The draft is the isolated conversation context, but the planning
+        // workspace is the active satellite.json used by the Mission Studio.
+        // Mirror Simu-CIC configuration so the UI and the next execution read
+        // the same attitude law and station list.
+        if (draftThreadWorkspace !== workspaceDir) {
+          const planningThread = await loadOrCreateDigitalThread(workspaceDir)
+          planningThread.analysis_requests.simu_cic = JSON.parse(JSON.stringify(result.document.analysis_requests.simu_cic))
+          planningThread.provenance.values = {
+            ...(planningThread.provenance.values && typeof planningThread.provenance.values === "object" && !Array.isArray(planningThread.provenance.values) ? planningThread.provenance.values : {}),
+            "analysis_requests.simu_cic": { source: "gmat_mission_draft", synchronized_at: new Date().toISOString() },
+          }
+          await saveDigitalThread(workspaceDir, planningThread)
+        }
+        if (activeRunDir) await syncSimuCicRequestToRunSnapshot(activeRunDir, result.document)
         const turn = { answer: result.message, askedAt: new Date().toISOString(), channel: "simu-cic" as const, question: message }
         await appendMissionConversation(workspaceDir, turn)
         if (activeRunDir) await appendRunConversation(activeRunDir, turn)
         const draft = await appendRequestedDraftTurn(workspaceDir, draftId, template, result.message || "Simu-CIC configuration updated.", message)
         return reply.send({ digitalThread: result.document, draft, kind: "simu-cic", message: result.message || "Simu-CIC configuration updated." })
       }
+      const decision = await routeMissionMessage(config, message)
       if (decision.target === "general") return reply.send({ kind: decision.target, message: decision.message })
       if (decision.target === "clarify") {
         const turn = { answer: decision.message, askedAt: new Date().toISOString(), channel: "gmat-draft" as const, question: message }
@@ -121,12 +138,18 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
       let currentDigitalThread = await loadOrCreateDigitalThread(draftThreadWorkspace)
       let satelliteSelection = currentDigitalThread.digital_thread.satellite_definition as { id?: unknown; version?: unknown } | null
       // Satellite Library writes to the planning workspace. A draft owns a
-      // private digital thread, so copy a newly selected physical definition
-      // into that draft without replacing the mission data it already holds.
-      if ((!satelliteSelection || typeof satelliteSelection.id !== "string") && draftThreadWorkspace !== workspaceDir) {
+      // private digital thread, so synchronize the physical definition into
+      // the draft whenever the user selects a different satellite. Keep the
+      // draft's mission fields; only the satellite-owned source changes.
+      if (draftThreadWorkspace !== workspaceDir) {
         const planningDigitalThread = await loadOrCreateDigitalThread(workspaceDir)
         const planningSelection = planningDigitalThread.digital_thread.satellite_definition as { id?: unknown; version?: unknown } | null
-        if (planningSelection && typeof planningSelection.id === "string") {
+        const selectionChanged = planningSelection && typeof planningSelection.id === "string" && (
+          !satelliteSelection ||
+          satelliteSelection.id !== planningSelection.id ||
+          satelliteSelection.version !== planningSelection.version
+        )
+        if (selectionChanged) {
           currentDigitalThread.satellite = JSON.parse(JSON.stringify(planningDigitalThread.satellite))
           currentDigitalThread.digital_thread.satellite_definition = JSON.parse(JSON.stringify(planningSelection))
           const provenance = currentDigitalThread.provenance.values && typeof currentDigitalThread.provenance.values === "object" && !Array.isArray(currentDigitalThread.provenance.values)

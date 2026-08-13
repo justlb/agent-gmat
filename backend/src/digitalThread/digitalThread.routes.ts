@@ -13,13 +13,16 @@ import { assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
 import { loadMissionConversation } from "./missionConversationStore.js"
 
 function resolveWorkspaceDir(root: string, requested: unknown) {
-  const workspaceDir = typeof requested === "string" && requested.trim() ? path.resolve(requested) : path.resolve(root)
+  const requestedPath = typeof requested === "string" && requested.trim() ? requested : null
+  // Mission-file listings expose run paths relative to the user workspace.
+  // Accept that stable API form as well as an absolute workspace path.
+  const workspaceDir = requestedPath ? path.resolve(path.isAbsolute(requestedPath) ? requestedPath : path.join(root, requestedPath)) : path.resolve(root)
   if (!isPathInside(path.resolve(root), workspaceDir)) throw new Error("workspaceDir must be inside the current user workspace")
   return workspaceDir
 }
 
 function resolveMissionRunArtifact(root: string, workspaceDir: string, fileName: string) {
-  const allowedFiles = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer|mission)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
+  const allowedFiles = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
   const resolvedWorkspace = path.resolve(workspaceDir)
   if (!isPathInside(path.resolve(root), resolvedWorkspace) || !resolvedWorkspace.split(path.sep).includes("mission-runs") || !allowedFiles.test(fileName)) return null
   return path.join(resolvedWorkspace, fileName)
@@ -35,6 +38,17 @@ function response(document: Awaited<ReturnType<typeof loadOrCreateDigitalThread>
     },
     document,
   }
+}
+
+// Executed runs keep their visible satellite.json at the run root. Reading it
+// here makes the Mission Studio table show the exact Simu-CIC configuration
+// that the runner consumes, rather than an unrelated live planning workspace.
+async function loadDigitalThreadForView(workspaceDir: string) {
+  for (const fileName of ["satellite.json", "satellite.digital-thread.json"]) {
+    const source = await fs.readFile(path.join(workspaceDir, fileName), "utf8").catch(() => null)
+    if (source) return JSON.parse(source) as Awaited<ReturnType<typeof loadOrCreateDigitalThread>>
+  }
+  return loadOrCreateDigitalThread(workspaceDir)
 }
 
 export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
@@ -76,7 +90,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
   fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/digital-thread/satellite", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
-    try { return reply.send(response(await loadOrCreateDigitalThread(resolveWorkspaceDir(root, req.query.workspaceDir)))) }
+    try { return reply.send(response(await loadDigitalThreadForView(resolveWorkspaceDir(root, req.query.workspaceDir)))) }
     catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to load satellite digital thread") }) }
   })
 
@@ -87,7 +101,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     try {
-      const document = await loadOrCreateDigitalThread(resolveWorkspaceDir(root, req.query.workspaceDir))
+      const document = await loadDigitalThreadForView(resolveWorkspaceDir(root, req.query.workspaceDir))
       return reply
         .header("Content-Type", "application/json; charset=utf-8")
         .header("Content-Disposition", "attachment; filename=satellite.json")
@@ -132,7 +146,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     try {
       const workspaceDir = resolveWorkspaceDir(root, req.query.workspaceDir)
       if (!workspaceDir.split(path.sep).includes("mission-runs")) return reply.status(400).send({ error: "workspaceDir is not a mission run" })
-      const allowed = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer|mission)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
+      const allowed = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
       const entries = await fs.readdir(workspaceDir, { withFileTypes: true })
       const files = await Promise.all(entries.filter(entry => entry.isFile() && allowed.test(entry.name)).map(async entry => ({ fileName: entry.name, mtimeMs: (await fs.stat(path.join(workspaceDir, entry.name))).mtimeMs })))
       return reply.send({ files: files.sort((left, right) => left.fileName.localeCompare(right.fileName)) })

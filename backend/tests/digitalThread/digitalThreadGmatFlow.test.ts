@@ -68,6 +68,17 @@ describe("digital thread to GMAT flow", () => {
     assert.equal((await loadOrCreateDigitalThread(secondWorkspace)).analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days, null)
   })
 
+  it("replaces the complete physical definition when the user changes satellite", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-satellite-switch-"))
+    await selectSatelliteDefinition(workspaceDir, "ref-starlink-v1-5-public-rf", "1.0.0")
+    await selectSatelliteDefinition(workspaceDir, "ref-leo-orbit-keeping", "1.0.0")
+
+    const selected = await loadOrCreateDigitalThread(workspaceDir)
+    assert.equal((selected.digital_thread.satellite_definition as { id?: unknown } | undefined)?.id, "ref-leo-orbit-keeping")
+    assert.equal(selected.satellite.bus.physical.mass_kg.dry, 300)
+    assert.equal(selected.satellite.bus.propulsion_subsystem.electric_thruster, undefined)
+  })
+
   it("creates an empty satellite.json at the beginning of a planning run", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-planning-run-"))
     const planningRun = await createPlanningRun(workspaceDir)
@@ -78,5 +89,15 @@ describe("digital thread to GMAT flow", () => {
     assert.equal(document.digital_thread.satellite_definition, undefined)
     await fs.access(path.join(planningRun.workspaceDir, "satellite.json"))
     await fs.access(path.join(planningRun.workspaceDir, "digital-thread", "satellite.json"))
+  })
+
+  it("carries a satellite selected before discussion into the new planning run", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-planning-selection-"))
+    await selectSatelliteDefinition(workspaceDir, "ref-starlink-v1-5-public-rf", "1.0.0")
+    const planningRun = await createPlanningRun(workspaceDir)
+    const document = await loadOrCreateDigitalThread(planningRun.workspaceDir)
+
+    assert.equal((document.digital_thread.satellite_definition as { id?: unknown } | undefined)?.id, "ref-starlink-v1-5-public-rf")
+    assert.equal(document.satellite.bus.physical.mass_kg.dry, 296)
   })
 })

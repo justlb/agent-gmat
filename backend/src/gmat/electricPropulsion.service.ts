@@ -115,9 +115,12 @@ function enableEphemerisOutput(script: string) {
     ? script
     : script.replace(marker, `${marker}\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;`)
   if (withSubscriber.includes("Sample electric transfer for OEM output")) return withSubscriber
+  const report = "Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;"
+  if (!withSubscriber.includes(report)) throw new Error("electric-propulsion template does not expose its transfer report command")
   return withSubscriber.replace(propagation, [
     "While 'Sample electric transfer for OEM output' DefaultSC.ElapsedDays < daysofpropagation",
     "  Propagate 'Propagate one output step' DefaultProp(DefaultSC);",
+    "  " + report,
     "EndWhile;",
   ].join("\n"))
 }

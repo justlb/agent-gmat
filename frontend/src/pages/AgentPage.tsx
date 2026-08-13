@@ -21,7 +21,7 @@ import { confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussE
 import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraftWithProgress, getOrbitKeepingRunConversation, listOrbitKeepingDrafts, openOrbitKeepingRunInGui, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
 import { routeMissionMessage } from './agent/missionRoutingApi'
 import { askMissionAssistant } from './agent/missionAssistantApi'
-import { convertSimuCicEphemeris, openSimuCicGui, runSimuCic } from './agent/simuCicApi'
+import { openSimuCicGui, runSimuCic } from './agent/simuCicApi'
 import { createPlanningRun, type PlanningRun } from './agent/planningRunApi'
 import {
   AGENT_HOME_PATH,
@@ -106,7 +106,6 @@ export default function AgentPage() {
   const [managedRunError, setManagedRunError] = useState('')
   const [gmatGenerating, setGmatGenerating] = useState(false)
   const [gmatGuiOpening, setGmatGuiOpening] = useState(false)
-  const [simuCicConverting, setSimuCicConverting] = useState(false)
   const [simuCicConversation, setSimuCicConversation] = useState<OrbitKeepingRunConversationTurn[]>([])
   const [simuCicGuiOpening, setSimuCicGuiOpening] = useState(false)
   const [simuCicRunning, setSimuCicRunning] = useState(false)
@@ -524,7 +523,7 @@ export default function AgentPage() {
     setTextInput('')
     setTextInputDisplay(prompt)
     const selectedMode = forcedMode ?? chatMode
-    const isSimuCicPrompt = /simu\s*-?\s*cic|ground\s+(?:station|sat+ion)s?|station\s+au\s+sol|attitude|point(?:age|ing)|nadir/i.test(prompt)
+    const isSimuCicPrompt = /simu\s*-?\s*cic|ground\s+(?:station|sat+ion)s?|station\s+au\s+sol|attitude|point(?:age|ing)|nadir|\b(?:follow|track|suiv\w*)\b/i.test(prompt)
     if (selectedMode === 'general' || isSimuCicPrompt) {
       setGmatGenerating(true)
       setPendingGmatMessage({ kind: 'draft', message: prompt, status: 'sending' })
@@ -558,6 +557,7 @@ export default function AgentPage() {
           }
           if (result.kind === 'general') {
             setGmatWorkflowEntries(null)
+            if (result.draft) setActiveGmatDraft(result.draft)
             // Keep the first Mission Studio exchange attached to its newly
             // created planning run. A non-mission question must not switch to
             // the unrelated general assistant and make the dated card vanish.
@@ -752,24 +752,20 @@ export default function AgentPage() {
     setPendingGmatMessage(null)
     setManagedRunError('')
 
-    // Persist the conversation before the assistant is contacted. This lets the
-    // Mission Files panel show and reopen it even if the model request fails.
-    const createDraft = chatMode === 'gmat-electric-propulsion' ? createElectricPropulsionDraft : createOrbitKeepingDraft
+    // Start from a generic planning discussion. The first user message routes
+    // to the appropriate template, instead of accidentally inheriting the
+    // completed run's template or draft.
     setGmatGenerating(true)
     void createPlanningRun(activeContext.versionDir)
-      .then(async planningRun => {
+      .then(planningRun => {
         setActivePlanningRun(planningRun)
-        const draft = await createDraft(planningRun.workspaceDir)
-        return { draft, planningRun }
-      })
-      .then(({ draft, planningRun }) => {
-        setActiveGmatDraft(draft)
+        setChatMode('general')
         refreshWorkspaceViews()
-        showSpeechText(`New planning run ${planningRun.planningRunId} and GMAT mission draft ${draft.draftId} created.`)
+        showSpeechText(`New planning run ${planningRun.planningRunId} created. Describe the mission to select its GMAT template.`)
       })
       .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft creation failed'))
       .finally(() => setGmatGenerating(false))
-  }, [activeContext.versionDir, chatMode, gmatGenerating, refreshWorkspaceViews, showSpeechText])
+  }, [activeContext.versionDir, gmatGenerating, refreshWorkspaceViews, showSpeechText])
   const displayedSessionStatus = managedVoiceRunning || latestManagedStatus?.status === 'running'
     ? 'running'
     : latestManagedStatus?.status === 'completed' || latestManagedStatus?.status === 'partial'
@@ -805,18 +801,6 @@ export default function AgentPage() {
       })
       .finally(() => setSimuCicRunning(false))
   }, [activeGmatRun, refreshWorkspaceViews, showSpeechText, simuCicRunning])
-  const handleConvertSimuCicEphemeris = useCallback(() => {
-    if (!activeGmatRun || simuCicConverting || simuCicRunning) return
-    setSimuCicConverting(true)
-    setManagedRunError('')
-    void convertSimuCicEphemeris(activeGmatRun.runPath)
-      .then(result => {
-        showSpeechText('Simu-CIC ephemeris generated: ' + result.convertedEphemeris + '.')
-        refreshWorkspaceViews()
-      })
-      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to generate the Simu-CIC ephemeris'))
-      .finally(() => setSimuCicConverting(false))
-  }, [activeGmatRun, refreshWorkspaceViews, showSpeechText, simuCicConverting, simuCicRunning])
   const handleOpenSimuCicGui = useCallback(() => {
     if (!activeGmatRun || simuCicGuiOpening) return
     setSimuCicGuiOpening(true)
@@ -941,7 +925,6 @@ export default function AgentPage() {
             draft: activeGmatDraft,
             error: error || managedRunError,
             pending: pendingGmatMessage,
-            onConvertSimuCicEphemeris: handleConvertSimuCicEphemeris,
             onExecute: handleExecuteGmatDraft,
             onNewRun: handleNewGmatDraft,
             onRunSimuCic: handleRunSimuCic,
@@ -949,7 +932,6 @@ export default function AgentPage() {
               if (pendingGmatMessage?.status === 'failed') handleTextSubmit(pendingGmatMessage.message, chatMode)
             },
             onSend: (message, mode) => handleTextSubmit(message, mode),
-            simuCicConverting,
             simuCicConversation,
             simuCicRefreshNonce: satelliteRefreshNonce,
             simuCicRunning,

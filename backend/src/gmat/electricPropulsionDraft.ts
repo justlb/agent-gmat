@@ -266,7 +266,6 @@ async function saveDraft(workspaceDir: string, draft: ElectricPropulsionDraft) {
     fs.writeFile(valuesPath, valuesSource, "utf8"),
     ...(isMissionRunWorkspace(workspaceDir) ? [
       fs.writeFile(path.join(path.resolve(workspaceDir), "electric_propulsion_transfer.values.yaml"), valuesSource, "utf8"),
-      fs.writeFile(path.join(path.resolve(workspaceDir), "mission.values.yaml"), valuesSource, "utf8"),
     ] : []),
   ])
   return draft

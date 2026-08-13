@@ -32,7 +32,7 @@ function electricPropulsionFileKind(fileName: string): ElectricPropulsionFileKin
   if (fileName.endsWith(".script")) return "script"
   if (fileName.endsWith(".values.yaml")) return "values"
   if (fileName === "gmat_result.json") return "result"
-  if (fileName === "satellite.digital-thread.json") return "digital-thread"
+  if (fileName === "satellite.digital-thread.json" || fileName === "satellite.json") return "digital-thread"
   if (fileName === "electric_transfer_timeseries.json") return "timeseries"
   if (fileName === "electric_propulsion_calibration.json") return "calibration"
   if (fileName === "run_manifest.json") return "manifest"
@@ -53,8 +53,10 @@ async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
       const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
       if (manifest.templateId !== "electric-propulsion-transfer") continue
       const entries = await fs.readdir(runDir, { withFileTypes: true }).catch(() => [])
+      const hasUserFacingSatellite = entries.some(entry => entry.isFile() && entry.name === "satellite.json")
       for (const entry of entries) {
         if (!entry.isFile()) continue
+        if (hasUserFacingSatellite && entry.name === "satellite.digital-thread.json") continue
         const kind = electricPropulsionFileKind(entry.name)
         if (!kind) continue
         const filePath = path.join(runDir, entry.name)
@@ -77,8 +79,10 @@ async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
           if (!outputEntry.isDirectory() || outputEntry.name === "drafts") continue
           const runDir = path.join(outputDir, outputEntry.name)
           const runEntries = await fs.readdir(runDir, { withFileTypes: true }).catch(() => [])
+          const hasUserFacingSatellite = runEntries.some(entry => entry.isFile() && entry.name === "satellite.json")
           for (const runEntry of runEntries) {
             if (!runEntry.isFile()) continue
+            if (hasUserFacingSatellite && runEntry.name === "satellite.digital-thread.json") continue
             const kind = electricPropulsionFileKind(runEntry.name)
             if (!kind) continue
             const filePath = path.join(runDir, runEntry.name)
@@ -100,7 +104,7 @@ function resolveListedElectricPropulsionFilePath(userWorkspaceRoot: string, rela
   const root = path.resolve(userWorkspaceRoot)
   const filePath = path.resolve(root, relativePath)
   const normalized = filePath.split(path.sep).join("/")
-  if (!isPathInside(root, filePath) || !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite\.digital-thread\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)) return null
+  if (!isPathInside(root, filePath) || !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite(?:\.digital-thread)?\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)) return null
   return filePath
 }
 

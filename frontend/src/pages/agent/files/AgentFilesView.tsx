@@ -73,6 +73,14 @@ function missionRunFileDownloadUrl(planningRun: PlanningDiscussion, file: string
   return `${joinApiPath(undefined, '/digital-thread/mission-run/download')}?${query}`
 }
 
+function isPrimaryMissionFile(file: string) {
+  return file === 'satellite.json'
+}
+
+function isPrimaryRunFile(file: MissionFile) {
+  return ['digital-thread', 'report', 'ephemeris'].includes(file.kind)
+}
+
 async function listMissionRunFiles(planningRun: PlanningDiscussion) {
   const query = new URLSearchParams({ workspaceDir: planningRun.workspaceDir }).toString()
   const response = await fetch(`${joinApiPath(undefined, '/digital-thread/mission-run/files')}?${query}`, { cache: 'no-store' })
@@ -170,6 +178,7 @@ export function AgentFilesView({
     return groups
   }, {})).map(run => ({ ...run, files: [...run.files].sort((left, right) => left.mtimeMs - right.mtimeMs || left.fileName.localeCompare(right.fileName)) })).sort(compareRunsNewestFirst)
   const showPlanningDiscussion = Boolean(planningDiscussion)
+  const primaryMissionRunFiles = missionRunFiles.filter(isPrimaryMissionFile)
 
 
   return (
@@ -191,7 +200,13 @@ export function AgentFilesView({
                     <strong>Mission discussion · {draftTimestamp({ createdAt: planningDiscussion.createdAt, draftId: planningDiscussion.planningRunId } as OrbitKeepingDraft)}</strong>
                     <small>Routing the GMAT template</small>
                   </header>
-                  {missionRunFiles.map(file => <a className="agent-gmat-draft-file" href={missionRunFileDownloadUrl(planningDiscussion, file)} key={file}><span>{file}</span><small>Download</small></a>)}
+                  {primaryMissionRunFiles.map(file => <a className="agent-gmat-draft-file" href={missionRunFileDownloadUrl(planningDiscussion, file)} key={file}><span>{file}</span><small>Download</small></a>)}
+                  {missionRunFiles.some(file => !isPrimaryMissionFile(file)) ? (
+                    <details className="agent-gmat-technical-files">
+                      <summary>Technical files ({missionRunFiles.filter(file => !isPrimaryMissionFile(file)).length})</summary>
+                      {missionRunFiles.filter(file => !isPrimaryMissionFile(file)).map(file => <a className="agent-gmat-draft-file" href={missionRunFileDownloadUrl(planningDiscussion, file)} key={file}><span>{file}</span><small>Download</small></a>)}
+                    </details>
+                  ) : null}
                 </section>
               ) : null}
               {gmatRuns.map(run => (
@@ -204,12 +219,22 @@ export function AgentFilesView({
                       </button>
                     ) : <small>Legacy run</small>}
                   </header>
-                  {run.files.map(file => (
+                  {run.files.filter(isPrimaryRunFile).map(file => (
                     <a href={file.missionType === 'electric-propulsion-transfer' ? electricPropulsionFileDownloadUrl(file) : orbitKeepingFileDownloadUrl(file)} key={`${file.missionType}:${file.relativePath}`}>
                       <span>{file.fileName}</span>
                       <small>Download</small>
                     </a>
                   ))}
+                  {run.files.some(file => !isPrimaryRunFile(file)) ? (
+                    <details className="agent-gmat-technical-files">
+                      <summary>Technical files ({run.files.filter(file => !isPrimaryRunFile(file)).length})</summary>
+                      {run.files.filter(file => !isPrimaryRunFile(file)).map(file => (
+                        <a href={file.missionType === 'electric-propulsion-transfer' ? electricPropulsionFileDownloadUrl(file) : orbitKeepingFileDownloadUrl(file)} key={`${file.missionType}:${file.relativePath}`}>
+                          <span>{file.fileName}</span><small>Download</small>
+                        </a>
+                      ))}
+                    </details>
+                  ) : null}
                 </section>
               ))}
               {visibleDrafts.map(draft => (
@@ -236,7 +261,7 @@ export function AgentFilesView({
       </aside>
       <div className="agent-file-log-pane">
         {topContent}
-        <GmatMissionChat activeRunId={activeGmatRunId} workspaceDir={workspaceDir} {...gmatMissionChat} />
+        <GmatMissionChat activeRunId={activeGmatRunId} workspaceDir={activeGmatRunPath ?? workspaceDir} {...gmatMissionChat} />
         {selectedFilePath ? <details className="agent-file-preview-details">
           <summary>Preview selected workspace file</summary>
           <WorkspaceFilePreviewPanel

@@ -26,6 +26,12 @@ export type PredefinedGroundStation = {
 }
 
 export type DigitalThreadResponse = {
+  adapters?: {
+    gmat?: {
+      electricPropulsionTransfer?: { values?: Record<string, string | number | null> }
+      orbitKeeping?: { values?: Record<string, string | number | null> }
+    }
+  }
   document: {
     digital_thread?: { satellite_definition?: { id?: string; version?: string } }
     analysis_requests?: { simu_cic?: SimuCicConfiguration }
@@ -33,7 +39,7 @@ export type DigitalThreadResponse = {
 }
 
 async function request<T>(path: string, options?: RequestInit) {
-  const response = await fetch(joinApiPath(undefined, path), options)
+  const response = await fetch(joinApiPath(undefined, path), { cache: 'no-store', ...options })
   const payload = await response.json() as T & { error?: unknown }
   if (!response.ok) throw new Error(typeof payload.error === 'string' ? payload.error : 'Satellite library request failed')
   return payload

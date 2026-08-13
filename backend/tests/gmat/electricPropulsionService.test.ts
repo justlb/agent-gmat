@@ -72,6 +72,7 @@ describe("electric-propulsion transfer renderer", () => {
     assert.match(script, /DefaultSC\.TA\s*= 0;/u)
     assert.match(script, /ElectricTransferReport\.Filename\s*= '.*ElectricTransferReport\.txt';/u)
     assert.match(script, /ElectricTransferReport\.Add\s*= \{DefaultSC\.ElapsedDays, DefaultSC\.SMA,/u)
+    assert.match(script, /While 'Sample electric transfer for OEM output'[\s\S]*?Propagate 'Propagate one output step'[\s\S]*?Report ElectricTransferReport DefaultSC\.ElapsedDays/u)
     assert.match(script, /EphemerisFile1\.Filename\s*= 'EphemerisFile1\.oem';/u)
     assert.match(result.ephemerisPath, /gmat[\\/]electric-propulsion-transfer[\\/]test-mission[\\/]EphemerisFile1\.oem$/u)
     assert.match(script, /DefaultSC\.SolarPowerSystem1\.ThrustPowerAvailable/u)

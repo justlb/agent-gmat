@@ -4,7 +4,7 @@ import fs from "node:fs/promises"
 import type { FastifyInstance } from "fastify"
 
 import type { AppConfig } from "../config.js"
-import { loadOrCreateDigitalThread, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
+import { loadOrCreateDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
@@ -93,6 +93,7 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
         const turn = { answer: result.message, askedAt: new Date().toISOString(), channel: "simu-cic" as const, question: message }
         await appendMissionConversation(workspaceDir, turn)
         if (activeRun) await appendRunConversation(activeRun.runDir, turn)
+        if (activeRun) await syncSimuCicRequestToRunSnapshot(activeRun.runDir, result.document)
         return reply.send({ answer: result.message, intent, kind: "answer" })
       }
       if (intent === "change") {

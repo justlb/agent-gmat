@@ -62,6 +62,24 @@ function asObject(value: JsonValue | undefined): { [key: string]: JsonValue } | 
 /** Keeps older workspaces compatible when mission-only orbital inputs are added. */
 function ensureMissionRequestShape(document: DigitalThreadDocument) {
   let changed = false
+  // Satellite-library records intentionally contain physical properties only.
+  // Keep the mutable mission orbit in satellite.json, including in workspaces
+  // that were created while a physical-only record replaced this object.
+  const satellite = asObject(document.satellite) ?? (document.satellite = {}, document.satellite as { [key: string]: JsonValue })
+  const satelliteOrbit = asObject(satellite.orbit) ?? (satellite.orbit = {}, satellite.orbit as { [key: string]: JsonValue })
+  const keplerian = asObject(satelliteOrbit.keplerian_elements) ?? (satelliteOrbit.keplerian_elements = {}, satelliteOrbit.keplerian_elements as { [key: string]: JsonValue })
+  const orbitDefaults: Record<string, JsonValue> = {
+    reference_epoch_utc: null,
+    reference_epoch_tai_mod_julian: null,
+    central_body: "Earth",
+    reference_frame: "EarthMJ2000Eq",
+  }
+  for (const [field, defaultValue] of Object.entries(orbitDefaults)) {
+    if (!(field in satelliteOrbit)) { satelliteOrbit[field] = defaultValue; changed = true }
+  }
+  for (const field of ["semi_major_axis_km", "eccentricity", "inclination_deg", "raan_deg", "arg_of_perigee_deg", "true_anomaly_deg", "mean_anomaly_deg"]) {
+    if (!(field in keplerian)) { keplerian[field] = null; changed = true }
+  }
   const analysis = document.analysis_requests
   const gmat = asObject(analysis.gmat) ?? (analysis.gmat = {}, analysis.gmat as { [key: string]: JsonValue })
   for (const template of ["orbit_keeping", "electric_propulsion_transfer"]) {
@@ -137,7 +155,9 @@ async function createEmptyDigitalThread() {
   return document
 }
 
-/** Creates the empty source-of-truth context at the beginning of a user run. */
+/** Creates a fresh source-of-truth context at the beginning of a user run.
+ * A library satellite may be selected before mission discussion begins, so
+ * copy only its physical definition into this otherwise empty mission thread. */
 export async function createPlanningRun(workspaceDir: string): Promise<PlanningRun> {
   const root = path.resolve(workspaceDir)
   let planningRunId = formatMissionRunId(new Date())
@@ -147,6 +167,17 @@ export async function createPlanningRun(workspaceDir: string): Promise<PlanningR
     planningWorkspaceDir = planningRunWorkspaceDir(root, planningRunId)
   }
   const document = await loadOrCreateDigitalThread(planningWorkspaceDir)
+  const selectedWorkspaceThread = await loadOrCreateDigitalThread(root)
+  const selectedDefinition = selectedWorkspaceThread.digital_thread.satellite_definition
+  if (selectedDefinition !== undefined) {
+    document.satellite = JSON.parse(JSON.stringify(selectedWorkspaceThread.satellite)) as DigitalThreadDocument["satellite"]
+    document.digital_thread.satellite_definition = JSON.parse(JSON.stringify(selectedDefinition)) as JsonValue
+    document.provenance.values = {
+      ...(asObject(document.provenance.values) ?? {}),
+      satellite: { source: "satellite_library", copied_from_workspace_at: new Date().toISOString() },
+    }
+    await saveDigitalThread(planningWorkspaceDir, document, false)
+  }
   const planningRun: PlanningRun = {
     createdAt: new Date().toISOString(),
     planningRunId,
@@ -155,7 +186,6 @@ export async function createPlanningRun(workspaceDir: string): Promise<PlanningR
   await Promise.all([
     fs.writeFile(path.join(planningWorkspaceDir, "satellite.json"), `${JSON.stringify(document, null, 2)}\n`, "utf8"),
     fs.writeFile(path.join(planningWorkspaceDir, "conversation.json"), "[]\n", "utf8"),
-    fs.writeFile(path.join(planningWorkspaceDir, "mission.values.yaml"), "template: null\nvalues: {}\n", "utf8"),
     fs.writeFile(path.join(planningWorkspaceDir, "run_manifest.json"), `${JSON.stringify({ createdAt: planningRun.createdAt, runId: planningRunId, status: "drafting", tool: "GMAT" }, null, 2)}\n`, "utf8"),
   ])
   return planningRun
@@ -241,12 +271,33 @@ export async function snapshotDigitalThreadForRun(workspaceDir: string, runDir: 
   const { document, source } = captured
   const fileName = "satellite.digital-thread.json"
   await fs.writeFile(path.join(runDir, fileName), source, "utf8")
+  // `satellite.json` is the user-facing source of truth stored with every
+  // run. Keep the historic filename as a compatibility snapshot as well.
+  await fs.writeFile(path.join(runDir, "satellite.json"), source, "utf8")
   const sha256 = crypto.createHash("sha256").update(source).digest("hex")
   const manifestPath = path.join(runDir, "run_manifest.json")
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<string, unknown>
-  manifest.digitalThread = { file: fileName, revision: document.digital_thread.revision, schemaVersion: document.schema_version, sha256, threadId: document.digital_thread.thread_id }
+  manifest.digitalThread = { file: "satellite.json", snapshot: fileName, revision: document.digital_thread.revision, schemaVersion: document.schema_version, sha256, threadId: document.digital_thread.thread_id }
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
   return { fileName, sha256 }
+}
+
+/** Applies the mutable Simu-CIC request to the selected run before Simu-CIC
+ * executes. GMAT results stay intact; attitude is a downstream scenario input. */
+export async function syncSimuCicRequestToRunSnapshot(runDir: string, sourceDocument: DigitalThreadDocument) {
+  const outputDir = path.resolve(runDir)
+  const snapshot = await loadRunDigitalThreadSnapshot(outputDir)
+  snapshot.analysis_requests.simu_cic = JSON.parse(JSON.stringify(sourceDocument.analysis_requests.simu_cic)) as JsonValue
+  const provenance = asObject(snapshot.provenance.values) ?? {}
+  provenance["analysis_requests.simu_cic"] = { source: "mission_discussion", synchronized_at: new Date().toISOString() }
+  snapshot.provenance.values = provenance
+  assertDocument(snapshot)
+  const source = `${JSON.stringify(snapshot, null, 2)}\n`
+  await Promise.all([
+    fs.writeFile(path.join(outputDir, "satellite.digital-thread.json"), source, "utf8"),
+    fs.writeFile(path.join(outputDir, "satellite.json"), source, "utf8"),
+  ])
+  return snapshot
 }
 
 function extractResponseText(payload: unknown) {
@@ -257,8 +308,37 @@ function extractResponseText(payload: unknown) {
   return texts.join("\n").trim()
 }
 
+function explicitSimuCicConfiguration(message: string) {
+  const normalizedMessage = message.toLocaleLowerCase()
+  const groundStationIds = PREDEFINED_GROUND_STATIONS
+    .filter(station => normalizedMessage.includes(station.id.toLocaleLowerCase()) || normalizedMessage.includes(station.name.toLocaleLowerCase()))
+    .map(station => station.id)
+  const requestsTracking = /\b(?:follow|track|suiv\w*|point\w*)\b/iu.test(message)
+  const requestsNadir = /\b(?:nadir|earth[ -]?(?:pointing|tracking)|point(?:age)?\s+(?:vers\s+)?(?:la\s+)?terre)\b/iu.test(message)
+  if (groundStationIds.length && requestsTracking) {
+    return { attitude_mode: "ground_station_tracking" as const, ground_station_ids: groundStationIds, simultaneous_visibility_policy: "first_visible_station_wins" as const }
+  }
+  if (requestsNadir && !groundStationIds.length) {
+    return { attitude_mode: "nadir_pointing" as const, ground_station_ids: [], simultaneous_visibility_policy: null }
+  }
+  return null
+}
+
 export async function updateDigitalThreadWithLlm({ connection, message, workspaceDir, fetchImpl = fetch }: { connection: Pick<ResolvedModelBackend, "apiKey" | "baseUrl" | "model">; message: string; workspaceDir: string; fetchImpl?: typeof fetch }) {
   const document = await loadOrCreateDigitalThread(workspaceDir)
+  const explicitSimuCicRequest = explicitSimuCicConfiguration(message)
+  if (explicitSimuCicRequest) {
+    document.analysis_requests.simu_cic = explicitSimuCicRequest
+    const provenance = asObject(document.provenance.values) ?? {}
+    provenance["analysis_requests.simu_cic"] = { source: "engineer_message", recorded_at: new Date().toISOString() }
+    document.provenance.values = provenance
+    assertValidSimuCicRequest(explicitSimuCicRequest)
+    await saveDigitalThread(workspaceDir, document)
+    const behavior = explicitSimuCicRequest.attitude_mode === "nadir_pointing"
+      ? "nadir pointing"
+      : `ground-station tracking for ${explicitSimuCicRequest.ground_station_ids.join(", ")} (nadir fallback when no station is visible)`
+    return { document, message: `Recorded Simu-CIC attitude behavior: ${behavior}.` }
+  }
   const allowedPaths = leafPaths(document).filter(fieldPath => fieldPath.startsWith("satellite.") || fieldPath.startsWith("analysis_requests."))
   const prompt = [
     "You update a spacecraft digital-thread JSON document from an engineer message.",
@@ -293,6 +373,9 @@ export async function updateDigitalThreadWithLlm({ connection, message, workspac
     setAtPath(document, update.path, update.value)
     provenance[update.path] = { source: "engineer_message", recorded_at: new Date().toISOString() }
   }
+  // A station/attitude request is safety-critical for the downstream
+  // simulation. Do not rely solely on a probabilistic LLM patch for simple,
+  // explicit commands supported by the UI.
   const simuCicRequest = asObject(document.analysis_requests.simu_cic)
   if (!simuCicRequest) throw new Error("Simu-CIC request is missing from the digital thread")
   assertValidSimuCicRequest(simuCicRequest)

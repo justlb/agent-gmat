@@ -37,7 +37,15 @@ export async function getSatelliteDefinition(id: string, version?: string) {
 export async function selectSatelliteDefinition(workspaceDir: string, id: string, version?: string) {
   const definition = await getSatelliteDefinition(id, version)
   const document = await loadOrCreateDigitalThread(workspaceDir)
-  merge(document.satellite, definition.satellite)
+  // A new satellite is a replacement of the physical source of truth.  A
+  // deep merge left propulsion or power fields from the previously selected
+  // satellite behind, which could create an impossible hybrid spacecraft.
+  const activeMissionOrbit = isRecord(document.satellite.orbit) ? clone(document.satellite.orbit) : undefined
+  document.satellite = clone(definition.satellite)
+  // A library record must not define an orbit, but satellite.json does: it is
+  // the current mission state shared with GMAT, Simu-CIC, and later tools.
+  // Preserve that mutable mission state while replacing the physical vehicle.
+  if (activeMissionOrbit) document.satellite.orbit = activeMissionOrbit
   if (definition.analysis_requests) merge(document.analysis_requests, definition.analysis_requests)
   document.digital_thread.satellite_definition = { id: definition.id, version: definition.version, selected_at: new Date().toISOString() }
   const provenance = (document.provenance.values && typeof document.provenance.values === "object" && !Array.isArray(document.provenance.values)) ? document.provenance.values as JsonRecord : {}

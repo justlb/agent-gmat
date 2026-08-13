@@ -48,6 +48,11 @@ function guiBinFor(scilabBin: string | null) {
   return scilabBin ? path.join(path.dirname(scilabBin), "WScilex.exe") : "WScilex.exe"
 }
 
+function headlessBinFor(scilabBin: string | null) {
+  if (!scilabBin) return "WScilex-cli.exe"
+  return path.join(path.dirname(scilabBin), "WScilex-cli.exe")
+}
+
 function nativePath(filePath: string) {
   return toGmatNativePath(filePath)
 }
@@ -177,14 +182,18 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
       const settings = requiredSimuCicConfig(config)
-      // Simu-CIC must use the exact satellite/mission state that generated this
-      // GMAT run, never the mutable workspace-level selection.
+      // Simu-CIC reads the satellite.json saved with this run. A later attitude
+      // request is synchronized into that same run file, never taken from an
+      // unrelated mutable workspace selection.
       const simuCicDefinition = await writeSimuCicDefinition(runDir, await loadRunDigitalThreadSnapshot(runDir))
       const conversion = await convertGmatEphemeris(settings, runDir)
       const saveRoot = path.join(runDir, "opalis", "02-simu-cic", "01-execution-complete")
       const cicOutput = path.join(runDir, "opalis", "02-simu-cic", "02-fichiers-cic")
       await fs.mkdir(saveRoot, { recursive: true })
       const args = [
+        // Simu-CIC's simcicg engine requires the graphical Scilab
+        // initialization on this installation. Hide that window for the normal
+        // calculation; the dedicated action below still opens an interactive GUI.
         nativePath(settings.simuCicRunner), "--gui", "--hide-window",
         "--scilab", nativePath(guiBinFor(settings.scilabBin)),
         "--ephemeris", nativePath(conversion.convertedEphemeris),

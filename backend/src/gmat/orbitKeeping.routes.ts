@@ -36,7 +36,7 @@ function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
   if (fileName.endsWith(".script")) return "script"
   if (fileName.endsWith(".values.yaml")) return "values"
   if (fileName === "gmat_result.json") return "result"
-  if (fileName === "satellite.digital-thread.json") return "digital-thread"
+  if (fileName === "satellite.digital-thread.json" || fileName === "satellite.json") return "digital-thread"
   if (fileName === "orbit_timeseries.json") return "timeseries"
   if (fileName === "run_manifest.json") return "manifest"
   if (fileName === "ReboostReport.txt" || fileName === "OrbitAnalysisReport.txt") return "report"
@@ -56,8 +56,10 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
       const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
       if (manifest.templateId !== "orbit-keeping") continue
       const entries = await fs.readdir(runDir, { withFileTypes: true }).catch(() => [])
+      const hasUserFacingSatellite = entries.some(entry => entry.isFile() && entry.name === "satellite.json")
       for (const entry of entries) {
         if (!entry.isFile()) continue
+        if (hasUserFacingSatellite && entry.name === "satellite.digital-thread.json") continue
         const kind = orbitKeepingFileKind(entry.name)
         if (!kind) continue
         const filePath = path.join(runDir, entry.name)
@@ -101,8 +103,9 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
           }
           if (!outputEntry.isDirectory()) continue
           const runEntries = await fs.readdir(outputPath, { withFileTypes: true }).catch(() => [])
+          const hasUserFacingSatellite = runEntries.some(entry => entry.isFile() && entry.name === "satellite.json")
           for (const runEntry of runEntries) {
-            if (runEntry.isFile()) await addOutputFile(path.join(outputPath, runEntry.name), runEntry.name)
+            if (runEntry.isFile() && !(hasUserFacingSatellite && runEntry.name === "satellite.digital-thread.json")) await addOutputFile(path.join(outputPath, runEntry.name), runEntry.name)
           }
         }
         continue
@@ -121,7 +124,7 @@ function resolveListedOrbitKeepingFilePath(userWorkspaceRoot: string, relativePa
   const normalized = filePath.split(path.sep).join("/")
   if (
     !isPathInside(root, filePath) ||
-    !/\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite\.digital-thread\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)
+    !/\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite(?:\.digital-thread)?\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)
   ) return null
   return filePath
 }
