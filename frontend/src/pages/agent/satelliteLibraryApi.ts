@@ -26,6 +26,12 @@ export type PredefinedGroundStation = {
 }
 
 export type DigitalThreadResponse = {
+  adapters?: {
+    gmat?: {
+      electricPropulsionTransfer?: { values?: Record<string, string | number | null> }
+      orbitKeeping?: { values?: Record<string, string | number | null> }
+    }
+  }
   document: {
     digital_thread?: { satellite_definition?: { id?: string; version?: string } }
     analysis_requests?: { simu_cic?: SimuCicConfiguration }
@@ -33,13 +39,16 @@ export type DigitalThreadResponse = {
 }
 
 async function request<T>(path: string, options?: RequestInit) {
-  const response = await fetch(joinApiPath(undefined, path), options)
+  const response = await fetch(joinApiPath(undefined, path), { cache: 'no-store', ...options })
   const payload = await response.json() as T & { error?: unknown }
   if (!response.ok) throw new Error(typeof payload.error === 'string' ? payload.error : 'Satellite library request failed')
   return payload
 }
 
 export async function listSatelliteDefinitions() { return (await request<{ definitions: SatelliteDefinition[] }>('/satellite-library')).definitions }
+export function satelliteDefinitionDownloadUrl(definition: Pick<SatelliteDefinition, 'id' | 'version'>) {
+  return joinApiPath(undefined, `/satellite-library/${encodeURIComponent(definition.id)}/download?${new URLSearchParams({ version: definition.version }).toString()}`)
+}
 export async function getSelectedSatellite(workspaceDir?: string | null) {
   const query = workspaceDir ? `?workspaceDir=${encodeURIComponent(workspaceDir)}` : ''
   return request<DigitalThreadResponse>(`/digital-thread/satellite${query}`)

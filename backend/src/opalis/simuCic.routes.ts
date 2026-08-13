@@ -9,7 +9,7 @@ import { toGmatNativePath } from "../gmat/orbitKeepingRunner.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { PREDEFINED_GROUND_STATIONS } from "./groundStationCatalog.js"
-import { loadOrCreateDigitalThread } from "../digitalThread/digitalThreadStore.js"
+import { loadRunDigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { writeSimuCicDefinition } from "./simuCicDefinition.js"
 
 type RunBody = { runPath?: unknown }
@@ -19,7 +19,7 @@ function resolveGmatRunDir(userWorkspaceRoot: string, runPath: unknown) {
   const root = path.resolve(userWorkspaceRoot)
   const runDir = path.resolve(root, runPath)
   const normalized = runDir.split(path.sep).join("/")
-  if (!isPathInside(root, runDir) || !/\/gmat\/(?:orbit-keeping|electric-propulsion-transfer)\/[^/]+$/u.test(normalized)) return null
+  if (!isPathInside(root, runDir) || !/\/gmat\/(?:orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized)) return null
   return runDir
 }
 
@@ -46,6 +46,11 @@ function requiredSimuCicConfig(config: AppConfig) {
 
 function guiBinFor(scilabBin: string | null) {
   return scilabBin ? path.join(path.dirname(scilabBin), "WScilex.exe") : "WScilex.exe"
+}
+
+function headlessBinFor(scilabBin: string | null) {
+  if (!scilabBin) return "WScilex-cli.exe"
+  return path.join(path.dirname(scilabBin), "WScilex-cli.exe")
 }
 
 function nativePath(filePath: string) {
@@ -177,12 +182,18 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
       const settings = requiredSimuCicConfig(config)
-      const simuCicDefinition = await writeSimuCicDefinition(runDir, await loadOrCreateDigitalThread(root))
+      // Simu-CIC reads the satellite.json saved with this run. A later attitude
+      // request is synchronized into that same run file, never taken from an
+      // unrelated mutable workspace selection.
+      const simuCicDefinition = await writeSimuCicDefinition(runDir, await loadRunDigitalThreadSnapshot(runDir))
       const conversion = await convertGmatEphemeris(settings, runDir)
       const saveRoot = path.join(runDir, "opalis", "02-simu-cic", "01-execution-complete")
       const cicOutput = path.join(runDir, "opalis", "02-simu-cic", "02-fichiers-cic")
       await fs.mkdir(saveRoot, { recursive: true })
       const args = [
+        // Simu-CIC's simcicg engine requires the graphical Scilab
+        // initialization on this installation. Hide that window for the normal
+        // calculation; the dedicated action below still opens an interactive GUI.
         nativePath(settings.simuCicRunner), "--gui", "--hide-window",
         "--scilab", nativePath(guiBinFor(settings.scilabBin)),
         "--ephemeris", nativePath(conversion.convertedEphemeris),

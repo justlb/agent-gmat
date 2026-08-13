@@ -1,0 +1,32 @@
+CIC_OPM_VERS = 3.0
+CREATION_DATE  = 2026-07-16T08:19:41.179
+ORIGINATOR     = CNES
+
+COMMENT Initial osculating orbital elements
+COMMENT Semi-major axis (km)
+COMMENT Eccentricity (-)
+COMMENT Inclination (deg)
+COMMENT Right ascension of ascending node (deg)
+COMMENT Argument of pericenter (deg)
+COMMENT True Anomaly (deg)
+COMMENT Gravitational parameter (km^3/s^2)
+COMMENT Mean anomaly (deg) added as comment for information
+
+OBJECT_NAME = Sat
+OBJECT_ID = Sat
+
+CENTER_NAME = EARTH
+REF_FRAME   = ICRF
+TIME_SYSTEM = UTC
+
+COMMENT MEAN_ANOMALY = 3.5999999999e+02
+
+EPOCH = 2025-01-01T12:00:00.000
+
+SEMI_MAJOR_AXIS = 2.5640172618e+04
+ECCENTRICITY  = 7.4093622149e-01
+INCLINATION  = 5.0000269839e-01
+RA_OF_ASC_NODE  = 3.6000000000e+02
+ARG_OF_PERICENTER  = 3.6000000000e+02
+TRUE_ANOMALY  = 3.5999999989e+02
+GM  = 3.9860044150e+05

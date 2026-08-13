@@ -1,0 +1,34 @@
+{
+  "name": "EPH_GMAT-20260716-171427",
+  "status": "success",
+  "started_at": "2026-07-16T09:14:27+00:00",
+  "input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\1-conversion_vers_SIMU-CIC\\EPH_GMAT.txt",
+  "input_copy": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\00-entrees\\ephemeride-source\\EPH_GMAT.txt",
+  "inputs_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\00-entrees",
+  "simulation_source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+  "run_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427",
+  "steps": {
+    "conversion": {
+      "type": "gmat_ephemeris",
+      "records": 133,
+      "output": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\01-conversion\\EPH_GMAT_SIMU.txt"
+    },
+    "simu_cic": {
+      "ephemeris": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\01-conversion\\EPH_GMAT_SIMU.txt",
+      "scenario_scd": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\02-simu-cic\\01-execution-complete\\run_2415345269.scd",
+      "scenario_sod": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\02-simu-cic\\01-execution-complete\\run_2415345269.sod",
+      "cic_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\02-simu-cic\\02-fichiers-cic\\Sat",
+      "files": 39
+    },
+    "opalis": {
+      "cic_input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\02-simu-cic\\02-fichiers-cic\\Sat",
+      "simulation_source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+      "simulation_working_copy": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\03-opalis\\00-cas-reference\\cas A.opalis",
+      "case": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\03-opalis\\02-resultats\\EPH_GMAT-20260716-171427.opalis",
+      "summary": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_GMAT-20260716-171427\\03-opalis\\02-resultats\\EPH_GMAT-20260716-171427.json",
+      "simulation_executed": true,
+      "quality_warnings": []
+    }
+  },
+  "finished_at": "2026-07-16T09:14:33+00:00"
+}

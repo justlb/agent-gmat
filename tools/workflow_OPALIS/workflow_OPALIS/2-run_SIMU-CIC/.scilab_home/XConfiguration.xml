@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<interface height="600" path="1/" version="0.19" width="800">
+    <general title="_(General)">
+        <body>
+            <environment container_disp_max_depth="2" fpe="2" polynomial-display="0" printing-format="v" recursion-limit="1000" width="10">
+                <fpe code="0" floating-point-exception="_(Produces an error)"/>
+                <fpe code="1" floating-point-exception="_(Produces a warning)"/>
+                <fpe code="2" floating-point-exception="_(Produces Inf or NaN)"/>
+                <printing-format code="v" format="_(Variable format)"/>
+                <printing-format code="e" format="_(Scientific format)"/>
+                <polynomial-display code="0" format="_(ASCII)"/>
+                <polynomial-display code="1" format="_(Unicode)"/>
+            </environment>
+            <languages lang="">
+                <!-- Will use Scilab default language by default -->
+                <language code="en_US" desc="_(English)"/>
+                <language code="fr_FR" desc="_(French)"/>
+                <language code="pt_BR" desc="_(Portugese (Brazil))"/>
+                <language code="ca_ES" desc="_(Catalan)"/>
+                <language code="cs_CZ" desc="_(Czech)"/>
+                <language code="es_ES" desc="_(Spanish)"/>
+                <language code="it_IT" desc="_(Italian)"/>
+                <language code="pl_PL" desc="_(Polish)"/>
+                <language code="ru_RU" desc="_(Russian)"/>
+                <language code="zh_CN" desc="_(Chinese (Simplified))"/>
+                <language code="zh_TW" desc="_(Chinese (Traditional))"/>
+                <language code="de_DE" desc="_(German)"/>
+                <language code="ja_JP" desc="_(Japanese)"/>
+                <language code="uk_UA" desc="_(Ukrainian)"/>
+            </languages>
+            <java-heap-memory heap-size="0"/>
+            <startup default="" previous="" title="_(Start-up directory)" use="current"/>
+        </body>
+        <confirmation-dialogs title="_(Confirmation dialogs)">
+            <body>
+                <tools>
+                    <tool description="_(Warn before exiting Scilab)" id="console-exit" name="Console" state="checked"/>
+                    <tool description="_(Warn before deleting Command History items)" id="delete-history-item" name="Command History" state="checked"/>
+                    <tool description="_(Warn before clearing the Console)" id="console-clear" name="Console" state="checked"/>
+                </tools>
+            </body>
+        </confirmation-dialogs>
+        <desktop-layout title="_(Desktop layout)">
+            <body>
+                <layouts id="0" save-desktop="true">
+                    <layout id="0" image="file:///$SCI/modules/gui/images/preferences/integrated.png" name="_(Integrated)" path="$SCI/modules/gui/etc/integratedConfiguration.xml"/>
+                    <layout id="1" image="file:///$SCI/modules/gui/images/preferences/simple.png" name="_(Simple)" path="$SCI/modules/gui/etc/simpleConfiguration.xml"/>
+                </layouts>
+            </body>
+        </desktop-layout>
+        <shortcuts title="_(Shortcuts)">
+            <body>
+                <actions active="scilab" browse="--choose a file --" filter="" item="1" name="Console">
+                    <action-folder name="Console" xconf-uid="console">
+                        <action description="_(Cut or interrupt)" key="Ctrl X" name="console-cut-or-interrupt"/>
+                        <action description="_(Copy or interrupt)" key="Ctrl C" name="console-copy-or-interrupt"/>
+                        <action description="_(Select all)" key="Ctrl S" name="console-select-all"/>
+                        <action description="_(Line beginning)" key="Ctrl A" name="console-line-begin"/>
+                        <action description="_(Line end)" key="Ctrl E" name="console-line-end"/>
+                        <action description="_(Previous char)" key="Ctrl B" name="console-prev-char"/>
+                        <action description="_(Delete next char)" key="Ctrl D" name="console-del-next-char"/>
+                        <action description="_(Delete previous char)" key="Ctrl H" name="console-del-prev-char"/>
+                        <action description="_(Delete end of line)" key="Ctrl K" name="console-del-end-line"/>
+                        <action description="_(Delete whole line)" key="Ctrl U" name="console-del-whole-line"/>
+                        <action description="_(Delete whole line)" key="ESCAPE" name="console-del-whole-line"/>
+                        <action description="_(Delete last word)" key="Ctrl W" name="console-del-last-word"/>
+                        <action description="_(Previous console page)" key="PAGE_UP" name="console-prev-page"/>
+                        <action description="_(Next console page)" key="PAGE_DOWN" name="console-next-page"/>
+                        <action description="_(Validate input)" key="ENTER" name="console-enter"/>
+                        <action description="_(Clear console)" key="F2" name="console-clear"/>
+                        <action description="_(Console box)" key="F12" name="console-box"/>
+                        <action description="_(Completion)" key="Ctrl SPACE" name="console-completion"/>
+                        <action description="_(Completion)" key="TAB" name="console-completion"/>
+                        <action description="_(Previous history line)" key="UP" name="console-prev-history"/>
+                        <action description="_(Next history line)" key="DOWN" name="console-next-history"/>
+                        <action description="_(Previous history line)" key="Ctrl N" name="console-prev-history"/>
+                        <action description="_(Next history line)" key="Ctrl P" name="console-next-history"/>
+                        <action description="_(Help Browser)" key="F1" name="console-help-browser"/>
+                        <action description="_(Console Search Field)" key="F3" name="console-search-field"/>
+                        <action description="_(Console Search Field)" key="Ctrl F" name="console-search-field"/>
+                        <!--action key="OSSCKEY V" description="_(Paste)" name="console-paste"/>
+          <action key="OSSCKEY O" description="_(Open a file)" name="console-open"/>
+          <action key="OSSCKEY L" description="_(Load environment)" name="console-load"/>
+          <action key="OSSCKEY S" description="_(Save environment)" name="console-save"/>
+          <action key="OSSCKEY Q" description="_(Quit)" name="console-quit"/>
+          <action key="" description="_(Execute)" name="console-execute"/>
+          <action key="" description="_(Empty clipboard)" name="console-empty-clipboard"/>
+          <action key="" description="_(Change current directory)" name="console-change-cwd"/>
+          <action key="" description="_(Display current directory)" name="console-display-cwd"/>
+          <action key="" description="_(Page setup)" name="console-page-setup"/>
+          <action key="" description="_(Print)" name="console-print"/>
+          <action key="" description="_(Preferences)" name="console-prefs"/>
+          <action key="" description="_(Show/Hide toolbar)" name="console-sh-toolbar"/>
+          <action key="" description="_(Clear history)" name="console-clear-history"/>
+          <action key="" description="_(Resume)" name="console-resume"/>
+          <action key="" description="_(Abort)" name="console-abort"/>
+          <action key="" description="_(Interrupt)" name="console-interrupt"/>
+          <action key="" description="_(Launch SciNotes)" name="console-scinotes"/>
+          <action key="" description="_(Launch Xcos)" name="console-xcos"/>
+          <action key="" description="_(Matlab to Scilab Translator)" name="console-matsci-translator"/>
+          <action key="" description="_(Module manager)" name="console-atoms"/>
+          <action key="" description="_(Variable Browser)" name="console-variable-browser"/>
+          <action key="" description="_(Command History)" name="console-history-browser"/>
+          <action key="" description="_(File Browser)" name="console-file-browser"/>
+          <action key="" description="_(Demonstrations)" name="console-demos"/>
+          <action key="" description="_(Open Scilab website)" name="console-scilab-website"/>
+          <action key="" description="_(Open Online Help)" name="console-help-website"/>
+          <action key="" description="_(Open Scilab wiki)" name="console-wiki-website"/>
+          <action key="" description="_(Open ATOMS website)" name="console-atom-website"/>
+          <action key="" description="_(Open File Exchange website)" name="console-fileex-website"/>
+          <action key="" description="_(Open Mailing lists)" name="console-ml-website"/>
+          <action key="" description="_(Open Forge website)" name="console-forge-website"/>
+          <action key="" description="_(Open Bugzilla)" name="console-bugzilla-website"/>
+          <action key="Shift F1" description="_(About Scilab)" name="console-about"/-->
+                    </action-folder>
+                    <action-folder name="Scinotes" xconf-uid="scinotes">
+                        <action description="_(Auto complete (, [,...)" key="Ctrl H" name="scinotes-autocomplete-openers"/>
+                        <action description="_(Auto complete keyword)" key="Ctrl Shift H" name="scinotes-autocomplete-keyword"/>
+                        <action description="_(Generate Help prototype)" key="Ctrl Shift G" name="scinotes-help-prototype"/>
+                        <action description="_(Tabify)" key="TAB" name="scinotes-tabify"/>
+                        <action description="_(Untabify)" key="Shift TAB" name="scinotes-untabify"/>
+                        <action description="_(Indent)" key="Ctrl I" name="scinotes-indent"/>
+                        <action description="_(Comment)" key="Ctrl D" name="scinotes-comment"/>
+                        <action description="_(Uncomment)" key="Ctrl Shift D" name="scinotes-uncomment"/>
+                        <action description="_(Remove trailing whites)" key="Ctrl Shift W" name="scinotes-remove-whites"/>
+                        <action description="_(Select all)" key="Ctrl A" name="scinotes-select-all"/>
+                        <action description="_(Select block)" key="Ctrl B" name="scinotes-select-block"/>
+                        <action description="_(Open current tab in a new window)" key="Ctrl Shift T" name="scinotes-clone-current"/>
+                        <action description="_(Export current tab in a new window)" key="Ctrl Shift X" name="scinotes-export-current"/>
+                        <action description="_(Copy)" key="Ctrl C" name="scinotes-copy"/>
+                        <action description="_(Cut)" key="Ctrl X" name="scinotes-cut"/>
+                        <action description="_(Paste)" key="Ctrl V" name="scinotes-paste"/>
+                        <action description="_(Paste a column)" key="Ctrl Shift V" name="scinotes-paste-column"/>
+                        <action description="_(Repeat selection on column)" key="Ctrl Shift Z" name="scinotes-repeat-column"/>
+                        <action description="_(Undo)" key="Ctrl Z" name="scinotes-undo"/>
+                        <action description="_(Redo)" key="Ctrl Y" name="scinotes-redo"/>
+                        <action description="_(Copy as HTML with line number)" key="Ctrl Shift C" name="scinotes-copy-with-lines"/>
+                        <action description="_(New)" key="Ctrl N" name="scinotes-new"/>
+                        <action description="_(Open)" key="Ctrl O" name="scinotes-open"/>
+                        <action description="_(Open URL)" key="Ctrl U" name="scinotes-open-url"/>
+                        <action description="_(Open source)" key="Ctrl Shift O" name="scinotes-open-source"/>
+                        <action description="_(Save)" key="Ctrl S" name="scinotes-save"/>
+                        <action description="_(Save as)" key="Ctrl Shift S" name="scinotes-save-as"/>
+                        <action description="_(Reload)" key="Ctrl Shift R" name="scinotes-reload"/>
+                        <action description="_(Print preview)" key="Ctrl Shift P" name="scinotes-print-preview"/>
+                        <action description="_(Print)" key="Ctrl P" name="scinotes-print"/>
+                        <action description="_(Close)" key="Ctrl W" name="scinotes-close"/>
+                        <action description="_(Exit)" key="Ctrl Q" name="scinotes-exit"/>
+                        <action description="_(To lower case)" key="Ctrl J" name="scinotes-tolowercase"/>
+                        <action description="_(To upper case)" key="Ctrl Shift J" name="scinotes-touppercase"/>
+                        <action description="_(Capitalize)" key="Ctrl Shift A" name="scinotes-capitalize"/>
+                        <action description="_(Help on keyword)" key="Ctrl F1" name="scinotes-help-keyword"/>
+                        <action description="_(Load in Scilab)" key="Ctrl L" name="scinotes-load-scilab"/>
+                        <action description="_(Execute in Scilab)" key="Ctrl Shift E" name="scinotes-execute-scilab"/>
+                        <action description="_(Evaluate selection)" key="Ctrl E" name="scinotes-evaluate-selection"/>
+                        <action description="_(Save and execute)" key="F5" name="scinotes-save-execute"/>
+                        <action description="_(Save and execute all)" key="Ctrl F5" name="scinotes-save-execute-all"/>
+                        <action description="_(Find)" key="Ctrl F" name="scinotes-find"/>
+                        <action description="_(Find next)" key="Ctrl K" name="scinotes-find-next"/>
+                        <action description="_(Find previous)" key="Ctrl Shift K" name="scinotes-find-previous"/>
+                        <action description="_(Incremental search)" key="F3" name="scinotes-incremental-search"/>
+                        <action description="_(Set anchor)" key="Ctrl M" name="scinotes-set-anchor"/>
+                        <action description="_(Remove anchor)" key="Ctrl Shift M" name="scinotes-remove-anchor"/>
+                        <action description="_(Go to next anchor)" key="Ctrl Shift LESS" name="scinotes-next-anchor"/>
+                        <action description="_(Go to previous anchor)" key="Ctrl LESS" name="scinotes-previous-anchor"/>
+                        <action description="_(Start Code Navigator)" key="Ctrl G" name="scinotes-code-navigator"/>
+                        <action description="_(Search word in file)" key="Ctrl Shift F" name="scinotes-word-file"/>
+                        <action description="_(Search files)" key="Ctrl Shift B" name="scinotes-search-files"/>
+                        <action description="_(Keyword completion)" key="Ctrl SPACE" name="scinotes-completion"/>
+                        <action description="_(Help)" key="F1" name="scinotes-help"/>
+                        <action description="_(About)" key="Shift F1" name="scinotes-about"/>
+                        <action description="_(Next tab)" key="Ctrl PAGE_DOWN" name="scinotes-next-tab"/>
+                        <action description="_(Previous tab)" key="Ctrl PAGE_UP" name="scinotes-previous-tab"/>
+                        <action description="_(Delete)" key="DELETE" name="scinotes-delete"/>
+                        <action description="_(Next paragraph)" key="Ctrl DOWN" name="scinotes-next-paragraph"/>
+                        <action description="_(Previous paragraph)" key="Ctrl UP" name="scinotes-previous-paragraph"/>
+                        <action description="_(Save all)" key="" name="scinotes-save-all"/>
+                        <action description="_(Overwrite)" key="" name="scinotes-overwrite"/>
+                        <action description="_(Page setup)" key="" name="scinotes-page-setup"/>
+                        <action description="_(Close all)" key="" name="scinotes-close-all"/>
+                        <action description="_(Close all but this)" key="" name="scinotes-close-all-but"/>
+                        <action description="_(Convert quote to double quote)" key="" name="scinotes-double-quote"/>
+                        <action description="_(Line numbering)" key="" name="scinotes-line-numbering"/>
+                        <action description="_(Set the SciNotes font)" key="" name="scinotes-set-font"/>
+                        <action description="_(Set the SciNotes colors)" key="" name="scinotes-set-colors"/>
+                    </action-folder>
+                    <action-folder name="Xcos" xconf-uid="xcos">
+                        <!-- File -->
+                        <action description="_(New diagram)" key="Ctrl N" name="xcos-new"/>
+                        <action description="_(Open)" key="Ctrl O" name="xcos-open"/>
+                        <action description="_(Open file in Scilab current directory)" key="" name="xcos-open-in-sci"/>
+                        <action description="_(Save)" key="Ctrl S" name="xcos-save"/>
+                        <action description="_(Save as)" key="Ctrl Shift S" name="xcos-save-as"/>
+                        <action description="_(Export)" key="Ctrl E" name="xcos-export"/>
+                        <action description="_(Print)" key="Ctrl P" name="xcos-print"/>
+                        <action description="_(Close)" key="Ctrl W" name="xcos-close"/>
+                        <action description="_(Quit Xcos)" key="Ctrl Q" name="xcos-quit"/>
+                        <!-- Edit -->
+                        <action description="_(Undo)" key="Ctrl Z" name="xcos-undo"/>
+                        <action description="_(Redo)" key="Ctrl Y" name="xcos-redo"/>
+                        <action description="_(Cut)" key="Ctrl X" name="xcos-cut"/>
+                        <action description="_(Copy)" key="Ctrl C" name="xcos-copy"/>
+                        <action description="_(Paste)" key="Ctrl V" name="xcos-paste"/>
+                        <action description="_(Delete)" key="Ctrl DELETE" name="xcos-delete"/>
+                        <action description="_(Select all)" key="Ctrl A" name="xcos-select-all"/>
+                        <action description="_(Invert selection)" key="" name="xcos-invert-selection"/>
+                        <action description="_(Block Parameters)" key="Ctrl B" name="xcos-block-parameters"/>
+                        <action description="_(Region to superblock)" key="" name="xcos-region-to-superblock"/>
+                        <!-- View -->
+                        <action description="_(Zoom In)" key="Ctrl ADD" name="xcos-zoom-in"/>
+                        <action description="_(Zoom Out)" key="Ctrl SUBTRACT" name="xcos-zoom-out"/>
+                        <action description="_(Fit diagram to view)" key="Ctrl SPACE" name="xcos-fit-diagram"/>
+                        <action description="_(Normal 100%)" key="" name="xcos-zoom-normal"/>
+                        <action description="_(Palette browser)" key="" name="xcos-view-palette"/>
+                        <action description="_(Diagram browser)" key="" name="xcos-view-diagram"/>
+                        <action description="_(Viewport)" key="" name="xcos-view-viewport"/>
+                        <action description="_(Details)" key="" name="xcos-view-details"/>
+                        <!-- Simulation -->
+                        <action description="_(Setup)" key="" name="xcos-setup"/>
+                        <action description="_(Execution trace and Debug)" key="" name="xcos-debug-level"/>
+                        <action description="_(Set Context)" key="" name="xcos-set-context"/>
+                        <action description="_(Compile)" key="" name="xcos-compile"/>
+                        <action description="_(Start)" key="" name="xcos-start"/>
+                        <action description="_(Stop)" key="" name="xcos-stop"/>
+                        <!-- Format -->
+                        <action description="_(Rotate)" key="Ctrl R" name="xcos-rotate"/>
+                        <action description="_(Flip)" key="Ctrl F" name="xcos-flip"/>
+                        <action description="_(Mirror)" key="Ctrl M" name="xcos-mirror"/>
+                        <action description="_(Show/Hide shadow)" key="" name="xcos-shadow"/>
+                        <action description="_(Left)" key="" name="xcos-align-left"/>
+                        <action description="_(Center)" key="" name="xcos-align-center"/>
+                        <action description="_(Right)" key="" name="xcos-align-right"/>
+                        <action description="_(Top)" key="" name="xcos-align-top"/>
+                        <action description="_(Middle)" key="" name="xcos-align-middle"/>
+                        <action description="_(Bottom)" key="" name="xcos-align-bottom"/>
+                        <action description="_(Border Color)" key="" name="xcos-border-color"/>
+                        <action description="_(Fill Color)" key="" name="xcos-fill-color"/>
+                        <action description="_(Horizontal)" key="H" name="xcos-link-horizontal"/>
+                        <action description="_(Straight)" key="S" name="xcos-link-straight"/>
+                        <action description="_(Vertical)" key="V" name="xcos-fill-vertical"/>
+                        <action description="_(Diagram background)" key="" name="xcos-background"/>
+                        <action description="_(Grid)" key="" name="xcos-grid"/>
+                        <!-- Tools -->
+                        <action description="_(Code generation)" key="" name="xcos-code-generation"/>
+                        <!-- Help -->
+                        <action description="_(Xcos Help)" key="F1" name="xcos-help"/>
+                        <action description="_(Block Help)" key="Ctrl H" name="xcos-help-block"/>
+                        <action description="_(Xcos Demonstrations)" key="" name="xcos-demo"/>
+                        <action description="_(About Xcos)" key="" name="xcos-about"/>
+                    </action-folder>
+                    <!--action-folder name="Variable Browser" xconf-uid="browsevar">
+          <action key="OSSCKEY S" description="_(Save)" name="variablebrowser-save"/>
+        </action-folder>
+        <action-folder name="Variable Editor" xconf-uid="editvar">
+          <action key="OSSCKEY S" description="_(Save variable)" name="editvar-save"/>
+        </action-folder>
+        <action-folder name="History Browser" xconf-uid="historybrowser">
+          <action key="OSSCKEY S" description="_(Save history)" name="historybrowser-save"/>
+        </action-folder>
+        <action-folder name="File Browser" xconf-uid="filebrowser">
+          <action key="OSSCKEY S" description="_(Save file)" name="filebrowser-save"/>
+        </action-folder-->
+                </actions>
+            </body>
+        </shortcuts>
+        <documentation title="_(Help and demos)">
+            <body>
+                <demos demoGUIisDockable="unchecked"/>
+                <help redirectMatlab2Scilab="unchecked"/>
+            </body>
+        </documentation>
+    </general>
+    <web title="_(Web)">
+        <body>
+            <web command-browser="" command-mailer="" default-browser="true" default-mailer="true"/>
+            <proxy enabled="false" host="" password="" port="" user=""/>
+            <cookies mode="2">
+                <mode code="0" description="Disabled"/>
+                <mode code="1" description="Normal"/>
+                <mode code="2" description="Private"/>
+            </cookies>
+            <previous-proxy enabled="false" host="" password="" port="" user=""/>
+        </body>
+    </web>
+    <preference title="_(Preferences)">
+        <body>
+            <backups restore-path="" save-path=""/>
+        </body>
+    </preference>
+    <fonts title="_(Fonts)">
+        <body>
+            <fonts font-face="plain" font-name="Monospaced" font-size="13" item="Console" latex="15" system="true">
+                <item desktop="false" font-face="plain" font-name="Monospaced" font-size="13" name="Console" xconf-uid="console-font"/>
+                <item desktop="false" font-face="plain" font-name="Monospaced" font-size="12" name="Scinotes" xconf-uid="scinotes-font"/>
+                <!--item name="Command History" desktop="true" font-name="Monospaced" font-face="plain" font-size="10"/>
+      <item name="Variable Browser" desktop="true" font-name="Monospaced" font-face="plain" font-size="10"/>
+      <item name="Help" desktop="true" font-name="Monospaced" font-face="plain" font-size="10"/>
+      <item name="Variables Editor" desktop="true" font-name="Monospaced" font-face="plain" font-size="10"/-->
+            </fonts>
+        </body>
+    </fonts>
+    <colors title="_(Colors)">
+        <body>
+            <desktop-colors background="#ffffff" cursor="#000000" text="#000000" use-system-color="true"/>
+            <syntax-highlighting-colors name="Default">
+                <item bold="false" color="#000000" italic="false" name="Default" strike-through="false" underline="false"/>
+                <item bold="false" color="#FFAA00" italic="false" name="Special" strike-through="false" underline="false"/>
+                <item bold="false" color="#5C5C5C" italic="false" name="Operator" strike-through="false" underline="false"/>
+                <item bold="false" color="#32B9B9" italic="false" name="Primitive" strike-through="false" underline="false"/>
+                <item bold="false" color="#AE5CB0" italic="false" name="Macro" strike-through="false" underline="true"/>
+                <item bold="false" color="#000000" italic="false" name="MacroInFile" strike-through="false" underline="true"/>
+                <item bold="false" color="#BC8F8F" italic="false" name="String" strike-through="false" underline="false"/>
+                <item bold="false" color="#FF0000" italic="false" name="ExternalVariable" strike-through="false" underline="false"/>
+                <item bold="true" color="#834310" italic="false" name="InputOutputArgs" strike-through="false" underline="false"/>
+                <item bold="false" color="#000000" italic="false" name="Identifier" strike-through="false" underline="false"/>
+                <item bold="false" color="#64AE64" italic="true" name="Comment" strike-through="false" underline="false"/>
+                <item bold="false" color="#AAAAAA" italic="false" name="Field" strike-through="false" underline="false"/>
+                <item bold="false" color="#B01813" italic="false" name="FunctionKwd" strike-through="false" underline="false"/>
+                <item bold="false" color="#0000FF" italic="false" name="Url" strike-through="false" underline="true"/>
+                <item bold="false" color="#0000FF" italic="false" name="Mail" strike-through="false" underline="true"/>
+                <item bold="false" color="#BC8F8F" italic="false" name="Number" strike-through="false" underline="false"/>
+                <item bold="false" color="#5F9EA0" italic="false" name="Control" strike-through="false" underline="false"/>
+                <item bold="false" color="#A020F0" italic="false" name="Structure" strike-through="false" underline="false"/>
+                <item bold="false" color="#DA70D6" italic="false" name="Constantes" strike-through="false" underline="false"/>
+                <item bold="false" color="#DCDCDC" italic="false" name="White" strike-through="false" underline="false"/>
+                <item bold="false" color="#90F790" italic="true" name="WhiteInComment" strike-through="false" underline="false"/>
+                <item bold="false" color="#E9B1B1" italic="false" name="WhiteInString" strike-through="false" underline="false"/>
+                <item bold="false" color="#DCDCDC" italic="false" name="Tabulation" strike-through="false" underline="false"/>
+                <item bold="false" color="#90F790" italic="true" name="TabulationInComment" strike-through="false" underline="false"/>
+                <item bold="false" color="#E9B1B1" italic="false" name="TabulationInString" strike-through="false" underline="false"/>
+                <item bold="false" color="#8B2252" italic="false" name="LaTeXInComment" strike-through="false" underline="false"/>
+                <item bold="false" color="#8B2252" italic="false" name="LaTeXInString" strike-through="false" underline="false"/>
+                <item bold="false" color="#4A55DB" italic="false" name="OpenClose" strike-through="false" underline="false"/>
+                <item bold="true" color="#F46700" italic="false" name="Todo" strike-through="false" underline="false"/>
+            </syntax-highlighting-colors>
+        </body>
+    </colors>
+    <console title="_(Console)">
+        <body>
+            <display adapt-to-display="true" columns-to-display="80" lines-to-display="100" scroll-size="3000" tab-size="4" wrap-lines="true"/>
+        </body>
+    </console>
+    <command-history title="_(Command history)">
+        <body>
+            <history-settings enable="true" history-file="SCIHOME/history" history-lines="20000"/>
+            <history-save after="1" kind="quit"/>
+        </body>
+    </command-history>
+    <scinotes title="Scinotes">
+        <body>
+            <scinotes-preferences add-line-termination="true" cmd="" complete-at-eol="false" encoding="utf-8" eol="" external-cmd="true" macro="" number-of-recently-open="5" restart-reopen="true" scinotes="true"/>
+        </body>
+        <display title="_(Display)">
+            <body>
+                <scinotes-display auto-complete-keywords="true" auto-complete-openers="true" automatic-indent="true" background-color="#FFFFFF" brackets-color="#E40087" brackets-highlightment="Underlined" brackets-onmouseover="true" caret-color="#000000" current-line-color="#FACADE" highlight-brackets="true" highlight-current-line="false" highlight-keywords="true" indent-size="4" keywords-color="#FFF3D2" keywords-colorization="true" keywords-highlightment="Filled" keywords-onmouseover="true" show-line-numbers="true" tab-representation="chevrons" tab-size="4" use-spaces="true" whereami="true" wrap-lines="true"/>
+            </body>
+        </display>
+        <header title="_(Header)">
+            <body>
+                <scinotes-header enable="false"><![CDATA[// Copyright (C) {$current-year} - Corporation - Author
+//
+// About your license if you have any
+//
+// Date of creation: {$current-date}
+//
+]]></scinotes-header>
+            </body>
+        </header>
+        <autosave title="_(Autosave)">
+            <body>
+                <scinotes-autosave append-filename="true" append-with="~" automatic-delete="true" enable="true" replace-with="tmp" save-every="5" single-directory="" source-flag="true"/>
+            </body>
+        </autosave>
+    </scinotes>
+    <xcos title="Xcos">
+        <body>
+            <xcos-preferences file-format="0" number-of-recently-open="5">
+                <file-format code="0" description="ZCOS"/>
+                <file-format code="1" description="XCOS"/>
+            </xcos-preferences>
+        </body>
+        <edition title="Edition">
+            <body>
+                <xcos-edition edge-style="0" graph-background="0xffffff" graph-grid="10" graph-grid-enable="true">
+                    <edge-style code="0" description="_(Straight)"/>
+                    <edge-style code="1" description="_(Horizontal)"/>
+                    <edge-style code="2" description="_(Vertical)"/>
+                </xcos-edition>
+            </body>
+        </edition>
+        <simulation title="Simulation">
+            <body>
+                <xcos-simulation final-integration-time="1.0E05" integrator-absolute-tolerance="1.0E-06" integrator-relative-tolerance="1.0E-06" max-integration-interval="1.00001E05" max-step-size="0.0" real-time-scaling="0.0E00" solver="1" tolerance-on-time="1.0E-10" trace="0">
+                    <!-- Available solver values list from scicos -->
+                    <solver code="0" description="LSodar"/>
+                    <solver code="1" description="Sundials/CVODE - BDF - NEWTON"/>
+                    <solver code="2" description="Sundials/CVODE - BDF - FUNCTIONAL"/>
+                    <solver code="3" description="Sundials/CVODE - ADAMS - NEWTON"/>
+                    <solver code="4" description="Sundials/CVODE - ADAMS - FUNCTIONAL"/>
+                    <solver code="5" description="DOPRI5 - Dormand-Prince 4(5)"/>
+                    <solver code="6" description="RK45 - Runge-Kutta 4(5)"/>
+                    <solver code="7" description="Implicit RK45 - Implicit Runge-Kutta 4(5) - FIXED-POINT"/>
+                    <solver code="8" description="CRANI - Crank-Nicolson 2(3) - FIXED-POINT"/>
+                    <solver code="100" description="Sundials/IDA"/>
+                    <solver code="101" description="DDaskr - BDF"/>
+                    <!-- Available trace values lists from scicos -->
+                    <trace code="0" description="_(No trace nor debug printing)"/>
+                    <trace code="1" description="_(Light Simulation trace (Discrete and Continuous part switches))"/>
+                    <trace code="2" description="_(Per block execution trace and Debug block calls)"/>
+                    <trace code="3" description="_(Debug block calls without trace)"/>
+                </xcos-simulation>
+            </body>
+        </simulation>
+    </xcos>
+</interface>

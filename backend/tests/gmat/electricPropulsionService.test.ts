@@ -65,7 +65,6 @@ describe("electric-propulsion transfer renderer", () => {
     assert.equal(result.result.status, "generated")
     assert.match(result.scriptPath, /gmat[\\/]electric-propulsion-transfer[\\/]test-mission[\\/]electric_propulsion_transfer\.script$/u)
     assert.match(script, /daysofpropagation\s*= 2/u)
-    assert.match(script, /DefaultSC\.ElapsedDays\s*= daysofpropagation/u)
     assert.match(script, /DefaultSC\.DisplayStateType\s*= Keplerian/u)
     assert.match(script, /DefaultSC\.SMA\s*= 7191\.938817629013/u)
     assert.match(script, /DefaultSC\.RAAN\s*= 0;/u)
@@ -73,6 +72,7 @@ describe("electric-propulsion transfer renderer", () => {
     assert.match(script, /DefaultSC\.TA\s*= 0;/u)
     assert.match(script, /ElectricTransferReport\.Filename\s*= '.*ElectricTransferReport\.txt';/u)
     assert.match(script, /ElectricTransferReport\.Add\s*= \{DefaultSC\.ElapsedDays, DefaultSC\.SMA,/u)
+    assert.match(script, /While 'Sample electric transfer for OEM output'[\s\S]*?Propagate 'Propagate one output step'[\s\S]*?Report ElectricTransferReport DefaultSC\.ElapsedDays/u)
     assert.match(script, /EphemerisFile1\.Filename\s*= 'EphemerisFile1\.oem';/u)
     assert.match(result.ephemerisPath, /gmat[\\/]electric-propulsion-transfer[\\/]test-mission[\\/]EphemerisFile1\.oem$/u)
     assert.match(script, /DefaultSC\.SolarPowerSystem1\.ThrustPowerAvailable/u)
@@ -80,6 +80,38 @@ describe("electric-propulsion transfer renderer", () => {
     await fs.access(result.manifestPath)
     const manifest = JSON.parse(await fs.readFile(result.manifestPath, "utf8")) as { templateSha256?: unknown }
     assert.match(String(manifest.templateSha256), /^[a-f0-9]{64}$/u)
+  })
+
+  it("calibrates the generated script from the selected satellite without modifying the reference template", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-electric-calibration-"))
+    await fs.writeFile(path.join(workspaceDir, "satellite.json"), JSON.stringify({
+      satellite: { bus: { propulsion_subsystem: {
+        nominal_thrust_newtons: 0.01,
+        nominal_duty_cycle: 0.25,
+        specific_impulse_seconds: 1600,
+        electric_thruster: { nominal_thruster_power_kw: 1 },
+      } } },
+    }), "utf8")
+    const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
+    const values = extractElectricPropulsionValues(template)
+    const duration = values.slots.find(slot => slot.context.startsWith("daysofpropagation ="))
+    assert.ok(duration)
+    const result = await generateElectricPropulsionMission({
+      artifactId: "calibrated", request: "calibrated transfer", workspaceDir,
+      changes: [{ id: duration.id, value: "21" }],
+    })
+    const generatedScript = await fs.readFile(result.scriptPath, "utf8")
+    const calibration = JSON.parse(await fs.readFile(path.join(result.runDir, "electric_propulsion_calibration.json"), "utf8")) as { dutyCycle: number; fixedEfficiency: number; ispSeconds: number; nominalPowerKw: number; nominalThrustNewtons: number }
+    assert.match(generatedScript, /ElectricThruster1\.ThrustModel = FixedEfficiency;/u)
+    assert.match(generatedScript, /ElectricThruster1\.Isp = 1600;/u)
+    assert.match(generatedScript, /ElectricThruster1\.FixedEfficiency = 0\.3138128;/u)
+    assert.match(generatedScript, /ElectricThruster1\.DutyCycle = 0\.25;/u)
+    assert.equal(calibration.nominalThrustNewtons, 0.01)
+    assert.equal(calibration.nominalPowerKw, 1)
+    assert.equal(calibration.dutyCycle, 0.25)
+    assert.equal(calibration.fixedEfficiency, 0.3138128)
+    assert.equal(calibration.ispSeconds, 1600)
+    assert.equal(await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8"), template)
   })
 
   it("rejects a patch that tries to change the fixed report structure", async () => {

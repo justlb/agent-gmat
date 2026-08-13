@@ -1,0 +1,22 @@
+RUN : generation-scd-finale
+STATUT : failed
+
+OU TROUVER LES FICHIERS
+-----------------------
+Entrees conservees       : 00-entrees
+Ephemeride convertie     : 01-conversion\EPH_GMAT_SIMU.txt
+Fichiers CIC pour OPALIS : pas encore disponible
+Cas OPALIS final         : pas encore disponible
+Resume OPALIS JSON       : pas encore disponible
+
+ORGANISATION
+------------
+00-entrees          copies des fichiers fournis au workflow
+01-conversion       ephemeride convertie au format *-SIMU.txt
+02-simu-cic         execution Simu-CIC et fichiers CIC generes
+03-opalis           cas A, flux dynamiques et resultats OPALIS
+workflow.json       manifeste technique complet
+
+ERREUR
+------
+La commande a echoue avec le code 1 : C:\Users\justine\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe C:\JUSTINE\APP\workflow_OPALIS\2-run_SIMU-CIC\run_scilab_simulation.py --ephemeris C:\JUSTINE\APP\workflow_OPALIS\resultats_workflow\generation-scd-finale\01-conversion\EPH_GMAT_SIMU.txt --base-scenario C:\JUSTINE\APP\SIMU_CIC\simu_cic\GUI\examples\Example_1.scd --simucic-dir C:\JUSTINE\APP\SIMU_CIC\simu_cic --save-root C:\JUSTINE\APP\workflow_OPALIS\resultats_workflow\generation-scd-finale\02-simu-cic\01-execution-complete --cic-output C:\JUSTINE\APP\workflow_OPALIS\resultats_workflow\generation-scd-finale\02-simu-cic\02-fichiers-cic --nadir-axis +X --trace-axis +Y

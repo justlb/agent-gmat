@@ -103,12 +103,12 @@ function metricRange(samples: AnalysisSample[], metric: Metric) {
   return values.length ? { maximum: Math.max(...values), minimum: Math.min(...values) } : null
 }
 
-export function GmatAnalysisPanel({ runPath, runs = [] }: { runPath?: string; runs?: Array<{ result: { finalFuelMassKg?: number; fuelUsedBetweenReportsKg?: number; minimumReportedAltitudeKm?: number; status: string }; runId: string }> }) {
+export function GmatAnalysisPanel({ runPath, template, runs = [] }: { runPath?: string; template?: 'electric-propulsion-transfer' | 'orbit-keeping'; runs?: Array<{ result: { finalFuelMassKg?: number; fuelUsedBetweenReportsKg?: number; minimumReportedAltitudeKm?: number; status: string }; runId: string }> }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [metric, setMetric] = useState<Metric>('altitudeKm')
   const [samples, setSamples] = useState<AnalysisSample[]>([])
-  const isElectricTransfer = Boolean(runPath && /gmat[\\/]electric-propulsion-transfer[\\/]/u.test(runPath))
+  const isElectricTransfer = template ? template === 'electric-propulsion-transfer' : Boolean(runPath && /gmat[\\/]electric-propulsion-transfer[\\/]/u.test(runPath))
   const availableMetrics: Metric[] = isElectricTransfer ? ELECTRIC_TRANSFER_METRICS : ['altitudeKm', 'semiMajorAxisKm', 'fuelMassKg']
   const selectedMetric = availableMetrics.includes(metric) ? metric : availableMetrics[0]
 

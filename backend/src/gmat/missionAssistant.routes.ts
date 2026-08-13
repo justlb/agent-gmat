@@ -1,9 +1,10 @@
 import path from "node:path"
+import fs from "node:fs/promises"
 
 import type { FastifyInstance } from "fastify"
 
 import type { AppConfig } from "../config.js"
-import { loadOrCreateDigitalThread, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
+import { loadOrCreateDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
@@ -23,12 +24,16 @@ function resolveWorkspaceDir(root: string, requested: unknown) {
   return workspaceDir
 }
 
-function resolveRunDir(root: string, requested: unknown) {
+async function resolveRunDir(root: string, requested: unknown) {
   if (typeof requested !== "string" || !requested.trim()) return null
   const runDir = path.resolve(root, requested)
   const normalized = runDir.split(path.sep).join("/")
-  if (!isPathInside(path.resolve(root), runDir) || !/\/gmat\/(orbit-keeping|electric-propulsion-transfer)\/[^/]+$/u.test(normalized)) return null
-  return { runDir, template: normalized.includes("/orbit-keeping/") ? "orbit-keeping" as const : "electric-propulsion-transfer" as const }
+  if (!isPathInside(path.resolve(root), runDir) || !/\/gmat\/(orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized)) return null
+  if (normalized.includes("/orbit-keeping/")) return { runDir, template: "orbit-keeping" as const }
+  if (normalized.includes("/electric-propulsion-transfer/")) return { runDir, template: "electric-propulsion-transfer" as const }
+  const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
+  if (manifest.templateId !== "orbit-keeping" && manifest.templateId !== "electric-propulsion-transfer") return null
+  return { runDir, template: manifest.templateId }
 }
 
 function responseText(payload: unknown) {
@@ -81,13 +86,14 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
     if (!message) return reply.status(400).send({ error: "message must be a non-empty string" })
     try {
       const workspaceDir = resolveWorkspaceDir(root, req.body?.workspaceDir)
-      const activeRun = resolveRunDir(root, req.body?.runPath)
+      const activeRun = await resolveRunDir(root, req.body?.runPath)
       const intent = await classify(config, message)
       if (intent === "simu-cic") {
         const result = await updateDigitalThreadWithLlm({ connection: resolveModelBackend(config, "chatModel"), message, workspaceDir })
         const turn = { answer: result.message, askedAt: new Date().toISOString(), channel: "simu-cic" as const, question: message }
         await appendMissionConversation(workspaceDir, turn)
         if (activeRun) await appendRunConversation(activeRun.runDir, turn)
+        if (activeRun) await syncSimuCicRequestToRunSnapshot(activeRun.runDir, result.document)
         return reply.send({ answer: result.message, intent, kind: "answer" })
       }
       if (intent === "change") {
@@ -138,7 +144,7 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
       const errorMessage = getErrorMessage(error, "mission assistant request failed")
       const answer = `Mission assistant error: ${errorMessage}`
       const workspaceDir = (() => { try { return resolveWorkspaceDir(root, req.body?.workspaceDir) } catch { return null } })()
-      const activeRun = resolveRunDir(root, req.body?.runPath)
+      const activeRun = await resolveRunDir(root, req.body?.runPath)
       const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
       if (workspaceDir && activeRun) {
         await appendRunConversation(activeRun.runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: message }).catch(() => undefined)

@@ -9,7 +9,7 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { digitalThreadGmatSeed, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
-import { captureDigitalThreadSnapshot, snapshotDigitalThreadForRun } from "../digitalThread/digitalThreadStore.js"
+import { captureDigitalThreadSnapshot, draftDigitalThreadWorkspaceDir, snapshotDigitalThreadForRun } from "../digitalThread/digitalThreadStore.js"
 import { appendMissionConversation, appendRunConversation, mergeMissionConversationIntoRun, snapshotMissionConversationForRun } from "../digitalThread/missionConversationStore.js"
 import { analyzeOrbitKeepingRunWithLlm, loadOrbitKeepingRunConversation } from "./orbitKeepingAnalysis.js"
 import { defaultOrbitKeepingValuesPath, generateOrbitKeepingMission, type OrbitKeepingProgress } from "./orbitKeeping.service.js"
@@ -23,6 +23,11 @@ type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
 type OrbitKeepingFileKind = "digital-thread" | "ephemeris" | "log" | "manifest" | "report" | "result" | "script" | "timeseries" | "values"
 
+function resolveOrbitKeepingDraftArtifact(workspaceDir: string, draftId: string, fileName: string) {
+  if (!/^draft_[a-f0-9-]+$/u.test(draftId) || !["orbit_keeping.values.yaml"].includes(fileName)) return null
+  return path.join(path.resolve(workspaceDir), "gmat", "drafts", draftId, fileName)
+}
+
 function getOrbitKeepingOutputDir(userWorkspaceRoot: string) {
   return path.join(path.resolve(userWorkspaceRoot), "gmat", "orbit-keeping")
 }
@@ -31,7 +36,7 @@ function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
   if (fileName.endsWith(".script")) return "script"
   if (fileName.endsWith(".values.yaml")) return "values"
   if (fileName === "gmat_result.json") return "result"
-  if (fileName === "satellite.digital-thread.json") return "digital-thread"
+  if (fileName === "satellite.digital-thread.json" || fileName === "satellite.json") return "digital-thread"
   if (fileName === "orbit_timeseries.json") return "timeseries"
   if (fileName === "run_manifest.json") return "manifest"
   if (fileName === "ReboostReport.txt" || fileName === "OrbitAnalysisReport.txt") return "report"
@@ -43,6 +48,26 @@ function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
 async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
   const root = path.resolve(userWorkspaceRoot)
   const files: Array<{ artifactId: string; fileName: string; kind: OrbitKeepingFileKind; mtimeMs: number; relativePath: string; size: number }> = []
+  const addMissionRunFiles = async (runsDir: string) => {
+    const runs = await fs.readdir(runsDir, { withFileTypes: true }).catch(() => [])
+    for (const run of runs) {
+      if (!run.isDirectory()) continue
+      const runDir = path.join(runsDir, run.name)
+      const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
+      if (manifest.templateId !== "orbit-keeping") continue
+      const entries = await fs.readdir(runDir, { withFileTypes: true }).catch(() => [])
+      const hasUserFacingSatellite = entries.some(entry => entry.isFile() && entry.name === "satellite.json")
+      for (const entry of entries) {
+        if (!entry.isFile()) continue
+        if (hasUserFacingSatellite && entry.name === "satellite.digital-thread.json") continue
+        const kind = orbitKeepingFileKind(entry.name)
+        if (!kind) continue
+        const filePath = path.join(runDir, entry.name)
+        const stat = await fs.stat(filePath)
+        files.push({ artifactId: run.name, fileName: entry.name, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), size: stat.size })
+      }
+    }
+  }
   const visit = async (directory: string, depth: number): Promise<void> => {
     if (depth > 8) return
     const entries = await fs.readdir(directory, { withFileTypes: true }).catch(() => [])
@@ -50,6 +75,7 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
       if (!entry.isDirectory()) continue
       const child = path.join(directory, entry.name)
       if (entry.name === "gmat") {
+        await addMissionRunFiles(path.join(child, "mission-runs"))
         const outputDir = path.join(child, "orbit-keeping")
         const outputEntries = await fs.readdir(outputDir, { withFileTypes: true }).catch(() => [])
         if (outputEntries.length === 0) {
@@ -77,8 +103,9 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
           }
           if (!outputEntry.isDirectory()) continue
           const runEntries = await fs.readdir(outputPath, { withFileTypes: true }).catch(() => [])
+          const hasUserFacingSatellite = runEntries.some(entry => entry.isFile() && entry.name === "satellite.json")
           for (const runEntry of runEntries) {
-            if (runEntry.isFile()) await addOutputFile(path.join(outputPath, runEntry.name), runEntry.name)
+            if (runEntry.isFile() && !(hasUserFacingSatellite && runEntry.name === "satellite.digital-thread.json")) await addOutputFile(path.join(outputPath, runEntry.name), runEntry.name)
           }
         }
         continue
@@ -97,7 +124,7 @@ function resolveListedOrbitKeepingFilePath(userWorkspaceRoot: string, relativePa
   const normalized = filePath.split(path.sep).join("/")
   if (
     !isPathInside(root, filePath) ||
-    !/\/gmat\/orbit-keeping(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite\.digital-thread\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)
+    !/\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite(?:\.digital-thread)?\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)
   ) return null
   return filePath
 }
@@ -107,7 +134,7 @@ function resolveOrbitKeepingRunDir(userWorkspaceRoot: string, runPath: unknown) 
   const root = path.resolve(userWorkspaceRoot)
   const runDir = path.resolve(root, runPath)
   const normalized = runDir.split(path.sep).join("/")
-  if (!isPathInside(root, runDir) || !/\/gmat\/orbit-keeping\/[^/]+$/u.test(normalized)) return null
+  if (!isPathInside(root, runDir) || !/\/gmat\/(?:orbit-keeping|mission-runs)\/[^/]+$/u.test(normalized)) return null
   return runDir
 }
 
@@ -178,6 +205,17 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       return reply.status(404).send({ error: getErrorMessage(err, "GMAT draft not found") })
     }
   })
+  fastify.get<{ Params: { draftId: string }; Querystring: { file?: string; workspaceDir?: string } }>("/api/gmat/orbit-keeping/drafts/:draftId/download", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const fileName = typeof req.query.file === "string" ? req.query.file : ""
+      const filePath = resolveOrbitKeepingDraftArtifact(resolveOutputWorkspaceDir(root, req.query.workspaceDir), req.params.draftId, fileName)
+      const stat = filePath ? await fs.stat(filePath).catch(() => null) : null
+      if (!filePath || !stat?.isFile()) return reply.status(404).send({ error: "GMAT draft artifact not found" })
+      return reply.header("Content-Type", "application/x-yaml; charset=utf-8").header("Content-Disposition", `attachment; filename="${fileName}"`).send(createReadStream(filePath))
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download GMAT draft artifact") }) }
+  })
 
   fastify.post<{ Params: { draftId: string }; Body: DraftMessageBody }>("/api/gmat/orbit-keeping/drafts/:draftId/messages", async (req, reply) => {
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : ""
@@ -189,7 +227,8 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       const draft = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
       const updatedDraft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
       await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
-      if (updatedDraft.digitalThreadRequiredPaths?.length) await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
+      await syncDigitalThreadFromGmatDraft(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId), updatedDraft)
+      await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
       return reply.send(updatedDraft)
     } catch (err) {
       const error = getErrorMessage(err, "failed to update GMAT draft")
@@ -206,7 +245,7 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
     try {
       const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
       const current = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
-      const authoritative = current.digitalThreadRequiredPaths?.length ? (await digitalThreadGmatSeed(workspaceDir, "orbit-keeping")).values : undefined
+      const authoritative = current.digitalThreadRequiredPaths?.length ? (await digitalThreadGmatSeed(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", current.draftId), "orbit-keeping")).values : undefined
       return reply.send(await confirmOrbitKeepingDraft(workspaceDir, req.params.draftId, authoritative))
     } catch (err) {
       return reply.status(422).send({ error: getErrorMessage(err, "failed to confirm GMAT draft") })
@@ -220,7 +259,7 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
       const draft = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
       const values = parseOrbitKeepingValues(await fs.readFile(defaultOrbitKeepingValuesPath(), "utf8"))
-      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(workspaceDir)
+      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", draft.draftId))
       const result = await generateOrbitKeepingMission({
         changes: draftToOrbitKeepingChanges(draft, values),
         connection: resolveModelBackend(config, "chatModel"),
@@ -255,7 +294,7 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
       const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
       const draft = await loadOrbitKeepingDraft(workspaceDir, req.params.draftId)
       const values = parseOrbitKeepingValues(await fs.readFile(defaultOrbitKeepingValuesPath(), "utf8"))
-      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(workspaceDir)
+      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", draft.draftId))
       const result = await generateOrbitKeepingMission({
         changes: draftToOrbitKeepingChanges(draft, values),
         connection: resolveModelBackend(config, "chatModel"),

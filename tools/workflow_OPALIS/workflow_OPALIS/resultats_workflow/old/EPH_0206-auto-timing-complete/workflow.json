@@ -1,0 +1,42 @@
+{
+  "name": "EPH_0206-auto-timing-complete",
+  "status": "success",
+  "started_at": "2026-07-16T07:46:34+00:00",
+  "input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\1-conversion_vers_SIMU-CIC\\EPH_0206.txt",
+  "simulation_source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+  "simulation_working_copy": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-auto-timing-complete\\input\\cas A.opalis",
+  "run_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-auto-timing-complete",
+  "steps": {
+    "conversion": {
+      "type": "ephemeris",
+      "records": 202,
+      "output": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-auto-timing-complete\\conversion\\EPH_0206-SIMU.txt"
+    },
+    "simu_cic": {
+      "ephemeris": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-auto-timing-complete\\conversion\\EPH_0206-SIMU.txt",
+      "cic_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-auto-timing-complete\\CIC\\Sat",
+      "files": 39
+    },
+    "opalis": {
+      "cic_input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-auto-timing-complete\\CIC\\Sat",
+      "simulation_source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+      "simulation_working_copy": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-auto-timing-complete\\input\\cas A.opalis",
+      "case": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-auto-timing-complete\\opalis\\EPH_0206-auto-timing-complete.opalis",
+      "summary": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-auto-timing-complete\\opalis\\EPH_0206-auto-timing-complete.json",
+      "simulation_executed": true,
+      "quality_warnings": [
+        "OPALIS retourne final_soc=NaN/Inf.",
+        "OPALIS retourne global_efficiency=NaN/Inf.",
+        "OPALIS retourne solar_array_energy=NaN/Inf.",
+        "OPALIS retourne completion_percent=1448160 (> 100)."
+      ]
+    }
+  },
+  "warnings": [
+    "OPALIS retourne final_soc=NaN/Inf.",
+    "OPALIS retourne global_efficiency=NaN/Inf.",
+    "OPALIS retourne solar_array_energy=NaN/Inf.",
+    "OPALIS retourne completion_percent=1448160 (> 100)."
+  ],
+  "finished_at": "2026-07-16T07:46:42+00:00"
+}

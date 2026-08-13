@@ -40,4 +40,24 @@ describe("electric-propulsion GMAT draft routes", () => {
       await server.close()
     }
   })
+
+  it("lists completed electric missions saved in dated mission-run directories", async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-electric-mission-run-list-"))
+    const server = await createTestServer({ config: createTestConfig({ workspace: { usersRoot: path.join(tempRoot, "users") } }) })
+    try {
+      const runDir = path.join(tempRoot, "users", "alice", "gmat", "mission-runs", "26-08-12_16-08")
+      await fs.mkdir(runDir, { recursive: true })
+      await fs.writeFile(path.join(runDir, "run_manifest.json"), JSON.stringify({ templateId: "electric-propulsion-transfer", status: "completed" }))
+      await fs.writeFile(path.join(runDir, "electric_propulsion_transfer.script"), "Create Spacecraft DefaultSC;")
+      await fs.writeFile(path.join(runDir, "gmat_result.json"), JSON.stringify({ status: "completed" }))
+
+      const response = await server.inject({ method: "GET", url: "/api/gmat/electric-propulsion-transfer/files", headers: { "x-codex-user-id": "alice" } })
+      assert.equal(response.statusCode, 200)
+      const files = (response.json() as { files: Array<{ artifactId: string; fileName: string; relativePath: string }> }).files
+      assert.deepEqual(files.map(file => file.fileName).sort(), ["electric_propulsion_transfer.script", "gmat_result.json"])
+      assert.ok(files.every(file => file.artifactId === "26-08-12_16-08" && file.relativePath.includes("gmat")))
+    } finally {
+      await server.close()
+    }
+  })
 })

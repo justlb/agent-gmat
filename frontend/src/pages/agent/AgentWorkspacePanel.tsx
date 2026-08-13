@@ -23,6 +23,7 @@ type AgentFilesViewProps = ComponentProps<typeof AgentFilesView>
 type AgentWorkspacePanelProps = {
   activeGmatRunPath?: string
   activeGmatRunId?: AgentFilesViewProps['activeGmatRunId']
+  activeGmatRunTemplate?: 'electric-propulsion-transfer' | 'orbit-keeping'
   activeContext: AgentFilesViewProps['activeContext'] & {
     versionDir?: string | null
     versionId?: string | null
@@ -70,6 +71,9 @@ type AgentWorkspacePanelProps = {
   workspaceItems: CurrentWorkspaceCardProps['workspaceItems']
   workspaceRefreshNonce?: number
   satelliteRefreshNonce?: number
+  missionWorkspaceDir?: string | null
+  planningDiscussion?: { createdAt: string; planningRunId: string; workspaceDir: string } | null
+  onMissionSatelliteSelected?: () => void
 }
 
 function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showComplianceCheckConfig: boolean, showGncConfig: boolean) {
@@ -87,6 +91,7 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showCompl
 export function AgentWorkspacePanel({
   activeGmatRunPath,
   activeGmatRunId,
+  activeGmatRunTemplate,
   activeContext,
   activeManifestVersion,
   activeTool,
@@ -130,6 +135,9 @@ export function AgentWorkspacePanel({
   workspaceItems,
   workspaceRefreshNonce = 0,
   satelliteRefreshNonce = 0,
+  missionWorkspaceDir,
+  planningDiscussion,
+  onMissionSatelliteSelected,
 }: AgentWorkspacePanelProps) {
   const panelClassName = [
     'agent-workspace-panel',
@@ -266,7 +274,7 @@ export function AgentWorkspacePanel({
         ) : activeView === 'tools' && activeTool === 'gnc-dashboard' && showGncConfig ? (
           <GncDashboardPanel activeContext={activeContext} />
         ) : activeView === 'tools' && activeTool === 'gmat-analysis' ? (
-          <GmatAnalysisPanel runPath={activeGmatRunPath} />
+          <GmatAnalysisPanel runPath={activeGmatRunPath} template={activeGmatRunTemplate} />
         ) : activeView === 'tools' ? (
           toolUrls[activeTool] ? (
             <iframe className="agent-embed-frame" title={activeTool} src={toolUrls[activeTool]} />
@@ -274,7 +282,7 @@ export function AgentWorkspacePanel({
             <div className="agent-empty-state">This simulation tool has no remote window available.</div>
           )
         ) : activeView === 'satellites' ? (
-          <SatelliteLibrary workspaceDir={activeContext.versionDir} onSelected={refreshWorkspaceViews} />
+          <SatelliteLibrary workspaceDir={missionWorkspaceDir ?? activeContext.versionDir} onSelected={refreshWorkspaceViews} />
         ) : activeView === 'mission' ? (
           <MissionStudio
             activeGmatRunPath={activeGmatRunPath}
@@ -289,9 +297,10 @@ export function AgentWorkspacePanel({
             selectedFilePath={selectedFilePath}
             selectedFilePreview={selectedFilePreview}
             workspaceRefreshNonce={workspaceRefreshNonce}
-            workspaceDir={activeContext.versionDir}
+            workspaceDir={missionWorkspaceDir ?? activeContext.versionDir}
+            planningDiscussion={planningDiscussion}
             refreshSatellite={satelliteRefreshNonce}
-            onSatelliteSelected={refreshWorkspaceViews}
+            onSatelliteSelected={onMissionSatelliteSelected ?? refreshWorkspaceViews}
           />
         ) : (
           <AgentFilesView
@@ -306,7 +315,7 @@ export function AgentWorkspacePanel({
             selectedFileLoading={selectedFileLoading}
             selectedFilePath={selectedFilePath}
             selectedFilePreview={selectedFilePreview}
-            workspaceDir={activeContext.versionDir}
+            workspaceDir={missionWorkspaceDir ?? activeContext.versionDir}
             workspaceRefreshNonce={workspaceRefreshNonce}
           />
         )}

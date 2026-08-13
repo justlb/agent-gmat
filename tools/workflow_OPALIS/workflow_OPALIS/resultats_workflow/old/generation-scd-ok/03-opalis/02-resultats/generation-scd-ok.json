@@ -1,0 +1,63 @@
+{
+  "source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+  "satellite": "SAT-TEST-A",
+  "power_margin": null,
+  "soc_battery": 0.951717927382189,
+  "simulation_duration": "106642.841377258",
+  "time_step": 592.460229873657,
+  "orbit_duration": "5770",
+  "solar_sections": 7,
+  "working_source": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\03-opalis\\00-cas-reference\\cas A.opalis",
+  "ephemeris_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\02-simu-cic\\02-fichiers-cic\\Sat",
+  "generated_fluxes": [
+    {
+      "section_index": 0,
+      "flux_file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-1.TXT"
+    }
+  ],
+  "ephemeris_mapping": {
+    "0": {
+      "sun_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_ANGLE_SA_1.TXT",
+      "earth_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_ANGLE_SA_1.TXT",
+      "eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE.TXT",
+      "moon_eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE_MOON.TXT",
+      "altitude": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ALTITUDE.TXT",
+      "earth_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT",
+      "coordinates": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_GEOGRAPHICAL_COORDINATES.TXT",
+      "sun_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT"
+    }
+  },
+  "automatic_timing": {
+    "time_step_seconds": 592.4602298736572,
+    "duration_seconds": 106642.8413772583,
+    "common_start": 5242449600.0,
+    "common_stop": 5242556242.84152,
+    "files": [
+      {
+        "file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-1.TXT",
+        "samples": 181,
+        "start": 5242449600.0,
+        "stop": 5242556242.84152,
+        "duration_seconds": 106642.84152030945,
+        "step_seconds": 592.4602298736572,
+        "minimum_step_seconds": 592.4602298736572,
+        "maximum_step_seconds": 592.4602403640747
+      }
+    ]
+  },
+  "applied_parameters": [
+    {
+      "path": "SimulationModel.SimulationTiming.Timestep",
+      "value": 592.460229873657,
+      "source": "ephemerides"
+    },
+    {
+      "path": "SimulationModel.SimulationTiming.Simultime",
+      "value": "106642.841377258",
+      "source": "ephemerides"
+    }
+  ],
+  "saved_to": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\03-opalis\\02-resultats\\generation-scd-ok.opalis",
+  "json": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\generation-scd-ok\\03-opalis\\02-resultats\\generation-scd-ok.json",
+  "simulation_executed": false
+}

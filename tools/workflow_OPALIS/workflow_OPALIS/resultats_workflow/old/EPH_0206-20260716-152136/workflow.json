@@ -1,0 +1,18 @@
+{
+  "name": "EPH_0206-20260716-152136",
+  "status": "failed",
+  "started_at": "2026-07-16T07:21:36+00:00",
+  "input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\1-conversion_vers_SIMU-CIC\\EPH_0206.txt",
+  "simulation_source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+  "simulation_working_copy": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-20260716-152136\\input\\cas A.opalis",
+  "run_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-20260716-152136",
+  "steps": {
+    "conversion": {
+      "type": "ephemeris",
+      "records": 202,
+      "output": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-20260716-152136\\conversion\\EPH_0206-SIMU.txt"
+    }
+  },
+  "finished_at": "2026-07-16T07:21:41+00:00",
+  "error": "La commande a echoue avec le code 10000 : C:\\Users\\justine\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe C:\\JUSTINE\\APP\\workflow_OPALIS\\2-run_SIMU-CIC\\run_scilab_simulation.py --ephemeris C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-20260716-152136\\conversion\\EPH_0206-SIMU.txt --base-scenario C:\\JUSTINE\\APP\\SIMU_CIC\\simu_cic\\GUI\\examples\\Example_1.scd --simucic-dir C:\\JUSTINE\\APP\\SIMU_CIC\\simu_cic --save-root C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-20260716-152136\\simu-cic --cic-output C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-20260716-152136\\CIC --nadir-axis +X --trace-axis +Y"
+}
