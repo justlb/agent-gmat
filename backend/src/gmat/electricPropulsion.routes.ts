@@ -21,7 +21,7 @@ import { toGmatNativePath } from "./orbitKeepingRunner.js"
 type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
 type AnalyzeBody = { draftId?: unknown; question?: unknown; runPath?: unknown; workspaceDir?: unknown }
-type ElectricPropulsionFileKind = "calibration" | "digital-thread" | "ephemeris" | "log" | "manifest" | "report" | "result" | "script" | "timeseries" | "values"
+type ElectricPropulsionFileKind = "calibration" | "digital-thread" | "ephemeris" | "log" | "manifest" | "opalis" | "report" | "result" | "script" | "timeseries" | "values"
 
 function resolveElectricPropulsionDraftArtifact(workspaceDir: string, draftId: string, fileName: string) {
   if (!/^electric_draft_[a-f0-9-]+$/u.test(draftId) || !["electric_propulsion_transfer.values.yaml"].includes(fileName)) return null
@@ -39,12 +39,13 @@ function electricPropulsionFileKind(fileName: string): ElectricPropulsionFileKin
   if (fileName === "ElectricTransferReport.txt") return "report"
   if (fileName === "gmat.log") return "log"
   if (fileName === "EphemerisFile1.oem") return "ephemeris"
+  if (fileName === "prepared-opalis.opalis" || fileName === "prepared-opalis.json" || fileName === "calculated-opalis.opalis" || fileName === "calculated-opalis.json" || fileName === "opalis-parameters.json") return "opalis"
   return null
 }
 
 async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
   const root = path.resolve(userWorkspaceRoot)
-  const files: Array<{ artifactId: string; fileName: string; kind: ElectricPropulsionFileKind; mtimeMs: number; relativePath: string; size: number }> = []
+  const files: Array<{ artifactId: string; fileName: string; kind: ElectricPropulsionFileKind; mtimeMs: number; relativePath: string; runPath?: string; size: number }> = []
   const addMissionRunFiles = async (runsDir: string) => {
     const runs = await fs.readdir(runsDir, { withFileTypes: true }).catch(() => [])
     for (const run of runs) {
@@ -62,6 +63,19 @@ async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
         const filePath = path.join(runDir, entry.name)
         const stat = await fs.stat(filePath)
         files.push({ artifactId: run.name, fileName: entry.name, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), size: stat.size })
+      }
+      const opalisFiles = [
+        ["opalis", "02-opalis-input", "opalis-parameters.json"],
+        ["opalis", "03-opalis", "02-resultats", "prepared-opalis.opalis"],
+        ["opalis", "03-opalis", "02-resultats", "prepared-opalis.json"],
+        ["opalis", "03-opalis", "02-resultats", "calculated-opalis.opalis"],
+        ["opalis", "03-opalis", "02-resultats", "calculated-opalis.json"],
+      ]
+      for (const parts of opalisFiles) {
+        const filePath = path.join(runDir, ...parts)
+        const stat = await fs.stat(filePath).catch(() => null)
+        const kind = electricPropulsionFileKind(parts.at(-1) ?? "")
+        if (stat?.isFile() && kind) files.push({ artifactId: run.name, fileName: parts.at(-1)!, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), runPath: path.relative(root, runDir), size: stat.size })
       }
     }
   }
@@ -104,7 +118,7 @@ function resolveListedElectricPropulsionFilePath(userWorkspaceRoot: string, rela
   const root = path.resolve(userWorkspaceRoot)
   const filePath = path.resolve(root, relativePath)
   const normalized = filePath.split(path.sep).join("/")
-  if (!isPathInside(root, filePath) || !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite(?:\.digital-thread)?\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)) return null
+  if (!isPathInside(root, filePath) || !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite(?:\.digital-thread)?\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json))$/u.test(normalized)) return null
   return filePath
 }
 

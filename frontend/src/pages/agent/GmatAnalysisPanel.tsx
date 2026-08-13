@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getElectricPropulsionTimeSeries, type ElectricPropulsionTimeSeriesSample } from './electricPropulsionApi'
 import { getOrbitKeepingTimeSeries, type OrbitKeepingTimeSeriesSample } from './orbitKeepingApi'
+import { getOpalisResults, type OpalisResultSummary } from './simuCicApi'
 
 type Metric = 'altitudeKm' | 'eccentricity' | 'fuelMassKg' | 'massFlowRateKgPerSec' | 'powerAvailableKw' | 'semiMajorAxisKm'
 type AnalysisSample = {
@@ -103,11 +104,34 @@ function metricRange(samples: AnalysisSample[], metric: Metric) {
   return values.length ? { maximum: Math.max(...values), minimum: Math.min(...values) } : null
 }
 
+function metricValue(value: number | null, unit = '', digits = 1) {
+  return value === null ? 'Unavailable' : `${value.toFixed(digits)}${unit ? ` ${unit}` : ''}`
+}
+
+function OpalisResultsCard({ result }: { result: OpalisResultSummary }) {
+  return <section className="opalis-results-card">
+    <strong>OPALIS electrical results</strong>
+    <span>Calculated from this run&apos;s CIC ephemeris and satellite.json configuration.</span>
+    <div className="gmat-analysis-metrics">
+      <span>Initial SoC: {metricValue(result.initialSocPercent, '%')}</span>
+      <span>Final SoC: {metricValue(result.finalSocPercent, '%')}</span>
+      <span>Max depth of discharge: {metricValue(result.maxDepthOfDischargePercent, '%')}</span>
+      <span>Solar energy: {metricValue(result.solarArrayEnergy, ' Wh', 2)}</span>
+      <span>Solar sections: {metricValue(result.solarSections, '', 0)}</span>
+      <span>Samples: {metricValue(result.resultRows, '', 0)}</span>
+      <span>Computed duration: {metricValue(result.computedDurationSeconds === null ? null : result.computedDurationSeconds / 3600, ' h', 2)}</span>
+    </div>
+    <p className={result.stopCondition === 'eBattMin reached' ? 'opalis-result-warning' : 'opalis-result-info'}>Stop condition: {result.stopCondition ?? 'Unavailable'}</p>
+    {result.alerts.map(alert => <p className={alert.level === 'warning' ? 'opalis-result-warning' : 'opalis-result-info'} key={alert.message}>{alert.message}</p>)}
+  </section>
+}
+
 export function GmatAnalysisPanel({ runPath, template, runs = [] }: { runPath?: string; template?: 'electric-propulsion-transfer' | 'orbit-keeping'; runs?: Array<{ result: { finalFuelMassKg?: number; fuelUsedBetweenReportsKg?: number; minimumReportedAltitudeKm?: number; status: string }; runId: string }> }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [metric, setMetric] = useState<Metric>('altitudeKm')
   const [samples, setSamples] = useState<AnalysisSample[]>([])
+  const [opalisResult, setOpalisResult] = useState<OpalisResultSummary | null>(null)
   const isElectricTransfer = template ? template === 'electric-propulsion-transfer' : Boolean(runPath && /gmat[\\/]electric-propulsion-transfer[\\/]/u.test(runPath))
   const availableMetrics: Metric[] = isElectricTransfer ? ELECTRIC_TRANSFER_METRICS : ['altitudeKm', 'semiMajorAxisKm', 'fuelMassKg']
   const selectedMetric = availableMetrics.includes(metric) ? metric : availableMetrics[0]
@@ -115,6 +139,7 @@ export function GmatAnalysisPanel({ runPath, template, runs = [] }: { runPath?: 
   useEffect(() => {
     if (!runPath) {
       setSamples([])
+      setOpalisResult(null)
       return
     }
     setLoading(true)
@@ -126,6 +151,7 @@ export function GmatAnalysisPanel({ runPath, template, runs = [] }: { runPath?: 
       .then(setSamples)
       .catch(reason => setError(reason instanceof Error ? reason.message : 'Unable to load GMAT analysis data'))
       .finally(() => setLoading(false))
+    void getOpalisResults(runPath).then(setOpalisResult).catch(() => setOpalisResult(null))
   }, [isElectricTransfer, runPath])
 
   const summary = useMemo(() => metricRange(samples, selectedMetric), [samples, selectedMetric])
@@ -134,14 +160,15 @@ export function GmatAnalysisPanel({ runPath, template, runs = [] }: { runPath?: 
   if (!runPath) return <div className="agent-empty-state">Select a GMAT run in Files, then open this analysis tab.</div>
   if (loading) return <div className="agent-empty-state">Loading GMAT report dataâ€¦</div>
   if (error) return <div className="agent-empty-state">{error}</div>
-  if (!samples.length) return <div className="agent-empty-state">This run has no time-series report. Generate a new GMAT run with the current template.</div>
+  if (!samples.length && !opalisResult) return <div className="agent-empty-state">This run has no GMAT time-series report or calculated OPALIS result.</div>
   return (
     <div className="gmat-analysis-panel">
+      {opalisResult ? <OpalisResultsCard result={opalisResult} /> : null}
       {runs.length > 1 ? <section className="gmat-analysis-comparison">
         <strong>Linked run comparison</strong>
         <div>{runs.map(run => <span key={run.runId}>{run.runId} Â· {run.result.status} Â· min altitude {run.result.minimumReportedAltitudeKm?.toFixed(3) ?? 'â€”'} km Â· fuel used {run.result.fuelUsedBetweenReportsKg?.toFixed(3) ?? 'â€”'} kg</span>)}</div>
       </section> : null}
-      {isElectricTransfer ? <>
+      {samples.length && isElectricTransfer ? <>
         <section className="gmat-electric-analysis-intro">
           <strong>Electric-propulsion diagnostics</strong>
           <span>{samples.length} deterministic GMAT samples - X axis: ElapsedDays (days)</span>
@@ -160,7 +187,7 @@ export function GmatAnalysisPanel({ runPath, template, runs = [] }: { runPath?: 
           </section>
         })}
       </> : null}
-      {!isElectricTransfer ? <>
+      {samples.length && !isElectricTransfer ? <>
       <section>
         <strong>{METRICS[selectedMetric].label} vs ElapsedDays</strong>
         <span>{samples.length} deterministic GMAT samples · X axis: ElapsedDays (days)</span>

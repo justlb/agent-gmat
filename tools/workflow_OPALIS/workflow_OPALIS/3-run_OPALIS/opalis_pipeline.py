@@ -18,6 +18,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree
 
 import opalis_python as opalis
 
@@ -28,7 +29,10 @@ INSTALLED_OPALIS_DIR = APPS_DIR / "OPALIS" / "Opalis-2.3.0"
 DEFAULT_OPALIS_DIR = (
     INSTALLED_OPALIS_DIR if INSTALLED_OPALIS_DIR.is_dir() else opalis.DEFAULT_OPALIS_DIR
 )
-DEFAULT_SIMULATION = SCRIPT_DIR / "templates" / "cas A - interpolation lineaire.opalis"
+# Le pipeline part toujours d'un cas neutre. Les proprietes physiques sont
+# ensuite injectees depuis le manifeste cree par le backend, jamais depuis un
+# ancien cas OPALIS de reference.
+DEFAULT_SIMULATION = SCRIPT_DIR / "templates" / "empty.opalis"
 TIMESTEP_PATH = "SimulationModel.SimulationTiming.Timestep"
 DURATION_PATH = "SimulationModel.SimulationTiming.Simultime"
 INTERPOLATION_PATH = "SimulationModel.InterpolateEphemeris"
@@ -48,6 +52,48 @@ SUN_DIRECTION_CANDIDATES = [
 ]
 
 
+SECTION_DEFAULTS = {
+    "TemperatureFront": "20",
+    "TemperatureRear": "20",
+    "Activation": "true",
+    "NTsection": "0",
+    "AlphaFront": "0.9",
+    "AlphaRear": "0.3",
+    "EpsilonFront": "0.9",
+    "EpsilonRear": "0.9",
+    "HeatCapacity": "1000",
+    "TemperatureDay": "0",
+    "TemperatureNight": "0",
+    "Conductivity": "50",
+    "Vdiode": "0.5",
+    "KefficiencySA0": "0",
+    "KefficiencySA1": "0.95",
+    "KefficiencyMax": "0.96",
+    "Rls": "0.05",
+    "TypeRegulatorLeftDomain": "Boost",
+    "TypeRegulatorRightDomain": "Buck",
+    "FlowFile": "",
+    "TemperaturesFile": "",
+}
+
+SOLAR_CELL_DEFAULTS = {
+    "Tref": "78",
+    "Ki10": "0.5089967090604",
+    "Discsa": "0.000304135575876",
+    "Ki2": "-7.5E-13",
+    "Ki3": "11.4",
+    "Kvt": "-0.006",
+    "VpMaxSa0": "2.1",
+}
+
+DISTRIBUTION_DEFAULTS = {
+    "KEfficiency0": "0",
+    "KEfficiencyMax": "1",
+    "KEfficiency1": "1",
+    "ConsumptionFile": "",
+}
+
+
 def abs_path(value: str | Path, base: Path | None = None) -> Path:
     return opalis.absolute_path(value, base)
 
@@ -56,6 +102,153 @@ def require_file(path: Path, label: str) -> Path:
     if not path.is_file():
         raise opalis.OpalisPythonError(f"Fichier {label} introuvable : {path}")
     return path
+
+
+def parameter_text(value: Any) -> str:
+    """Serialise une valeur du manifeste au format attendu par OPALIS/.NET."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def load_parameters_file(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Lit le contrat backend -> OPALIS et refuse un manifeste incomplet."""
+    require_file(path, "manifeste OPALIS")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise opalis.OpalisPythonError(
+            f"Manifeste OPALIS JSON invalide : {path}"
+        ) from exc
+    if payload.get("schema_version") != 1 or not isinstance(payload.get("parameters"), list):
+        raise opalis.OpalisPythonError(
+            "Manifeste OPALIS invalide : schema_version=1 et parameters sont requis."
+        )
+    validation = payload.get("validation") or {}
+    missing = validation.get("missing") or []
+    if missing:
+        raise opalis.OpalisPythonError(
+            "Le satellite.json ne definit pas encore les parametres OPALIS requis : "
+            + ", ".join(map(str, missing))
+        )
+    parameters: dict[str, Any] = {}
+    for item in payload["parameters"]:
+        if not isinstance(item, dict) or not item.get("opalis_path"):
+            raise opalis.OpalisPythonError("Entree parameters OPALIS invalide.")
+        parameters[str(item["opalis_path"])] = item.get("value")
+    return parameters, payload
+
+
+def parameter_value(parameters: dict[str, Any], path: str, default: Any = None) -> Any:
+    value = parameters.get(path, default)
+    return default if value is None else value
+
+
+def append_text(parent: ElementTree.Element, tag: str, value: Any) -> None:
+    ElementTree.SubElement(parent, tag).text = parameter_text(value)
+
+
+def new_solar_section(index: int, parameters: dict[str, Any]) -> ElementTree.Element:
+    prefix = f"SimulationModel.SolarGenerator.Sections[{index}]"
+    section = ElementTree.Element("SolarGeneratorSection", {"Key": f"sgsection.{index}"})
+    values = dict(SECTION_DEFAULTS)
+    for tag in ("Type", "SectionArea", "AnchorType", "FillingFactor", "NPsection", "NSsection", "PdimSA"):
+        value = parameter_value(parameters, f"{prefix}.{tag}")
+        if value is None:
+            raise opalis.OpalisPythonError(f"Parametre solaire OPALIS manquant : {prefix}.{tag}")
+        values[tag] = value
+    for tag in (
+        "TemperatureFront", "TemperatureRear", "Activation", "Type", "AnchorType",
+        "SectionArea", "FillingFactor", "NTsection", "NPsection", "NSsection",
+        "AlphaFront", "AlphaRear", "EpsilonFront", "EpsilonRear", "HeatCapacity",
+        "TemperatureDay", "TemperatureNight", "Conductivity", "Vdiode", "PdimSA",
+        "KefficiencySA0", "KefficiencySA1", "KefficiencyMax", "Rls",
+        "TypeRegulatorLeftDomain", "TypeRegulatorRightDomain", "FlowFile", "TemperaturesFile",
+    ):
+        append_text(section, tag, values[tag])
+    cell = ElementTree.SubElement(section, "SolarCell", {"Key": "db_sgcell.0"})
+    append_text(cell, "Name", parameter_value(parameters, f"{prefix}.Cell.Name", "default"))
+    for tag, value in SOLAR_CELL_DEFAULTS.items():
+        append_text(cell, tag, value)
+    append_text(cell, "AreaCell", parameter_value(parameters, f"{prefix}.Cell.AreaCell"))
+    return section
+
+
+def bootstrap_empty_simulation(
+    simulation_path: Path, parameters: dict[str, Any]
+) -> int | None:
+    """Ajoute a empty.opalis ses sections et sa ligne de distribution.
+
+    OPALIS fournit ``empty.opalis`` sans collections. Elles doivent exister
+    avant de pouvoir leur affecter les proprietes du satellite via son API.
+    La fonction modifie uniquement la copie de travail de la run.
+    """
+    section_indexes = sorted(
+        {
+            int(path.split("Sections[", 1)[1].split("]", 1)[0])
+            for path in parameters
+            if path.startswith("SimulationModel.SolarGenerator.Sections[")
+        }
+    )
+    if not section_indexes:
+        return None
+    if section_indexes != list(range(len(section_indexes))):
+        raise opalis.OpalisPythonError(
+            "Les sections solaires OPALIS doivent etre indexees consecutivement a partir de 0."
+        )
+
+    try:
+        with zipfile.ZipFile(simulation_path, "r") as archive:
+            entries = {entry.filename: archive.read(entry.filename) for entry in archive.infolist()}
+        root = ElementTree.fromstring(entries["simulation.xml"])
+    except (KeyError, OSError, zipfile.BadZipFile, ElementTree.ParseError) as exc:
+        raise opalis.OpalisPythonError(
+            f"Impossible de preparer le cas OPALIS vide : {simulation_path}"
+        ) from exc
+
+    solar_generator = root.find("SolarGenerator")
+    distribution_lines = root.find("DistributionLines")
+    if solar_generator is None or distribution_lines is None:
+        raise opalis.OpalisPythonError("Le cas OPALIS vide ne contient pas le schema attendu.")
+
+    # empty.opalis contient deux balises XML ``Sections`` pour des raisons de
+    # serialisation interne. L'API les fusionne a l'ouverture : les remplir
+    # toutes les deux dupliquerait donc chaque panneau solaire. Seul le premier
+    # conteneur est l'entree de construction; l'API ecrira ensuite sa forme
+    # normalisee lors du Save().
+    section_containers = solar_generator.findall("Sections")
+    if not section_containers:
+        raise opalis.OpalisPythonError("Le cas OPALIS vide ne contient aucune collection de sections solaires.")
+    for container in section_containers:
+        for child in list(container):
+            container.remove(child)
+    for index in section_indexes:
+        section_containers[0].append(new_solar_section(index, parameters))
+
+    for child in list(distribution_lines):
+        distribution_lines.remove(child)
+    line = ElementTree.SubElement(distribution_lines, "DistributionLine", {"Key": "dline.0"})
+    distribution_values = dict(DISTRIBUTION_DEFAULTS)
+    for tag in ("Pdim", "PowerConsumptionMode", "PConstant", "PMargin"):
+        value = parameter_value(parameters, f"SimulationModel.DistributionLines[0].{tag}")
+        if value is None:
+            raise opalis.OpalisPythonError(f"Parametre de distribution OPALIS manquant : {tag}")
+        distribution_values[tag] = value
+    for tag in (
+        "Pdim", "KEfficiency0", "KEfficiencyMax", "KEfficiency1",
+        "PowerConsumptionMode", "PConstant", "PMargin", "ConsumptionFile",
+    ):
+        append_text(line, tag, distribution_values[tag])
+
+    entries["simulation.xml"] = ElementTree.tostring(
+        root, encoding="utf-8", xml_declaration=True
+    )
+    temporary_path = simulation_path.with_suffix(".bootstrap.tmp")
+    with zipfile.ZipFile(temporary_path, "w", zipfile.ZIP_DEFLATED) as archive:
+        for filename, content in entries.items():
+            archive.writestr(filename, content)
+    temporary_path.replace(simulation_path)
+    return len(section_indexes)
 
 
 def ephemeris_time_grid(path: Path) -> dict[str, float | int | str]:
@@ -350,12 +543,19 @@ def build_parser() -> argparse.ArgumentParser:
         "simulation",
         nargs="?",
         default=str(DEFAULT_SIMULATION),
-        help=f"cas .opalis de reference; defaut : exemple A ({DEFAULT_SIMULATION})",
+        help=f"cas .opalis vide a preparer; defaut : {DEFAULT_SIMULATION}",
     )
     parser.add_argument(
         "--ephemeris-dir",
         required=True,
         help="dossier contenant les fichiers Sat_*.TXT",
+    )
+    parser.add_argument(
+        "--parameters-file",
+        help=(
+            "opalis-parameters.json produit par le backend depuis satellite.json; "
+            "il initialise les proprietes statiques et les sections de empty.opalis"
+        ),
     )
     parser.add_argument(
         "--opalis-dir",
@@ -424,6 +624,18 @@ def main(argv: list[str] | None = None) -> int:
     source = abs_path(args.simulation, invocation_dir)
     ephemeris_dir = abs_path(args.ephemeris_dir, invocation_dir)
     output_dir = abs_path(args.output_dir, invocation_dir)
+    manifest_parameters: dict[str, Any] = {}
+    manifest_payload: dict[str, Any] | None = None
+    parameters_path: Path | None = None
+    if args.parameters_file:
+        parameters_path = abs_path(args.parameters_file, invocation_dir)
+        manifest_parameters, manifest_payload = load_parameters_file(parameters_path)
+        template = manifest_payload.get("template")
+        if template != "empty.opalis":
+            raise opalis.OpalisPythonError(
+                "Le manifeste OPALIS doit referencer empty.opalis; "
+                f"template recu : {template!r}"
+            )
     reference_dir = output_dir / "00-cas-reference"
     flux_dir = output_dir / "01-flux-dynamiques"
     results_dir = output_dir / "02-resultats"
@@ -434,6 +646,7 @@ def main(argv: list[str] | None = None) -> int:
     working_source = reference_dir / source.name
     if source != working_source:
         shutil.copy2(source, working_source)
+    bootstrap_sections = bootstrap_empty_simulation(working_source, manifest_parameters)
     simulation = opalis.open_simulation(working_source, simulation_type)
 
     # Le bouton « Interpolation » du GUI correspond à cette propriété. Quand
@@ -442,6 +655,32 @@ def main(argv: list[str] | None = None) -> int:
     _, interpolation_value = opalis.set_property(
         simulation, f"{INTERPOLATION_PATH}=true"
     )
+
+    applied_parameters = []
+    if manifest_parameters:
+        # Le manifeste est la source de verite des proprietes statiques. Les
+        # sections ont deja ete creees dans le zip avant Open(), elles peuvent
+        # donc deja contenir leurs valeurs. OPALIS 2.4 rehydrate ses sections
+        # lorsqu'une propriete de section est reaffectee par son API, ce qui
+        # ajoute une copie du panneau. Les sections sont ainsi seulement
+        # construites dans bootstrap_empty_simulation(), puis ne sont plus
+        # reaffectees ici.
+        for path, value in manifest_parameters.items():
+            if path.startswith("SimulationModel.SolarGenerator.Sections["):
+                applied_parameters.append(
+                    {"path": path, "value": value, "source": f"{parameters_path} (bootstrap)"}
+                )
+                continue
+            _, applied_value = opalis.set_property(
+                simulation, f"{path}={parameter_text(value)}"
+            )
+            applied_parameters.append(
+                {
+                    "path": path,
+                    "value": opalis.json_value(applied_value),
+                    "source": str(parameters_path),
+                }
+            )
 
     resize_summary = None
     if args.sections_count is not None:
@@ -502,9 +741,19 @@ def main(argv: list[str] | None = None) -> int:
         holder = distribution.ConsumptionFile
         internal_filename = str(holder.InternalFileName or "")
         if not internal_filename:
-            raise opalis.OpalisPythonError(
-                f"La ligne {distribution_key} utilise un profil de consommation sans fichier."
+            # Les valeurs du premier onglet sont conservees telles quelles.
+            # Un profil de consommation est un fichier dynamique distinct :
+            # il sera fourni lors de l'etape de calcul, pas copie depuis un
+            # cas exemple dans ce scenario prepare depuis empty.opalis.
+            rebased_power_profiles.append(
+                {
+                    "distribution_index": distribution_index,
+                    "distribution_key": str(distribution_key),
+                    "status": "profile_not_loaded",
+                    "reason": "empty.opalis has no embedded consumption profile",
+                }
             )
+            continue
         source_power_rows = read_cic_values_from_text(
             embedded_ephemeris_text(working_source, internal_filename)
         )
@@ -527,18 +776,23 @@ def main(argv: list[str] | None = None) -> int:
         )
         rebased_power_profiles.append(power_summary)
 
-    applied_parameters = [
+    applied_parameters.insert(
+        0,
         {
             "path": INTERPOLATION_PATH,
             "value": opalis.json_value(interpolation_value),
-            "source": "template de reference / workflow",
-        }
-    ]
+            "source": "workflow",
+        },
+    )
     timing = automatic_timing(generated_flux_paths)
-    if rebased_power_profiles:
+    loaded_power_profiles = [
+        profile for profile in rebased_power_profiles
+        if "source_step_seconds" in profile
+    ]
+    if loaded_power_profiles:
         power_step = min(
             float(profile["source_step_seconds"])
-            for profile in rebased_power_profiles
+            for profile in loaded_power_profiles
         )
         timing["flow_step_seconds"] = timing["time_step_seconds"]
         timing["power_step_seconds"] = power_step
@@ -573,7 +827,11 @@ def main(argv: list[str] | None = None) -> int:
         # Ne remplace pas un parametre statique du cas A si les nouvelles
         # entrees couvrent deja sa duree. Reduit seulement si elles sont plus
         # courtes afin d'eviter un arret Input flow.
-        duration = min(reference_duration, float(timing["duration_seconds"]))
+        duration = (
+            min(reference_duration, float(timing["duration_seconds"]))
+            if reference_duration > 0
+            else float(timing["duration_seconds"])
+        )
         _, value = opalis.set_property(
             simulation, f"{DURATION_PATH}={duration:.15g}"
         )
@@ -612,6 +870,9 @@ def main(argv: list[str] | None = None) -> int:
         {
             "source": str(source),
             "working_source": str(working_source),
+            "parameters_file": str(parameters_path) if parameters_path else None,
+            "parameters_source": "satellite.json" if parameters_path else None,
+            "bootstrap_solar_sections": bootstrap_sections,
             "ephemeris_dir": str(ephemeris_dir),
             "generated_fluxes": generated_fluxes,
             "ephemeris_mapping": ephemeris_mapping,

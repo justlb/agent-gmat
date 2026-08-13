@@ -2232,6 +2232,10 @@
 
 .gmat-analysis-panel section > span { color: #93c5fd; font-size: 12px; margin-top: 4px; }
 .gmat-analysis-panel .gmat-analysis-note { color: #fbbf24; }
+.opalis-results-card { background: linear-gradient(120deg, rgba(8, 47, 73, .72), rgba(3, 20, 40, .82)); }
+.opalis-result-warning, .opalis-result-info { margin: 10px 0 0; font-size: 12px; line-height: 1.4; }
+.opalis-result-warning { color: #fbbf24; }
+.opalis-result-info { color: #a5f3fc; }
 
 .gmat-analysis-chart { color: #60a5fa; inline-size: 100%; margin-top: 14px; }
 .gmat-analysis-chart line { stroke: rgba(148, 163, 184, 0.5); }
@@ -2267,6 +2271,20 @@
 .satellite-technical-summary div { align-items: baseline; border-top: 1px solid rgba(148, 163, 184, .12); display: grid; gap: 8px; grid-template-columns: 66px minmax(0, 1fr); padding: 5px 0; }
 .satellite-technical-summary dt { color: #7f94b3; font-size: 9px; font-weight: 800; }
 .satellite-technical-summary dd { color: #c5d6eb; font-size: 9px; line-height: 1.3; margin: 0; overflow-wrap: anywhere; }
+.satellite-definition-details { border-top: 1px solid rgba(148, 163, 184, .16); margin: 10px 0; padding-top: 8px; }
+.satellite-definition-details summary { color: #67e8f9; cursor: pointer; font-size: 10px; font-weight: 800; }
+.satellite-definition-details[open] summary { margin-bottom: 7px; }
+.satellite-active-card h4 { color: #dbeafe; font-size: 12px; margin: 16px 0 7px; }
+.satellite-solar-sections { display: grid; gap: 7px; margin-top: 9px; }
+.satellite-solar-sections section { background: rgba(30, 64, 175, .13); border: 1px solid rgba(96, 165, 250, .2); border-radius: 7px; padding: 8px; }
+.satellite-solar-sections strong, .satellite-solar-sections span { display: block; }
+.satellite-solar-sections strong { color: #dbeafe; font-size: 10px; }
+.satellite-solar-sections span { color: #8fa4c4; font-size: 9px; margin-top: 2px; }
+.satellite-solar-sections dl { display: grid; gap: 4px 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 7px 0 0; }
+.satellite-solar-sections dl div { border-top: 1px solid rgba(148, 163, 184, .12); padding-top: 4px; }
+.satellite-solar-sections dt { color: #7f94b3; font-size: 8px; font-weight: 800; }
+.satellite-solar-sections dd { color: #dbeafe; font-size: 9px; margin: 1px 0 0; }
+.satellite-no-sections { color: #8fa4c4; font-size: 10px; }
 .satellite-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 13px; }
 .satellite-tags span { border: 1px solid rgba(96, 165, 250, .35); border-radius: 999px; color: #bfdbfe; font-size: 10px; padding: 4px 7px; }
 .satellite-definition-card button { background: #2563eb; border: 0; border-radius: 7px; color: white; cursor: pointer; font-size: 12px; font-weight: 800; padding: 9px 12px; width: 100%; }

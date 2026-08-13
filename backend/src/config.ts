@@ -88,6 +88,7 @@ export interface AppConfig {
     opalis: {
       baseScenario: string | null
       celestlabDir: string | null
+      installationDir: string | null
       scilabBin: string | null
       simucicDir: string | null
       simuCicRunner: string | null
@@ -478,6 +479,7 @@ export function loadConfig(): AppConfig {
       opalis: {
         baseScenario: optionalString(opalisTool.baseScenario, "tools.opalis.baseScenario"),
         celestlabDir: optionalString(opalisTool.celestlabDir, "tools.opalis.celestlabDir"),
+        installationDir: optionalString(opalisTool.installationDir, "tools.opalis.installationDir"),
         scilabBin: optionalString(opalisTool.scilabBin, "tools.opalis.scilabBin"),
         simucicDir: optionalString(opalisTool.simucicDir, "tools.opalis.simucicDir"),
         simuCicRunner: optionalString(opalisTool.simuCicRunner, "tools.opalis.simuCicRunner"),

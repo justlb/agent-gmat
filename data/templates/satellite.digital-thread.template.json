@@ -73,6 +73,53 @@
         "spacecraft_bus_load_kw": null,
         "system_margin_percent": null
       },
+      "opalis": {
+        "model": {
+          "template_id": null,
+          "reference_source": null,
+          "simulation_mode": null,
+          "power_supply": null,
+          "regulation_type": null,
+          "distribution_resistance_ohm": null
+        },
+        "simulation": {
+          "reference_time_step_s": null,
+          "reference_duration_s": null,
+          "satellite_temperature_c": null,
+          "regulated_mode": null,
+          "current_limit_mode": null,
+          "voltage_limit_mode": null,
+          "thermal_model": null
+        },
+        "battery": {
+          "initial_voltage_v": null,
+          "initial_state_of_charge": null,
+          "energy_wh": null,
+          "cells_parallel": null,
+          "cells_series": null,
+          "cell_model": null,
+          "cell_type": null,
+          "cell_capacity_ah": null,
+          "cable_resistance_ohm": null,
+          "low_voltage_limit_v": null
+        },
+        "power_distribution": {
+          "constant_load_w": null,
+          "margin_w": null,
+          "rated_power_w": null,
+          "consumption_mode": null
+        },
+        "environment": {
+          "solar_constant_w_m2": null,
+          "albedo_w_m2": null,
+          "earth_radiation_w_m2": null
+        },
+        "solar_generator": {
+          "cell_model": null,
+          "cell_area_m2": null,
+          "sections": []
+        }
+      },
       "attitude_control_subsystem": {
         "pointing_accuracy_arcsec": null,
         "pointing_stability_arcsec_per_sec": null,

@@ -21,7 +21,7 @@ type GenerateOrbitKeepingBody = { request?: unknown; workspaceDir?: unknown }
 type AnalyzeOrbitKeepingBody = { draftId?: unknown; question?: unknown; runPath?: unknown; workspaceDir?: unknown }
 type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
-type OrbitKeepingFileKind = "digital-thread" | "ephemeris" | "log" | "manifest" | "report" | "result" | "script" | "timeseries" | "values"
+type OrbitKeepingFileKind = "digital-thread" | "ephemeris" | "log" | "manifest" | "opalis" | "report" | "result" | "script" | "timeseries" | "values"
 
 function resolveOrbitKeepingDraftArtifact(workspaceDir: string, draftId: string, fileName: string) {
   if (!/^draft_[a-f0-9-]+$/u.test(draftId) || !["orbit_keeping.values.yaml"].includes(fileName)) return null
@@ -42,12 +42,13 @@ function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
   if (fileName === "ReboostReport.txt" || fileName === "OrbitAnalysisReport.txt") return "report"
   if (fileName === "gmat.log") return "log"
   if (fileName === "EphemerisFile1.oem") return "ephemeris"
+  if (fileName === "prepared-opalis.opalis" || fileName === "prepared-opalis.json" || fileName === "calculated-opalis.opalis" || fileName === "calculated-opalis.json" || fileName === "opalis-parameters.json") return "opalis"
   return null
 }
 
 async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
   const root = path.resolve(userWorkspaceRoot)
-  const files: Array<{ artifactId: string; fileName: string; kind: OrbitKeepingFileKind; mtimeMs: number; relativePath: string; size: number }> = []
+  const files: Array<{ artifactId: string; fileName: string; kind: OrbitKeepingFileKind; mtimeMs: number; relativePath: string; runPath?: string; size: number }> = []
   const addMissionRunFiles = async (runsDir: string) => {
     const runs = await fs.readdir(runsDir, { withFileTypes: true }).catch(() => [])
     for (const run of runs) {
@@ -65,6 +66,19 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
         const filePath = path.join(runDir, entry.name)
         const stat = await fs.stat(filePath)
         files.push({ artifactId: run.name, fileName: entry.name, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), size: stat.size })
+      }
+      const opalisFiles = [
+        ["opalis", "02-opalis-input", "opalis-parameters.json"],
+        ["opalis", "03-opalis", "02-resultats", "prepared-opalis.opalis"],
+        ["opalis", "03-opalis", "02-resultats", "prepared-opalis.json"],
+        ["opalis", "03-opalis", "02-resultats", "calculated-opalis.opalis"],
+        ["opalis", "03-opalis", "02-resultats", "calculated-opalis.json"],
+      ]
+      for (const parts of opalisFiles) {
+        const filePath = path.join(runDir, ...parts)
+        const stat = await fs.stat(filePath).catch(() => null)
+        const kind = orbitKeepingFileKind(parts.at(-1) ?? "")
+        if (stat?.isFile() && kind) files.push({ artifactId: run.name, fileName: parts.at(-1)!, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), runPath: path.relative(root, runDir), size: stat.size })
       }
     }
   }
@@ -124,7 +138,7 @@ function resolveListedOrbitKeepingFilePath(userWorkspaceRoot: string, relativePa
   const normalized = filePath.split(path.sep).join("/")
   if (
     !isPathInside(root, filePath) ||
-    !/\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite(?:\.digital-thread)?\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log)$/u.test(normalized)
+    !/\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|gmat_result\.json|satellite(?:\.digital-thread)?\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json))$/u.test(normalized)
   ) return null
   return filePath
 }

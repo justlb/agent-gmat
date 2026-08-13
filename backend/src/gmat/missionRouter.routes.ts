@@ -147,7 +147,8 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         const selectionChanged = planningSelection && typeof planningSelection.id === "string" && (
           !satelliteSelection ||
           satelliteSelection.id !== planningSelection.id ||
-          satelliteSelection.version !== planningSelection.version
+          satelliteSelection.version !== planningSelection.version ||
+          JSON.stringify(currentDigitalThread.satellite) !== JSON.stringify(planningDigitalThread.satellite)
         )
         if (selectionChanged) {
           currentDigitalThread.satellite = JSON.parse(JSON.stringify(planningDigitalThread.satellite))

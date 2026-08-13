@@ -169,7 +169,7 @@ export function AgentFilesView({
     ? displayedDrafts.filter(draft => draft.draftId !== activeDraft.draftId)
     : displayedDrafts
   const gmatRuns = Object.values(gmatFiles.reduce<Record<string, GmatRun>>((groups, file) => {
-    const runPath = file.relativePath.replace(/[\\/][^\\/]+$/u, '')
+    const runPath = file.runPath ?? file.relativePath.replace(/[\\/][^\\/]+$/u, '')
     const runId = runPath.split(/[\\/]/u).at(-1) ?? file.artifactId
     const groupKey = `${file.missionType}:${runPath}`
     groups[groupKey] ??= { files: [], latestMtimeMs: 0, missionType: file.missionType, runId, runPath }

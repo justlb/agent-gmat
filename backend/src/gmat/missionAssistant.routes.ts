@@ -49,7 +49,7 @@ async function classify(config: AppConfig, message: string): Promise<Intent> {
   const prompt = [
     "Classify one request in a spacecraft mission application.",
     "Return JSON only: {\"intent\":\"analysis\"|\"change\"|\"knowledge\"|\"advice\"|\"simu-cic\"}.",
-    "analysis = asks about a saved GMAT run or its results; change = asks to change mission/satellite values or create a new what-if; knowledge = asks a factual/explanatory question; advice = asks what to choose or recommends a trade-off; simu-cic = asks about attitude, nadir, ground stations, Simu-CIC or OPALIS.",
+    "analysis = asks about a saved GMAT, Simu-CIC, or OPALIS run or its results; change = asks to change mission/satellite values or create a new what-if; knowledge = asks a factual/explanatory question; advice = asks what to choose or recommends a trade-off; simu-cic = asks to configure attitude, nadir pointing, or ground stations. Questions about OPALIS results are analysis, not simu-cic.",
     `Request: ${message}`,
   ].join("\n\n")
   const response = await fetch(`${connection.baseUrl.replace(/\/+$/u, "")}/responses`, { method: "POST", headers: { Authorization: `Bearer ${connection.apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: connection.model, input: prompt, max_output_tokens: 120 }), signal: AbortSignal.timeout(30_000) })

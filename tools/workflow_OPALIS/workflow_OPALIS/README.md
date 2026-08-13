@@ -1,13 +1,20 @@
-# Workflow ephemeride -> Simu-CIC -> OPALIS
+# Workflow ephemeride -> Simu-CIC -> OPALIS + RF-COMLINK
 
-Le lanceur `run_workflow.py` execute les trois etapes dans l'ordre :
+Le lanceur `run_workflow.py` execute les quatre etapes dans l'ordre :
 
 1. il charge `1-conversion_vers_SIMU-CIC/eph_conversion.py` et produit un
    fichier dont le nom finit par `-SIMU.txt` ;
 2. il passe ce fichier a `2-run_SIMU-CIC/run_scilab_simulation.py`, puis copie
    le dossier CIC genere dans le dossier du run ;
 3. il passe `CIC/Sat` a `3-run_OPALIS/opalis_pipeline.py` et sauvegarde le cas
-   OPALIS calcule ainsi que son resume JSON.
+   OPALIS calcule ainsi que son resume JSON ;
+4. il passe le meme dossier `CIC/Sat` a
+   `4-run_RF-COMLINK/rfcomlink_pipeline.py`, qui prepare une copie `.rfcl`
+   avec les entrees geometrie CIC embarquees.
+
+La quatrieme etape prepare le cas RF-COMLINK mais ne lance pas son calcul :
+ouvrir le `.rfcl` produit dans le GUI RF-COMLINK. Utilisez `--no-rf-comlink`
+pour ne produire que la branche OPALIS.
 
 Avant le calcul, le pipeline OPALIS lit la grille temporelle des fichiers
 dynamiques. Il conserve le pas d'integration du cas A (`0,5 s`), indispensable
@@ -108,6 +115,10 @@ resultats_workflow/<nom-du-run>/
 |   `-- 02-resultats/
 |       |-- <nom-du-run>.opalis         # resultat principal
 |       `-- <nom-du-run>.json           # resume du calcul
+|-- 04-rf-comlink/
+|   `-- <nom-du-run>/
+|       |-- <nom-du-run>.rfcl           # cas RF-COMLINK prepare
+|       `-- workflow.json               # CIC et template effectivement utilises
 `-- workflow.json                       # manifeste technique complet
 ```
 

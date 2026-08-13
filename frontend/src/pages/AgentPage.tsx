@@ -21,7 +21,7 @@ import { confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussE
 import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraftWithProgress, getOrbitKeepingRunConversation, listOrbitKeepingDrafts, openOrbitKeepingRunInGui, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
 import { routeMissionMessage } from './agent/missionRoutingApi'
 import { askMissionAssistant } from './agent/missionAssistantApi'
-import { openSimuCicGui, runSimuCic } from './agent/simuCicApi'
+import { openPreparedOpalisScenario, openSimuCicGui, prepareOpalisScenario, runOpalisScenario, runSimuCic } from './agent/simuCicApi'
 import { createPlanningRun, type PlanningRun } from './agent/planningRunApi'
 import {
   AGENT_HOME_PATH,
@@ -51,10 +51,12 @@ type PendingGmatMessage = {
   status: 'sending' | 'failed'
 }
 
-const GMAT_WORKFLOW_LABELS: Record<'draft_llm' | 'run_gmat' | 'run_simucic', string> = {
+const GMAT_WORKFLOW_LABELS: Record<'draft_llm' | 'run_gmat' | 'run_simucic' | 'prepare_opalis' | 'run_opalis', string> = {
   draft_llm: 'LLM mission discussion',
   run_gmat: 'Run GMAT simulation',
   run_simucic: 'Run Simu-CIC simulation',
+  prepare_opalis: 'Prepare OPALIS scenario',
+  run_opalis: 'Run OPALIS calculation',
 }
 
 function newGmatWorkflow(): WorkflowLoopProgressEntry[] {
@@ -77,6 +79,42 @@ function newSimuCicWorkflow() {
       'completed',
     ),
     'run_simucic',
+    'running',
+  )
+}
+
+function newOpalisPreparationWorkflow() {
+  return setGmatWorkflowStatus(
+    setGmatWorkflowStatus(
+      setGmatWorkflowStatus(
+        setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'),
+        'run_gmat',
+        'completed',
+      ),
+      'run_simucic',
+      'completed',
+    ),
+    'prepare_opalis',
+    'running',
+  )
+}
+
+function newOpalisRunWorkflow() {
+  return setGmatWorkflowStatus(
+    setGmatWorkflowStatus(
+      setGmatWorkflowStatus(
+        setGmatWorkflowStatus(
+          setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'),
+          'run_gmat',
+          'completed',
+        ),
+        'run_simucic',
+        'completed',
+      ),
+      'prepare_opalis',
+      'completed',
+    ),
+    'run_opalis',
     'running',
   )
 }
@@ -109,6 +147,9 @@ export default function AgentPage() {
   const [simuCicConversation, setSimuCicConversation] = useState<OrbitKeepingRunConversationTurn[]>([])
   const [simuCicGuiOpening, setSimuCicGuiOpening] = useState(false)
   const [simuCicRunning, setSimuCicRunning] = useState(false)
+  const [opalisPreparing, setOpalisPreparing] = useState(false)
+  const [opalisRunning, setOpalisRunning] = useState(false)
+  const [opalisGuiOpening, setOpalisGuiOpening] = useState(false)
   const [pendingGmatMessage, setPendingGmatMessage] = useState<PendingGmatMessage | null>(null)
   const [activeGmatDraft, setActiveGmatDraft] = useState<OrbitKeepingDraft | null>(null)
   const [activeGmatRun, setActiveGmatRun] = useState<{ conversation: OrbitKeepingRunConversationTurn[]; draftId?: string; result?: OrbitKeepingGenerateResult['result']; runId: string; runPath: string; template?: 'electric-propulsion-transfer' | 'orbit-keeping' } | null>(null)
@@ -810,6 +851,51 @@ export default function AgentPage() {
       .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to open Simu-CIC GUI'))
       .finally(() => setSimuCicGuiOpening(false))
   }, [activeGmatRun, showSpeechText, simuCicGuiOpening])
+  const handlePrepareOpalis = useCallback(() => {
+    if (!activeGmatRun || opalisPreparing || simuCicRunning) return
+    setOpalisPreparing(true)
+    setManagedRunError('')
+    setProgressPanelOpen(true)
+    setGmatWorkflowEntries(newOpalisPreparationWorkflow())
+    void prepareOpalisScenario(activeGmatRun.runPath)
+      .then(result => {
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'prepare_opalis', 'completed') : entries)
+        showSpeechText('OPALIS scenario prepared for run ' + activeGmatRun.runId + '. File: ' + result.scenario + '.')
+        refreshWorkspaceViews()
+      })
+      .catch(reason => {
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'prepare_opalis', 'failed') : entries)
+        setManagedRunError(reason instanceof Error ? reason.message : 'Unable to prepare OPALIS scenario')
+      })
+      .finally(() => setOpalisPreparing(false))
+  }, [activeGmatRun, opalisPreparing, refreshWorkspaceViews, showSpeechText, simuCicRunning])
+  const handleOpenPreparedOpalis = useCallback(() => {
+    if (!activeGmatRun || opalisGuiOpening || opalisPreparing) return
+    setOpalisGuiOpening(true)
+    setManagedRunError('')
+    void openPreparedOpalisScenario(activeGmatRun.runPath)
+      .then(() => showSpeechText('Prepared OPALIS scenario was opened for run ' + activeGmatRun.runId + '.'))
+      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to open prepared OPALIS scenario'))
+      .finally(() => setOpalisGuiOpening(false))
+  }, [activeGmatRun, opalisGuiOpening, opalisPreparing, showSpeechText])
+  const handleRunOpalis = useCallback(() => {
+    if (!activeGmatRun || opalisRunning || opalisPreparing || simuCicRunning) return
+    setOpalisRunning(true)
+    setManagedRunError('')
+    setProgressPanelOpen(true)
+    setGmatWorkflowEntries(newOpalisRunWorkflow())
+    void runOpalisScenario(activeGmatRun.runPath)
+      .then(result => {
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_opalis', 'completed') : entries)
+        showSpeechText('OPALIS calculation completed for run ' + activeGmatRun.runId + '. Results: ' + result.summary + '.')
+        refreshWorkspaceViews()
+      })
+      .catch(reason => {
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_opalis', 'failed') : entries)
+        setManagedRunError(reason instanceof Error ? reason.message : 'Unable to run OPALIS calculation')
+      })
+      .finally(() => setOpalisRunning(false))
+  }, [activeGmatRun, opalisPreparing, opalisRunning, refreshWorkspaceViews, showSpeechText, simuCicRunning])
   const sessionStatusLabel = t(`workspace.status.${displayedSessionStatus}`)
   const dataSourceLabel = activeContext.workspaceName
     ? getWorkspaceDisplayName(activeContext.workspaceName)
@@ -882,6 +968,24 @@ export default function AgentPage() {
             label: simuCicGuiOpening ? 'Opening Simu-CIC GUI…' : 'Open Simu-CIC GUI',
             onClick: handleOpenSimuCicGui,
             title: activeGmatRun ? 'Open the generated Simu-CIC scenario for this run.' : 'Select a GMAT run first.',
+          }}
+          opalisPrepareAction={{
+            disabled: !activeGmatRun || opalisPreparing || opalisRunning || simuCicRunning,
+            label: opalisPreparing ? 'Preparing OPALIS…' : 'Prepare OPALIS scenario',
+            onClick: handlePrepareOpalis,
+            title: activeGmatRun ? 'Build an OPALIS scenario from this run\'s satellite.json and Simu-CIC CIC files, without calculating it.' : 'Select a GMAT run first.',
+          }}
+          opalisRunAction={{
+            disabled: !activeGmatRun || opalisRunning || opalisPreparing || simuCicRunning,
+            label: opalisRunning ? 'Running OPALISâ€¦' : 'Run OPALIS calculation',
+            onClick: handleRunOpalis,
+            title: activeGmatRun ? 'Generate the OPALIS fluxes and run the electrical calculation in batch mode.' : 'Select a GMAT run first.',
+          }}
+          opalisGuiAction={{
+            disabled: !activeGmatRun || opalisGuiOpening || opalisPreparing || opalisRunning,
+            label: opalisGuiOpening ? 'Opening OPALIS…' : 'Open prepared OPALIS scenario',
+            onClick: handleOpenPreparedOpalis,
+            title: activeGmatRun ? 'Open the prepared OPALIS scenario in the OPALIS GUI.' : 'Select a GMAT run first.',
           }}
           onClose={() => setProgressPanelOpen(false)}
           progressUpdatedAt={displayedProgressUpdatedAt}
