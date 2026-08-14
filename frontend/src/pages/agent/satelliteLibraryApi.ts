@@ -32,7 +32,7 @@ export type DigitalThreadResponse = {
       orbitKeeping?: { values?: Record<string, string | number | null> }
     }
   }
-  document: {
+  document: Record<string, unknown> & {
     digital_thread?: { satellite_definition?: { id?: string; version?: string } }
     analysis_requests?: { simu_cic?: SimuCicConfiguration }
   }

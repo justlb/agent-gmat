@@ -20,9 +20,10 @@ export type ElectricPropulsionTimeSeriesSample = {
 export type ElectricPropulsionFile = {
   artifactId: string
   fileName: string
-  kind: 'calibration' | 'digital-thread' | 'ephemeris' | 'log' | 'manifest' | 'report' | 'result' | 'script' | 'timeseries' | 'values'
+  kind: 'calibration' | 'digital-thread' | 'ephemeris' | 'log' | 'manifest' | 'opalis' | 'report' | 'result' | 'script' | 'timeseries' | 'values'
   mtimeMs: number
   relativePath: string
+  runPath?: string
   size: number
 }
 

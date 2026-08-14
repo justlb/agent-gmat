@@ -77,10 +77,6 @@ async function pathExists(filePath: string) {
   return fs.access(filePath).then(() => true).catch(() => false)
 }
 
-async function ensureWorkspaceRoot(root: string) {
-  await fs.mkdir(path.join(root, WORKSPACES_DIR), { recursive: true })
-}
-
 async function readCurrentWorkspaceName(root: string) {
   try {
     const parsed = JSON.parse(await fs.readFile(path.join(root, CURRENT_WORKSPACE_FILE), "utf-8")) as { name?: unknown }
@@ -91,7 +87,10 @@ async function readCurrentWorkspaceName(root: string) {
 }
 
 async function writeCurrentWorkspaceName(root: string, name: string) {
-  await ensureWorkspaceRoot(root)
+  // Persist the selection at the user root.  The legacy `workspaces/`
+  // subdirectory is optional and must not be recreated just by opening the
+  // application.
+  await fs.mkdir(root, { recursive: true })
   const filePath = path.join(root, CURRENT_WORKSPACE_FILE)
   const tmpPath = `${filePath}.tmp-${process.pid}-${Date.now()}`
   await fs.writeFile(tmpPath, `${JSON.stringify({ name }, null, 2)}\n`, "utf-8")
@@ -204,7 +203,6 @@ async function findVersionedWorkspaceForName(root: string, name: string) {
 export async function getWorkspaceRoot() {
   const config = await readRootConfig().catch(() => ({} as RootConfig))
   const root = getWorkspaceRootFromConfigured(getConfiguredWorkspaceDir(config))
-  await ensureWorkspaceRoot(root).catch(() => {})
   return root
 }
 
@@ -224,7 +222,6 @@ export async function listWorkspaces() {
   const configuredWorkspaceDir = getConfiguredWorkspaceDir(config)
   const effectiveWorkspaceDir = await resolveWorkspaceDir()
   const root = getWorkspaceRootFromConfigured(configuredWorkspaceDir)
-  await ensureWorkspaceRoot(root).catch(() => {})
   const configuredName = configuredWorkspaceDir && path.dirname(configuredWorkspaceDir) === root
     ? path.basename(configuredWorkspaceDir)
     : null

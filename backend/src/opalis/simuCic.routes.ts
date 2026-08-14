@@ -11,6 +11,9 @@ import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { PREDEFINED_GROUND_STATIONS } from "./groundStationCatalog.js"
 import { loadRunDigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { writeSimuCicDefinition } from "./simuCicDefinition.js"
+import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
+import { cancelActiveCalculations, registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
+import { loadRunWorkflowLog, updateRunWorkflowLog } from "./workflowRunLog.js"
 
 type RunBody = { runPath?: unknown }
 
@@ -79,6 +82,7 @@ async function findGmatEphemeris(runDir: string) {
 async function runCommand(executable: string, args: string[], cwd: string, timeoutMs: number) {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(executable, args, { cwd, windowsHide: true })
+    registerActiveCalculation(cwd, child)
     let output = ""
     child.stdout.on("data", chunk => { output += String(chunk) })
     child.stderr.on("data", chunk => { output += String(chunk) })
@@ -88,6 +92,7 @@ async function runCommand(executable: string, args: string[], cwd: string, timeo
     }, timeoutMs)
     child.once("error", error => { clearTimeout(timer); reject(error) })
     child.once("close", code => {
+      unregisterActiveCalculation(cwd, child)
       clearTimeout(timer)
       if (code === 0) resolve(output)
       else reject(new Error("Simu-CIC failed with code " + code + ": " + output.slice(-2_000)))
@@ -129,6 +134,14 @@ async function latestScenario(runDir: string) {
   return candidates.sort((left, right) => right.mtimeMs - left.mtimeMs)[0]?.path ?? null
 }
 
+/** Snapshot the exact Simu-CIC scenario input for this run before execution. */
+async function snapshotBaseScenario(settings: ReturnType<typeof requiredSimuCicConfig>, runDir: string) {
+  const destination = path.join(runDir, "opalis", "02-simu-cic", "00-scenario-input", "simucic-input.scd")
+  await fs.mkdir(path.dirname(destination), { recursive: true })
+  await fs.copyFile(settings.baseScenario, destination)
+  return destination
+}
+
 async function openGui(config: AppConfig, runDir: string) {
   const settings = requiredSimuCicConfig(config)
   if (!settings.celestlabDir) throw new Error("Simu-CIC GUI is not configured: tools.opalis.celestlabDir")
@@ -153,10 +166,74 @@ async function openGui(config: AppConfig, runDir: string) {
   return { guiBin, scenario }
 }
 
+export async function runSimuCicForRun(config: AppConfig, root: string, runDir: string) {
+  const settings = requiredSimuCicConfig(config)
+  const gmatResult = JSON.parse(await fs.readFile(path.join(runDir, "gmat_result.json"), "utf8").catch(() => "null")) as { status?: unknown } | null
+  if (gmatResult?.status === "failed" || gmatResult?.status === "timeout") {
+    throw new Error("GMAT failed for this run. Run GMAT successfully before starting Simu-CIC.")
+  }
+  await updateRunWorkflowLog(runDir, "simu_cic", "running", "Simu-CIC calculation is running.")
+  await appendRunConversation(runDir, { answer: "Simu-CIC calculation started.", askedAt: new Date().toISOString(), channel: "simu-cic", question: "Run Simu-CIC" })
+  const inputScenario = await snapshotBaseScenario(settings, runDir)
+  // Simu-CIC reads the satellite.json saved with this run. A later attitude
+  // request is synchronized into that same run file, never taken from an
+  // unrelated mutable workspace selection.
+  const simuCicDefinition = await writeSimuCicDefinition(runDir, await loadRunDigitalThreadSnapshot(runDir))
+  const conversion = await convertGmatEphemeris(settings, runDir)
+  const saveRoot = path.join(runDir, "opalis", "02-simu-cic", "01-execution-complete")
+  const cicOutput = path.join(runDir, "opalis", "02-simu-cic", "02-fichiers-cic")
+  await fs.mkdir(saveRoot, { recursive: true })
+  const args = [
+    nativePath(settings.simuCicRunner), "--gui", "--hide-window",
+    "--scilab", nativePath(guiBinFor(settings.scilabBin)),
+    "--ephemeris", nativePath(conversion.convertedEphemeris),
+    "--simucic-definition", nativePath(simuCicDefinition.output),
+    "--simucic-dir", nativePath(settings.simucicDir),
+    "--base-scenario", nativePath(inputScenario),
+    "--save-root", nativePath(saveRoot),
+    "--cic-output", nativePath(cicOutput),
+  ]
+  const output = await runCommand(settings.workerPython, args, runDir, settings.timeoutMs)
+  const cicSatDir = path.join(cicOutput, "Sat")
+  const cicFiles = await fs.readdir(cicSatDir).catch(() => [])
+  if (!cicFiles.some(file => file.endsWith(".TXT"))) throw new Error("Simu-CIC completed without producing CIC/Sat files")
+  const result = {
+    cicSatDir: path.relative(root, cicSatDir), conversionOutput: conversion.output,
+    convertedEphemeris: path.relative(root, conversion.convertedEphemeris), sourceEphemeris: path.relative(root, conversion.sourceEphemeris),
+    output, inputScenario: path.relative(root, inputScenario), scenarioPath: await latestScenario(runDir), simuCicDefinition: path.relative(root, simuCicDefinition.output),
+  }
+  await updateRunWorkflowLog(runDir, "simu_cic", "completed", "Simu-CIC completed and generated CIC data.")
+  await appendRunConversation(runDir, { answer: `Simu-CIC completed. CIC data generated in ${result.cicSatDir}.`, askedAt: new Date().toISOString(), channel: "simu-cic", question: "Run Simu-CIC" })
+  return result
+}
+
 export async function simuCicRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
   fastify.get("/api/opalis/simu-cic/ground-stations", async () => ({
     stations: PREDEFINED_GROUND_STATIONS,
   }))
+
+  fastify.post<{ Body: RunBody }>("/api/opalis/workflow-status", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    const runDir = root ? resolveGmatRunDir(root, req.body?.runPath) : null
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    return reply.send({ workflow: await loadRunWorkflowLog(runDir) })
+  })
+
+  fastify.post<{ Body: RunBody }>("/api/gmat/cancel-calculations", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    const runDir = root && req.body?.runPath ? resolveGmatRunDir(root, req.body.runPath) : null
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    if (req.body?.runPath && !runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    const cancelled = cancelActiveCalculations(root, runDir)
+    if (runDir) {
+      const workflow = await loadRunWorkflowLog(runDir)
+      for (const stage of ["simu_cic", "opalis"] as const) {
+        if (workflow.stages[stage].status === "running") await updateRunWorkflowLog(runDir, stage, "failed", "Stopped by the user.")
+      }
+    }
+    return reply.send({ cancelled })
+  })
 
   fastify.post<{ Body: RunBody }>("/api/opalis/simu-cic/convert-ephemeris", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
@@ -181,42 +258,9 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
-      const settings = requiredSimuCicConfig(config)
-      // Simu-CIC reads the satellite.json saved with this run. A later attitude
-      // request is synchronized into that same run file, never taken from an
-      // unrelated mutable workspace selection.
-      const simuCicDefinition = await writeSimuCicDefinition(runDir, await loadRunDigitalThreadSnapshot(runDir))
-      const conversion = await convertGmatEphemeris(settings, runDir)
-      const saveRoot = path.join(runDir, "opalis", "02-simu-cic", "01-execution-complete")
-      const cicOutput = path.join(runDir, "opalis", "02-simu-cic", "02-fichiers-cic")
-      await fs.mkdir(saveRoot, { recursive: true })
-      const args = [
-        // Simu-CIC's simcicg engine requires the graphical Scilab
-        // initialization on this installation. Hide that window for the normal
-        // calculation; the dedicated action below still opens an interactive GUI.
-        nativePath(settings.simuCicRunner), "--gui", "--hide-window",
-        "--scilab", nativePath(guiBinFor(settings.scilabBin)),
-        "--ephemeris", nativePath(conversion.convertedEphemeris),
-        "--simucic-definition", nativePath(simuCicDefinition.output),
-        "--simucic-dir", nativePath(settings.simucicDir),
-        "--base-scenario", nativePath(settings.baseScenario),
-        "--save-root", nativePath(saveRoot),
-        "--cic-output", nativePath(cicOutput),
-      ]
-      const output = await runCommand(settings.workerPython, args, runDir, settings.timeoutMs)
-      const cicSatDir = path.join(cicOutput, "Sat")
-      const cicFiles = await fs.readdir(cicSatDir).catch(() => [])
-      if (!cicFiles.some(file => file.endsWith(".TXT"))) throw new Error("Simu-CIC completed without producing CIC/Sat files")
-      return reply.send({
-        cicSatDir: path.relative(root, cicSatDir),
-        conversionOutput: conversion.output,
-        convertedEphemeris: path.relative(root, conversion.convertedEphemeris),
-        sourceEphemeris: path.relative(root, conversion.sourceEphemeris),
-        output,
-        scenarioPath: await latestScenario(runDir),
-        simuCicDefinition: path.relative(root, simuCicDefinition.output),
-      })
+      return reply.send(await runSimuCicForRun(config, root, runDir))
     } catch (error) {
+      await updateRunWorkflowLog(runDir, "simu_cic", "failed", getErrorMessage(error, "failed to run Simu-CIC")).catch(() => undefined)
       return reply.status(422).send({ error: getErrorMessage(error, "failed to run Simu-CIC") })
     }
   })

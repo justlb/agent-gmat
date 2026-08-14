@@ -127,7 +127,15 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         return reply.send({ digitalThread: result.document, draft, kind: "simu-cic", message: result.message || "Simu-CIC configuration updated." })
       }
       const decision = await routeMissionMessage(config, message)
-      if (decision.target === "general") return reply.send({ kind: decision.target, message: decision.message })
+      if (decision.target === "general") {
+        // General questions must remain part of the mission record as well.
+        // Otherwise the UI loses the user's turn as soon as the transient
+        // composer state is refreshed.
+        const turn = { answer: decision.message, askedAt: new Date().toISOString(), channel: "gmat-draft" as const, question: message }
+        await appendMissionConversation(workspaceDir, turn)
+        if (activeRunDir) await appendRunConversation(activeRunDir, turn)
+        return reply.send({ kind: decision.target, message: decision.message })
+      }
       if (decision.target === "clarify") {
         const turn = { answer: decision.message, askedAt: new Date().toISOString(), channel: "gmat-draft" as const, question: message }
         await appendMissionConversation(workspaceDir, turn)
@@ -147,7 +155,8 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         const selectionChanged = planningSelection && typeof planningSelection.id === "string" && (
           !satelliteSelection ||
           satelliteSelection.id !== planningSelection.id ||
-          satelliteSelection.version !== planningSelection.version
+          satelliteSelection.version !== planningSelection.version ||
+          JSON.stringify(currentDigitalThread.satellite) !== JSON.stringify(planningDigitalThread.satellite)
         )
         if (selectionChanged) {
           currentDigitalThread.satellite = JSON.parse(JSON.stringify(planningDigitalThread.satellite))

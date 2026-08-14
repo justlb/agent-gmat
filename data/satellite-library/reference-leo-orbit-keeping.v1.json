@@ -3,29 +3,68 @@
   "version": "1.0.0",
   "name": "Reference LEO Orbit Keeping",
   "description": "Physical reference definition for a chemical-propulsion spacecraft. Its electrical subsystem is aligned with the OPALIS orbitkeeping example. Mission orbit and GMAT mission values are intentionally excluded.",
-  "capabilities": ["GMAT", "Simu-CIC", "OPALIS"],
-  "mission_templates": ["orbit-keeping"],
+  "capabilities": [
+    "GMAT",
+    "Simu-CIC",
+    "OPALIS"
+  ],
+  "mission_templates": [
+    "orbit-keeping"
+  ],
   "satellite": {
-    "identity": { "name": "Reference LEO Orbit Keeping", "operator": "Reference program", "mission_type": "Earth observation" },
+    "identity": {
+      "name": "Reference LEO Orbit Keeping",
+      "operator": "Reference program",
+      "mission_type": "Earth observation"
+    },
     "bus": {
-      "physical": { "mass_kg": { "dry": 300, "wet_at_launch": 400, "propellant": 100 }, "drag_area_m2": 15, "drag_coefficient": 2.2 },
-      "propulsion_subsystem": { "type": "Bipropellant chemical propulsion", "main_engine_thrust_n": 22, "specific_impulse_seconds": 320, "delta_v_mps": 180 },
+      "physical": {
+        "mass_kg": {
+          "dry": 300,
+          "wet_at_launch": 400,
+          "propellant": 100
+        },
+        "drag_area_m2": 15,
+        "drag_coefficient": 2.2
+      },
+      "propulsion_subsystem": {
+        "type": "Bipropellant chemical propulsion",
+        "main_engine_thrust_n": 22,
+        "specific_impulse_seconds": 320,
+        "delta_v_mps": 180
+      },
       "electrical_subsystem": {
         "solar_panels": {
           "type": "3G30 BOL solar cells",
-          "efficiency_percent": null,
+          "efficiency_percent": 30,
           "total_area_m2": 8,
-          "total_power_generated_watts": null,
-          "array_orientation": "2 m² body-mounted + 6 m² deployed",
+          "total_power_generated_watts": 2400,
+          "filling_factor": 0.85,
+          "albedo_w_m2": 410,
+          "earth_radiation_w_m2": 210,
+          "array_orientation": "2 mÂ² body-mounted + 6 mÂ² deployed",
           "opalis_sections": [
-            { "area_m2": 2, "anchor_type": "BodyMounted", "series_cells": 25, "parallel_cells": 21 },
-            { "area_m2": 6, "anchor_type": "Deployed", "series_cells": 25, "parallel_cells": 65 }
+            {
+              "area_m2": 2,
+              "anchor_type": "BodyMounted",
+              "filling_factor": 0.85,
+              "series_cells": 25,
+              "parallel_cells": 21
+            },
+            {
+              "area_m2": 6,
+              "anchor_type": "Deployed",
+              "filling_factor": 0.85,
+              "series_cells": 25,
+              "parallel_cells": 65
+            }
           ]
         },
         "batteries": {
-          "chemistry": null,
+          "chemistry": "Li-ion",
           "capacity_ah": 95.2,
-          "opalis_cell_model": "MPxtd BOL -30°C",
+          "energy_wh": 3000,
+          "opalis_cell_model": "MPxtd BOL -30Â°C",
           "cells_parallel": 17,
           "cells_series": 13,
           "cell_capacity_ah": 5.6,
@@ -40,10 +79,78 @@
           "power_supply": "MediumSat",
           "regulation_type": "DET",
           "solar_constant_w_m2": 1360,
-          "battery_initial_voltage_v": 50,
-          "battery_low_limit_voltage_v": 52.15119,
+          "battery_initial_voltage_v": 52,
+          "battery_low_limit_voltage_v": 39,
           "distribution_line_constant_load_w": 1500,
           "distribution_line_margin_w": 0
+        }
+      },
+      "opalis": {
+        "model": {
+          "template_id": "empty.opalis",
+          "reference_source": "D:/STAGE/APP/opalis-2.4.0/Example/orbitkeeping.opalis",
+          "simulation_mode": "Simple",
+          "power_supply": "MediumSat",
+          "regulation_type": "DET",
+          "distribution_resistance_ohm": 0.035
+        },
+        "simulation": {
+          "reference_time_step_s": 0.1,
+          "reference_duration_s": 0,
+          "satellite_temperature_c": 20,
+          "regulated_mode": "NonRegulated",
+          "current_limit_mode": "Constant",
+          "voltage_limit_mode": "Constant",
+          "thermal_model": "Reduced"
+        },
+        "battery": {
+          "initial_voltage_v": 52,
+          "initial_state_of_charge": 0.9,
+          "energy_wh": 3000,
+          "cells_parallel": 17,
+          "cells_series": 13,
+          "cell_model": "MPxtd BOL -30Â°C",
+          "cell_type": "Tfix",
+          "cell_capacity_ah": 5.6,
+          "cable_resistance_ohm": 0.05,
+          "low_voltage_limit_v": 39
+        },
+        "power_distribution": {
+          "constant_load_w": 1500,
+          "margin_w": 0,
+          "rated_power_w": 10000,
+          "consumption_mode": "Constant"
+        },
+        "environment": {
+          "solar_constant_w_m2": 1360,
+          "albedo_w_m2": 410,
+          "earth_radiation_w_m2": 210
+        },
+        "solar_generator": {
+          "cell_model": "3G30 BOL",
+          "cell_area_m2": 0.0031,
+          "sections": [
+            {
+              "type": "RigidPanel",
+              "active": true,
+              "area_m2": 2,
+              "anchor_type": "BodyMounted",
+              "filling_factor": 0.85,
+              "cells_parallel": 21,
+              "cells_series": 25,
+              "rated_power_w": 10000
+            },
+            {
+              "type": "RigidPanel",
+              "active": true,
+              "area_m2": 6,
+              "anchor_type": "Deployed",
+              "filling_factor": 0.85,
+              "cells_parallel": 65,
+              "cells_series": 25,
+              "rated_power_w": 10000
+            }
+          ]
         }
       }
     }

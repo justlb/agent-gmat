@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Orchestre la chaine conversion -> Simu-CIC -> OPALIS."""
+"""Orchestre la chaine conversion -> Simu-CIC -> OPALIS + RF-COMLINK."""
 
 from __future__ import annotations
 
@@ -24,16 +24,18 @@ APPS_DIR = PROJECT_DIR.parent
 CONVERSION_DIR = PROJECT_DIR / "1-conversion_vers_SIMU-CIC"
 SIMUCIC_DIR = PROJECT_DIR / "2-run_SIMU-CIC"
 OPALIS_RUNNER_DIR = PROJECT_DIR / "3-run_OPALIS"
+RFCOMLINK_RUNNER_DIR = PROJECT_DIR / "4-run_RF-COMLINK"
 
 CONVERTER = CONVERSION_DIR / "eph_conversion.py"
 SIMUCIC_RUNNER = SIMUCIC_DIR / "run_scilab_simulation.py"
 OPALIS_RUNNER = OPALIS_RUNNER_DIR / "opalis_pipeline.py"
+RFCOMLINK_RUNNER = RFCOMLINK_RUNNER_DIR / "rfcomlink_pipeline.py"
 OPALIS_TEMPLATE_DIR = OPALIS_RUNNER_DIR / "templates"
 
 DEFAULT_SIMUCIC_DIR = APPS_DIR / "SIMU_CIC" / "simu_cic"
 DEFAULT_BASE_SCENARIO = DEFAULT_SIMUCIC_DIR / "GUI" / "examples" / "Example_1.scd"
 DEFAULT_OPALIS_DIR = APPS_DIR / "OPALIS" / "Opalis-2.3.0"
-DEFAULT_SIMULATION = OPALIS_TEMPLATE_DIR / "cas A - interpolation lineaire.opalis"
+DEFAULT_SIMULATION = OPALIS_TEMPLATE_DIR / "empty.opalis"
 DEFAULT_OUTPUT_ROOT = PROJECT_DIR / "resultats_workflow"
 DEFAULT_BUNDLED_PYTHON = (
     Path.home()
@@ -217,6 +219,7 @@ def write_run_guide(path: Path, manifest: dict[str, Any]) -> None:
     conversion = steps.get("conversion", {})
     simucic = steps.get("simu_cic", {})
     opalis_step = steps.get("opalis", {})
+    rfcomlink_step = steps.get("rf_comlink", {})
     lines = [
         f"RUN : {manifest['name']}",
         f"STATUT : {manifest['status']}",
@@ -227,16 +230,19 @@ def write_run_guide(path: Path, manifest: dict[str, Any]) -> None:
         f"Ephemeride convertie     : {relative(conversion.get('output'))}",
         f"Scenario Simu-CIC (.scd) : {relative(simucic.get('scenario_scd'))}",
         f"Sauvegarde Scilab (.sod) : {relative(simucic.get('scenario_sod'))}",
-        f"Fichiers CIC pour OPALIS : {relative(simucic.get('cic_dir'))}",
+        f"Fichiers CIC partages     : {relative(simucic.get('cic_dir'))}",
         f"Cas OPALIS final         : {relative(opalis_step.get('case'))}",
         f"Resume OPALIS JSON       : {relative(opalis_step.get('summary'))}",
+        f"Cas RF-COMLINK prepare   : {relative(rfcomlink_step.get('case'))}",
+        f"Resume RF-COMLINK JSON   : {relative(rfcomlink_step.get('summary'))}",
         "",
         "ORGANISATION",
         "------------",
         "00-entrees          copies des fichiers fournis au workflow",
         "01-conversion       ephemeride convertie au format *-SIMU.txt",
         "02-simu-cic         execution Simu-CIC et fichiers CIC generes",
-        "03-opalis           cas A, flux dynamiques et resultats OPALIS",
+        "03-opalis           cas, flux dynamiques et resultats OPALIS",
+        "04-rf-comlink       cas RF-COMLINK avec entrees CIC embarquees",
         "workflow.json       manifeste technique complet",
     ]
     if manifest.get("error"):
@@ -255,7 +261,8 @@ def write_latest_run(path: Path, run_dir: Path, manifest: dict[str, Any]) -> Non
         f"STATUT      : {manifest['status']}",
         f"DOSSIER     : {run_dir}",
         f"GUIDE       : {run_dir / 'LISEZ-MOI.txt'}",
-        f"RESULTATS   : {run_dir / '03-opalis' / '02-resultats'}",
+        f"RESULTATS OPALIS      : {run_dir / '03-opalis' / '02-resultats'}",
+        f"RESULTATS RF-COMLINK  : {run_dir / '04-rf-comlink'}",
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(content) + "\n", encoding="utf-8")
@@ -263,7 +270,7 @@ def write_latest_run(path: Path, run_dir: Path, manifest: dict[str, Any]) -> Non
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Workflow complet : ephemeride -> SIMU-CIC -> dossier CIC -> OPALIS."
+        description="Workflow complet : ephemeride -> SIMU-CIC -> OPALIS + RF-COMLINK."
     )
     parser.add_argument(
         "input",
@@ -274,7 +281,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--simulation",
         default=str(DEFAULT_SIMULATION),
-        help=f"cas .opalis de reference (defaut : {DEFAULT_SIMULATION})",
+        help=f"cas .opalis vide a preparer (defaut : {DEFAULT_SIMULATION})",
+    )
+    parser.add_argument(
+        "--parameters-file",
+        help=(
+            "opalis-parameters.json produit depuis le satellite.json de la run; "
+            "requis pour remplir empty.opalis sans utiliser un cas exemple"
+        ),
     )
     parser.add_argument(
         "--base-scenario",
@@ -329,6 +343,28 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="genere le cas OPALIS sans lancer son calcul",
     )
+    parser.add_argument(
+        "--no-rf-comlink",
+        action="store_true",
+        help="ne prepare pas le cas RF-COMLINK",
+    )
+    parser.add_argument(
+        "--rfcomlink-template",
+        default=r"D:\STAGE\APP\rf-comlink\example\example.rfcl",
+        help="cas .rfcl de reference (defaut : example.rfcl)",
+    )
+    parser.add_argument(
+        "--rfcomlink-station",
+        type=int,
+        default=1,
+        help="indice de station sol Simu-CIC pour RF-COMLINK (defaut : 1)",
+    )
+    parser.add_argument(
+        "--rfcomlink-links",
+        nargs="+",
+        default=["Telecommand", "Housekeeping telemetry"],
+        help="liens RF-COMLINK a alimenter depuis CIC",
+    )
     return parser
 
 
@@ -336,6 +372,11 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     source = require_file(absolute_path(args.input), "Ephemeride source")
     simulation = require_file(absolute_path(args.simulation), "Cas OPALIS")
+    parameters_file = (
+        require_file(absolute_path(args.parameters_file), "Manifeste OPALIS")
+        if args.parameters_file
+        else None
+    )
     base_scenario = require_file(absolute_path(args.base_scenario), "Scenario Simu-CIC")
     simucic_dir = require_dir(absolute_path(args.simucic_dir), "Installation Simu-CIC")
     require_dir(simucic_dir / "lib", "Bibliotheque Simu-CIC")
@@ -343,9 +384,12 @@ def main(argv: list[str] | None = None) -> int:
     require_file(opalis_dir / "lib" / "OpalisApi.dll", "API OPALIS")
     python = require_file(absolute_path(args.python), "Interpreteur Python")
     verify_opalis_python(python)
-    print(f"Python des etapes 2/3 : {python}", flush=True)
+    print(f"Python des etapes 2 a 4 : {python}", flush=True)
     require_file(SIMUCIC_RUNNER, "Lanceur Simu-CIC")
     require_file(OPALIS_RUNNER, "Pipeline OPALIS")
+    if not args.no_rf_comlink:
+        require_file(RFCOMLINK_RUNNER, "Pipeline RF-COMLINK")
+        require_file(absolute_path(args.rfcomlink_template), "Cas RF-COMLINK")
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     run_name = args.name or f"{source.stem}-{timestamp}"
@@ -363,6 +407,7 @@ def main(argv: list[str] | None = None) -> int:
     conversion_dir = run_dir / "01-conversion"
     simucic_dir_output = run_dir / "02-simu-cic"
     opalis_output = run_dir / "03-opalis"
+    rfcomlink_output = run_dir / "04-rf-comlink"
     source_copy = inputs_dir / "ephemeride-source" / source.name
     conversion_output = conversion_dir / f"{source.stem}_SIMU.txt"
     simucic_results = simucic_dir_output / "01-execution-complete"
@@ -390,13 +435,13 @@ def main(argv: list[str] | None = None) -> int:
     write_latest_run(latest_run_path, run_dir, manifest)
 
     try:
-        print("\n[1/3] Conversion vers SIMU-CIC", flush=True)
+        print("\n[1/4] Conversion vers SIMU-CIC", flush=True)
         manifest["steps"]["conversion"] = convert_to_simucic(source_copy, conversion_output)
         write_manifest(manifest_path, manifest)
         write_run_guide(guide_path, manifest)
         write_latest_run(latest_run_path, run_dir, manifest)
 
-        print("\n[2/3] Simulation Simu-CIC", flush=True)
+        print("\n[2/4] Simulation Simu-CIC", flush=True)
         simucic_command = [
             str(python),
             str(SIMUCIC_RUNNER),
@@ -442,7 +487,7 @@ def main(argv: list[str] | None = None) -> int:
         write_latest_run(latest_run_path, run_dir, manifest)
 
         opalis_action = "Preparation OPALIS" if args.no_opalis_run else "Calcul OPALIS"
-        print(f"\n[3/3] {opalis_action}", flush=True)
+        print(f"\n[3/4] {opalis_action}", flush=True)
         opalis_command = [
             str(python),
             str(OPALIS_RUNNER),
@@ -456,6 +501,8 @@ def main(argv: list[str] | None = None) -> int:
             "--name",
             run_name,
         ]
+        if parameters_file:
+            opalis_command.extend(["--parameters-file", str(parameters_file)])
         for section in args.section:
             opalis_command.extend(["--section", str(section)])
         if args.sections_count is not None:
@@ -482,6 +529,35 @@ def main(argv: list[str] | None = None) -> int:
         }
         if quality_warnings:
             manifest["warnings"] = quality_warnings
+        if not args.no_rf_comlink:
+            print("\n[4/4] Preparation RF-COMLINK", flush=True)
+            rfcomlink_command = [
+                str(python),
+                str(RFCOMLINK_RUNNER),
+                "--cic-dir", str(cic_sat),
+                "--template", str(absolute_path(args.rfcomlink_template)),
+                "--output-dir", str(rfcomlink_output),
+                "--name", run_name,
+                "--station", str(args.rfcomlink_station),
+                "--links", *args.rfcomlink_links,
+            ]
+            run_command(rfcomlink_command, RFCOMLINK_RUNNER_DIR)
+            rfcomlink_case = require_file(
+                rfcomlink_output / run_name / f"{run_name}.rfcl",
+                "Cas RF-COMLINK genere",
+            )
+            rfcomlink_json = require_file(
+                rfcomlink_output / run_name / "workflow.json",
+                "Resume RF-COMLINK",
+            )
+            manifest["steps"]["rf_comlink"] = {
+                "cic_input": str(cic_sat),
+                "template": str(absolute_path(args.rfcomlink_template)),
+                "case": str(rfcomlink_case),
+                "summary": str(rfcomlink_json),
+                "calculation_executed": False,
+                "next_step": "Open the generated .rfcl in RF-COMLINK and run the calculation from its GUI.",
+            }
         manifest["status"] = "success"
         manifest["finished_at"] = utc_now()
         write_manifest(manifest_path, manifest)

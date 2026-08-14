@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process"
+import { registerActiveCalculation, unregisterActiveCalculation } from "./activeCalculationRegistry.js"
 import fs from "node:fs/promises"
 import path from "node:path"
 
@@ -91,10 +92,11 @@ export async function runOrbitKeepingGmat({
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
     })
+    registerActiveCalculation(runDir, child)
     child.stdout.on("data", chunk => chunks.push(Buffer.from(chunk)))
     child.stderr.on("data", chunk => chunks.push(Buffer.from(chunk)))
     child.once("error", reject)
-    child.once("close", code => resolve(code))
+    child.once("close", code => { unregisterActiveCalculation(runDir, child); resolve(code) })
     const timeout = setTimeout(() => {
       timedOut = true
       child.kill("SIGKILL")

@@ -37,3 +37,82 @@ export async function openSimuCicGui(runPath: string) {
   })
   if (!response.ok) throw new Error(await responseError(response))
 }
+
+export async function prepareOpalisScenario(runPath: string) {
+  const response = await fetch(joinApiPath(undefined, "/opalis/prepare-scenario"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runPath }),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+  return response.json() as Promise<{ parameters: string; scenario: string; summary: string }>
+}
+
+export async function runOpalisScenario(runPath: string) {
+  const response = await fetch(joinApiPath(undefined, "/opalis/run-scenario"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runPath }),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+  return response.json() as Promise<{ parameters: string; scenario: string; summary: string }>
+}
+
+export type RunWorkflowStatus = 'not_started' | 'running' | 'completed' | 'failed'
+export type RunWorkflowLog = {
+  updated_at: string
+  stages: {
+    simu_cic: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }
+    opalis: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }
+  }
+}
+
+export async function getRunWorkflowLog(runPath: string) {
+  const response = await fetch(joinApiPath(undefined, "/opalis/workflow-status"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runPath }),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+  return (await response.json() as { workflow: RunWorkflowLog }).workflow
+}
+
+export async function cancelGmatCalculations(runPath?: string) {
+  const response = await fetch(joinApiPath(undefined, "/gmat/cancel-calculations"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(runPath ? { runPath } : {}),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+  return response.json() as Promise<{ cancelled: number }>
+}
+
+export type OpalisResultSummary = {
+  alerts: Array<{ level: 'info' | 'warning'; message: string }>
+  computedDurationSeconds: number | null
+  finalSocPercent: number | null
+  initialSocPercent: number | null
+  maxDepthOfDischargePercent: number | null
+  resultRows: number | null
+  simulationExecuted: boolean
+  solarArrayEnergy: number | null
+  solarSections: number | null
+  stopCondition: string | null
+}
+
+export async function getOpalisResults(runPath: string) {
+  const query = new URLSearchParams({ runPath }).toString()
+  const response = await fetch(`${joinApiPath(undefined, '/opalis/results')}?${query}`, { cache: 'no-store' })
+  if (!response.ok) throw new Error(await responseError(response))
+  const payload = await response.json() as { result: OpalisResultSummary }
+  return payload.result
+}
+
+export async function openPreparedOpalisScenario(runPath: string) {
+  const response = await fetch(joinApiPath(undefined, "/opalis/open-prepared-scenario"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runPath }),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+}
