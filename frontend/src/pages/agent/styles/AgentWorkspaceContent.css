@@ -2313,3 +2313,12 @@
 .mission-template-source small { color: #8fa4c4; font-size: 9px; }
 .mission-template-source select { background: #06152a; border: 1px solid rgba(96, 165, 250, .5); border-radius: 6px; color: #e2e8f0; font-size: 10px; font-weight: 800; min-inline-size: 190px; padding: 6px 8px; }
 .mission-setup-sources { display: grid; gap: 8px; }
+.gmat-run-comparison-memory { border-top: 1px solid rgba(103, 232, 249, .22); padding-top: 9px; }
+.gmat-run-comparison-memory > p { color: #8fa4c4; font-size: 10px; line-height: 1.3; margin: 6px 0; }
+.gmat-run-comparison-memory ul { display: grid; gap: 6px; }
+.gmat-run-comparison-memory li { align-items: stretch; display: grid; gap: 3px; padding: 7px 0; }
+.gmat-run-comparison-memory li div { display: flex; justify-content: space-between; gap: 8px; }
+.gmat-run-comparison-memory li strong { color: #eaf7ff; font-size: 10px; }
+.gmat-run-comparison-memory li b { font-size: 9px; text-transform: uppercase; }
+.gmat-run-comparison-memory li b.is-completed { color: #67e8f9; }.gmat-run-comparison-memory li b.is-failed, .gmat-run-comparison-memory li b.is-timeout { color: #fda4af; }
+.gmat-run-comparison-memory li small { color: #9ec1da; font-size: 9px; line-height: 1.25; }

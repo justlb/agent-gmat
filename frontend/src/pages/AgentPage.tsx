@@ -23,6 +23,7 @@ import { routeMissionMessage } from './agent/missionRoutingApi'
 import { askMissionAssistant } from './agent/missionAssistantApi'
 import { cancelGmatCalculations, getRunWorkflowLog, openPreparedOpalisScenario, openSimuCicGui, runOpalisScenario, runSimuCic, type RunWorkflowLog } from './agent/simuCicApi'
 import { createPlanningRun, type PlanningRun } from './agent/planningRunApi'
+import { updateMissionValue } from './agent/missionValuesApi'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -771,7 +772,7 @@ export default function AgentPage() {
         setActiveGmatRun({ conversation, draftId: result.draftId ?? activeGmatDraft.draftId, result: result.result, runId: result.runId, runPath: result.runPath, template: chatMode === 'gmat-electric-propulsion' ? 'electric-propulsion-transfer' : 'orbit-keeping' })
         setActiveGmatDraft(current => current?.draftId === activeGmatDraft.draftId ? {
           ...current,
-          runs: [...(current.runs ?? []).filter(run => run.runId !== result.runId), { completedAt: new Date().toISOString(), result: result.result, runId: result.runId, runPath: result.runPath }],
+          runs: [...(current.runs ?? []).filter(run => run.runId !== result.runId), { completedAt: new Date().toISOString(), missionValues: { ...current.values }, result: result.result, runId: result.runId, runPath: result.runPath }],
         } : current)
         if (runFailed) setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_gmat', 'failed') : entries)
         showSpeechText(runFailed
@@ -1046,6 +1047,16 @@ export default function AgentPage() {
             draft: activeGmatDraft,
             error: error || managedRunError,
             gmatRunFailed: activeGmatRun?.result?.status === 'failed' || activeGmatRun?.result?.status === 'timeout',
+            onEditMissionValues: () => {
+              if (!activeGmatDraft) {
+                setManagedRunError('The mission draft is still loading for this saved run. Please try again in a moment.')
+                return
+              }
+              setActiveGmatRun(null)
+              setPendingGmatMessage(null)
+              setManagedRunError('')
+              showSpeechText('Edit the mission values below. Saving a change creates a new GMAT test while preserving the previous run.')
+            },
             pending: pendingGmatMessage,
             onExecute: handleExecuteGmatDraft,
             onNewRun: handleNewGmatDraft,
@@ -1056,6 +1067,20 @@ export default function AgentPage() {
               if (pendingGmatMessage?.status === 'failed') handleTextSubmit(pendingGmatMessage.message, chatMode)
             },
             onSend: (message, mode) => handleTextSubmit(message, mode),
+            onUpdateMissionValue: (path, value) => {
+              const template = chatMode === 'gmat-orbit-keeping' ? 'orbit-keeping' : chatMode === 'gmat-electric-propulsion' ? 'electric-propulsion-transfer' : null
+              if (!template) return
+              setGmatGenerating(true)
+              setManagedRunError('')
+              void updateMissionValue({ draftId: activeGmatDraft?.draftId ?? activeGmatRun?.draftId, path, template, value, workspaceDir: gmatWorkspaceDir })
+                .then(draft => {
+                  setActiveGmatDraft(draft)
+                  setSatelliteRefreshNonce(current => current + 1)
+                  refreshWorkspaceViews()
+                })
+                .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to update mission value'))
+                .finally(() => setGmatGenerating(false))
+            },
             simuCicConversation,
             simuCicRefreshNonce: satelliteRefreshNonce,
             simuCicRunning,

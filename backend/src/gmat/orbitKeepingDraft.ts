@@ -74,6 +74,8 @@ export type OrbitKeepingDraftRun = {
   }
   runId: string
   runPath: string
+  /** Exact draft inputs used to make this immutable run comparable later. */
+  missionValues?: DraftValues
 }
 
 type FieldDefinition = {
@@ -406,6 +408,34 @@ export async function loadOrbitKeepingDraft(workspaceDir: string, draftId: strin
   return refreshDraft({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], conversationStartedAt: typeof parsed.conversationStartedAt === "string" ? parsed.conversationStartedAt : null, createdAt: parsed.createdAt, draftId: parsed.draftId, runs: Array.isArray(parsed.runs) ? parsed.runs : [], targetSmaFollowsInitial, templateId: parsed.templateId, values })
 }
 
+/** Deterministic form update. No model is involved: input is parsed,
+ * range-checked and persisted to the live draft YAML. */
+export async function setOrbitKeepingDraftValue(workspaceDir: string, draft: OrbitKeepingDraft, requestedPath: string, rawValue: string) {
+  const raw = rawValue.trim()
+  if (!raw) throw new Error("a value is required")
+  const values = { ...draft.values }
+  let targetSmaFollowsInitial = draft.targetSmaFollowsInitial
+  if (requestedPath === "initialOrbit.altitudeKm") {
+    const altitudeKm = Number(raw)
+    if (!Number.isFinite(altitudeKm) || altitudeKm < 0) throw new Error("initial altitude must be a non-negative number in km")
+    values["initialOrbit.smaKm"] = Number((altitudeKm + EARTH_EQUATORIAL_RADIUS_KM).toFixed(9))
+    if (targetSmaFollowsInitial) values["stationKeeping.targetSmaKm"] = values["initialOrbit.smaKm"]
+  } else if (requestedPath === "initialOrbit.epoch") {
+    values[requestedPath] = /^\d{4}-\d{2}-\d{2}T/u.test(raw) ? utcGregorianToTaiModJulian(raw) : raw
+  } else {
+    const field = fields.find(candidate => candidate.path === requestedPath)
+    if (!field) throw new Error("unsupported orbit-keeping mission field")
+    const value = Number(raw)
+    if (!Number.isFinite(value)) throw new Error(`${field.label} must be a finite number`)
+    if (field.min !== undefined && value < field.min) throw new Error(`${field.label} must be at least ${field.min}`)
+    if (field.max !== undefined && value > field.max) throw new Error(`${field.label} must be at most ${field.max}`)
+    values[requestedPath] = value
+    if (requestedPath === "initialOrbit.smaKm" && targetSmaFollowsInitial) values["stationKeeping.targetSmaKm"] = value
+    if (requestedPath === "stationKeeping.targetSmaKm") targetSmaFollowsInitial = false
+  }
+  return saveDraft(workspaceDir, refreshDraft({ ...draft, confirmed: false, targetSmaFollowsInitial, values }))
+}
+
 /** Records a non-GMAT configuration exchange in this draft only. */
 export async function appendOrbitKeepingDraftConversation(workspaceDir: string, draftId: string, turn: DraftConversationTurn) {
   const draft = await loadOrbitKeepingDraft(workspaceDir, draftId)
@@ -555,7 +585,7 @@ export async function recordOrbitKeepingDraftRun(workspaceDir: string, draftId: 
   if (!/^[-A-Za-z0-9_]+$/u.test(run.runId) || !/^gmat[\\/](?:orbit-keeping|mission-runs)[\\/][-A-Za-z0-9_]+$/u.test(run.runPath)) {
     throw new Error("invalid GMAT run reference")
   }
-  const runs = [...draft.runs.filter(existing => existing.runId !== run.runId), run]
+  const runs = [...draft.runs.filter(existing => existing.runId !== run.runId), { ...run, missionValues: { ...draft.values } }]
   return saveDraft(workspaceDir, refreshDraft({ ...draft, runs }))
 }
 

@@ -9,8 +9,8 @@ import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../dig
 import { getSatelliteDefinition } from "../digitalThread/satelliteLibrary.js"
 import { SATELLITE_RUN_OVERRIDE_PATHS, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
 import { PREDEFINED_GROUND_STATIONS } from "../opalis/groundStationCatalog.js"
-import { appendElectricPropulsionDraftConversation, createElectricPropulsionDraft, discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
-import { appendOrbitKeepingDraftConversation, createOrbitKeepingDraft, discussOrbitKeepingDraft, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
+import { appendElectricPropulsionDraftConversation, createElectricPropulsionDraft, discussElectricPropulsionDraft, loadElectricPropulsionDraft, setElectricPropulsionDraftValue } from "./electricPropulsionDraft.js"
+import { appendOrbitKeepingDraftConversation, createOrbitKeepingDraft, discussOrbitKeepingDraft, loadOrbitKeepingDraft, setOrbitKeepingDraftValue } from "./orbitKeepingDraft.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
 
 type MissionTemplate = "orbit-keeping" | "electric-propulsion-transfer"
@@ -97,6 +97,47 @@ async function routeMissionMessage(config: AppConfig, message: string) {
 
 /** One entry point for mission chat: route first, then use the selected draft workflow. */
 export async function missionRouterRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+  fastify.patch<{ Body: { draftId?: unknown; path?: unknown; template?: unknown; value?: unknown; workspaceDir?: unknown } }>("/api/gmat/mission-values", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const template = req.body?.template
+    const fieldPath = typeof req.body?.path === "string" ? req.body.path : ""
+    const rawValue = typeof req.body?.value === "string" || typeof req.body?.value === "number" ? String(req.body.value) : ""
+    const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
+    if ((template !== "orbit-keeping" && template !== "electric-propulsion-transfer") || !fieldPath || !rawValue.trim()) {
+      return reply.status(400).send({ error: "template, path, and value are required" })
+    }
+    const workspaceDir = typeof req.body?.workspaceDir === "string" && req.body.workspaceDir.trim() ? path.resolve(req.body.workspaceDir) : root
+    if (!isPathInside(path.resolve(root), workspaceDir) || !isMissionRunWorkspace(workspaceDir)) {
+      return reply.status(409).send({ error: "select a template and satellite for a dated mission run before entering mission values" })
+    }
+    try {
+      const planningThread = await loadOrCreateDigitalThread(workspaceDir)
+      const selection = planningThread.digital_thread.satellite_definition as { id?: unknown; version?: unknown } | undefined
+      if (!selection || typeof selection.id !== "string") return reply.status(409).send({ error: "select a compatible satellite before entering mission values" })
+      const satellite = await getSatelliteDefinition(selection.id, typeof selection.version === "string" ? selection.version : undefined)
+      if (!satellite.mission_templates.includes(template)) return reply.status(409).send({ error: `selected satellite is not compatible with ${template}` })
+      const adapted = adaptDigitalThreadToGmat(planningThread, template)
+      if (adapted.guards.some(guard => guard.code === "incompatible_propulsion")) return reply.status(409).send({ error: "selected satellite propulsion is incompatible with this template" })
+      if (template === "orbit-keeping") {
+        const baseDraft = draftId ? await loadOrbitKeepingDraft(workspaceDir, draftId) : await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
+        const draft = await setOrbitKeepingDraftValue(workspaceDir, baseDraft, fieldPath, rawValue)
+        const draftWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", draft.draftId)
+        await syncDigitalThreadFromGmatDraft(draftWorkspace, draft)
+        await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
+        return reply.send({ draft, template })
+      }
+      const baseDraft = draftId ? await loadElectricPropulsionDraft(workspaceDir, draftId) : await createElectricPropulsionDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
+      const draft = await setElectricPropulsionDraftValue(workspaceDir, baseDraft, fieldPath, rawValue)
+      const draftWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", draft.draftId)
+      await syncDigitalThreadFromGmatDraft(draftWorkspace, draft)
+      await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
+      return reply.send({ draft, template })
+    } catch (error) {
+      return reply.status(422).send({ error: getErrorMessage(error, "failed to update GMAT mission value") })
+    }
+  })
+
   fastify.post<{ Body: { draftId?: unknown; message?: unknown; runPath?: unknown; template?: unknown; workspaceDir?: unknown } }>("/api/gmat/route", async (req, reply) => {
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : ""
     if (!message) return reply.status(400).send({ error: "message must be a non-empty string" })

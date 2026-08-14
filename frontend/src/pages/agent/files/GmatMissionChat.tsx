@@ -13,6 +13,7 @@ type Draft = {
   status: 'blocked' | 'collecting' | 'ready' | 'confirmed'
   updatedAt?: string
   values: Record<string, string | number | null>
+  runs?: Array<{ completedAt: string; missionValues?: Record<string, string | number | null>; result: { finalAltitudeKm?: number; finalFuelMassKg?: number; finalRadiusKm?: number; status: string }; runId: string; runPath: string }>
 } | null
 
 type Field = { derived?: 'initialAltitude'; label: string; path: string; unit?: string }
@@ -97,13 +98,14 @@ function verifyRunValuesAgainstAdapter(values: Record<string, string | number | 
   return mismatches.length ? `Verification warning: ${mismatches.join(', ')} differs from the GMAT adapter; satellite.json is displayed.` : 'Verified against satellite.json'
 }
 
-function MissingMissionField({ busy, field, onSubmit }: { busy: boolean; field: Field; onSubmit: (message: string) => void }) {
-  const [entry, setEntry] = useState('')
+function MissionValueField({ busy, field, onSubmit, value }: { busy: boolean; field: Field; onSubmit: (path: string, value: string) => void; value: string | number | null }) {
+  const savedValue = value === null ? '' : String(value)
+  const [entry, setEntry] = useState(savedValue)
+  useEffect(() => { setEntry(savedValue) }, [savedValue])
   const submit = () => {
-    const value = entry.trim()
-    if (!value || busy) return
-    onSubmit(`Set ${field.label} to ${value}${field.unit ? ` ${field.unit}` : ''}.`)
-    setEntry('')
+    const nextValue = entry.trim()
+    if (!nextValue || busy || nextValue === savedValue) return
+    onSubmit(field.path, nextValue)
   }
   return <input
     aria-label={`Enter ${field.label}`}
@@ -117,6 +119,36 @@ function MissingMissionField({ busy, field, onSubmit }: { busy: boolean; field: 
   />
 }
 
+const MEMORY_FIELDS: Array<[string, string, string?]> = [
+  ['SMA', 'initialOrbit.smaKm', 'km'], ['ECC', 'initialOrbit.eccentricity'], ['INC', 'initialOrbit.inclinationDeg', 'deg'],
+  ['Fuel', 'spacecraft.initialFuelMassKg', 'kg'], ['Burn', 'transfer.burnDurationDays', 'days'], ['Reboost', 'stationKeeping.minimumAltitudeKm', 'km'],
+]
+
+function RunComparisonMemory({ runs }: { runs: NonNullable<Draft>['runs'] }) {
+  const ordered = [...(runs ?? [])].sort((left, right) => right.completedAt.localeCompare(left.completedAt))
+  const inputs = (run: typeof ordered[number]) => MEMORY_FIELDS.flatMap(([label, path, unit]) => {
+    const value = run.missionValues?.[path]
+    return value === null || value === undefined ? [] : [`${label} ${value}${unit ? ` ${unit}` : ''}`]
+  })
+  const changedFrom = (run: typeof ordered[number], previous: typeof ordered[number] | undefined) => !previous?.missionValues || !run.missionValues
+    ? []
+    : MEMORY_FIELDS.filter(([, path]) => run.missionValues?.[path] !== previous.missionValues?.[path]).map(([label]) => label)
+  return <section className="gmat-run-comparison-memory">
+    <header><strong>Run comparison memory</strong><span>{ordered.length} saved</span></header>
+    <p>Each result keeps the exact mission values used for it.</p>
+    <ul>{ordered.map((run, index) => {
+      const prior = ordered[index + 1]
+      const result = run.result
+      const metrics = [
+        result.finalAltitudeKm !== undefined ? `Final altitude ${result.finalAltitudeKm.toFixed(2)} km` : result.finalRadiusKm !== undefined ? `Final radius ${result.finalRadiusKm.toFixed(2)} km` : null,
+        result.finalFuelMassKg !== undefined ? `Final fuel ${result.finalFuelMassKg.toFixed(3)} kg` : null,
+      ].filter(Boolean)
+      const changed = changedFrom(run, prior)
+      return <li key={run.runId}><div><strong>{run.runId}</strong><b className={`is-${result.status}`}>{result.status}</b></div><small>{inputs(run).join(' | ') || 'Legacy run: input snapshot unavailable'}</small>{metrics.length ? <small>{metrics.join(' | ')}</small> : null}{changed.length ? <small>Changed vs previous: {changed.join(', ')}</small> : null}</li>
+    })}</ul>
+  </section>
+}
+
 export type GmatMissionChatProps = {
   activeRunId?: string
   chatMode: AgentChatMode
@@ -127,19 +159,21 @@ export type GmatMissionChatProps = {
   busy: boolean
   pending?: { error?: string; kind: 'draft' | 'run'; message: string; status: 'sending' | 'failed' } | null
   onExecute: () => void
+  onEditMissionValues?: () => void
   onNewRun: () => void
   onRunSimuCic?: () => void
   onRunOpalis?: () => void
   onStopCalculations?: () => void
   onRetry: () => void
   onSend: (message: string, mode: AgentChatMode) => void
+  onUpdateMissionValue?: (path: string, value: string) => void
   simuCicConversation?: Array<{ answer: string; askedAt: string; question: string }>
   simuCicRefreshNonce?: number
   simuCicRunning?: boolean
   workspaceDir?: string | null
 }
 
-export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, gmatRunFailed = false, onExecute, onNewRun, onRunSimuCic, onRunOpalis, onStopCalculations, onRetry, onSend, pending, simuCicConversation = [], simuCicRefreshNonce = 0, simuCicRunning = false, workspaceDir }: GmatMissionChatProps) {
+export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, gmatRunFailed = false, onEditMissionValues, onExecute, onNewRun, onRunSimuCic, onRunOpalis, onStopCalculations, onRetry, onSend, onUpdateMissionValue, pending, simuCicConversation = [], simuCicRefreshNonce = 0, simuCicRunning = false, workspaceDir }: GmatMissionChatProps) {
   const [message, setMessage] = useState('')
   const [simuCic, setSimuCic] = useState<SimuCicConfiguration>({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
   const [savedRunValues, setSavedRunValues] = useState<Record<string, string | number | null> | null>(null)
@@ -225,7 +259,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
                     : null
                   const value = field.derived ? derivedAltitude : displayedValues?.[field.path]
                   const absent = field.derived ? derivedAltitude === null : value === null || value === undefined || value === ''
-                  return <li className={absent ? 'is-missing' : ''} key={field.derived ?? field.path}><span>{field.label}</span>{absent && !activeRunId ? <MissingMissionField busy={busy} field={field} onSubmit={nextMessage => onSend(nextMessage, chatMode)} /> : <b>{absent ? 'Not provided' : `${value}${field.unit ? ` ${field.unit}` : ''}`}</b>}</li>
+                  return <li className={absent ? 'is-missing' : ''} key={field.derived ?? field.path}><span>{field.label}</span>{!activeRunId && onUpdateMissionValue ? <MissionValueField busy={busy} field={field} onSubmit={onUpdateMissionValue} value={typeof value === 'string' || typeof value === 'number' ? value : null} /> : <b>{absent ? 'Not provided' : `${value}${field.unit ? ` ${field.unit}` : ''}`}</b>}</li>
                 })}
               </ul></section>
               {draft || activeRunId ? <section><header><strong>Required before Simu-CIC can run</strong><span>{simuCicComplete ? 'Complete' : simuCicNeedsStations ? 'Station required' : 'Attitude law required'}</span></header><ul>
@@ -233,6 +267,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
                 {simuCic.attitude_mode === 'ground_station_tracking' ? <li className={simuCicNeedsStations ? 'is-missing' : ''}><span>Ground stations</span><b>{simuCic.ground_station_ids.length ? simuCic.ground_station_ids.join(', ') : 'Not provided'}</b></li> : null}
               </ul><p className="gmat-mission-simucic-hint">Ask the LLM in writing for the predefined ground-station list or to configure the attitude behavior.</p></section> : null}
               {draft ? <><section><header><strong>Assumed defaults to confirm</strong><span>Template defaults and run-specific satellite values</span></header><ul className="assumptions">{(draft.safety?.assumptions ?? []).map(item => <li key={item.label}>{item.label}: {item.value}</li>)}{satelliteAssumptions.map(item => <li key={`satellite-${item.label}`}>{item.label}: {item.value}</li>)}</ul></section>
+              {draft.runs?.length ? <RunComparisonMemory runs={draft.runs} /> : null}
               {!activeRunId ? <>
                 <button
                   className="gmat-mission-run-button"
@@ -244,7 +279,8 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
                 {draft.status !== 'ready' && !draft.missing.length && blockers.length ? <p className="gmat-mission-run-blocker">GMAT is blocked by the safety check shown in the discussion.</p> : null}
               </> : null}</> : null}
             </> : activeRunId ? <p>Loading saved mission values…</p> : <p>Describe the mission to start a new draft.</p>}
-            {activeRunId && gmatRunFailed ? <><p className="gmat-mission-run-blocker">GMAT failed. Fix the mission values if needed, then run GMAT again before continuing to Simu-CIC or OPALIS.</p><button className="gmat-mission-run-button" disabled={busy || !draft} type="button" onClick={onExecute}>Retry GMAT</button></> : null}
+            {activeRunId && onEditMissionValues ? <button className="gmat-mission-run-button" disabled={busy || !draft} type="button" onClick={onEditMissionValues}>Edit values / test variation</button> : null}
+            {activeRunId && gmatRunFailed ? <><p className="gmat-mission-run-blocker">GMAT failed. Edit the mission values, then run GMAT again before continuing to Simu-CIC or OPALIS.</p><button className="gmat-mission-run-button" disabled={busy || !draft} type="button" onClick={onExecute}>Retry unchanged values</button></> : null}
             {activeRunId && !gmatRunFailed && onRunSimuCic ? <button className="gmat-mission-run-button" disabled={simuCicRunning} type="button" onClick={onRunSimuCic}>{simuCicRunning ? 'Running Simu-CIC…' : 'Run Simu-CIC'}</button> : null}
             {activeRunId && !gmatRunFailed && onRunOpalis ? <button className="gmat-mission-run-button" disabled={simuCicRunning || busy} type="button" onClick={onRunOpalis}>Run OPALIS (includes Simu-CIC)</button> : null}
             {activeRunId ? <button type="button" onClick={onNewRun}>Start separate GMAT mission</button> : null}

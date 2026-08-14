@@ -44,7 +44,7 @@ export type OrbitKeepingDraft = {
   createdAt?: string
   draftId: string
   missing: string[]
-  runs?: Array<{ runId: string; runPath: string; result: OrbitKeepingGenerateResult['result']; completedAt: string }>
+  runs?: Array<{ runId: string; runPath: string; result: OrbitKeepingGenerateResult['result']; completedAt: string; missionValues?: Record<string, string | number | null> }>
   safety: {
     assumptions: Array<{ label: string; value: string }>
     checks: Array<{ code: string; message: string; severity: 'error' | 'warning' }>

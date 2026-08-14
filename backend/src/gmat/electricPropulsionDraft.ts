@@ -24,6 +24,8 @@ export type ElectricPropulsionDraftRun = {
   result: { error?: string; finalFuelMassKg?: number; finalRadiusKm?: number; reportSampleCount: number; status: "generated" | "completed" | "failed" | "timeout" }
   runId: string
   runPath: string
+  /** Exact draft inputs used to make this immutable run comparable later. */
+  missionValues?: DraftValues
 }
 export type ElectricPropulsionDraft = {
   assistantMessage?: string
@@ -285,6 +287,30 @@ export async function loadElectricPropulsionDraft(workspaceDir: string, draftId:
   return refreshDraft({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], conversationStartedAt: typeof parsed.conversationStartedAt === "string" ? parsed.conversationStartedAt : null, runs: Array.isArray(parsed.runs) ? parsed.runs : [], values })
 }
 
+/** Deterministic form update. No LLM is used for mission values entered in
+ * the Mission Studio controls. */
+export async function setElectricPropulsionDraftValue(workspaceDir: string, draft: ElectricPropulsionDraft, requestedPath: string, rawValue: string) {
+  const raw = rawValue.trim()
+  if (!raw) throw new Error("a value is required")
+  const values = { ...draft.values }
+  if (requestedPath === "initialOrbit.altitudeKm") {
+    const altitudeKm = Number(raw)
+    if (!Number.isFinite(altitudeKm) || altitudeKm < 0) throw new Error("initial altitude must be a non-negative number in km")
+    values["initialOrbit.smaKm"] = Number((altitudeKm + EARTH_EQUATORIAL_RADIUS_KM).toFixed(9))
+  } else if (requestedPath === "initialOrbit.epoch") {
+    values[requestedPath] = /^\d{4}-\d{2}-\d{2}T/u.test(raw) ? utcGregorianToTaiModJulian(raw) : raw
+  } else {
+    const field = fields.find(candidate => candidate.path === requestedPath)
+    if (!field) throw new Error("unsupported electric-propulsion mission field")
+    const value = Number(raw)
+    if (!Number.isFinite(value)) throw new Error(`${field.label} must be a finite number`)
+    if (field.min !== undefined && value < field.min) throw new Error(`${field.label} must be at least ${field.min}`)
+    if (field.max !== undefined && value > field.max) throw new Error(`${field.label} must be at most ${field.max}`)
+    values[requestedPath] = value
+  }
+  return saveDraft(workspaceDir, refreshDraft({ ...draft, confirmed: false, values }))
+}
+
 /** Records a non-GMAT configuration exchange in this draft only. */
 export async function appendElectricPropulsionDraftConversation(workspaceDir: string, draftId: string, turn: { assistant: string; user: string }) {
   const draft = await loadElectricPropulsionDraft(workspaceDir, draftId)
@@ -369,7 +395,7 @@ export async function recordElectricPropulsionDraftRun(workspaceDir: string, dra
   const draft = await loadElectricPropulsionDraft(workspaceDir, draftId)
   if (draft.status !== "confirmed") throw new Error("GMAT draft must be confirmed before recording a run")
   if (!/^[-A-Za-z0-9_]+$/u.test(run.runId) || !/^gmat[\\/](?:electric-propulsion-transfer|mission-runs)[\\/][-A-Za-z0-9_]+$/u.test(run.runPath)) throw new Error("invalid GMAT electric-propulsion run reference")
-  return saveDraft(workspaceDir, refreshDraft({ ...draft, runs: [...draft.runs.filter(existing => existing.runId !== run.runId), run] }))
+  return saveDraft(workspaceDir, refreshDraft({ ...draft, runs: [...draft.runs.filter(existing => existing.runId !== run.runId), { ...run, missionValues: { ...draft.values } }] }))
 }
 export function draftToElectricPropulsionChanges(draft: ElectricPropulsionDraft, values: ElectricPropulsionValues): ElectricPropulsionValueChange[] {
   if (draft.status !== "confirmed" || draft.safety.checks.some(check => check.severity === "error")) throw new Error("GMAT electric-propulsion draft is not ready for execution")
