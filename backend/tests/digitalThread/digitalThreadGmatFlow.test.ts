@@ -6,7 +6,7 @@ import { describe, it } from "node:test"
 
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../../src/digitalThread/gmatDigitalThreadAdapter.js"
 import { createPlanningRun, draftDigitalThreadWorkspaceDir, initializeDraftDigitalThread, loadOrCreateDigitalThread, saveDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
-import { selectSatelliteDefinition } from "../../src/digitalThread/satelliteLibrary.js"
+import { getSatelliteDefinition, selectSatelliteDefinition } from "../../src/digitalThread/satelliteLibrary.js"
 
 describe("digital thread to GMAT flow", () => {
   it("starts empty, applies the selected satellite, and preserves satellite values while recording mission values", async () => {
@@ -26,7 +26,7 @@ describe("digital thread to GMAT flow", () => {
     assert.equal(satelliteBaseline.values["spacecraft.dryMassKg"], 296)
     assert.equal(satelliteBaseline.values["spacecraft.initialFuelMassKg"], 10)
     assert.equal(satelliteBaseline.values["power.initialMaxPowerKw"], 4.2)
-    assert.equal(satelliteBaseline.values["power.busLoadKw"], 3.5)
+    assert.equal(satelliteBaseline.values["power.busLoadKw"], 2.8, "electric-propulsion mission allocation takes precedence over nominal bus load")
 
     await syncDigitalThreadFromGmatDraft(workspaceDir, {
       templateId: "electric-propulsion-transfer",
@@ -68,6 +68,44 @@ describe("digital thread to GMAT flow", () => {
     assert.equal((await loadOrCreateDigitalThread(secondWorkspace)).analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days, null)
   })
 
+  it("keeps satellite what-if changes inside the run digital thread and out of Satellite Library", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-satellite-override-"))
+    await selectSatelliteDefinition(workspaceDir, "ref-starlink-v1-5-public-rf", "1.0.0")
+    const baseline = await loadOrCreateDigitalThread(workspaceDir)
+    const seed = adaptDigitalThreadToGmat(baseline, "electric-propulsion-transfer")
+
+    await syncDigitalThreadFromGmatDraft(workspaceDir, {
+      templateId: "electric-propulsion-transfer",
+      values: {
+        ...seed.values,
+        "spacecraft.dryMassKg": 320,
+        "spacecraft.initialFuelMassKg": 8,
+        "propulsion.minimumUsablePowerKw": 1.1,
+        "propulsion.maximumUsablePowerKw": 4,
+        "power.initialMaxPowerKw": 5,
+        "power.busLoadKw": 2.4,
+        "power.systemMarginPercent": 12,
+      },
+    })
+
+    const overridden = await loadOrCreateDigitalThread(workspaceDir)
+    assert.equal(overridden.satellite.bus.physical.mass_kg.dry, 320)
+    assert.equal(overridden.satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg, 8)
+    assert.equal(overridden.satellite.bus.electrical_subsystem.solar_panels.total_power_generated_watts, 5000)
+    assert.equal(overridden.satellite.bus.electrical_subsystem.electric_propulsion_mode.bus_load_kw, 2.4)
+    assert.equal(overridden.satellite.bus.electrical_subsystem.system_margin_percent, 12)
+
+    const libraryDefinition = await getSatelliteDefinition("ref-starlink-v1-5-public-rf", "1.0.0")
+    assert.equal(libraryDefinition.satellite.bus.physical.mass_kg.dry, 296, "library definition remains immutable")
+    assert.equal(libraryDefinition.satellite.bus.electrical_subsystem.solar_panels.total_power_generated_watts, 4200, "library electrical values remain immutable")
+
+    const adapted = adaptDigitalThreadToGmat(overridden, "electric-propulsion-transfer")
+    assert.equal(adapted.values["spacecraft.dryMassKg"], 320)
+    assert.equal(adapted.values["spacecraft.initialFuelMassKg"], 8)
+    assert.equal(adapted.values["power.initialMaxPowerKw"], 5)
+    assert.equal(adapted.values["power.busLoadKw"], 2.4)
+  })
+
   it("replaces the complete physical definition when the user changes satellite", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-satellite-switch-"))
     await selectSatelliteDefinition(workspaceDir, "ref-starlink-v1-5-public-rf", "1.0.0")
@@ -91,13 +129,24 @@ describe("digital thread to GMAT flow", () => {
     await fs.access(path.join(planningRun.workspaceDir, "digital-thread", "satellite.json"))
   })
 
-  it("carries a satellite selected before discussion into the new planning run", async () => {
+  it("never carries a satellite or Simu-CIC configuration from an earlier planning run", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-planning-selection-"))
-    await selectSatelliteDefinition(workspaceDir, "ref-starlink-v1-5-public-rf", "1.0.0")
-    const planningRun = await createPlanningRun(workspaceDir)
-    const document = await loadOrCreateDigitalThread(planningRun.workspaceDir)
+    const previousRun = await createPlanningRun(workspaceDir)
+    await selectSatelliteDefinition(previousRun.workspaceDir, "ref-starlink-v1-5-public-rf", "1.0.0")
+    const previous = await loadOrCreateDigitalThread(previousRun.workspaceDir)
+    previous.analysis_requests.simu_cic = {
+      attitude_mode: "ground_station_tracking",
+      ground_station_ids: ["bremen"],
+      simultaneous_visibility_policy: "first_visible_station_wins",
+    }
+    await saveDigitalThread(previousRun.workspaceDir, previous)
+    const nextRun = await createPlanningRun(workspaceDir)
+    const document = await loadOrCreateDigitalThread(nextRun.workspaceDir)
 
-    assert.equal((document.digital_thread.satellite_definition as { id?: unknown } | undefined)?.id, "ref-starlink-v1-5-public-rf")
-    assert.equal(document.satellite.bus.physical.mass_kg.dry, 296)
+    assert.equal(document.digital_thread.satellite_definition, undefined)
+    assert.equal(document.satellite.bus.physical.mass_kg.dry, null)
+    assert.equal(document.analysis_requests.simu_cic.attitude_mode, "nadir_pointing")
+    assert.deepEqual(document.analysis_requests.simu_cic.ground_station_ids, [])
+    await assert.rejects(fs.access(path.join(workspaceDir, "digital-thread", "satellite.json")))
   })
 })

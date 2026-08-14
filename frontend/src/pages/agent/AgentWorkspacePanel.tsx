@@ -74,6 +74,9 @@ type AgentWorkspacePanelProps = {
   missionWorkspaceDir?: string | null
   planningDiscussion?: { createdAt: string; planningRunId: string; workspaceDir: string } | null
   onMissionSatelliteSelected?: () => void
+  missionTemplate?: 'orbit-keeping' | 'electric-propulsion-transfer' | null
+  onMissionTemplateSelected?: (template: 'orbit-keeping' | 'electric-propulsion-transfer' | null) => void
+  onStartMission?: () => Promise<{ workspaceDir: string }>
 }
 
 function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showComplianceCheckConfig: boolean, showGncConfig: boolean) {
@@ -138,6 +141,9 @@ export function AgentWorkspacePanel({
   missionWorkspaceDir,
   planningDiscussion,
   onMissionSatelliteSelected,
+  missionTemplate,
+  onMissionTemplateSelected,
+  onStartMission,
 }: AgentWorkspacePanelProps) {
   const panelClassName = [
     'agent-workspace-panel',
@@ -301,6 +307,9 @@ export function AgentWorkspacePanel({
             planningDiscussion={planningDiscussion}
             refreshSatellite={satelliteRefreshNonce}
             onSatelliteSelected={onMissionSatelliteSelected ?? refreshWorkspaceViews}
+            missionTemplate={missionTemplate}
+            onMissionTemplateSelected={onMissionTemplateSelected}
+            onStartMission={onStartMission}
           />
         ) : (
           <AgentFilesView

@@ -26,6 +26,31 @@ export type PlanningRun = {
   workspaceDir: string
 }
 
+/** Physical or electrical parameters that an engineer may vary for one
+ * mission discussion.  They are deliberately written only to that run's
+ * satellite.json; the satellite-library definition stays immutable. */
+export const SATELLITE_RUN_OVERRIDE_PATHS = [
+  "satellite.bus.physical.mass_kg.dry",
+  "satellite.bus.physical.drag_area_m2",
+  "satellite.bus.physical.drag_coefficient",
+  "satellite.bus.propulsion_subsystem.specific_impulse_seconds",
+  "satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg",
+  "satellite.bus.propulsion_subsystem.electric_thruster.minimum_usable_power_kw",
+  "satellite.bus.propulsion_subsystem.electric_thruster.maximum_usable_power_kw",
+  "satellite.bus.electrical_subsystem.solar_panels.total_area_m2",
+  "satellite.bus.electrical_subsystem.solar_panels.efficiency_percent",
+  "satellite.bus.electrical_subsystem.solar_panels.total_power_generated_watts",
+  "satellite.bus.electrical_subsystem.spacecraft_bus_load_kw",
+  "satellite.bus.electrical_subsystem.electric_propulsion_mode.bus_load_kw",
+  "satellite.bus.electrical_subsystem.system_margin_percent",
+  "satellite.bus.opalis.power_distribution.consumption_mode",
+  "satellite.bus.opalis.power_distribution.constant_load_w",
+  "satellite.bus.opalis.power_distribution.margin_w",
+  "satellite.bus.opalis.power_distribution.rated_power_w",
+  "satellite.bus.opalis.battery.initial_state_of_charge",
+  "satellite.bus.opalis.battery.initial_voltage_v",
+] as const
+
 export function digitalThreadPath(workspaceDir: string) {
   return path.join(path.resolve(workspaceDir), "digital-thread", "satellite.json")
 }
@@ -146,7 +171,7 @@ async function readTemplate() {
   return parsed
 }
 
-async function createEmptyDigitalThread() {
+export async function createEphemeralDigitalThread() {
   const document = await readTemplate()
   const now = new Date().toISOString()
   document.digital_thread.thread_id = crypto.randomUUID()
@@ -155,9 +180,8 @@ async function createEmptyDigitalThread() {
   return document
 }
 
-/** Creates a fresh source-of-truth context at the beginning of a user run.
- * A library satellite may be selected before mission discussion begins, so
- * copy only its physical definition into this otherwise empty mission thread. */
+/** Creates a fresh, independent source-of-truth context at the beginning of
+ * a user run. Satellite selection happens inside this dated run only. */
 export async function createPlanningRun(workspaceDir: string): Promise<PlanningRun> {
   const root = path.resolve(workspaceDir)
   let planningRunId = formatMissionRunId(new Date())
@@ -167,17 +191,6 @@ export async function createPlanningRun(workspaceDir: string): Promise<PlanningR
     planningWorkspaceDir = planningRunWorkspaceDir(root, planningRunId)
   }
   const document = await loadOrCreateDigitalThread(planningWorkspaceDir)
-  const selectedWorkspaceThread = await loadOrCreateDigitalThread(root)
-  const selectedDefinition = selectedWorkspaceThread.digital_thread.satellite_definition
-  if (selectedDefinition !== undefined) {
-    document.satellite = JSON.parse(JSON.stringify(selectedWorkspaceThread.satellite)) as DigitalThreadDocument["satellite"]
-    document.digital_thread.satellite_definition = JSON.parse(JSON.stringify(selectedDefinition)) as JsonValue
-    document.provenance.values = {
-      ...(asObject(document.provenance.values) ?? {}),
-      satellite: { source: "satellite_library", copied_from_workspace_at: new Date().toISOString() },
-    }
-    await saveDigitalThread(planningWorkspaceDir, document, false)
-  }
   const planningRun: PlanningRun = {
     createdAt: new Date().toISOString(),
     planningRunId,
@@ -200,7 +213,7 @@ export async function loadOrCreateDigitalThread(workspaceDir: string) {
     if (ensureMissionRequestShape(parsed)) await saveDigitalThread(workspaceDir, parsed)
     return parsed
   }
-  const document = await createEmptyDigitalThread()
+  const document = await createEphemeralDigitalThread()
   ensureMissionRequestShape(document)
   await saveDigitalThread(workspaceDir, document, false)
   return document
@@ -218,7 +231,7 @@ export async function initializeDraftDigitalThread(workspaceDir: string, templat
     return parsed
   }
   const selected = await loadOrCreateDigitalThread(workspaceDir)
-  const document = await createEmptyDigitalThread()
+  const document = await createEphemeralDigitalThread()
   document.satellite = JSON.parse(JSON.stringify(selected.satellite)) as DigitalThreadDocument["satellite"]
   const selection = selected.digital_thread.satellite_definition
   if (selection !== undefined) document.digital_thread.satellite_definition = JSON.parse(JSON.stringify(selection)) as JsonValue
@@ -324,7 +337,7 @@ function explicitSimuCicConfiguration(message: string) {
   return null
 }
 
-export async function updateDigitalThreadWithLlm({ connection, message, workspaceDir, fetchImpl = fetch }: { connection: Pick<ResolvedModelBackend, "apiKey" | "baseUrl" | "model">; message: string; workspaceDir: string; fetchImpl?: typeof fetch }) {
+export async function updateDigitalThreadWithLlm({ connection, message, workspaceDir, allowedPaths: requestedAllowedPaths, fetchImpl = fetch }: { connection: Pick<ResolvedModelBackend, "apiKey" | "baseUrl" | "model">; message: string; workspaceDir: string; allowedPaths?: readonly string[]; fetchImpl?: typeof fetch }) {
   const document = await loadOrCreateDigitalThread(workspaceDir)
   const explicitSimuCicRequest = explicitSimuCicConfiguration(message)
   if (explicitSimuCicRequest) {
@@ -339,10 +352,15 @@ export async function updateDigitalThreadWithLlm({ connection, message, workspac
       : `ground-station tracking for ${explicitSimuCicRequest.ground_station_ids.join(", ")} (nadir fallback when no station is visible)`
     return { document, message: `Recorded Simu-CIC attitude behavior: ${behavior}.` }
   }
-  const allowedPaths = leafPaths(document).filter(fieldPath => fieldPath.startsWith("satellite.") || fieldPath.startsWith("analysis_requests."))
+  const documentPaths = new Set(leafPaths(document))
+  const allowedPaths = requestedAllowedPaths
+    ? requestedAllowedPaths.filter(fieldPath => documentPaths.has(fieldPath))
+    : [...documentPaths].filter(fieldPath => fieldPath.startsWith("satellite.") || fieldPath.startsWith("analysis_requests."))
+  if (!allowedPaths.length) throw new Error("no writable digital-thread paths are available for this request")
   const prompt = [
     "You update a spacecraft digital-thread JSON document from an engineer message.",
     "Never invent engineering values. Record only facts explicitly supplied or unambiguously stated by the engineer.",
+    requestedAllowedPaths ? "This is a run-specific satellite override. Update only the allowed fields below. Never update the satellite-library definition." : "",
     "Return JSON only: {\"message\":\"short response\",\"updates\":[{\"path\":\"allowed.path\",\"value\":valid JSON value}]}",
     "Use only paths from the allowed list. Do not calculate orbital conversions, power, or other derived values; deterministic adapters do that.",
     "The default Simu-CIC attitude is nadir_pointing. Use ground_station_tracking only when the engineer explicitly asks to point at one or more predefined stations; it must fall back to nadir when none are visible.",

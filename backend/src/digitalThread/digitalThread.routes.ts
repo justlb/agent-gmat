@@ -7,7 +7,7 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { adaptDigitalThreadToGmat } from "./gmatDigitalThreadAdapter.js"
-import { createPlanningRun, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
+import { createEphemeralDigitalThread, createPlanningRun, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
 import { getSatelliteDefinition, listSatelliteDefinitions, selectSatelliteDefinition } from "./satelliteLibrary.js"
 import { assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
 import { loadMissionConversation } from "./missionConversationStore.js"
@@ -44,6 +44,9 @@ function response(document: Awaited<ReturnType<typeof loadOrCreateDigitalThread>
 // here makes the Mission Studio table show the exact Simu-CIC configuration
 // that the runner consumes, rather than an unrelated live planning workspace.
 async function loadDigitalThreadForView(workspaceDir: string) {
+  // The workspace root is never mission state. Returning an unsaved empty
+  // document prevents a previous run from becoming input to the next one.
+  if (!isMissionRunWorkspace(workspaceDir)) return createEphemeralDigitalThread()
   for (const fileName of ["satellite.json", "satellite.digital-thread.json"]) {
     const source = await fs.readFile(path.join(workspaceDir, fileName), "utf8").catch(() => null)
     if (source) return JSON.parse(source) as Awaited<ReturnType<typeof loadOrCreateDigitalThread>>
@@ -82,7 +85,9 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     const id = typeof req.body?.id === "string" ? req.body.id.trim() : ""
     if (!id) return reply.status(400).send({ error: "id must be a non-empty string" })
     try {
-      const result = await selectSatelliteDefinition(resolveWorkspaceDir(root, req.body?.workspaceDir), id, typeof req.body?.version === "string" ? req.body.version : undefined)
+      const workspaceDir = resolveWorkspaceDir(root, req.body?.workspaceDir)
+      if (!isMissionRunWorkspace(workspaceDir)) return reply.status(409).send({ error: "start a dated mission discussion before selecting a satellite" })
+      const result = await selectSatelliteDefinition(workspaceDir, id, typeof req.body?.version === "string" ? req.body.version : undefined)
       return reply.send(result)
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to select satellite definition") }) }
   })
@@ -176,6 +181,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     }
     try {
       const workspaceDir = resolveWorkspaceDir(root, req.body?.workspaceDir)
+      if (!isMissionRunWorkspace(workspaceDir)) return reply.status(409).send({ error: "start a dated mission discussion before configuring Simu-CIC" })
       const document = await loadOrCreateDigitalThread(workspaceDir)
       const request = {
         attitude_mode: attitudeMode,
@@ -201,6 +207,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     if (!message) return reply.status(400).send({ error: "message must be a non-empty string" })
     try {
       const workspaceDir = resolveWorkspaceDir(root, req.body?.workspaceDir)
+      if (!isMissionRunWorkspace(workspaceDir)) return reply.status(409).send({ error: "start a dated mission discussion before updating satellite.json" })
       const result = await updateDigitalThreadWithLlm({ connection: resolveModelBackend(config, "chatModel"), message, workspaceDir })
       return reply.send({ ...response(result.document), message: result.message })
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to update satellite digital thread") }) }

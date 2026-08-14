@@ -969,6 +969,12 @@
 .gmat-mission-chat-sidebar li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(92, 152, 195, 0.12); color: #b8d1e3; font-size: 11px; }
 .gmat-mission-chat-sidebar li b { max-width: 48%; color: #eaf7ff; font-size: 11px; text-align: right; overflow-wrap: anywhere; }
 .gmat-mission-chat-sidebar li.is-missing b { color: #f4b46d; }
+.gmat-mission-required-input { box-sizing: border-box; width: 48%; min-width: 0; border: 1px solid rgba(244, 180, 109, .72); border-radius: 4px; background: rgba(27, 19, 12, .72); color: #fff; font: inherit; padding: 4px 6px; text-align: right; }
+.gmat-mission-required-input::placeholder { color: #f4b46d; opacity: .9; }
+.gmat-mission-required-input:focus { border-color: #67e8f9; outline: none; box-shadow: 0 0 0 2px rgba(103, 232, 249, .15); }
+.gmat-mission-required-input { box-sizing: border-box; width: 48%; min-width: 0; border: 1px solid rgba(244, 180, 109, .72); border-radius: 4px; background: rgba(27, 19, 12, .72); color: #fff; font: inherit; padding: 4px 6px; text-align: right; }
+.gmat-mission-required-input::placeholder { color: #f4b46d; opacity: .9; }
+.gmat-mission-required-input:focus { border-color: #67e8f9; outline: none; box-shadow: 0 0 0 2px rgba(103, 232, 249, .15); }
 .gmat-mission-chat-sidebar .assumptions { color: #9ec1da; }
 .gmat-mission-chat-sidebar .assumptions li { display: list-item; margin-left: 16px; padding-left: 0; }
 .gmat-mission-run-button { padding: 10px; }
@@ -2253,8 +2259,8 @@
 }
 
 .satellite-library, .mission-studio { box-sizing: border-box; block-size: 100%; min-block-size: 0; overflow-y: auto; padding: 18px 20px; }
-.satellite-library-intro, .mission-satellite-source { align-items: center; background: linear-gradient(120deg, rgba(13, 28, 56, .93), rgba(3, 16, 29, .94)); border: 1px solid rgba(56, 189, 248, .38); border-radius: 13px; display: flex; justify-content: space-between; gap: 18px; padding: 19px 22px; }
-.satellite-library-intro span, .satellite-active-card > span, .mission-satellite-source span { color: #67e8f9; display: block; font-size: 11px; font-weight: 900; letter-spacing: .06em; }
+.satellite-library-intro, .mission-template-source, .mission-satellite-source { align-items: center; background: linear-gradient(120deg, rgba(13, 28, 56, .93), rgba(3, 16, 29, .94)); border: 1px solid rgba(56, 189, 248, .38); border-radius: 13px; display: flex; justify-content: space-between; gap: 18px; padding: 19px 22px; }
+.satellite-library-intro span, .satellite-active-card > span, .mission-template-source span, .mission-satellite-source span { color: #67e8f9; display: block; font-size: 11px; font-weight: 900; letter-spacing: .06em; }
 .satellite-library-intro h2 { color: #f8fafc; font-size: 23px; margin: 11px 0 5px; }
 .satellite-library-intro p { color: #a8b8cf; font-size: 14px; line-height: 1.4; margin: 0; max-inline-size: 650px; }
 .satellite-library-intro button { background: rgba(18, 44, 91, .62); border: 1px solid rgba(96, 165, 250, .45); border-radius: 10px; color: #a8b8cf; font-size: 12px; font-weight: 800; padding: 13px 17px; white-space: nowrap; }
@@ -2299,3 +2305,11 @@
 .agent-gmat-draft-digital-thread { display: grid !important; gap: 2px; margin: 7px 0 0; padding: 7px !important; border: 1px solid rgba(23, 231, 255, .24); border-radius: 7px; background: rgba(6, 31, 54, .62); text-decoration: none; }.agent-gmat-draft-digital-thread span { color: #67e8f9; font-size: 10px; font-weight: 800; }.agent-gmat-draft-digital-thread small { color: #9ec1da; font-size: 9px; }
 .agent-gmat-draft-file { align-items: center; border-bottom: 1px solid rgba(148, 163, 184, .16); color: #dbeafe; display: flex !important; font-size: 10px; gap: 8px; justify-content: space-between; padding: 7px 0 !important; text-decoration: none; }.agent-gmat-draft-file small { color: #93c5fd; font-size: 9px; font-weight: 800; }
 @media (max-width: 1100px) { .satellite-library-grid { grid-template-columns: 1fr; }.satellite-definition-list { grid-template-columns: 1fr; } }
+
+/* Mission setup is ordered: template first, then physical satellite. */
+.mission-template-source { align-items: center; background: linear-gradient(120deg, rgba(13, 28, 56, .93), rgba(3, 16, 29, .94)); border: 1px solid rgba(56, 189, 248, .38); border-radius: 8px; display: flex; gap: 10px; justify-content: space-between; margin-bottom: 8px; padding: 7px 10px; }
+.mission-template-source span { color: #67e8f9; display: block; font-size: 9px; font-weight: 900; letter-spacing: .06em; }
+.mission-template-source strong, .mission-template-source small { color: #eff6ff; display: block; font-size: 11px; margin-top: 2px; }
+.mission-template-source small { color: #8fa4c4; font-size: 9px; }
+.mission-template-source select { background: #06152a; border: 1px solid rgba(96, 165, 250, .5); border-radius: 6px; color: #e2e8f0; font-size: 10px; font-weight: 800; min-inline-size: 190px; padding: 6px 8px; }
+.mission-setup-sources { display: grid; gap: 8px; }

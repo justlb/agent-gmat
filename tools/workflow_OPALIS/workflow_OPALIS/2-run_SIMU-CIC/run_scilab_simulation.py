@@ -17,7 +17,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_SCILAB_SCRIPT = os.path.join(HERE, "run_ephemeris_attitude_simulation.sce")
 DEFAULT_SCIHOME = os.path.join(HERE, ".scilab_home")
 DEFAULT_EPHEMERIS_DIR = os.path.join(HERE, "conversion")
-DEFAULT_SAVE_ROOT = os.path.join(HERE, "resultats_simu_cic")
 
 
 def first_existing_dir(candidates):
@@ -359,8 +358,8 @@ def parse_args():
     )
     parser.add_argument(
         "--save-root",
-        default=DEFAULT_SAVE_ROOT,
-        help="Dossier racine ou sauvegarder les resultats. Defaut: {0}".format(DEFAULT_SAVE_ROOT),
+        required=True,
+        help="Dossier racine ou sauvegarder les resultats de cette run.",
     )
     parser.add_argument(
         "--nadir-axis",

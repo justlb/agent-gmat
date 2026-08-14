@@ -1,4 +1,0 @@
-Cas RF-COMLINK préparé depuis Simu-CIC.
-Ouvrir : test-rfcomlink.rfcl
-Les fichiers CIC de distance, direction satellite et visibilité ont été injectés.
-Le calcul RF-COMLINK reste à lancer dans le GUI.

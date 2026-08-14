@@ -4,7 +4,7 @@ import fs from "node:fs/promises"
 import type { FastifyInstance } from "fastify"
 
 import type { AppConfig } from "../config.js"
-import { loadOrCreateDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
+import { createEphemeralDigitalThread, isMissionRunWorkspace, loadOrCreateDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
@@ -62,7 +62,11 @@ async function classify(config: AppConfig, message: string): Promise<Intent> {
 
 async function answerFromContext(config: AppConfig, intent: "knowledge" | "advice", message: string, workspaceDir: string) {
   const connection = resolveModelBackend(config, "chatModel")
-  const document = await loadOrCreateDigitalThread(workspaceDir)
+  // A generic engineering question before a mission exists must not create a
+  // shared satellite.json at the user-workspace root.
+  const document = isMissionRunWorkspace(workspaceDir)
+    ? await loadOrCreateDigitalThread(workspaceDir)
+    : await createEphemeralDigitalThread()
   const prompt = [
     "You are a spacecraft engineering assistant.",
     intent === "advice" ? "Give a concise, conditional engineering recommendation. Clearly state assumptions and do not invent project values." : "Answer concisely using engineering knowledge. Clearly distinguish general knowledge from project-specific facts.",
@@ -89,6 +93,9 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
       const activeRun = await resolveRunDir(root, req.body?.runPath)
       const intent = await classify(config, message)
       if (intent === "simu-cic") {
+        if (!isMissionRunWorkspace(workspaceDir)) {
+          return reply.status(409).send({ error: "start a dated mission discussion before configuring Simu-CIC" })
+        }
         const result = await updateDigitalThreadWithLlm({ connection: resolveModelBackend(config, "chatModel"), message, workspaceDir })
         const turn = { answer: result.message, askedAt: new Date().toISOString(), channel: "simu-cic" as const, question: message }
         await appendMissionConversation(workspaceDir, turn)

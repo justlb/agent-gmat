@@ -117,9 +117,6 @@ export const ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT = {
 } as const
 
 const fields = ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.fields as readonly FieldDefinition[]
-const SATELLITE_OWNED_FIELDS = new Set([
-  "spacecraft.dryMassKg", "spacecraft.dragAreaM2", "spacecraft.dragCoefficient", "propulsion.ispSeconds",
-])
 // These values describe one mission. They must always be collected for a new
 // run instead of inheriting a previous orbit or a template example.
 const MISSION_FIELD_PATHS = new Set([
@@ -415,7 +412,7 @@ export async function appendOrbitKeepingDraftConversation(workspaceDir: string, 
   return saveDraft(workspaceDir, refreshDraft({ ...draft, conversation: [...draft.conversation, turn] }))
 }
 
-function parseAssistantPatch(source: string, lockedFields: ReadonlySet<string> = new Set()) {
+function parseAssistantPatch(source: string) {
   const document = parseDocument(source)
   if (document.errors.length) throw new Error("LLM draft response is not valid YAML")
   const parsed = document.toJS() as { message?: unknown; updates?: unknown }
@@ -425,7 +422,6 @@ function parseAssistantPatch(source: string, lockedFields: ReadonlySet<string> =
     if (!item || typeof item !== "object") throw new Error("LLM draft update is invalid")
     const candidate = item as { path?: unknown; value?: unknown }
     if (typeof candidate.path !== "string" || (!DERIVED_INPUT_PATHS.includes(candidate.path as typeof DERIVED_INPUT_PATHS[number]) && !fields.some(field => field.path === candidate.path))) throw new Error("LLM draft update references an unknown field")
-    if (lockedFields.has(candidate.path)) throw new Error(`${candidate.path} belongs to the selected satellite and must be changed in Satellite Library, not in a mission discussion`)
     if (typeof candidate.value !== "string" && typeof candidate.value !== "number") throw new Error("LLM draft update has an invalid value")
     if (["initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", ...CARTESIAN_STATE_PATHS].includes(candidate.path as typeof DERIVED_INPUT_PATHS[number]) && (typeof candidate.value !== "number" || !Number.isFinite(candidate.value))) {
       throw new Error(`${candidate.path} must be a finite number`)
@@ -472,14 +468,14 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
   const conversation = draft.conversation.slice(-8)
   const prompt = [
     "You are a conversational spacecraft mission-definition assistant for a fixed Earth Keplerian orbit-keeping template.",
-    "Help the engineer progressively define the mission. Be concise, friendly, technically precise, and ask one useful next question when mandatory information is still missing.",
+    "Help the engineer progressively define the mission. On the first turn, briefly guide the engineer: confirm the selected satellite, then collect the required mission inputs one at a time in this order: epoch, initial altitude or SMA, eccentricity, inclination, initial fuel mass, and minimum reboost altitude. Be concise, friendly, technically precise, and ask one useful next question when mandatory information is still missing.",
     "Never invent or silently assume engineering values. You may explain a parameter, accept explicit values, or ask the engineer to confirm a proposed value.",
     "The GMAT template uses TAIModJulian. When the engineer supplies a calendar date with a timezone or explicitly says UTC, emit { path: initialOrbit.utcGregorian, value: YYYY-MM-DDTHH:mm:ssZ }; the backend deterministically converts it to numeric TAIModJulian with the TAI-UTC leap-second table. If no timezone is supplied, ask the engineer to specify it; never assume a local timezone.",
     "Return YAML only, with exactly: message: string; updates: [{ path: known path, value: string|number }]. Always include updates: [], even when no value is recorded.",
     "Use human language in message; never expose internal field paths there.",
     `Known fields: ${fields.map(field => `${field.path} (${field.label}${field.unit ? `, ${field.unit}` : ""}${field.required ? ", mandatory" : ", optional"})`).join("; ")}`,
     draft.digitalThreadRequiredPaths?.length ? `For this digital-thread-managed run, these fields are mandatory even if the legacy template marks them optional: ${draft.digitalThreadRequiredPaths.join(", ")}.` : "",
-    draft.digitalThreadRequiredPaths?.length ? `Satellite-owned values are locked for this mission: ${[...SATELLITE_OWNED_FIELDS].join(", ")}. Do not emit updates for them; explain that they come from the selected satellite.` : "",
+    "The selected satellite is the starting point. Dry mass, drag area, drag coefficient, and specific impulse may be changed for this discussion as run-specific what-if overrides. They update only this run's satellite.json, never the satellite library.",
     `Derived input: when the engineer gives a circular-orbit altitude in km, emit { path: initialOrbit.altitudeKm, value: number }. The backend deterministically converts it to initialOrbit.smaKm by adding Earth equatorial radius ${EARTH_EQUATORIAL_RADIUS_KM} km. For a perigee altitude and eccentricity, emit initialOrbit.periapsisAltitudeKm and initialOrbit.eccentricity; the backend computes SMA = (Earth equatorial radius + periapsis altitude) / (1 - ECC). Do not calculate either conversion yourself.`,
     "Deterministic coordinate conversions are available. If a Cartesian initial state is supplied, emit initialState.xKm, initialState.yKm, initialState.zKm (km) and initialState.vxKmPerSec, initialState.vyKmPerSec, initialState.vzKmPerSec (km/s); the backend converts it to the Keplerian orbit fields. To display the Cartesian equivalent of complete Keplerian inputs, emit coordinateConversion.request with value keplerian_to_cartesian. Never calculate those conversions yourself.",
     draft.digitalThreadRequiredPaths?.length ? "Only RAAN, argument of periapsis, and true anomaly may retain their explicit orientation defaults. Do not use legacy spacecraft defaults for a digital-thread-managed run." : "RAAN, argument of periapsis, true anomaly, drag area, drag coefficient, and specific impulse are optional. If omitted, the fixed template defaults are kept.",
@@ -500,7 +496,7 @@ export async function discussOrbitKeepingDraft({ connection, draft, message, wor
   try { payload = JSON.parse(body) as { output_text?: unknown } } catch { throw new Error("LLM draft response is invalid JSON") }
   const responseText = extractResponseText(payload)
   if (!responseText) throw new Error("LLM draft response contains no text")
-  const patch = parseAssistantPatch(responseText, draft.digitalThreadRequiredPaths?.length ? SATELLITE_OWNED_FIELDS : undefined)
+  const patch = parseAssistantPatch(responseText)
   const updatedValues = { ...draft.values }
   const initialSmaUpdate = patch.updates.find(update => ["initialOrbit.smaKm", "initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", ...CARTESIAN_STATE_PATHS].includes(update.path))
   const targetSmaUpdate = patch.updates.find(update => update.path === "stationKeeping.targetSmaKm")

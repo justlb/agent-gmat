@@ -7,7 +7,7 @@ import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
 import { getSatelliteDefinition } from "../digitalThread/satelliteLibrary.js"
-import { draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, saveDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
+import { SATELLITE_RUN_OVERRIDE_PATHS, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
 import { PREDEFINED_GROUND_STATIONS } from "../opalis/groundStationCatalog.js"
 import { appendElectricPropulsionDraftConversation, createElectricPropulsionDraft, discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
 import { appendOrbitKeepingDraftConversation, createOrbitKeepingDraft, discussOrbitKeepingDraft, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
@@ -20,6 +20,13 @@ function isSimuCicRequest(message: string) {
   const normalized = message.toLocaleLowerCase()
   return /simu\s*-?\s*cic|ground\s+(?:station|sat+ion)s?|station\s+au\s+sol|attitude|point(?:age|ing)|nadir|\b(?:follow|track|suiv\w*)\b/iu.test(message)
     || PREDEFINED_GROUND_STATIONS.some(station => normalized.includes(station.id.toLocaleLowerCase()) || normalized.includes(station.name.toLocaleLowerCase()))
+}
+
+/** These requests affect the selected vehicle for this discussion, rather
+ * than the mission orbit. They are restricted to the explicit allow-list in
+ * digitalThreadStore and never write the satellite-library JSON. */
+function isSatelliteRunOverrideRequest(message: string) {
+  return /\b(?:dry\s*mass|masse\s+s[eè]che|drag\s*(?:area|coefficient)|surface\s+de\s+tra[iî]n[eé]e|coefficient\s+de\s+tra[iî]n[eé]e|specific\s+impulse|impulsion\s+sp[eé]cifique|electric\s+propellant|ergol\s+[eé]lectrique|solar\s*(?:array|power)|puissance\s+solaire|bus\s+load|charge\s+bus|system\s+margin|marge\s+syst[eè]me|power\s+distribution|distribution\s+(?:de\s+)?puissance|constant\s+consumption|consommation\s+constante|battery\s+(?:voltage|soc)|tension\s+batterie|[eé]tat\s+de\s+charge)\b/iu.test(message)
 }
 
 function resolveActiveGmatRunDir(root: string, requested: unknown) {
@@ -97,6 +104,7 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     const workspaceDir = typeof req.body?.workspaceDir === "string" && req.body.workspaceDir.trim() ? path.resolve(req.body.workspaceDir) : root
     if (!isPathInside(path.resolve(root), workspaceDir)) return reply.status(400).send({ error: "workspaceDir must be inside the current user workspace" })
+    if (!isMissionRunWorkspace(workspaceDir)) return reply.status(409).send({ error: "start a dated mission discussion before sending GMAT messages" })
     const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
     const template = req.body?.template
     const draftThreadWorkspace = draftId && (template === "orbit-keeping" || template === "electric-propulsion-transfer")
@@ -126,7 +134,18 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         const draft = await appendRequestedDraftTurn(workspaceDir, draftId, template, result.message || "Simu-CIC configuration updated.", message)
         return reply.send({ digitalThread: result.document, draft, kind: "simu-cic", message: result.message || "Simu-CIC configuration updated." })
       }
-      const decision = await routeMissionMessage(config, message)
+      // Preserve the currently selected template for an explicit what-if
+      // change (e.g. "set dry mass to 320 kg").  Such a message is often
+      // routed as general by a model although it belongs to this GMAT draft.
+      const runOverrideRequest = isSatelliteRunOverrideRequest(message)
+      const selectedTemplate = template === "orbit-keeping" || template === "electric-propulsion-transfer" ? template : null
+      const decision = runOverrideRequest && selectedTemplate
+        ? { target: selectedTemplate, message: "Recorded the run-specific satellite configuration change." } satisfies RoutingDecision
+        // The explicit UI choice is authoritative for the first turn. The
+        // LLM still guides the mission definition inside that template.
+        : selectedTemplate && !draftId
+          ? { target: selectedTemplate, message: `Using the selected ${selectedTemplate === "orbit-keeping" ? "orbit-keeping" : "electric-propulsion transfer"} template.` } satisfies RoutingDecision
+          : await routeMissionMessage(config, message)
       if (decision.target === "general") {
         // General questions must remain part of the mission record as well.
         // Otherwise the UI loses the user's turn as soon as the transient
@@ -171,7 +190,8 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         }
       }
       if (!satelliteSelection || typeof satelliteSelection.id !== "string") {
-        const clarification = "Select a satellite version in Satellite Library before defining a GMAT mission."
+        const templateName = decision.target === "orbit-keeping" ? "orbit-keeping" : "electric-propulsion transfer"
+        const clarification = `Step 1: select a satellite compatible with the ${templateName} template. Step 2: enter the mission inputs shown in Required before GMAT can run, one at a time or in a single message. I will keep the run-specific satellite.json updated and tell you what is still needed.`
         // A mission discussion needs a visible, persistent GMAT draft even
         // before its satellite is selected.  It owns the empty satellite.json
         // that will later be populated by Satellite Library.
@@ -189,6 +209,24 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         const clarification = `The selected satellite (${selectedSatellite.name}) is not compatible with the ${decision.target} GMAT template. Select a satellite with the required propulsion system or describe a compatible mission.`
         const draft = await appendRequestedDraftTurn(workspaceDir, draftId, template, clarification, message)
         return reply.send({ draft, kind: "clarify", message: clarification })
+      }
+      if (runOverrideRequest) {
+        const override = await updateDigitalThreadWithLlm({
+          connection: resolveModelBackend(config, "chatModel"),
+          message,
+          workspaceDir: draftThreadWorkspace,
+          allowedPaths: SATELLITE_RUN_OVERRIDE_PATHS,
+        })
+        currentDigitalThread = override.document
+        // The planning workspace is the user-facing satellite.json. Mirror
+        // only the run-local satellite and its provenance from the private
+        // draft; the library remains read-only.
+        if (draftThreadWorkspace !== workspaceDir) {
+          const planningThread = await loadOrCreateDigitalThread(workspaceDir)
+          planningThread.satellite = JSON.parse(JSON.stringify(override.document.satellite))
+          planningThread.provenance.values = JSON.parse(JSON.stringify(override.document.provenance.values))
+          await saveDigitalThread(workspaceDir, planningThread)
+        }
       }
         const adapted = adaptDigitalThreadToGmat(currentDigitalThread, decision.target)
       const propulsionGuard = adapted.guards.find(guard => guard.code === "incompatible_propulsion")

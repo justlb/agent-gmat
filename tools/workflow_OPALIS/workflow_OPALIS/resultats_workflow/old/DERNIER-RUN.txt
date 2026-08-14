@@ -1,5 +1,0 @@
-DERNIER RUN : EPH_GMAT-20260716-162221
-STATUT      : success
-DOSSIER     : C:\JUSTINE\APP\workflow_OPALIS\resultats_workflow\EPH_GMAT-20260716-162221
-GUIDE       : C:\JUSTINE\APP\workflow_OPALIS\resultats_workflow\EPH_GMAT-20260716-162221\LISEZ-MOI.txt
-RESULTATS   : C:\JUSTINE\APP\workflow_OPALIS\resultats_workflow\EPH_GMAT-20260716-162221\03-opalis\02-resultats

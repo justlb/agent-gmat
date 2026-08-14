@@ -215,6 +215,16 @@ function missionDraftPaths(templateId: OrbitKeepingDraft["templateId"] | Electri
   }
 }
 
+const SATELLITE_DRAFT_PATHS: Record<string, string> = {
+  "spacecraft.dryMassKg": "satellite.bus.physical.mass_kg.dry",
+  "spacecraft.dragAreaM2": "satellite.bus.physical.drag_area_m2",
+  "spacecraft.dragCoefficient": "satellite.bus.physical.drag_coefficient",
+  "propulsion.ispSeconds": "satellite.bus.propulsion_subsystem.specific_impulse_seconds",
+  "propulsion.minimumUsablePowerKw": "satellite.bus.propulsion_subsystem.electric_thruster.minimum_usable_power_kw",
+  "propulsion.maximumUsablePowerKw": "satellite.bus.propulsion_subsystem.electric_thruster.maximum_usable_power_kw",
+  "power.systemMarginPercent": "satellite.bus.electrical_subsystem.system_margin_percent",
+}
+
 export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft: Pick<OrbitKeepingDraft | ElectricPropulsionDraft, "templateId" | "values">) {
   const document = await loadOrCreateDigitalThread(workspaceDir)
   const provenance = document.provenance.values as { [key: string]: JsonValue }
@@ -226,6 +236,41 @@ export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft
     if (value === null || value === undefined || value === "") continue
     setAtPath(document, threadPath, value)
     provenance[threadPath] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString() }
+  }
+  // Physical values are editable as mission-specific what-if overrides.  The
+  // selected file in data/satellite-library is never written here.
+  for (const [draftPath, threadPath] of Object.entries(SATELLITE_DRAFT_PATHS)) {
+    const value = draft.values[draftPath]
+    if (value === null || value === undefined || value === "") continue
+    setAtPath(document, threadPath, value)
+    provenance[threadPath] = { source: "gmat_mission_satellite_override", recorded_at: new Date().toISOString() }
+  }
+  if (draft.templateId === "electric-propulsion-transfer") {
+    const propellantMass = draft.values["spacecraft.initialFuelMassKg"]
+    if (typeof propellantMass === "number") {
+      const threadPath = "satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg"
+      setAtPath(document, threadPath, propellantMass)
+      provenance[threadPath] = { source: "gmat_mission_satellite_override", recorded_at: new Date().toISOString() }
+    }
+    const solarPowerKw = draft.values["power.initialMaxPowerKw"]
+    if (typeof solarPowerKw === "number") {
+      const threadPath = "satellite.bus.electrical_subsystem.solar_panels.total_power_generated_watts"
+      setAtPath(document, threadPath, solarPowerKw * 1000)
+      provenance[threadPath] = { source: "gmat_mission_satellite_override", recorded_at: new Date().toISOString(), conversion: "kW_to_W" }
+    }
+    const busLoadKw = draft.values["power.busLoadKw"]
+    if (typeof busLoadKw === "number") {
+      // An electric-propulsion allocation is more specific when the selected
+      // satellite defines one; otherwise the nominal spacecraft bus load is
+      // the only available source. Both paths are present in satellite.json
+      // templates where applicable, so custom records remain supported.
+      const propulsionModePath = "satellite.bus.electrical_subsystem.electric_propulsion_mode.bus_load_kw"
+      const threadPath = getAtPath(document, propulsionModePath) === undefined
+        ? "satellite.bus.electrical_subsystem.spacecraft_bus_load_kw"
+        : propulsionModePath
+      setAtPath(document, threadPath, busLoadKw)
+      provenance[threadPath] = { source: "gmat_mission_satellite_override", recorded_at: new Date().toISOString() }
+    }
   }
   // `analysis_requests` preserves the exact mission inputs for each tool.
   // `satellite.orbit` is the active orbital state of this mission and is the

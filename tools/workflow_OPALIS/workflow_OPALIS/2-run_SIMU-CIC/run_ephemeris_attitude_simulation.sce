@@ -34,9 +34,11 @@ if exists("BASE_SCENARIO") == 0 then
   BASE_SCENARIO = fullfile(SIMUCIC_DIR, "GUI", "examples", "Example_1.scd");
 end
 
-// Dossier racine ou seront copies les resultats Simu-CIC.
+// Dossier racine de la run courante. Le backend le fournit toujours sous
+// mission-runs/<id>/opalis/02-simu-cic : aucun resultat ne doit etre ecrit
+// dans le repertoire du workflow partage.
 if exists("SAVE_ROOT") == 0 then
-  SAVE_ROOT = fullfile(SCRIPT_DIR, "resultats_simu_cic");
+  error("SAVE_ROOT est obligatoire : lancez Simu-CIC depuis une mission web.");
 end
 
 // Loi d'attitude par defaut: Nadir Trace.

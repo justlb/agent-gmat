@@ -2,15 +2,9 @@
   "id": "ref-leo-orbit-keeping",
   "version": "1.0.0",
   "name": "Reference LEO Orbit Keeping",
-  "description": "Physical reference definition for a chemical-propulsion spacecraft. Its electrical subsystem is aligned with the OPALIS orbitkeeping example. Mission orbit and GMAT mission values are intentionally excluded.",
-  "capabilities": [
-    "GMAT",
-    "Simu-CIC",
-    "OPALIS"
-  ],
-  "mission_templates": [
-    "orbit-keeping"
-  ],
+  "description": "Physical reference for a chemical-propulsion LEO spacecraft. Mission orbit and run-specific values are intentionally excluded.",
+  "capabilities": ["GMAT", "Simu-CIC", "OPALIS"],
+  "mission_templates": ["orbit-keeping"],
   "satellite": {
     "identity": {
       "name": "Reference LEO Orbit Keeping",
@@ -29,9 +23,9 @@
       },
       "propulsion_subsystem": {
         "type": "Bipropellant chemical propulsion",
-        "main_engine_thrust_n": 22,
+        "propellant": "Chemical bipropellant",
         "specific_impulse_seconds": 320,
-        "delta_v_mps": 180
+        "main_engine_thrust_n": 22
       },
       "electrical_subsystem": {
         "solar_panels": {
@@ -39,56 +33,20 @@
           "efficiency_percent": 30,
           "total_area_m2": 8,
           "total_power_generated_watts": 2400,
-          "filling_factor": 0.85,
-          "albedo_w_m2": 410,
-          "earth_radiation_w_m2": 210,
-          "array_orientation": "2 mÂ² body-mounted + 6 mÂ² deployed",
-          "opalis_sections": [
-            {
-              "area_m2": 2,
-              "anchor_type": "BodyMounted",
-              "filling_factor": 0.85,
-              "series_cells": 25,
-              "parallel_cells": 21
-            },
-            {
-              "area_m2": 6,
-              "anchor_type": "Deployed",
-              "filling_factor": 0.85,
-              "series_cells": 25,
-              "parallel_cells": 65
-            }
-          ]
+          "array_orientation": "2 m² body-mounted + 6 m² deployed"
         },
         "batteries": {
           "chemistry": "Li-ion",
           "capacity_ah": 95.2,
-          "energy_wh": 3000,
-          "opalis_cell_model": "MPxtd BOL -30Â°C",
-          "cells_parallel": 17,
-          "cells_series": 13,
-          "cell_capacity_ah": 5.6,
-          "initial_state_of_charge": 0.9
+          "energy_wh": 4760
         },
         "bus_voltage_v": 50,
         "spacecraft_bus_load_kw": 1.5,
-        "system_margin_percent": 0,
-        "opalis_reference": {
-          "source_file": "orbitkeeping.opalis",
-          "simulation_mode": "Simple",
-          "power_supply": "MediumSat",
-          "regulation_type": "DET",
-          "solar_constant_w_m2": 1360,
-          "battery_initial_voltage_v": 52,
-          "battery_low_limit_voltage_v": 39,
-          "distribution_line_constant_load_w": 1500,
-          "distribution_line_margin_w": 0
-        }
+        "system_margin_percent": 0
       },
       "opalis": {
         "model": {
           "template_id": "empty.opalis",
-          "reference_source": "D:/STAGE/APP/opalis-2.4.0/Example/orbitkeeping.opalis",
           "simulation_mode": "Simple",
           "power_supply": "MediumSat",
           "regulation_type": "DET",
@@ -106,20 +64,17 @@
         "battery": {
           "initial_voltage_v": 52,
           "initial_state_of_charge": 0.9,
-          "energy_wh": 3000,
+          "energy_wh": 4760,
           "cells_parallel": 17,
           "cells_series": 13,
-          "cell_model": "MPxtd BOL -30Â°C",
-          "cell_type": "Tfix",
-          "cell_capacity_ah": 5.6,
           "cable_resistance_ohm": 0.05,
           "low_voltage_limit_v": 39
         },
         "power_distribution": {
+          "consumption_mode": "Constant",
           "constant_load_w": 1500,
           "margin_w": 0,
-          "rated_power_w": 10000,
-          "consumption_mode": "Constant"
+          "rated_power_w": 2400
         },
         "environment": {
           "solar_constant_w_m2": 1360,
@@ -132,23 +87,21 @@
           "sections": [
             {
               "type": "RigidPanel",
-              "active": true,
               "area_m2": 2,
               "anchor_type": "BodyMounted",
               "filling_factor": 0.85,
               "cells_parallel": 21,
               "cells_series": 25,
-              "rated_power_w": 10000
+              "rated_power_w": 600
             },
             {
               "type": "RigidPanel",
-              "active": true,
               "area_m2": 6,
               "anchor_type": "Deployed",
               "filling_factor": 0.85,
               "cells_parallel": 65,
               "cells_series": 25,
-              "rated_power_w": 10000
+              "rated_power_w": 1800
             }
           ]
         }

@@ -8,6 +8,7 @@ export function SatelliteLibrary({ workspaceDir, onSelected }: { workspaceDir?: 
   const [selectedId, setSelectedId] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState('')
+  const canSelectForRun = /[\\/]gmat[\\/]mission-runs[\\/][^\\/]+$/u.test(workspaceDir ?? '')
   useEffect(() => {
     let cancelled = false
     void Promise.all([listSatelliteDefinitions(), getSelectedSatellite(workspaceDir)])
@@ -16,6 +17,10 @@ export function SatelliteLibrary({ workspaceDir, onSelected }: { workspaceDir?: 
     return () => { cancelled = true }
   }, [workspaceDir])
   const select = async (definition: SatelliteDefinition) => {
+    if (!canSelectForRun) {
+      setError('Start a new GMAT mission discussion first. Its dated satellite.json will receive the selected satellite.')
+      return
+    }
     setSaving(definition.id); setError('')
     try { await selectSatelliteDefinition(definition.id, definition.version, workspaceDir); setSelectedId(definition.id); onSelected?.() }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to select satellite') }
@@ -53,7 +58,7 @@ export function SatelliteLibrary({ workspaceDir, onSelected }: { workspaceDir?: 
   const active = definitions.find(item => item.id === selectedId)
   return <div className="satellite-library">
     <section className="satellite-library-intro">
-      <div><span>PHYSICAL SOURCE OF TRUTH</span><h2>Satellite Library</h2><p>Select a versioned spacecraft before describing a mission. Each run preserves an immutable snapshot of this definition.</p></div>
+      <div><span>PHYSICAL SOURCE OF TRUTH</span><h2>Satellite Library</h2><p>Start a mission discussion, then select a versioned spacecraft for its dated run. Each run owns an independent satellite.json.</p></div>
       <button type="button" disabled>Design with the LLM · next phase</button>
     </section>
     {error ? <p className="satellite-library-error">{error}</p> : null}
@@ -66,7 +71,7 @@ export function SatelliteLibrary({ workspaceDir, onSelected }: { workspaceDir?: 
           <details className="satellite-definition-details"><summary>Electrical system &amp; OPALIS configuration</summary>{renderRows(definition, rows(definition).slice(6))}<dl className="satellite-technical-summary"><div><dt>Power margin</dt><dd>{value(definition, 'bus.electrical_subsystem.system_margin_percent', '%')}</dd></div><div><dt>Solar sections</dt><dd>{Array.isArray(metric(definition, 'bus.opalis.solar_generator.sections')) ? `${(metric(definition, 'bus.opalis.solar_generator.sections') as unknown[]).length} configured sections` : '—'}</dd></div><div><dt>Battery SoC</dt><dd>{value(definition, 'bus.opalis.battery.initial_state_of_charge')}</dd></div><div><dt>Voltage limits</dt><dd>{value(definition, 'bus.opalis.battery.initial_voltage_v', 'V')} initial · {value(definition, 'bus.opalis.battery.low_voltage_limit_v', 'V')} low</dd></div></dl>{renderSolarSections(definition)}</details>
           <div className="satellite-tags">{definition.capabilities.map(capability => <span key={capability}>{capability} · ready</span>)}{definition.mission_templates.map(template => <span key={template}>{template === 'orbit-keeping' ? 'Orbit keeping' : 'Electric transfer'}</span>)}</div>
           <a className="satellite-definition-download" href={satelliteDefinitionDownloadUrl(definition)}>Download reference JSON</a>
-          <button type="button" disabled={saving === definition.id} onClick={() => void select(definition)}>{saving === definition.id ? 'Selecting…' : definition.id === selectedId ? 'Selected satellite' : 'Use for this workspace'}</button>
+          <button type="button" disabled={!canSelectForRun || saving === definition.id} onClick={() => void select(definition)}>{saving === definition.id ? 'Selecting…' : definition.id === selectedId ? 'Selected satellite' : canSelectForRun ? 'Use for this mission' : 'Start a mission first'}</button>
         </article>)}
       </div>
       <aside className="satellite-active-card"><span>ACTIVE SATELLITE</span>{active ? <><small>{active.id}@{active.version}</small><h3>{active.name}</h3><p>{value(active, 'identity.operator')} · {value(active, 'identity.mission_type')}</p><a className="satellite-definition-download" href={satelliteDefinitionDownloadUrl(active)}>Download reference JSON</a><hr /><h4>Physical definition</h4>{renderRows(active, rows(active).slice(2, 6))}<h4>Electrical &amp; OPALIS</h4>{renderRows(active, rows(active).slice(8))}<h4>Solar array sections</h4>{renderSolarSections(active)}<h4>Template compatibility</h4><div className="satellite-tags">{active.mission_templates.map(template => <span key={template}>{template === 'orbit-keeping' ? 'Orbit keeping' : 'Electric transfer'}</span>)}</div></> : <p>Choose a reference satellite to make it the physical source of truth for this workspace.</p>}</aside>

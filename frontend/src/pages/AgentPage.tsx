@@ -1007,6 +1007,18 @@ export default function AgentPage() {
           activeContext={activeContext}
           missionWorkspaceDir={gmatWorkspaceDir}
           planningDiscussion={activePlanningRun}
+          missionTemplate={chatMode === 'gmat-orbit-keeping' ? 'orbit-keeping' : chatMode === 'gmat-electric-propulsion' ? 'electric-propulsion-transfer' : null}
+          onMissionTemplateSelected={template => {
+            setChatMode(template === 'orbit-keeping' ? 'gmat-orbit-keeping' : template === 'electric-propulsion-transfer' ? 'gmat-electric-propulsion' : 'general')
+            setManagedRunError('')
+          }}
+          onStartMission={() => activePlanningRun
+            ? Promise.resolve(activePlanningRun)
+            : createPlanningRun(activeContext.versionDir).then(planningRun => {
+                setActivePlanningRun(planningRun)
+                refreshWorkspaceViews()
+                return planningRun
+              })}
           onMissionSatelliteSelected={() => {
             refreshWorkspaceViews()
             const initialMissionMessage = activeGmatDraft?.conversation?.[0]?.user
