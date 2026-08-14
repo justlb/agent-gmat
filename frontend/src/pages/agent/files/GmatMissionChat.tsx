@@ -31,17 +31,51 @@ const ELECTRIC_FIELDS: Field[] = [
   { label: 'Electric-thrust duration', path: 'transfer.burnDurationDays', unit: 'days' },
 ]
 
+function valueAt(document: Record<string, unknown>, path: string): string | number | null {
+  let value: unknown = document
+  for (const key of path.split('.')) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+    value = (value as Record<string, unknown>)[key]
+  }
+  return typeof value === 'string' || typeof value === 'number' ? value : null
+}
+
+function runValuesFromSatelliteJson(document: Record<string, unknown>, mode: AgentChatMode) {
+  const values: Record<string, string | number | null> = {
+    'initialOrbit.epoch': valueAt(document, 'satellite.orbit.reference_epoch_tai_mod_julian'),
+    'initialOrbit.smaKm': valueAt(document, 'satellite.orbit.keplerian_elements.semi_major_axis_km'),
+    'initialOrbit.eccentricity': valueAt(document, 'satellite.orbit.keplerian_elements.eccentricity'),
+    'initialOrbit.inclinationDeg': valueAt(document, 'satellite.orbit.keplerian_elements.inclination_deg'),
+  }
+  if (mode === 'gmat-electric-propulsion') {
+    values['transfer.burnDurationDays'] = valueAt(document, 'analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days')
+  } else {
+    values['spacecraft.initialFuelMassKg'] = valueAt(document, 'analysis_requests.gmat.orbit_keeping.initial_fuel_mass_kg')
+    values['stationKeeping.minimumAltitudeKm'] = valueAt(document, 'analysis_requests.gmat.orbit_keeping.minimum_reboost_altitude_km')
+  }
+  return values
+}
+
+function verifyRunValuesAgainstAdapter(values: Record<string, string | number | null>, adapter: Record<string, string | number | null> | undefined) {
+  if (!adapter) return 'Verified directly from satellite.json'
+  const mismatches = Object.keys(values).filter(key => values[key] !== null && adapter[key] !== undefined && String(values[key]) !== String(adapter[key]))
+  return mismatches.length ? `Verification warning: ${mismatches.join(', ')} differs from the GMAT adapter; satellite.json is displayed.` : 'Verified against satellite.json'
+}
+
 export type GmatMissionChatProps = {
   activeRunId?: string
   chatMode: AgentChatMode
   conversation?: Array<{ answer: string; askedAt: string; question: string }>
   draft: Draft
   error: string
+  gmatRunFailed?: boolean
   busy: boolean
   pending?: { error?: string; kind: 'draft' | 'run'; message: string; status: 'sending' | 'failed' } | null
   onExecute: () => void
   onNewRun: () => void
   onRunSimuCic?: () => void
+  onRunOpalis?: () => void
+  onStopCalculations?: () => void
   onRetry: () => void
   onSend: (message: string, mode: AgentChatMode) => void
   simuCicConversation?: Array<{ answer: string; askedAt: string; question: string }>
@@ -50,21 +84,26 @@ export type GmatMissionChatProps = {
   workspaceDir?: string | null
 }
 
-export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, onExecute, onNewRun, onRunSimuCic, onRetry, onSend, pending, simuCicConversation = [], simuCicRefreshNonce = 0, simuCicRunning = false, workspaceDir }: GmatMissionChatProps) {
+export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, gmatRunFailed = false, onExecute, onNewRun, onRunSimuCic, onRunOpalis, onStopCalculations, onRetry, onSend, pending, simuCicConversation = [], simuCicRefreshNonce = 0, simuCicRunning = false, workspaceDir }: GmatMissionChatProps) {
   const [message, setMessage] = useState('')
   const [simuCic, setSimuCic] = useState<SimuCicConfiguration>({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
   const [savedRunValues, setSavedRunValues] = useState<Record<string, string | number | null> | null>(null)
+  const [runValuesVerification, setRunValuesVerification] = useState('')
   useEffect(() => {
     let cancelled = false
     void getSelectedSatellite(workspaceDir)
       .then(result => {
         if (cancelled) return
-        setSimuCic(result.document.analysis_requests?.simu_cic ?? { attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
-        setSavedRunValues(activeRunId
-          ? (chatMode === 'gmat-electric-propulsion' ? result.adapters?.gmat?.electricPropulsionTransfer?.values : result.adapters?.gmat?.orbitKeeping?.values) ?? null
-          : null)
+        const configuration = result.document.analysis_requests?.simu_cic ?? { attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null }
+        setSimuCic(configuration.attitude_mode === 'ground_station_tracking'
+          ? configuration
+          : { attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
+        const satelliteValues = activeRunId ? runValuesFromSatelliteJson(result.document, chatMode) : null
+        const adapterValues = chatMode === 'gmat-electric-propulsion' ? result.adapters?.gmat?.electricPropulsionTransfer?.values : result.adapters?.gmat?.orbitKeeping?.values
+        setSavedRunValues(satelliteValues)
+        setRunValuesVerification(satelliteValues ? verifyRunValuesAgainstAdapter(satelliteValues, adapterValues) : '')
       })
-      .catch(() => { if (!cancelled) { setSimuCic({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null }); setSavedRunValues(null) } })
+      .catch(() => { if (!cancelled) { setSimuCic({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null }); setSavedRunValues(null); setRunValuesVerification('Unable to verify satellite.json') } })
     return () => { cancelled = true }
   }, [workspaceDir, draft?.draftId, draft?.status, activeRunId, chatMode, simuCicRefreshNonce])
   const fields = (chatMode === 'gmat-electric-propulsion' ? ELECTRIC_FIELDS : ORBIT_FIELDS)
@@ -99,7 +138,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
           <aside className="gmat-mission-chat-sidebar">
             {activeRunId ? <><strong>Run values</strong><span>{activeRunId}</span></> : null}
             {draft || (activeRunId && displayedValues) ? <>
-              <section><header><strong>{activeRunId ? 'Saved GMAT mission values' : 'Required before GMAT can run'}</strong><span>{missing.length ? `${missing.length} remaining` : 'Complete'}</span></header><ul>
+              <section><header><strong>{activeRunId ? 'Saved GMAT mission values' : 'Required before GMAT can run'}</strong><span>{missing.length ? `${missing.length} remaining` : 'Complete'}</span></header>{activeRunId ? <p className="gmat-mission-source-verification">{runValuesVerification}</p> : null}<ul>
                 {fields.map(field => {
                   const semiMajorAxis = displayedValues?.['initialOrbit.smaKm']
                   const derivedAltitude = field.derived === 'initialAltitude' && typeof semiMajorAxis === 'number'
@@ -126,7 +165,9 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
                 {draft.status !== 'ready' && !draft.missing.length && blockers.length ? <p className="gmat-mission-run-blocker">GMAT is blocked by the safety check shown in the discussion.</p> : null}
               </> : null}</> : null}
             </> : activeRunId ? <p>Loading saved mission values…</p> : <p>Describe the mission to start a new draft.</p>}
-            {activeRunId && onRunSimuCic ? <button className="gmat-mission-run-button" disabled={simuCicRunning} type="button" onClick={onRunSimuCic}>{simuCicRunning ? 'Running Simu-CIC…' : 'Run Simu-CIC'}</button> : null}
+            {activeRunId && gmatRunFailed ? <><p className="gmat-mission-run-blocker">GMAT failed. Fix the mission values if needed, then run GMAT again before continuing to Simu-CIC or OPALIS.</p><button className="gmat-mission-run-button" disabled={busy || !draft} type="button" onClick={onExecute}>Retry GMAT</button></> : null}
+            {activeRunId && !gmatRunFailed && onRunSimuCic ? <button className="gmat-mission-run-button" disabled={simuCicRunning} type="button" onClick={onRunSimuCic}>{simuCicRunning ? 'Running Simu-CIC…' : 'Run Simu-CIC'}</button> : null}
+            {activeRunId && !gmatRunFailed && onRunOpalis ? <button className="gmat-mission-run-button" disabled={simuCicRunning || busy} type="button" onClick={onRunOpalis}>Run OPALIS (includes Simu-CIC)</button> : null}
             {activeRunId ? <button type="button" onClick={onNewRun}>Start separate GMAT mission</button> : null}
           </aside>
           <section className="gmat-mission-chat-thread" aria-live="polite">
@@ -140,7 +181,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
               {pending ? <><p className="is-user is-pending"><span>You</span>{pending.message}</p>{pending.status === 'sending' ? <p className="is-assistant is-pending"><span>GMAT assistant</span>{pending.kind === 'run' ? 'Analyzing saved results…' : 'Thinking…'}</p> : <div className="gmat-mission-send-error"><span>GMAT assistant</span><p>{pending.error || 'Message was not sent.'}</p><button type="button" onClick={onRetry}>Retry</button></div>}</> : null}
               {!activeRunId && !draft && !simuCicConversation.length && !pending ? <p className="gmat-mission-chat-placeholder">Start by describing a GMAT mission, or ask the assistant about Simu-CIC attitude behavior.</p> : null}
             </div>
-            <div className="gmat-mission-composer"><textarea disabled={busy} onChange={event => setMessage(event.target.value)} onKeyDown={onKeyDown} placeholder={activeRunId ? 'Ask a question about this completed run...' : 'Describe the mission parameters to validate...'} rows={3} value={message} /><button disabled={busy || !message.trim()} onClick={submit} type="button">Send</button></div>
+            <div className="gmat-mission-composer"><textarea disabled={busy} onChange={event => setMessage(event.target.value)} onKeyDown={onKeyDown} placeholder={activeRunId ? 'Ask a question about this completed run...' : 'Describe the mission parameters to validate...'} rows={3} value={message} /><button disabled={busy || !message.trim()} onClick={submit} type="button">Send</button>{busy && onStopCalculations ? <button className="gmat-mission-stop-button" onClick={onStopCalculations} type="button">Stop calculations</button> : null}</div>
           </section>
       </div>
     </section>

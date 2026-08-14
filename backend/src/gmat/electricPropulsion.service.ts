@@ -7,6 +7,7 @@ import { applyElectricPropulsionValueChanges, extractElectricPropulsionValues, r
 import { runElectricPropulsionGmat, type ElectricPropulsionExecutionResult } from "./electricPropulsionRunner.js"
 import { defaultElectricPropulsionTemplatePath } from "./electricPropulsionTemplate.js"
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
+import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 
 export type ElectricPropulsionProgress = { key: "load_template" | "llm_patch" | "render_script" | "run_gmat" | "save_results"; percent: number; status: "running" | "completed" }
@@ -250,6 +251,7 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
     fs.writeFile(timeSeriesPath, `${JSON.stringify(executionResult?.samples ?? [], null, 2)}\n`, "utf8"),
     fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8"),
   ])
+  await updateRunWorkflowLog(runDir, "simu_cic", "not_started", null)
   onProgress?.({ key: "save_results", percent: 100, status: "completed" })
   return { changes, ...(calibration ? { calibrationPath } : {}), ephemerisPath, latencyMs: 0, manifestPath, result, resultPath, runDir, runId, scriptPath, timeSeriesPath, valuesPath }
 }

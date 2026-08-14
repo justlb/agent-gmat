@@ -3,6 +3,8 @@ import type { WorkflowLoopProgressEntry } from '../workspace/progressUtils'
 type AgentProgressRailProps = {
   className?: string
   gmatGuiAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
+  // Kept for compatibility with existing callers; these controls intentionally
+  // no longer render in the progress rail. They belong in Mission discussion.
   opalisPrepareAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
   opalisRunAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
   opalisGuiAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
@@ -13,7 +15,7 @@ type AgentProgressRailProps = {
   workflowLoopProgressEntries: WorkflowLoopProgressEntry[]
 }
 
-export function AgentProgressRail({ className = 'agent-right-rail', gmatGuiAction, opalisGuiAction, opalisPrepareAction, opalisRunAction, simuCicGuiAction, onClose, progressUpdatedAt, title, workflowLoopProgressEntries }: AgentProgressRailProps) {
+export function AgentProgressRail({ className = 'agent-right-rail', gmatGuiAction, opalisGuiAction, simuCicGuiAction, onClose, progressUpdatedAt, title, workflowLoopProgressEntries }: AgentProgressRailProps) {
   return (
     <aside className={className}>
       <section>
@@ -34,8 +36,6 @@ export function AgentProgressRail({ className = 'agent-right-rail', gmatGuiActio
         ))}
         {gmatGuiAction ? <button className="agent-progress-gmat-gui" disabled={gmatGuiAction.disabled} onClick={gmatGuiAction.onClick} title={gmatGuiAction.title} type="button">{gmatGuiAction.label}</button> : null}
         {simuCicGuiAction ? <button className="agent-progress-gmat-gui" disabled={simuCicGuiAction.disabled} onClick={simuCicGuiAction.onClick} title={simuCicGuiAction.title} type="button">{simuCicGuiAction.label}</button> : null}
-        {opalisPrepareAction ? <button className="agent-progress-gmat-gui" disabled={opalisPrepareAction.disabled} onClick={opalisPrepareAction.onClick} title={opalisPrepareAction.title} type="button">{opalisPrepareAction.label}</button> : null}
-        {opalisRunAction ? <button className="agent-progress-gmat-gui" disabled={opalisRunAction.disabled} onClick={opalisRunAction.onClick} title={opalisRunAction.title} type="button">{opalisRunAction.label}</button> : null}
         {opalisGuiAction ? <button className="agent-progress-gmat-gui" disabled={opalisGuiAction.disabled} onClick={opalisGuiAction.onClick} title={opalisGuiAction.title} type="button">{opalisGuiAction.label}</button> : null}
       </section>
     </aside>

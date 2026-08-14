@@ -4,7 +4,7 @@ import path from "node:path"
 export type MissionConversationTurn = {
   answer: string
   askedAt: string
-  channel: "gmat-draft" | "simu-cic"
+  channel: "gmat-draft" | "simu-cic" | "opalis"
   question: string
 }
 
@@ -18,7 +18,7 @@ function missionRunConversationPath(workspaceDir: string) {
 }
 
 function validTurn(value: unknown): value is MissionConversationTurn {
-  return Boolean(value && typeof value === "object" && typeof (value as MissionConversationTurn).question === "string" && typeof (value as MissionConversationTurn).answer === "string" && typeof (value as MissionConversationTurn).askedAt === "string" && ((value as MissionConversationTurn).channel === "gmat-draft" || (value as MissionConversationTurn).channel === "simu-cic"))
+  return Boolean(value && typeof value === "object" && typeof (value as MissionConversationTurn).question === "string" && typeof (value as MissionConversationTurn).answer === "string" && typeof (value as MissionConversationTurn).askedAt === "string" && ((value as MissionConversationTurn).channel === "gmat-draft" || (value as MissionConversationTurn).channel === "simu-cic" || (value as MissionConversationTurn).channel === "opalis"))
 }
 
 function validRunTurn(value: unknown): value is { answer: string; askedAt?: string; question: string } {

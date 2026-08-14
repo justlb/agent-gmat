@@ -27,9 +27,10 @@ export async function analyzeElectricPropulsionRunWithLlm({ connection, question
   fetchImpl?: typeof fetch
   timeoutMs?: number
 }) {
-  const [manifest, result, report, opalisResult] = await Promise.all([
+  const [manifest, result, report, opalisResult, consolidatedReport] = await Promise.all([
     fs.readFile(path.join(runDir, "run_manifest.json"), "utf8"), fs.readFile(path.join(runDir, "gmat_result.json"), "utf8"), fs.readFile(path.join(runDir, "ElectricTransferReport.txt"), "utf8").catch(() => ""),
     loadOpalisResultSummary(runDir),
+    fs.readFile(path.join(runDir, "consolidated-run-report.json"), "utf8").catch(() => ""),
   ])
   const previousTurns = await loadElectricPropulsionRunConversation(runDir)
   const prompt = [
@@ -39,6 +40,7 @@ export async function analyzeElectricPropulsionRunWithLlm({ connection, question
     `Question: ${question}`, `Run manifest:\n${manifest}`, `Normalized result:\n${result}`,
     report ? `GMAT electric transfer report:\n${report.slice(0, 100_000)}` : "GMAT electric transfer report: unavailable",
     opalisResult ? `OPALIS electrical calculation summary (derived from calculated-opalis.json):\n${JSON.stringify(opalisResult)}` : "OPALIS electrical calculation: unavailable for this run.",
+    consolidatedReport ? `Consolidated GMAT + Simu-CIC + OPALIS report:\n${consolidatedReport.slice(0, 100_000)}` : "Consolidated report: unavailable.",
     relatedRuns.length ? `Other immutable runs in this mission discussion:\n${JSON.stringify(relatedRuns, null, 2)}` : "No linked comparison runs.",
     previousTurns.length ? `Previous discussion:\n${JSON.stringify(previousTurns.slice(-10), null, 2)}` : "",
   ].filter(Boolean).join("\n\n")

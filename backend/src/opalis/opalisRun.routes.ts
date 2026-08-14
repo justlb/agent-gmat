@@ -11,6 +11,11 @@ import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { prepareOpalisInputs } from "./opalisPreparation.routes.js"
 import { loadOpalisResultSummary } from "./opalisResults.js"
+import { runSimuCicForRun } from "./simuCic.routes.js"
+import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
+import { writeConsolidatedRunReport } from "./consolidatedRunReport.js"
+import { updateRunWorkflowLog } from "./workflowRunLog.js"
+import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
 
 type RunBody = { runPath?: unknown }
 
@@ -42,12 +47,14 @@ function requiredOpalisConfig(config: AppConfig) {
 function runCommand(executable: string, args: string[], cwd: string, timeoutMs: number) {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(executable, args, { cwd, windowsHide: true })
+    registerActiveCalculation(cwd, child)
     let output = ""
     child.stdout.on("data", chunk => { output += String(chunk) })
     child.stderr.on("data", chunk => { output += String(chunk) })
     const timer = setTimeout(() => { child.kill(); reject(new Error("OPALIS preparation timed out after " + timeoutMs + " ms")) }, timeoutMs)
     child.once("error", error => { clearTimeout(timer); reject(error) })
     child.once("close", code => {
+      unregisterActiveCalculation(cwd, child)
       clearTimeout(timer)
       if (code === 0) resolve(output)
       else reject(new Error("OPALIS preparation failed with code " + code + ": " + output.slice(-2_000)))
@@ -116,7 +123,18 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
     const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    let opalisStarted = false
     try {
+      let simuCic
+      try {
+        simuCic = await runSimuCicForRun(config, path.resolve(root), runDir)
+      } catch (error) {
+        await updateRunWorkflowLog(runDir, "simu_cic", "failed", getErrorMessage(error, "failed to run Simu-CIC"))
+        throw error
+      }
+      await updateRunWorkflowLog(runDir, "opalis", "running", "OPALIS calculation is running.")
+      opalisStarted = true
+      await appendRunConversation(runDir, { answer: "OPALIS calculation started using the Simu-CIC CIC output.", askedAt: new Date().toISOString(), channel: "opalis", question: "Run OPALIS calculation" })
       const settings = requiredOpalisConfig(config)
       const inputs = await prepareOpalisInputs(path.resolve(root), runDir)
       if (inputs.validation.status !== "ready") {
@@ -143,13 +161,19 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       if (!scenarioStat?.isFile() || scenarioStat.size === 0 || !summaryStat?.isFile() || summaryStat.size === 0) {
         throw new Error("OPALIS did not create the calculated scenario and summary")
       }
-      return reply.send({
+      const result = {
         scenario: path.relative(root, scenario),
         summary: path.relative(root, summary),
         parameters: inputs.output,
         output,
-      })
+        simuCic,
+      }
+      const consolidated = await writeConsolidatedRunReport(runDir)
+      await updateRunWorkflowLog(runDir, "opalis", "completed", "OPALIS calculation completed.")
+      await appendRunConversation(runDir, { answer: `OPALIS calculation completed. Results saved to ${result.summary}.`, askedAt: new Date().toISOString(), channel: "opalis", question: "Run OPALIS calculation" })
+      return reply.send({ ...result, consolidatedReport: path.relative(root, consolidated.output) })
     } catch (error) {
+      if (opalisStarted) await updateRunWorkflowLog(runDir, "opalis", "failed", getErrorMessage(error, "failed to run OPALIS scenario")).catch(() => undefined)
       return reply.status(422).send({ error: getErrorMessage(error, "failed to run OPALIS scenario") })
     }
   })
@@ -186,7 +210,7 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       })
       return reply.send({ ok: true, scenario: path.relative(root, scenario) })
     } catch (error) {
-      return reply.status(422).send({ error: getErrorMessage(error, "failed to open prepared OPALIS scenario") })
+      return reply.status(422).send({ error: getErrorMessage(error, "failed to open OPALIS GUI") })
     }
   })
 }

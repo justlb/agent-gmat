@@ -56,12 +56,13 @@ export async function analyzeOrbitKeepingRunWithLlm({
   fetchImpl?: typeof fetch
   timeoutMs?: number
 }) {
-  const [manifestSource, resultSource, reportSource, timeSeriesSource, opalisResult] = await Promise.all([
+  const [manifestSource, resultSource, reportSource, timeSeriesSource, opalisResult, consolidatedReport] = await Promise.all([
     fs.readFile(path.join(runDir, "run_manifest.json"), "utf8"),
     fs.readFile(path.join(runDir, "gmat_result.json"), "utf8"),
     fs.readFile(path.join(runDir, "ReboostReport.txt"), "utf8").catch(() => ""),
     fs.readFile(path.join(runDir, "orbit_timeseries.json"), "utf8").catch(() => ""),
     loadOpalisResultSummary(runDir),
+    fs.readFile(path.join(runDir, "consolidated-run-report.json"), "utf8").catch(() => ""),
   ])
   const conversationPath = path.join(runDir, "conversation.json")
   const previousTurns = await loadOrbitKeepingRunConversation(runDir)
@@ -76,6 +77,7 @@ export async function analyzeOrbitKeepingRunWithLlm({
     reportSource ? `GMAT report samples:\n${reportSource.slice(0, 100_000)}` : "GMAT report samples: unavailable",
     timeSeriesSource ? `GMAT engineering time series (epoch A1ModJulian; altitude km; fuel kg; total mass kg; SMA km; eccentricity; inclination deg):\n${timeSeriesSource.slice(0, 100_000)}` : "GMAT engineering time series: unavailable",
     opalisResult ? `OPALIS electrical calculation summary (derived from calculated-opalis.json):\n${JSON.stringify(opalisResult)}` : "OPALIS electrical calculation: unavailable for this run.",
+    consolidatedReport ? `Consolidated GMAT + Simu-CIC + OPALIS report:\n${consolidatedReport.slice(0, 100_000)}` : "Consolidated report: unavailable.",
     relatedRuns.length ? `Other immutable runs linked to this same mission discussion. Their normalized summaries may be compared with the current run, but do not invent report details not shown here:\n${JSON.stringify(relatedRuns.filter(run => run.runId !== JSON.parse(manifestSource).runId), null, 2)}` : "No other GMAT run is linked to this mission discussion yet.",
     previousTurns.length ? `Previous discussion:\n${JSON.stringify(previousTurns.slice(-10), null, 2)}` : "",
   ].filter(Boolean).join("\n\n")

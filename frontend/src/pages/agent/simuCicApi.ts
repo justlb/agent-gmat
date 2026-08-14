@@ -58,6 +58,35 @@ export async function runOpalisScenario(runPath: string) {
   return response.json() as Promise<{ parameters: string; scenario: string; summary: string }>
 }
 
+export type RunWorkflowStatus = 'not_started' | 'running' | 'completed' | 'failed'
+export type RunWorkflowLog = {
+  updated_at: string
+  stages: {
+    simu_cic: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }
+    opalis: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }
+  }
+}
+
+export async function getRunWorkflowLog(runPath: string) {
+  const response = await fetch(joinApiPath(undefined, "/opalis/workflow-status"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runPath }),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+  return (await response.json() as { workflow: RunWorkflowLog }).workflow
+}
+
+export async function cancelGmatCalculations(runPath?: string) {
+  const response = await fetch(joinApiPath(undefined, "/gmat/cancel-calculations"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(runPath ? { runPath } : {}),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+  return response.json() as Promise<{ cancelled: number }>
+}
+
 export type OpalisResultSummary = {
   alerts: Array<{ level: 'info' | 'warning'; message: string }>
   computedDurationSeconds: number | null

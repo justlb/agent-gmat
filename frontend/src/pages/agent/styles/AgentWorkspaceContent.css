@@ -1001,6 +1001,8 @@
 .gmat-mission-composer textarea { min-height: 54px; resize: vertical; border: 1px solid rgba(92, 152, 195, 0.28); border-radius: 7px; background: rgba(1, 10, 20, 0.8); color: #eef9ff; padding: 9px; font: inherit; }
 .gmat-mission-composer button { min-width: 78px; padding: 0 14px; }
 .gmat-mission-composer button:disabled, .gmat-mission-run-button:disabled { cursor: not-allowed; opacity: 0.5; }
+.gmat-mission-composer .gmat-mission-stop-button { border-color: rgba(255, 112, 112, 0.62); background: rgba(150, 35, 45, 0.42); color: #fff; }
+.gmat-mission-source-verification { margin: 0; padding: 7px 10px; border-bottom: 1px solid rgba(92, 152, 195, 0.16); color: #8fb3cd; font-size: 10px; line-height: 1.35; }
 .gmat-mission-chat-empty { display: grid; place-content: center; gap: 7px; min-height: 250px; color: #b8d1e3; text-align: center; }
 .gmat-mission-chat-empty strong { color: #eaf7ff; }
 

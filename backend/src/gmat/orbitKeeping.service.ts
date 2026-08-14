@@ -8,6 +8,7 @@ import { editOrbitKeepingValuesWithLlm, type OrbitKeepingLlmEditResult } from ".
 import { runOrbitKeepingGmat, toGmatNativePath, type OrbitKeepingExecutionResult } from "./orbitKeepingRunner.js"
 import { defaultOrbitKeepingTemplatePath } from "./orbitKeepingTemplate.js"
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
+import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
 import { applyOrbitKeepingValueChanges, parseOrbitKeepingValues, renderOrbitKeepingValues, type OrbitKeepingValueChange } from "./orbitKeepingValues.js"
 
 function enableEphemerisOutput(script: string) {
@@ -231,6 +232,7 @@ export async function generateOrbitKeepingMission({
     fs.writeFile(outputTimeSeriesPath, `${JSON.stringify(executionResult?.timeSeriesSamples ?? [], null, 2)}\n`, "utf8"),
     fs.writeFile(outputManifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8"),
   ])
+  await updateRunWorkflowLog(outputDir, "simu_cic", "not_started", null)
   onProgress?.({ key: "save_results", percent: 100, status: "completed" })
 
   return {

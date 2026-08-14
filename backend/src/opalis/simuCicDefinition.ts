@@ -30,7 +30,10 @@ export function adaptDigitalThreadToSimuCic(document: DigitalThreadDocument): Si
   if (!request) throw new Error("Simu-CIC request is missing from the digital thread")
   assertValidSimuCicRequest(request)
   const mode = request.attitude_mode === "ground_station_tracking" ? "ground_station_tracking" : "nadir_pointing"
-  const stationIds = Array.isArray(request.ground_station_ids) ? request.ground_station_ids as string[] : []
+  // A nadir law has no station target. Ignore stale station IDs left by an
+  // earlier tracking request so the display and the generated calculation
+  // cannot diverge.
+  const stationIds = mode === "ground_station_tracking" && Array.isArray(request.ground_station_ids) ? request.ground_station_ids as string[] : []
   if (mode === "ground_station_tracking" && !stationIds.length) throw new Error("Simu-CIC station tracking requires at least one predefined ground station")
   const groundStations = stationIds.map(id => {
     const station = getPredefinedGroundStation(id)

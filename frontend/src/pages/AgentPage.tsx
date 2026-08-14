@@ -21,7 +21,7 @@ import { confirmElectricPropulsionDraft, createElectricPropulsionDraft, discussE
 import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingDraft, executeOrbitKeepingDraftWithProgress, getOrbitKeepingRunConversation, listOrbitKeepingDrafts, openOrbitKeepingRunInGui, type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingRunConversationTurn } from './agent/orbitKeepingApi'
 import { routeMissionMessage } from './agent/missionRoutingApi'
 import { askMissionAssistant } from './agent/missionAssistantApi'
-import { openPreparedOpalisScenario, openSimuCicGui, prepareOpalisScenario, runOpalisScenario, runSimuCic } from './agent/simuCicApi'
+import { cancelGmatCalculations, getRunWorkflowLog, openPreparedOpalisScenario, openSimuCicGui, runOpalisScenario, runSimuCic, type RunWorkflowLog } from './agent/simuCicApi'
 import { createPlanningRun, type PlanningRun } from './agent/planningRunApi'
 import {
   AGENT_HOME_PATH,
@@ -83,22 +83,6 @@ function newSimuCicWorkflow() {
   )
 }
 
-function newOpalisPreparationWorkflow() {
-  return setGmatWorkflowStatus(
-    setGmatWorkflowStatus(
-      setGmatWorkflowStatus(
-        setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'),
-        'run_gmat',
-        'completed',
-      ),
-      'run_simucic',
-      'completed',
-    ),
-    'prepare_opalis',
-    'running',
-  )
-}
-
 function newOpalisRunWorkflow() {
   return setGmatWorkflowStatus(
     setGmatWorkflowStatus(
@@ -109,14 +93,24 @@ function newOpalisRunWorkflow() {
           'completed',
         ),
         'run_simucic',
-        'completed',
+        'running',
       ),
       'prepare_opalis',
-      'completed',
+      'pending',
     ),
     'run_opalis',
-    'running',
+    'pending',
   )
+}
+
+function workflowForSavedRun(log: RunWorkflowLog) {
+  const status = (value: RunWorkflowLog['stages']['simu_cic']['status']) => value === 'not_started' ? 'pending' : value
+  let entries = setGmatWorkflowStatus(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'), 'run_gmat', 'completed')
+  entries = setGmatWorkflowStatus(entries, 'run_simucic', status(log.stages.simu_cic.status))
+  if (log.stages.opalis.status !== 'not_started') {
+    entries = setGmatWorkflowStatus(entries, 'prepare_opalis', log.stages.opalis.status === 'running' ? 'running' : 'completed')
+  }
+  return setGmatWorkflowStatus(entries, 'run_opalis', status(log.stages.opalis.status))
 }
 
 const AGENT_THEME_STORAGE_KEY = 'agent-theme'
@@ -147,8 +141,11 @@ export default function AgentPage() {
   const [simuCicConversation, setSimuCicConversation] = useState<OrbitKeepingRunConversationTurn[]>([])
   const [simuCicGuiOpening, setSimuCicGuiOpening] = useState(false)
   const [simuCicRunning, setSimuCicRunning] = useState(false)
-  const [opalisPreparing, setOpalisPreparing] = useState(false)
   const [opalisRunning, setOpalisRunning] = useState(false)
+  // OPALIS preparation is now performed as part of the single Run OPALIS
+  // action in Mission discussion. Keep this compatibility value false while
+  // older progress-panel call sites are being phased out.
+  const opalisPreparing = false
   const [opalisGuiOpening, setOpalisGuiOpening] = useState(false)
   const [pendingGmatMessage, setPendingGmatMessage] = useState<PendingGmatMessage | null>(null)
   const [activeGmatDraft, setActiveGmatDraft] = useState<OrbitKeepingDraft | null>(null)
@@ -597,12 +594,14 @@ export default function AgentPage() {
             return
           }
           if (result.kind === 'general') {
-            setGmatWorkflowEntries(null)
             if (result.draft) setActiveGmatDraft(result.draft)
             // Keep the first Mission Studio exchange attached to its newly
             // created planning run. A non-mission question must not switch to
             // the unrelated general assistant and make the dated card vanish.
+            const askedAt = new Date().toISOString()
+            setSimuCicConversation(current => [...current, { answer: result.message, askedAt, question: prompt }])
             showSpeechText(result.message)
+            setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'completed') : entries)
             return
           }
           if (result.kind === 'simu-cic') {
@@ -833,6 +832,8 @@ export default function AgentPage() {
     void runSimuCic(activeGmatRun.runPath)
       .then(result => {
         setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_simucic', 'completed') : entries)
+        const askedAt = new Date().toISOString()
+        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: 'Simu-CIC completed. CIC data are available for downstream OPALIS processing.', askedAt, question: 'Run Simu-CIC' }] } : current)
         showSpeechText('Simu-CIC completed for run ' + activeGmatRun.runId + '. CIC data: ' + result.cicSatDir + '.')
         refreshWorkspaceViews()
       })
@@ -851,51 +852,55 @@ export default function AgentPage() {
       .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to open Simu-CIC GUI'))
       .finally(() => setSimuCicGuiOpening(false))
   }, [activeGmatRun, showSpeechText, simuCicGuiOpening])
-  const handlePrepareOpalis = useCallback(() => {
-    if (!activeGmatRun || opalisPreparing || simuCicRunning) return
-    setOpalisPreparing(true)
-    setManagedRunError('')
-    setProgressPanelOpen(true)
-    setGmatWorkflowEntries(newOpalisPreparationWorkflow())
-    void prepareOpalisScenario(activeGmatRun.runPath)
-      .then(result => {
-        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'prepare_opalis', 'completed') : entries)
-        showSpeechText('OPALIS scenario prepared for run ' + activeGmatRun.runId + '. File: ' + result.scenario + '.')
-        refreshWorkspaceViews()
-      })
-      .catch(reason => {
-        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'prepare_opalis', 'failed') : entries)
-        setManagedRunError(reason instanceof Error ? reason.message : 'Unable to prepare OPALIS scenario')
-      })
-      .finally(() => setOpalisPreparing(false))
-  }, [activeGmatRun, opalisPreparing, refreshWorkspaceViews, showSpeechText, simuCicRunning])
   const handleOpenPreparedOpalis = useCallback(() => {
-    if (!activeGmatRun || opalisGuiOpening || opalisPreparing) return
+    if (!activeGmatRun || opalisGuiOpening) return
     setOpalisGuiOpening(true)
     setManagedRunError('')
     void openPreparedOpalisScenario(activeGmatRun.runPath)
-      .then(() => showSpeechText('Prepared OPALIS scenario was opened for run ' + activeGmatRun.runId + '.'))
-      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to open prepared OPALIS scenario'))
+      .then(() => showSpeechText('OPALIS GUI was opened for run ' + activeGmatRun.runId + '.'))
+      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to open OPALIS GUI'))
       .finally(() => setOpalisGuiOpening(false))
-  }, [activeGmatRun, opalisGuiOpening, opalisPreparing, showSpeechText])
+  }, [activeGmatRun, opalisGuiOpening, showSpeechText])
+  const handlePrepareOpalis = useCallback(() => undefined, [])
   const handleRunOpalis = useCallback(() => {
-    if (!activeGmatRun || opalisRunning || opalisPreparing || simuCicRunning) return
+    if (!activeGmatRun || opalisRunning || simuCicRunning) return
     setOpalisRunning(true)
     setManagedRunError('')
     setProgressPanelOpen(true)
     setGmatWorkflowEntries(newOpalisRunWorkflow())
     void runOpalisScenario(activeGmatRun.runPath)
       .then(result => {
-        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_opalis', 'completed') : entries)
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'run_simucic', 'completed'), 'prepare_opalis', 'completed'), 'run_opalis', 'completed') : entries)
+        const askedAt = new Date().toISOString()
+        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation,
+          { answer: 'Simu-CIC completed. CIC data was generated for OPALIS.', askedAt, question: 'Run Simu-CIC' },
+          { answer: 'OPALIS calculation completed. Consolidated results are available for analysis.', askedAt, question: 'Run OPALIS calculation' },
+        ] } : current)
         showSpeechText('OPALIS calculation completed for run ' + activeGmatRun.runId + '. Results: ' + result.summary + '.')
         refreshWorkspaceViews()
       })
       .catch(reason => {
-        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_opalis', 'failed') : entries)
+        setGmatWorkflowEntries(entries => entries
+          ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'run_simucic', 'failed'), 'run_opalis', 'failed')
+          : entries)
         setManagedRunError(reason instanceof Error ? reason.message : 'Unable to run OPALIS calculation')
       })
       .finally(() => setOpalisRunning(false))
-  }, [activeGmatRun, opalisPreparing, opalisRunning, refreshWorkspaceViews, showSpeechText, simuCicRunning])
+  }, [activeGmatRun, opalisRunning, refreshWorkspaceViews, showSpeechText, simuCicRunning])
+  const handleStopCalculations = useCallback(() => {
+    const runPath = activeGmatRun?.runPath
+    setGmatGenerating(false)
+    setSimuCicRunning(false)
+    setOpalisRunning(false)
+    setPendingGmatMessage(null)
+    setManagedRunError('Calculations stopped by the user. You can continue the discussion.')
+    setGmatWorkflowEntries(entries => entries ? entries.map(entry => entry.status === 'running'
+      ? { ...entry, completed: false, rawStatus: 'failed', status: 'failed', statusLabel: 'Stopped', updatedAt: new Date().toISOString() }
+      : entry) : entries)
+    void cancelGmatCalculations(runPath)
+      .then(() => refreshWorkspaceViews())
+      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to stop active calculations'))
+  }, [activeGmatRun, refreshWorkspaceViews])
   const sessionStatusLabel = t(`workspace.status.${displayedSessionStatus}`)
   const dataSourceLabel = activeContext.workspaceName
     ? getWorkspaceDisplayName(activeContext.workspaceName)
@@ -982,10 +987,10 @@ export default function AgentPage() {
             title: activeGmatRun ? 'Generate the OPALIS fluxes and run the electrical calculation in batch mode.' : 'Select a GMAT run first.',
           }}
           opalisGuiAction={{
-            disabled: !activeGmatRun || opalisGuiOpening || opalisPreparing || opalisRunning,
-            label: opalisGuiOpening ? 'Opening OPALIS…' : 'Open prepared OPALIS scenario',
+            disabled: !activeGmatRun || opalisGuiOpening || opalisRunning,
+            label: opalisGuiOpening ? 'Opening OPALIS…' : 'Open OPALIS GUI',
             onClick: handleOpenPreparedOpalis,
-            title: activeGmatRun ? 'Open the prepared OPALIS scenario in the OPALIS GUI.' : 'Select a GMAT run first.',
+            title: activeGmatRun ? 'Open this run’s calculated OPALIS scenario in the OPALIS GUI.' : 'Select a GMAT run first.',
           }}
           onClose={() => setProgressPanelOpen(false)}
           progressUpdatedAt={displayedProgressUpdatedAt}
@@ -1023,15 +1028,18 @@ export default function AgentPage() {
           createVersionFromInput={createVersionFromInput}
           handleSelectFile={handleSelectFile}
           gmatMissionChat={{
-            busy: gmatGenerating,
+            busy: gmatGenerating || simuCicRunning || opalisRunning,
             chatMode,
             conversation: activeGmatRun?.conversation,
             draft: activeGmatDraft,
             error: error || managedRunError,
+            gmatRunFailed: activeGmatRun?.result?.status === 'failed' || activeGmatRun?.result?.status === 'timeout',
             pending: pendingGmatMessage,
             onExecute: handleExecuteGmatDraft,
             onNewRun: handleNewGmatDraft,
             onRunSimuCic: handleRunSimuCic,
+            onRunOpalis: handleRunOpalis,
+            onStopCalculations: handleStopCalculations,
             onRetry: () => {
               if (pendingGmatMessage?.status === 'failed') handleTextSubmit(pendingGmatMessage.message, chatMode)
             },
@@ -1052,6 +1060,9 @@ export default function AgentPage() {
           onSelectGmatRun={run => {
             setActiveGmatRun({ ...run, conversation: [] })
             const isElectricTransfer = run.missionType === 'electric-propulsion-transfer'
+            void getRunWorkflowLog(run.runPath)
+              .then(log => setGmatWorkflowEntries(workflowForSavedRun(log)))
+              .catch(() => setGmatWorkflowEntries(setGmatWorkflowStatus(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'), 'run_gmat', 'completed')))
             setActiveGmatDraft(null)
             void (isElectricTransfer ? getElectricPropulsionRunConversation(run.runPath) : getOrbitKeepingRunConversation(run.runPath))
               .then(conversation => setActiveGmatRun(current => current?.runPath === run.runPath ? { ...current, conversation } : current))
