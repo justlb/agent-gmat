@@ -91,6 +91,11 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
   const [runValuesVerification, setRunValuesVerification] = useState('')
   useEffect(() => {
     let cancelled = false
+    // Do not render an attitude law from the previously selected draft/run
+    // while the next run's satellite.json is loading. That brief stale state
+    // made e.g. "Bremen" appear although the new run and Simu-CIC calculation
+    // both use the default nadir law.
+    setSimuCic({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
     void getSelectedSatellite(workspaceDir)
       .then(result => {
         if (cancelled) return

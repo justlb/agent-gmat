@@ -166,7 +166,7 @@
           "cell_type": "Tfix",
           "cell_capacity_ah": 100,
           "cable_resistance_ohm": 0.05,
-          "low_voltage_limit_v": 100
+          "low_voltage_limit_v": 85
         },
         "power_distribution": {
           "constant_load_w": 3500,

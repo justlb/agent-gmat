@@ -33,6 +33,17 @@ function resolveGmatRunDir(root: string, candidate: unknown) {
 
 function nativePath(filePath: string) { return toGmatNativePath(filePath) }
 
+function opalisInputProblem(action: "prepared" | "run", inputs: { validation: { missing: string[]; warnings: string[] } }) {
+  const missing = inputs.validation.missing.filter(Boolean)
+  if (missing.length) return `OPALIS cannot be ${action} yet. Missing data: ${missing.join(", ")}`
+  // Defensive fallback for old or externally-created validation snapshots.
+  // A non-ready result must always explain what is blocking it.
+  const warnings = inputs.validation.warnings.filter(Boolean)
+  return warnings.length
+    ? `OPALIS cannot be ${action} yet. Configuration checks to resolve: ${warnings.join("; ")}`
+    : `OPALIS cannot be ${action} yet. The OPALIS input validation returned no blocking detail.`
+}
+
 function requiredOpalisConfig(config: AppConfig) {
   const tool = config.tools.opalis
   const required: Array<[string, string | null]> = [
@@ -86,7 +97,7 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       const settings = requiredOpalisConfig(config)
       const inputs = await prepareOpalisInputs(path.resolve(root), runDir)
       if (inputs.validation.status !== "ready") {
-        throw new Error("OPALIS cannot be prepared yet. Missing data: " + inputs.validation.missing.join(", "))
+        throw new Error(opalisInputProblem("prepared", inputs))
       }
       await fs.access(PIPELINE)
       await fs.access(EMPTY_TEMPLATE)
@@ -138,7 +149,7 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       const settings = requiredOpalisConfig(config)
       const inputs = await prepareOpalisInputs(path.resolve(root), runDir)
       if (inputs.validation.status !== "ready") {
-        throw new Error("OPALIS cannot run yet. Missing data: " + inputs.validation.missing.join(", "))
+        throw new Error(opalisInputProblem("run", inputs))
       }
       await fs.access(PIPELINE)
       await fs.access(EMPTY_TEMPLATE)

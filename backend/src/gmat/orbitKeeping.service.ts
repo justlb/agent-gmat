@@ -161,11 +161,13 @@ export async function generateOrbitKeepingMission({
   assertOrbitKeepingSimulationSafety(edit.values)
 
   onProgress?.({ key: "render_script", percent: 50, status: "running" })
-  const outputRoot = path.join(path.resolve(workspaceDir), "gmat", "orbit-keeping")
-  await fs.mkdir(outputRoot, { recursive: true })
   const outputDir = isMissionRunWorkspace(workspaceDir)
     ? path.resolve(workspaceDir)
-    : await createRunOutputDir(outputRoot, artifactId)
+    : await (async () => {
+      const outputRoot = path.join(path.resolve(workspaceDir), "gmat", "orbit-keeping")
+      await fs.mkdir(outputRoot, { recursive: true })
+      return createRunOutputDir(outputRoot, artifactId)
+    })()
   const outputValuesPath = path.join(outputDir, "orbit_keeping.values.yaml")
   const outputScriptPath = path.join(outputDir, "orbit_keeping.script")
   const outputResultPath = path.join(outputDir, "gmat_result.json")
