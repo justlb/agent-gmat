@@ -2322,3 +2322,33 @@
 .gmat-run-comparison-memory li b { font-size: 9px; text-transform: uppercase; }
 .gmat-run-comparison-memory li b.is-completed { color: #67e8f9; }.gmat-run-comparison-memory li b.is-failed, .gmat-run-comparison-memory li b.is-timeout { color: #fda4af; }
 .gmat-run-comparison-memory li small { color: #9ec1da; font-size: 9px; line-height: 1.25; }
+
+/* Deterministic Mission Studio: parameters lead the workflow; chat is help. */
+.mission-studio .agent-file-stage { grid-template-columns: minmax(190px, 17%) minmax(0, 1fr); }
+.mission-studio .agent-file-tree-pane { opacity: .9; }
+.mission-studio .gmat-mission-chat { grid-template-rows: auto minmax(0, 1fr); }
+.mission-studio .gmat-mission-chat-tabs { align-items: center; display: flex; gap: 14px; min-height: 42px; padding: 6px 12px; }
+.mission-studio .gmat-mission-chat-tabs > span.gmat-workflow-title { color: #eaf7ff; flex: 0 0 auto; font-size: 11px; font-weight: 900; line-height: normal; text-transform: uppercase; }
+.gmat-workflow-steps { align-items: center; display: grid; flex: 1; gap: 6px; grid-template-columns: repeat(6, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
+.gmat-workflow-steps li { align-items: center; color: #7087a7; display: flex; font-size: 10px; font-weight: 800; gap: 5px; min-width: 0; text-transform: uppercase; }
+.gmat-workflow-steps li i { background: #42536a; border-radius: 50%; box-shadow: 0 0 0 3px rgba(66, 83, 106, .12); flex: 0 0 6px; height: 6px; width: 6px; }
+.gmat-workflow-steps li.is-complete { color: #a5f3fc; }.gmat-workflow-steps li.is-complete i { background: #22d3ee; box-shadow: 0 0 0 3px rgba(34, 211, 238, .14); }
+.gmat-workflow-steps li.is-current { color: #f8fafc; }.gmat-workflow-steps li.is-current i { background: #60a5fa; box-shadow: 0 0 0 3px rgba(96, 165, 250, .22); }
+.gmat-workflow-steps li.is-failed { color: #fda4af; }.gmat-workflow-steps li.is-failed i { background: #fb7185; box-shadow: 0 0 0 3px rgba(251, 113, 133, .16); }
+.mission-studio .gmat-mission-chat-layout { grid-template-columns: minmax(335px, 46%) minmax(0, 1fr); }
+.mission-studio .gmat-mission-parameter-panel { background: linear-gradient(180deg, rgba(11, 29, 53, .72), rgba(3, 16, 29, .66)); padding: 11px; }
+.mission-studio .gmat-mission-parameter-panel > section { background: rgba(2, 15, 29, .32); border: 1px solid rgba(96, 165, 250, .16); border-radius: 7px; margin-bottom: 8px; padding: 8px; }
+.mission-studio .gmat-mission-parameter-panel > section > header { padding-bottom: 6px; }
+.mission-studio .gmat-mission-parameter-panel > section > header strong { font-size: 12px; }
+.mission-studio .gmat-mission-parameter-panel > section > header span { color: #67e8f9; font-size: 10px; }
+.mission-studio .gmat-mission-parameter-panel li { min-height: 30px; }
+.mission-studio .gmat-mission-required-input { background: rgba(3, 15, 29, .9); border-color: rgba(96, 165, 250, .52); color: #f8fafc; min-width: 108px; text-align: right; }
+.mission-studio .gmat-mission-chat-thread { background: linear-gradient(180deg, rgba(2, 16, 29, .72), rgba(2, 12, 23, .86)); }
+.mission-studio .gmat-mission-chat-thread > header { background: rgba(7, 29, 48, .72); }
+.mission-studio .gmat-mission-chat-thread > header strong { color: #f8fafc; }
+.mission-studio .gmat-mission-chat-placeholder { border-left: 3px solid #22d3ee; color: #b8d6e8; line-height: 1.55; max-width: 560px; padding: 12px 15px; }
+.mission-studio .gmat-mission-composer textarea { border-color: rgba(56, 189, 248, .35); color: #f8fafc; }
+@media (max-width: 1180px) {
+  .mission-studio .gmat-mission-chat-layout { grid-template-columns: minmax(285px, 43%) minmax(0, 1fr); }
+  .gmat-workflow-steps li { font-size: 9px; }
+}

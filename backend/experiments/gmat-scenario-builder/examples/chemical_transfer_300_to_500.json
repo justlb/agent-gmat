@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "scenario": {
+    "family": "transfer",
+    "propulsion": "chemical",
+    "dimension": "2d"
+  },
+  "satellite": {
+    "id": "ref-leo-orbit-keeping",
+    "version": "1.0.0",
+    "source_file": "data/satellite-library/reference-leo-orbit-keeping.v1.json"
+  },
+  "spacecraft": {
+    "dry_mass_kg": 300,
+    "specific_impulse_seconds": 320,
+    "initial_propellant_kg": 15
+  },
+  "initial_orbit": {
+    "central_body": "Earth",
+    "altitude_km": 300,
+    "eccentricity": 0,
+    "inclination_deg": 0
+  },
+  "target": {
+    "altitude_km": 500,
+    "eccentricity": 0
+  },
+  "constraints": {
+    "fuel_reserve_kg": 1,
+    "pre_transfer_coast_days": 0.1,
+    "post_transfer_coast_days": 0.25
+  }
+}

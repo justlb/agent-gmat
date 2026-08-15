@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "scenario": {
+    "family": "transfer",
+    "propulsion": "chemical",
+    "dimension": "2d"
+  },
+  "satellite": {
+    "id": "ref-leo-orbit-keeping",
+    "version": "1.0.0",
+    "source_file": "/mnt/d/STAGE/agent-gmat-main/data/satellite-library/reference-leo-orbit-keeping.v1.json"
+  },
+  "spacecraft": {
+    "dry_mass_kg": 300.0,
+    "specific_impulse_seconds": 320.0,
+    "initial_propellant_kg": 100.0
+  },
+  "initial_orbit": {
+    "central_body": "Earth",
+    "altitude_km": 300.0,
+    "eccentricity": 0.0,
+    "inclination_deg": 0.0
+  },
+  "target": {
+    "altitude_km": 500.0,
+    "eccentricity": 0.0
+  },
+  "constraints": {
+    "fuel_reserve_kg": 1
+  }
+}

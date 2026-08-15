@@ -179,6 +179,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
   const [savedRunValues, setSavedRunValues] = useState<Record<string, string | number | null> | null>(null)
   const [runValuesVerification, setRunValuesVerification] = useState('')
   const [satelliteAssumptions, setSatelliteAssumptions] = useState<Assumption[]>([])
+  const [satelliteSelected, setSatelliteSelected] = useState(false)
   const isRunScopedWorkspace = /[\\/]gmat[\\/]mission-runs[\\/][^\\/]+$/u.test(workspaceDir ?? '')
   useEffect(() => {
     let cancelled = false
@@ -197,6 +198,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
       setSavedRunValues(null)
       setRunValuesVerification('')
       setSatelliteAssumptions([])
+      setSatelliteSelected(false)
       return () => { cancelled = true }
     }
     void getSelectedSatellite(workspaceDir)
@@ -211,14 +213,15 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
         setSavedRunValues(satelliteValues)
         setRunValuesVerification(satelliteValues ? verifyRunValuesAgainstAdapter(satelliteValues, adapterValues) : '')
         setSatelliteAssumptions(editableSatelliteAssumptions(result.document, chatMode))
+        setSatelliteSelected(Boolean(valueAt(result.document, 'digital_thread.satellite_definition.id')))
       })
-      .catch(() => { if (!cancelled) { setSimuCic({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null }); setSavedRunValues(null); setRunValuesVerification('Unable to verify satellite.json'); setSatelliteAssumptions([]) } })
+      .catch(() => { if (!cancelled) { setSimuCic({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null }); setSavedRunValues(null); setRunValuesVerification('Unable to verify satellite.json'); setSatelliteAssumptions([]); setSatelliteSelected(false) } })
     return () => { cancelled = true }
   }, [workspaceDir, isRunScopedWorkspace, draft?.draftId, draft?.status, draft?.updatedAt, activeRunId, chatMode, simuCicRefreshNonce])
   const fields = (chatMode === 'gmat-electric-propulsion' ? ELECTRIC_FIELDS : ORBIT_FIELDS)
     .filter(field => field.path === 'spacecraft.initialFuelMassKg' || (!field.path.startsWith('spacecraft.') && !field.path.startsWith('propulsion.') && !field.path.startsWith('power.')))
-  // A selected template exposes its required inputs immediately. The first
-  // filled field creates/updates the draft through the normal LLM workflow.
+  // A selected template exposes its required inputs immediately. Each field
+  // is persisted deterministically; the assistant is optional guidance only.
   const templateSelected = !activeRunId && chatMode !== 'general'
   const displayedValues = activeRunId ? savedRunValues : draft?.values ?? (templateSelected ? {} : null)
   const showMissionInputs = Boolean(draft || (activeRunId && displayedValues) || templateSelected)
@@ -236,6 +239,15 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
   const warnings = draft?.safety?.checks.filter(check => check.severity === 'warning') ?? []
   const simuCicNeedsStations = simuCic.attitude_mode === 'ground_station_tracking' && !simuCic.ground_station_ids.length
   const simuCicComplete = simuCic.attitude_mode === 'nadir_pointing' || (simuCic.attitude_mode === 'ground_station_tracking' && !simuCicNeedsStations)
+  const missionComplete = Boolean(draft && !missing.length && draft.status !== 'blocked')
+  const workflowSteps: Array<{ label: string; state: 'complete' | 'current' | 'failed' | 'pending' }> = [
+    { label: 'Template', state: chatMode === 'general' ? 'current' : 'complete' },
+    { label: 'Satellite', state: satelliteSelected ? 'complete' : chatMode !== 'general' ? 'current' : 'pending' },
+    { label: 'Mission', state: missionComplete ? 'complete' : satelliteSelected ? 'current' : 'pending' },
+    { label: 'GMAT', state: activeRunId ? gmatRunFailed ? 'failed' : 'complete' : missionComplete ? 'current' : 'pending' },
+    { label: 'Simu-CIC', state: activeRunId && !gmatRunFailed ? 'current' : 'pending' },
+    { label: 'OPALIS', state: 'pending' },
+  ]
   const runConversation = [
     ...(draft?.conversation ?? []).map(turn => ({ answer: turn.assistant, askedAt: '', question: turn.user })),
     ...conversation,
@@ -246,9 +258,12 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
 
   return (
     <section className="gmat-mission-chat" aria-label="GMAT mission conversation">
-      <div className="gmat-mission-chat-tabs" aria-label="Conversation channel"><span>General</span></div>
+      <div className="gmat-mission-chat-tabs" aria-label="Mission workflow">
+        <span className="gmat-workflow-title">Mission workflow</span>
+        <ol className="gmat-workflow-steps">{workflowSteps.map(step => <li className={`is-${step.state}`} key={step.label}><i aria-hidden="true" /><span>{step.label}</span></li>)}</ol>
+      </div>
       <div className="gmat-mission-chat-layout">
-          <aside className="gmat-mission-chat-sidebar">
+          <aside className="gmat-mission-chat-sidebar gmat-mission-parameter-panel">
             {activeRunId ? <><strong>Run values</strong><span>{activeRunId}</span></> : null}
             {showMissionInputs ? <>
               <section><header><strong>{activeRunId ? 'Saved GMAT mission values' : 'Required before GMAT can run'}</strong><span>{missing.length ? `${missing.length} remaining` : 'Complete'}</span></header>{activeRunId ? <p className="gmat-mission-source-verification">{runValuesVerification}</p> : null}<ul>
@@ -286,7 +301,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
             {activeRunId ? <button type="button" onClick={onNewRun}>Start separate GMAT mission</button> : null}
           </aside>
           <section className="gmat-mission-chat-thread" aria-live="polite">
-            <header><strong>{activeRunId ? 'Run discussion' : 'Mission discussion'}</strong><span>{activeRunId ? 'Ask about results or request changed values for a new run' : 'Draft assistant'}</span></header>
+            <header><strong>{activeRunId ? 'Engineering assistant & run analysis' : 'Engineering assistant'}</strong><span>{activeRunId ? 'Ask for a result analysis or advice before testing a variation' : 'Use the fields on the left; ask for explanations or engineering advice here'}</span></header>
             <div className="gmat-mission-chat-history">
               {error && pending?.status !== 'failed' ? <StatusMessage text={error} variant="error" title="GMAT error" /> : null}
               {missing.length ? <StatusMessage text={`GMAT cannot run yet. Missing required data: ${missing.join(', ')}.`} title="GMAT status" /> : null}
@@ -294,9 +309,9 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
               {warnings.map(item => <StatusMessage key={item.code} text={item.message} title="GMAT warning" />)}
               {activeRunId ? runConversation.map((turn, index) => <Turn answer={turn.answer} key={`${turn.askedAt}-${index}`} question={turn.question} />) : draft ? draftConversation.map((turn, index) => <Turn answer={turn.answer} key={`${turn.askedAt}-${index}`} question={turn.question} />) : simuCicConversation.map((turn, index) => <Turn answer={turn.answer} key={`${turn.askedAt}-${index}`} question={turn.question} />)}
               {pending ? <><p className="is-user is-pending"><span>You</span>{pending.message}</p>{pending.status === 'sending' ? <p className="is-assistant is-pending"><span>GMAT assistant</span>{pending.kind === 'run' ? 'Analyzing saved results…' : 'Thinking…'}</p> : <div className="gmat-mission-send-error"><span>GMAT assistant</span><p>{pending.error || 'Message was not sent.'}</p><button type="button" onClick={onRetry}>Retry</button></div>}</> : null}
-              {!activeRunId && !draft && !simuCicConversation.length && !pending ? <p className="gmat-mission-chat-placeholder">Start with the template selector, choose a compatible satellite, then describe the mission. The assistant will guide you through the remaining inputs.</p> : null}
+              {!activeRunId && !draft && !simuCicConversation.length && !pending ? <p className="gmat-mission-chat-placeholder">Choose a template and satellite, then fill in the mission fields on the left. I can explain a parameter, recommend a realistic value, or help you evaluate mission trade-offs.</p> : null}
             </div>
-            <div className="gmat-mission-composer"><textarea disabled={busy} onChange={event => setMessage(event.target.value)} onKeyDown={onKeyDown} placeholder={activeRunId ? 'Ask a question about this completed run...' : 'Describe the mission parameters to validate...'} rows={3} value={message} /><button disabled={busy || !message.trim()} onClick={submit} type="button">Send</button>{busy && onStopCalculations ? <button className="gmat-mission-stop-button" onClick={onStopCalculations} type="button">Stop calculations</button> : null}</div>
+            <div className="gmat-mission-composer"><textarea disabled={busy} onChange={event => setMessage(event.target.value)} onKeyDown={onKeyDown} placeholder={activeRunId ? 'Ask a question about this completed run...' : 'Ask for help with a field, a value, or a mission trade-off…'} rows={3} value={message} /><button disabled={busy || !message.trim()} onClick={submit} type="button">Send</button>{busy && onStopCalculations ? <button className="gmat-mission-stop-button" onClick={onStopCalculations} type="button">Stop calculations</button> : null}</div>
           </section>
       </div>
     </section>

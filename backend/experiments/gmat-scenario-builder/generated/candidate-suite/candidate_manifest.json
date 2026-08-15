@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "candidates": [
+    {
+      "id": "transfer-chemical-2d-analytic-hohmann",
+      "family": "transfer",
+      "propulsion": "chemical",
+      "dimension": "2d",
+      "status": "generated",
+      "file": "transfer-chemical-2d-analytic-hohmann.script",
+      "source": "laboratory deterministic builder",
+      "metrics": {
+        "delta_v1_km_s": 0.056781638979398794,
+        "delta_v2_km_s": 0.0563642798052723,
+        "propellant_required_kg": 11.013929977011605
+      },
+      "test": "Verify 300 km stable coast, transfer ellipse, 500 km stable coast, and two fuel steps."
+    },
+    {
+      "id": "transfer-chemical-2d-targeted-hohmann",
+      "family": "transfer",
+      "propulsion": "chemical",
+      "dimension": "2d",
+      "status": "reference-copy",
+      "file": "transfer-chemical-2d-targeted-hohmann.script",
+      "source": "D:\\STAGE\\APP\\gmat\\samples\\Ex_HohmannTransfer.script",
+      "source_sha256": "2cda20f35068bfb8940d97c6449b8577c763b30a3bf274ae99bbdb09e58f170a",
+      "test": "Two impulsive burns solved by DifferentialCorrector."
+    },
+    {
+      "id": "transfer-chemical-2d-targeted-finite-burn",
+      "family": "transfer",
+      "propulsion": "chemical",
+      "dimension": "2d",
+      "status": "reference-copy",
+      "file": "transfer-chemical-2d-targeted-finite-burn.script",
+      "source": "D:\\STAGE\\APP\\gmat\\samples\\Tut_Target_Finite_Burn_to_Raise_Apogee.script",
+      "source_sha256": "cf2ca55ec802597362a281228b484742de371b9ee22ee200ea517ba2557a596d",
+      "test": "Finite chemical burn duration solved to raise apoapsis."
+    },
+    {
+      "id": "transfer-chemical-3d-geo",
+      "family": "transfer",
+      "propulsion": "chemical",
+      "dimension": "3d",
+      "status": "reference-copy",
+      "file": "transfer-chemical-3d-geo.script",
+      "source": "D:\\STAGE\\APP\\gmat\\samples\\Ex_GEOTransfer.script",
+      "source_sha256": "58011edb611a28a1e60260b5650c47e5c6a8c3ef19cd3a4a5f195ac757da46db",
+      "test": "Multi-burn GTO/GEO transfer with plane-change targeting."
+    },
+    {
+      "id": "transfer-electric-2d-reference",
+      "family": "transfer",
+      "propulsion": "electric",
+      "dimension": "2d",
+      "status": "reference-copy",
+      "file": "transfer-electric-2d-reference.script",
+      "source": "D:\\STAGE\\agent-gmat-main\\backend\\workflow_agents\\gmat_skills\\electric-propulsion-transfer-template\\references\\electric_propulsion_transfer.script",
+      "source_sha256": "83dd351fbf5081dc5d5bc72caad7cb55facf30643c1773533350387d942f6e15",
+      "test": "Existing project electric-transfer reference."
+    },
+    {
+      "id": "orbit-maintenance-chemical-leo",
+      "family": "orbit-maintenance",
+      "propulsion": "chemical",
+      "dimension": "3d",
+      "status": "reference-copy",
+      "file": "orbit-maintenance-chemical-leo.script",
+      "source": "D:\\STAGE\\APP\\gmat\\samples\\Ex_LEOStationKeeping.script",
+      "source_sha256": "7f36069653fe278d5234eafd7e85c8f504c58c4c834eed7850430678b187ab51",
+      "test": "Threshold-driven LEO reboost loop."
+    },
+    {
+      "id": "transfer-electric-3d",
+      "family": "transfer",
+      "propulsion": "electric",
+      "dimension": "3d",
+      "status": "blocked",
+      "reason": "A validated electric transfer with plane change / RAAN targeting is required."
+    },
+    {
+      "id": "orbit-maintenance-electric",
+      "family": "orbit-maintenance",
+      "propulsion": "electric",
+      "dimension": "3d",
+      "status": "blocked",
+      "reason": "A validated electric orbit-maintenance policy is required."
+    },
+    {
+      "id": "station-keeping-geo-gso-chemical",
+      "family": "station-keeping-geo-gso",
+      "propulsion": "chemical",
+      "dimension": "3d",
+      "status": "blocked",
+      "reason": "A GEO/GSO station-keeping reference, not merely a GEO transfer, is required."
+    },
+    {
+      "id": "station-keeping-geo-gso-electric",
+      "family": "station-keeping-geo-gso",
+      "propulsion": "electric",
+      "dimension": "3d",
+      "status": "blocked",
+      "reason": "A GEO/GSO electric station-keeping reference is required."
+    },
+    {
+      "id": "escape-chemical",
+      "family": "escape",
+      "propulsion": "chemical",
+      "dimension": "3d",
+      "status": "blocked",
+      "reason": "A validated Earth-escape / hyperbolic injection reference is required."
+    },
+    {
+      "id": "escape-electric",
+      "family": "escape",
+      "propulsion": "electric",
+      "dimension": "3d",
+      "status": "blocked",
+      "reason": "A validated electric escape trajectory reference is required."
+    }
+  ]
+}

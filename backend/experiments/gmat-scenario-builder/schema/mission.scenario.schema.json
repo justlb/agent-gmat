@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GMAT modular mission scenario",
+  "type": "object",
+  "required": ["schema_version", "scenario", "satellite", "spacecraft", "initial_orbit", "target", "constraints"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "scenario": {
+      "type": "object",
+      "required": ["family", "propulsion", "dimension"],
+      "properties": {
+        "family": { "enum": ["transfer", "orbit-maintenance", "station-keeping-geo-gso", "escape"] },
+        "propulsion": { "enum": ["chemical", "electric"] },
+        "dimension": { "enum": ["2d", "3d"] }
+      }
+    },
+    "satellite": { "type": "object", "required": ["id", "version", "source_file"] },
+    "spacecraft": { "type": "object", "required": ["dry_mass_kg", "specific_impulse_seconds", "initial_propellant_kg"] },
+    "initial_orbit": { "type": "object", "required": ["central_body", "altitude_km", "eccentricity", "inclination_deg"] },
+    "target": { "type": "object" },
+    "constraints": { "type": "object", "required": ["fuel_reserve_kg"] }
+  }
+}

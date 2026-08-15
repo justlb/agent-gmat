@@ -1,0 +1,363 @@
+%
+%  AutonomousLEOReboost
+%
+%  Circular Earth-orbit stationkeeping with drag decay, two-burn reboosts,
+%  a protected fuel reserve, and a final controlled decay to 100 km.
+%
+
+%----------------------------------------
+%---------- Spacecraft and tank
+%----------------------------------------
+
+Create Spacecraft DefaultSC;
+
+DefaultSC.DateFormat = TAIModJulian;
+DefaultSC.Epoch = '31258.66709490726';
+DefaultSC.CoordinateSystem = EarthMJ2000Eq;
+DefaultSC.DisplayStateType = Keplerian;
+DefaultSC.SMA = 6678.1363;
+DefaultSC.ECC = 0;
+DefaultSC.INC = 0;
+DefaultSC.RAAN = 0;
+DefaultSC.AOP = 0;
+DefaultSC.TA = 0;
+DefaultSC.DryMass = 300;
+DefaultSC.Cd = 2.5;
+DefaultSC.Cr = 1.8;
+DefaultSC.DragArea = 15;
+DefaultSC.SRPArea = 1;
+DefaultSC.SPADDragScaleFactor = 1;
+DefaultSC.SPADSRPScaleFactor = 1;
+DefaultSC.AtmosDensityScaleFactor = 1;
+DefaultSC.ExtendedMassPropertiesModel = 'None';
+DefaultSC.Tanks = {ChemicalTank1};
+DefaultSC.NAIFId = -10022001;
+DefaultSC.NAIFIdReferenceFrame = -9022001;
+DefaultSC.OrbitColor = Red;
+DefaultSC.TargetColor = Teal;
+DefaultSC.OrbitErrorCovariance = [ 1e+70 0 0 0 0 0 ; 0 1e+70 0 0 0 0 ; 0 0 1e+70 0 0 0 ; 0 0 0 1e+70 0 0 ; 0 0 0 0 1e+70 0 ; 0 0 0 0 0 1e+70 ];
+DefaultSC.CdSigma = 1e+70;
+DefaultSC.CrSigma = 1e+70;
+DefaultSC.Id = 'SatId';
+DefaultSC.Attitude = CoordinateSystemFixed;
+DefaultSC.SPADSRPInterpolationMethod = Bilinear;
+DefaultSC.SPADSRPScaleFactorSigma = 1e+70;
+DefaultSC.SPADDragInterpolationMethod = Bilinear;
+DefaultSC.SPADDragScaleFactorSigma = 1e+70;
+DefaultSC.AtmosDensityScaleFactorSigma = 1e+70;
+DefaultSC.ModelFile = 'aura.3ds';
+DefaultSC.ModelOffsetX = 0;
+DefaultSC.ModelOffsetY = 0;
+DefaultSC.ModelOffsetZ = 0;
+DefaultSC.ModelRotationX = 0;
+DefaultSC.ModelRotationY = 0;
+DefaultSC.ModelRotationZ = 0;
+DefaultSC.ModelScale = 1;
+DefaultSC.AttitudeDisplayStateType = 'Quaternion';
+DefaultSC.AttitudeRateDisplayStateType = 'AngularVelocity';
+DefaultSC.AttitudeCoordinateSystem = EarthMJ2000Eq;
+DefaultSC.EulerAngleSequence = '321';
+
+%----------------------------------------
+%---------- Hardware Components
+%----------------------------------------
+
+Create ChemicalTank ChemicalTank1;
+
+ChemicalTank1.DirectionX = 0;
+ChemicalTank1.DirectionY = 0;
+ChemicalTank1.DirectionZ = 1;
+ChemicalTank1.SecondDirectionX = 0;
+ChemicalTank1.SecondDirectionY = -1;
+ChemicalTank1.SecondDirectionZ = 0;
+ChemicalTank1.HWOriginInBCSX = 0;
+ChemicalTank1.HWOriginInBCSY = 0;
+ChemicalTank1.HWOriginInBCSZ = 0;
+ChemicalTank1.AllowNegativeFuelMass = false;
+ChemicalTank1.FuelMass = 15;
+ChemicalTank1.FuelCenterOfMassX = 0;
+ChemicalTank1.FuelCenterOfMassY = 0;
+ChemicalTank1.FuelCenterOfMassZ = 0;
+ChemicalTank1.FuelMomentOfInertiaXX = 99;
+ChemicalTank1.FuelMomentOfInertiaXY = 0;
+ChemicalTank1.FuelMomentOfInertiaXZ = 0;
+ChemicalTank1.FuelMomentOfInertiaYY = 99;
+ChemicalTank1.FuelMomentOfInertiaYZ = 0;
+ChemicalTank1.FuelMomentOfInertiaZZ = 99;
+ChemicalTank1.Pressure = 1500;
+ChemicalTank1.Temperature = 20;
+ChemicalTank1.RefTemperature = 20;
+ChemicalTank1.Volume = 0.75;
+ChemicalTank1.FuelDensity = 1260;
+ChemicalTank1.PressureModel = PressureRegulated;
+
+
+
+
+%----------------------------------------
+%---------- Force model
+%----------------------------------------
+
+Create ForceModel DefaultProp_ForceModel;
+
+DefaultProp_ForceModel.CentralBody = Earth;
+DefaultProp_ForceModel.PrimaryBodies = {Earth};
+DefaultProp_ForceModel.SRP = Off;
+DefaultProp_ForceModel.RelativisticCorrection = Off;
+DefaultProp_ForceModel.ErrorControl = RSSStep;
+DefaultProp_ForceModel.GravityField.Earth.Degree = 4;
+DefaultProp_ForceModel.GravityField.Earth.Order = 4;
+DefaultProp_ForceModel.GravityField.Earth.StmLimit = 100;
+DefaultProp_ForceModel.GravityField.Earth.PotentialFile = 'JGM2.cof';
+DefaultProp_ForceModel.GravityField.Earth.TideModel = 'None';
+DefaultProp_ForceModel.Drag.AtmosphereModel = MSISE90;
+DefaultProp_ForceModel.Drag.HistoricWeatherSource = 'ConstantFluxAndGeoMag';
+DefaultProp_ForceModel.Drag.PredictedWeatherSource = 'ConstantFluxAndGeoMag';
+DefaultProp_ForceModel.Drag.CSSISpaceWeatherFile = 'SpaceWeather-All-v1.2.txt';
+DefaultProp_ForceModel.Drag.SchattenFile = 'SchattenPredict.txt';
+DefaultProp_ForceModel.Drag.F107 = 150;
+DefaultProp_ForceModel.Drag.F107A = 150;
+DefaultProp_ForceModel.Drag.MagneticIndex = 3;
+DefaultProp_ForceModel.Drag.SchattenErrorModel = 'Nominal';
+DefaultProp_ForceModel.Drag.SchattenTimingModel = 'NominalCycle';
+DefaultProp_ForceModel.Drag.DragModel = 'Spherical';
+
+%----------------------------------------
+%---------- Propagator
+%----------------------------------------
+
+Create Propagator DefaultProp;
+
+DefaultProp.FM = DefaultProp_ForceModel;
+DefaultProp.Type = RungeKutta89;
+DefaultProp.InitialStepSize = 60;
+DefaultProp.Accuracy = 9.999999999999999e-12;
+DefaultProp.MinStep = 0.001;
+DefaultProp.MaxStep = 2700;
+DefaultProp.MaxStepAttempts = 50;
+DefaultProp.StopIfAccuracyIsViolated = true;
+
+%----------------------------------------
+%---------- Burns
+%----------------------------------------
+
+Create ImpulsiveBurn TOI;
+
+TOI.CoordinateSystem = Local;
+TOI.Origin = Earth;
+TOI.Axes = VNB;
+TOI.Element1 = 0.0567816389793988;
+TOI.Element2 = 0;
+TOI.Element3 = 0;
+TOI.DecrementMass = true;
+TOI.Tank = {ChemicalTank1};
+TOI.Isp = 320;
+TOI.GravitationalAccel = 9.81;
+
+Create ImpulsiveBurn GOI;
+
+GOI.CoordinateSystem = Local;
+GOI.Origin = Earth;
+GOI.Axes = VNB;
+GOI.Element1 = 0.0563642798052723;
+GOI.Element2 = 0;
+GOI.Element3 = 0;
+GOI.DecrementMass = true;
+GOI.Tank = {ChemicalTank1};
+GOI.Isp = 320;
+GOI.GravitationalAccel = 9.81;
+
+%----------------------------------------
+%---------- Solver
+%----------------------------------------
+
+Create DifferentialCorrector DefaultDC;
+
+DefaultDC.ShowProgress = true;
+DefaultDC.ReportStyle = Normal;
+DefaultDC.ReportFile = 'DifferentialCorrectorDC1.data';
+DefaultDC.MaximumIterations = 25;
+DefaultDC.DerivativeMethod = ForwardDifference;
+DefaultDC.Algorithm = NewtonRaphson;
+
+%----------------------------------------
+%---------- Subscribers
+%----------------------------------------
+
+Create XYPlot AltitudePlot;
+
+AltitudePlot.SolverIterations = Current;
+AltitudePlot.UpperLeft = [ 0.001926782273603083 0 ];
+AltitudePlot.Size = [ 0.8188824662813102 0.4564971751412429 ];
+AltitudePlot.RelativeZOrder = 107;
+AltitudePlot.Maximized = false;
+AltitudePlot.XVariable = DefaultSC.ElapsedDays;
+AltitudePlot.YVariables = {DefaultSC.Earth.Altitude};
+AltitudePlot.ShowGrid = true;
+AltitudePlot.ShowPlot = true;
+
+Create XYPlot FuelPlot;
+
+FuelPlot.SolverIterations = Current;
+FuelPlot.UpperLeft = [ 0.001926782273603083 0.4576271186440678 ];
+FuelPlot.Size = [ 0.8188824662813102 0.4564971751412429 ];
+FuelPlot.RelativeZOrder = 112;
+FuelPlot.Maximized = false;
+FuelPlot.XVariable = DefaultSC.A1ModJulian;
+FuelPlot.YVariables = {DefaultSC.ChemicalTank1.FuelMass};
+FuelPlot.ShowGrid = true;
+FuelPlot.ShowPlot = true;
+
+Create ReportFile ReboostReport;
+ReboostReport.SolverIterations = Current;
+ReboostReport.UpperLeft = [ 0 0 ];
+ReboostReport.Size = [ 0 0 ];
+ReboostReport.RelativeZOrder = 0;
+ReboostReport.Maximized = false;
+
+ReboostReport.Filename = 'D:/STAGE/agent-gmat-main/data/user/default/gmat/orbit-keeping/26-08-06_16-45/ReboostReport.txt';
+ReboostReport.Precision = 16;
+ReboostReport.WriteHeaders = true;
+ReboostReport.LeftJustify = On;
+ReboostReport.ZeroFill = Off;
+ReboostReport.FixedWidth = true;
+ReboostReport.Delimiter = ' ';
+ReboostReport.ColumnWidth = 23;
+ReboostReport.WriteReport = true;
+ReboostReport.AppendToExistingFile = false;
+
+% Deterministic engineering data product consumed by the web analysis panel.
+Create ReportFile OrbitAnalysisReport;
+OrbitAnalysisReport.SolverIterations = Current;
+OrbitAnalysisReport.UpperLeft = [ 0 0 ];
+OrbitAnalysisReport.Size = [ 0 0 ];
+OrbitAnalysisReport.RelativeZOrder = 0;
+OrbitAnalysisReport.Maximized = false;
+OrbitAnalysisReport.Filename = 'D:/STAGE/agent-gmat-main/data/user/default/gmat/orbit-keeping/26-08-06_16-45/OrbitAnalysisReport.txt';
+OrbitAnalysisReport.Precision = 16;
+OrbitAnalysisReport.WriteHeaders = true;
+OrbitAnalysisReport.LeftJustify = On;
+OrbitAnalysisReport.ZeroFill = Off;
+OrbitAnalysisReport.FixedWidth = true;
+OrbitAnalysisReport.Delimiter = ' ';
+OrbitAnalysisReport.ColumnWidth = 23;
+OrbitAnalysisReport.WriteReport = true;
+OrbitAnalysisReport.AppendToExistingFile = false;
+
+Create OpenFramesInterface OrbitView1;
+OrbitView1.SolverIterations = Current;
+OrbitView1.UpperLeft = [ 0.6078998073217726 0.1220338983050848 ];
+OrbitView1.Size = [ 0.9807321772639692 0.6067796610169491 ];
+OrbitView1.RelativeZOrder = 220;
+OrbitView1.Maximized = false;
+OrbitView1.Add = {DefaultSC, Earth};
+OrbitView1.View = {OrbitView1_View};
+OrbitView1.CoordinateSystem = EarthMJ2000Eq;
+OrbitView1.DrawObject = [ true true ];
+OrbitView1.DrawTrajectory = [ true true ];
+OrbitView1.DrawAxes = [ false false ];
+OrbitView1.DrawXYPlane = [ false false ];
+OrbitView1.DrawLabel = [ true true ];
+OrbitView1.DrawUsePropLabel = [ false false ];
+OrbitView1.DrawCenterPoint = [ true true ];
+OrbitView1.DrawEndPoints = [ true true ];
+OrbitView1.DrawVelocity = [ false false ];
+OrbitView1.DrawGrid = [ false false ];
+OrbitView1.DrawLineWidth = [ 2 2 ];
+OrbitView1.DrawMarkerSize = [ 10 10 ];
+OrbitView1.DrawFontSize = [ 20 20 ];
+OrbitView1.Axes = On;
+OrbitView1.AxesLength = 12756.2726;
+OrbitView1.AxesLabels = On;
+OrbitView1.FrameLabel = Off;
+OrbitView1.XYPlane = On;
+OrbitView1.EclipticPlane = Off;
+OrbitView1.EnableStars = On;
+OrbitView1.StarCatalog = 'inp_StarsHYGv3.txt';
+OrbitView1.StarCount = 40000;
+OrbitView1.MinStarMag = -2;
+OrbitView1.MaxStarMag = 6;
+OrbitView1.MinStarPixels = 1;
+OrbitView1.MaxStarPixels = 10;
+OrbitView1.MinStarDimRatio = 0.5;
+OrbitView1.ShowPlot = true;
+OrbitView1.ShowToolbar = true;
+OrbitView1.SolverIterLastN = 1;
+OrbitView1.ShowVR = false;
+OrbitView1.PlaybackTimeScale = 3600;
+OrbitView1.MultisampleAntiAliasing = On;
+OrbitView1.MSAASamples = 2;
+OrbitView1.DrawFontPosition = {'Top-Right', 'Top-Right'};
+
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.UpperLeft = [ 0 0 ];
+EphemerisFile1.Size = [ 0 0 ];
+EphemerisFile1.RelativeZOrder = 0;
+EphemerisFile1.Maximized = false;
+EphemerisFile1.Spacecraft = DefaultSC;
+EphemerisFile1.Filename = 'EphemerisFile1.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.OutputFormat = LittleEndian;
+EphemerisFile1.IncludeCovariance = None;
+EphemerisFile1.WriteEphemeris = true;
+
+%----------------------------------------
+%---------- Arrays, Variables, Strings
+%----------------------------------------
+Create Variable minAltitude finalAltitude fuelReserve targetSMA;
+minAltitude = 250;
+finalAltitude = 150;
+fuelReserve = 1;
+targetSMA = 6631.1363;
+
+
+
+%----------------------------------------
+%---------- User Objects
+%----------------------------------------
+
+Create OpenFramesView OrbitView1_View;
+OrbitView1_View.ViewFrame = CoordinateSystem;
+OrbitView1_View.ViewTrajectory = Off;
+OrbitView1_View.InertialFrame = Off;
+OrbitView1_View.SetDefaultLocation = On;
+OrbitView1_View.DefaultEye = [ 30000 0 0 ];
+OrbitView1_View.DefaultCenter = [ 0 0 0 ];
+OrbitView1_View.DefaultUp = [ 0 0 1 ];
+OrbitView1_View.SetCurrentLocation = Off;
+OrbitView1_View.FOVy = 45;
+
+
+%----------------------------------------
+%---------- Mission Sequence
+%----------------------------------------
+
+
+%----------------------------------------
+%---------- Mission sequence
+%----------------------------------------
+
+% Scenario-builder laboratory
+% Scenario: transfer / chemical / 2d
+% Source blocks: orbit-keeping spacecraft, chemical hardware, propagation, reports and ephemeris.
+% Fuel check: 11.013930 kg required + 1.000000 kg reserve.
+% The pre/post coasts make the initial orbit, transfer ellipse, final orbit and fuel steps observable in GMAT subscribers.
+
+BeginMissionSequence;
+Toggle EphemerisFile1 On;
+Propagate 'Pre-transfer coast' DefaultProp(DefaultSC) {DefaultSC.ElapsedDays = 0.1};
+Report OrbitAnalysisReport DefaultSC.A1ModJulian DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass DefaultSC.TotalMass DefaultSC.Earth.SMA DefaultSC.ECC DefaultSC.EarthMJ2000Eq.INC;
+Maneuver 'Transfer injection' TOI(DefaultSC);
+Propagate 'Coast on transfer ellipse' DefaultProp(DefaultSC) {DefaultSC.Earth.Apoapsis};
+Report OrbitAnalysisReport DefaultSC.A1ModJulian DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass DefaultSC.TotalMass DefaultSC.Earth.SMA DefaultSC.ECC DefaultSC.EarthMJ2000Eq.INC;
+Maneuver 'Transfer circularization' GOI(DefaultSC);
+Propagate 'Post-transfer coast' DefaultProp(DefaultSC) {DefaultSC.ElapsedDays = 0.382139024368873};
+Report OrbitAnalysisReport DefaultSC.A1ModJulian DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass DefaultSC.TotalMass DefaultSC.Earth.SMA DefaultSC.ECC DefaultSC.EarthMJ2000Eq.INC;
+Report ReboostReport DefaultSC.A1ModJulian DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;
