@@ -20,6 +20,8 @@ import { simuCicRoutes } from "../opalis/simuCic.routes.js"
 import { opalisPreparationRoutes } from "../opalis/opalisPreparation.routes.js"
 import { opalisRunRoutes } from "../opalis/opalisRun.routes.js"
 import { missionAssistantRoutes } from "../gmat/missionAssistant.routes.js"
+import { rfComlinkRoutes } from "../rfComlink/rfComlink.routes.js"
+import { rfComlinkPreparationRoutes } from "../rfComlink/rfComlinkPreparation.routes.js"
 
 export async function registerApiRoutes(
   fastify: FastifyInstance,
@@ -48,4 +50,6 @@ export async function registerApiRoutes(
   await fastify.register(simuCicRoutes, { config })
   await fastify.register(opalisPreparationRoutes)
   await fastify.register(opalisRunRoutes, { config })
+  await fastify.register(rfComlinkRoutes)
+  await fastify.register(rfComlinkPreparationRoutes)
 }

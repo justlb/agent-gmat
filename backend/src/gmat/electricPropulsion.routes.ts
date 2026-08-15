@@ -130,7 +130,7 @@ function resolveListedElectricPropulsionFilePath(userWorkspaceRoot: string, rela
   const root = path.resolve(userWorkspaceRoot)
   const filePath = path.resolve(root, relativePath)
   const normalized = filePath.split(path.sep).join("/")
-  if (!isPathInside(root, filePath) || !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json))$/u.test(normalized)) return null
+  if (!isPathInside(root, filePath) || !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/calculated-rf-comlink\.rfcl))$/u.test(normalized)) return null
   return filePath
 }
 

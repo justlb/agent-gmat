@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "name": "Starlink V1.5 Electric Reference",
   "description": "Physical Starlink V1.5-class proxy for an electric-propulsion transfer. Mission orbit and run-specific values are intentionally excluded.",
-  "capabilities": ["GMAT", "Simu-CIC", "OPALIS"],
+  "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
   "mission_templates": ["electric-propulsion-transfer"],
   "satellite": {
     "identity": {
@@ -113,6 +113,57 @@
             }
           ]
         }
+      },
+      "rf_comlink": {
+        "schema_version": 1,
+        "links": [
+          {
+            "id": "telecommand",
+            "name": "Telecommand",
+            "direction": "EarthSpace",
+            "requires_ground_station_tracking": true,
+            "system": {
+              "frequency_band": "S",
+              "frequency_mhz": 2200,
+              "data_rate_bps": 50000,
+              "bit_error_rate": 8.522275225393864e-8,
+              "modulation": "BPSK",
+              "required_ebn0_db": 11.3,
+              "required_ebn0_manual": true
+            },
+            "spacecraft_antenna": {
+              "role": "receiver",
+              "antenna_type": "manual",
+              "gain_db": 2,
+              "pointing_loss_db": 0,
+              "figure_of_merit_db_per_k": -22.8
+            },
+            "propagation": { "atmospheric_loss_db": -0.3, "weather_unavailability_percent": 1 }
+          },
+          {
+            "id": "housekeeping-telemetry",
+            "name": "Housekeeping telemetry",
+            "direction": "SpaceEarth",
+            "requires_ground_station_tracking": true,
+            "system": {
+              "frequency_band": "S",
+              "frequency_mhz": 2200,
+              "data_rate_bps": 50000,
+              "bit_error_rate": 8.522275225393864e-8,
+              "modulation": "BPSK",
+              "required_ebn0_db": 11.3,
+              "required_ebn0_manual": true
+            },
+            "spacecraft_antenna": {
+              "role": "transmitter",
+              "antenna_type": "manual",
+              "eirp_dbw": 5,
+              "pointing_loss_db": -3,
+              "axial_ratio_db": -2
+            },
+            "propagation": { "atmospheric_loss_db": -0.3, "weather_unavailability_percent": 1 }
+          }
+        ]
       }
     }
   }

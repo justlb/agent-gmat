@@ -122,6 +122,18 @@ function ensureMissionRequestShape(document: DigitalThreadDocument) {
   } satisfies { [key: string]: JsonValue })) {
     if (!(field in simuCic) || (field === "attitude_mode" && (simuCic[field] === null || simuCic[field] === "earth_pointing"))) { simuCic[field] = defaultValue; changed = true }
   }
+  const bus = asObject(satellite.bus) ?? (satellite.bus = {}, satellite.bus as { [key: string]: JsonValue })
+  const rfComlink = asObject(bus.rf_comlink) ?? (bus.rf_comlink = {}, bus.rf_comlink as { [key: string]: JsonValue })
+  if (!Array.isArray(rfComlink.links)) { rfComlink.links = []; changed = true }
+  const rfRequest = asObject(analysis.rf_comlink) ?? (analysis.rf_comlink = {}, analysis.rf_comlink as { [key: string]: JsonValue })
+  const rfDefaults: Record<string, JsonValue> = {
+    requested_link_ids: [],
+    selected_ground_station_id: null,
+    ground_station_source: "simu_cic_attitude",
+  }
+  for (const [field, defaultValue] of Object.entries(rfDefaults)) {
+    if (!(field in rfRequest)) { rfRequest[field] = defaultValue; changed = true }
+  }
   return changed
 }
 

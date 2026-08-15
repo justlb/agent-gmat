@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "name": "Reference LEO Orbit Keeping",
   "description": "Physical reference for a chemical-propulsion LEO spacecraft. Mission orbit and run-specific values are intentionally excluded.",
-  "capabilities": ["GMAT", "Simu-CIC", "OPALIS"],
+  "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
   "mission_templates": ["orbit-keeping"],
   "satellite": {
     "identity": {
@@ -105,6 +105,79 @@
             }
           ]
         }
+      },
+      "rf_comlink": {
+        "schema_version": 1,
+        "links": [
+          {
+            "id": "telecommand",
+            "name": "Telecommand",
+            "direction": "EarthSpace",
+            "requires_ground_station_tracking": true,
+            "system": {
+              "frequency_band": "S",
+              "frequency_mhz": 2400,
+              "data_rate_bps": 4000,
+              "bit_error_rate": 8.522275225393864e-8,
+              "modulation": "BPSK",
+              "required_ebn0_db": 11.3,
+              "required_ebn0_manual": true
+            },
+            "spacecraft_antenna": {
+              "role": "receiver",
+              "antenna_type": "manual",
+              "gain_db": 2,
+              "pointing_loss_db": 0,
+              "figure_of_merit_db_per_k": -22.8
+            },
+            "propagation": { "atmospheric_loss_db": -0.2, "weather_unavailability_percent": 1 }
+          },
+          {
+            "id": "housekeeping-telemetry",
+            "name": "Housekeeping telemetry",
+            "direction": "SpaceEarth",
+            "requires_ground_station_tracking": true,
+            "system": {
+              "frequency_band": "S",
+              "frequency_mhz": 2400,
+              "data_rate_bps": 50000,
+              "bit_error_rate": 8.522275225393864e-8,
+              "modulation": "BPSK",
+              "required_ebn0_db": 11.3,
+              "required_ebn0_manual": true
+            },
+            "spacecraft_antenna": {
+              "role": "transmitter",
+              "antenna_type": "manual",
+              "eirp_dbw": 5,
+              "pointing_loss_db": -3,
+              "axial_ratio_db": -2
+            },
+            "propagation": { "atmospheric_loss_db": -0.2, "weather_unavailability_percent": 1 }
+          },
+          {
+            "id": "payload-telemetry",
+            "name": "Payload telemetry",
+            "direction": "SpaceEarth",
+            "requires_ground_station_tracking": true,
+            "system": {
+              "frequency_band": "X",
+              "frequency_mhz": 8100,
+              "data_rate_bps": 150000000,
+              "bit_error_rate": 7.631837383153526e-6,
+              "modulation": "BPSK",
+              "required_ebn0_db": 9.59,
+              "required_ebn0_manual": true
+            },
+            "spacecraft_antenna": {
+              "role": "transmitter",
+              "antenna_type": "manual",
+              "eirp_dbw": 25,
+              "pointing_loss_db": -1.5
+            },
+            "propagation": { "atmospheric_loss_db": -0.7, "weather_unavailability_percent": 1 }
+          }
+        ]
       }
     }
   }
