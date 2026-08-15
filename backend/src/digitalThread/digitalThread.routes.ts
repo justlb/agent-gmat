@@ -7,10 +7,11 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { adaptDigitalThreadToGmat } from "./gmatDigitalThreadAdapter.js"
-import { createEphemeralDigitalThread, createPlanningRun, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
+import { createEphemeralDigitalThread, createPlanningRun, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
 import { getSatelliteDefinition, listSatelliteDefinitions, selectSatelliteDefinition } from "./satelliteLibrary.js"
 import { assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
 import { loadMissionConversation } from "./missionConversationStore.js"
+import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
 
 function resolveWorkspaceDir(root: string, requested: unknown) {
   const requestedPath = typeof requested === "string" && requested.trim() ? requested : null
@@ -190,12 +191,33 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
       }
       assertValidSimuCicRequest(request)
       document.analysis_requests.simu_cic = request
+      // One tracked station is an unambiguous RF-COMLINK target.  Persist the
+      // same choice in satellite.json so the UI, Simu-CIC and RF preparation
+      // share one source of truth. Several stations deliberately require an
+      // explicit RF selection; nadir pointing has no RF ground counterpart.
+      const rfComlink = document.analysis_requests.rf_comlink && typeof document.analysis_requests.rf_comlink === "object" && !Array.isArray(document.analysis_requests.rf_comlink)
+        ? document.analysis_requests.rf_comlink as { selected_ground_station_id?: import("./digitalThreadStore.js").JsonValue }
+        : {}
+      rfComlink.selected_ground_station_id = attitudeMode === "ground_station_tracking" && groundStationIds.length === 1 ? groundStationIds[0] : null
+      document.analysis_requests.rf_comlink = rfComlink
       const values = document.provenance.values && typeof document.provenance.values === "object" && !Array.isArray(document.provenance.values)
         ? document.provenance.values as { [key: string]: import("./digitalThreadStore.js").JsonValue }
         : {}
       values["analysis_requests.simu_cic"] = { source: "simu_cic_configuration", recorded_at: new Date().toISOString() }
+      values["analysis_requests.rf_comlink.selected_ground_station_id"] = { source: "simu_cic_configuration", recorded_at: new Date().toISOString() }
       document.provenance.values = values
       await saveDigitalThread(workspaceDir, document)
+      // A completed GMAT run has its immutable input at the run root, while
+      // the Mission Studio editor writes under digital-thread/. Mirror this
+      // downstream-only configuration immediately so Simu-CIC and RF-COMLINK
+      // never read the old nadir request from satellite.digital-thread.json.
+      const hasExecutedRunSnapshot = await fs.access(path.join(workspaceDir, "satellite.digital-thread.json")).then(() => true).catch(() => false)
+      if (hasExecutedRunSnapshot) {
+        await syncSimuCicRequestToRunSnapshot(workspaceDir, document)
+        await updateRunWorkflowLog(workspaceDir, "simu_cic", "not_started", "Simu-CIC configuration changed; rerun Simu-CIC.")
+        await updateRunWorkflowLog(workspaceDir, "opalis", "not_started", "Waiting for Simu-CIC after an attitude configuration change.")
+        await updateRunWorkflowLog(workspaceDir, "rf_comlink", "not_started", "Waiting for Simu-CIC after an attitude configuration change.")
+      }
       return reply.send(response(document))
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to save Simu-CIC configuration") }) }
   })

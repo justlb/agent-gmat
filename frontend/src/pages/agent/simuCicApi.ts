@@ -64,6 +64,7 @@ export type RunWorkflowLog = {
   stages: {
     simu_cic: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }
     opalis: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }
+    rf_comlink: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }
   }
 }
 

@@ -13,6 +13,7 @@ import { GmatAnalysisPanel } from './GmatAnalysisPanel'
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { AgentFilesView } from './files/AgentFilesView'
 import { SatelliteLibrary } from './SatelliteLibrary'
+import { TemplateLibrary } from './TemplateLibrary'
 import { MissionStudio } from './MissionStudio'
 import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
 
@@ -87,6 +88,7 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showCompl
   if (activeView === 'tools') return showGncConfig ? 'GNC Tools' : 'Simulation Tools'
   if (activeView === 'log') return 'Workspace Files'
   if (activeView === 'satellites') return 'Satellite Library'
+  if (activeView === 'templates') return 'GMAT Template Library'
   if (activeView === 'mission') return 'Mission Studio'
   return 'Voice chat'
 }
@@ -288,7 +290,9 @@ export function AgentWorkspacePanel({
             <div className="agent-empty-state">This simulation tool has no remote window available.</div>
           )
         ) : activeView === 'satellites' ? (
-          <SatelliteLibrary workspaceDir={missionWorkspaceDir ?? activeContext.versionDir} onSelected={refreshWorkspaceViews} />
+          <SatelliteLibrary workspaceDir={missionWorkspaceDir ?? activeContext.versionDir} />
+        ) : activeView === 'templates' ? (
+          <TemplateLibrary />
         ) : activeView === 'mission' ? (
           <MissionStudio
             activeGmatRunPath={activeGmatRunPath}

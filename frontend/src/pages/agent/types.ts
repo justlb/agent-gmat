@@ -14,7 +14,7 @@ export type AgentMessage = {
   turnId: string
 }
 
-export type AgentWorkspaceView = 'workspace' | 'bom' | 'model' | 'tools' | 'log' | 'satellites' | 'mission'
+export type AgentWorkspaceView = 'workspace' | 'bom' | 'model' | 'tools' | 'log' | 'satellites' | 'templates' | 'mission'
 
 export type AgentToolView = 'cad' | 'paraview' | 'comsol' | 'gnc' | 'gnc-dashboard' | 'gmat-analysis'
 

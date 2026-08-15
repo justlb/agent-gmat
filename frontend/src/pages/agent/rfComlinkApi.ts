@@ -33,3 +33,17 @@ export async function prepareRfComlinkInputs(runPath: string) {
     validation: { missing: string[]; status: "blocked" | "ready"; warnings: string[] }
   }>
 }
+
+/** Builds the run-local .rfcl package after input validation succeeds. */
+export async function prepareRfComlinkScenario(runPath: string) {
+  const response = await fetch(joinApiPath(undefined, "/rf-comlink/prepare-scenario"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runPath }),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+  return response.json() as Promise<{
+    scenario: string
+    validation: { missing: string[]; status: "blocked" | "ready"; warnings: string[] }
+  }>
+}

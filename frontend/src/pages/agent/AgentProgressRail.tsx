@@ -8,6 +8,7 @@ type AgentProgressRailProps = {
   opalisPrepareAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
   opalisRunAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
   opalisGuiAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
+  rfComlinkGuiAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
   simuCicGuiAction?: { disabled: boolean; label: string; onClick: () => void; title: string }
   onClose?: () => void
   progressUpdatedAt: string
@@ -15,7 +16,7 @@ type AgentProgressRailProps = {
   workflowLoopProgressEntries: WorkflowLoopProgressEntry[]
 }
 
-export function AgentProgressRail({ className = 'agent-right-rail', gmatGuiAction, opalisGuiAction, simuCicGuiAction, onClose, progressUpdatedAt, title, workflowLoopProgressEntries }: AgentProgressRailProps) {
+export function AgentProgressRail({ className = 'agent-right-rail', gmatGuiAction, opalisGuiAction, rfComlinkGuiAction, simuCicGuiAction, onClose, progressUpdatedAt, title, workflowLoopProgressEntries }: AgentProgressRailProps) {
   return (
     <aside className={className}>
       <section>
@@ -37,6 +38,7 @@ export function AgentProgressRail({ className = 'agent-right-rail', gmatGuiActio
         {gmatGuiAction ? <button className="agent-progress-gmat-gui" disabled={gmatGuiAction.disabled} onClick={gmatGuiAction.onClick} title={gmatGuiAction.title} type="button">{gmatGuiAction.label}</button> : null}
         {simuCicGuiAction ? <button className="agent-progress-gmat-gui" disabled={simuCicGuiAction.disabled} onClick={simuCicGuiAction.onClick} title={simuCicGuiAction.title} type="button">{simuCicGuiAction.label}</button> : null}
         {opalisGuiAction ? <button className="agent-progress-gmat-gui" disabled={opalisGuiAction.disabled} onClick={opalisGuiAction.onClick} title={opalisGuiAction.title} type="button">{opalisGuiAction.label}</button> : null}
+        {rfComlinkGuiAction ? <button className="agent-progress-gmat-gui" disabled={rfComlinkGuiAction.disabled} onClick={rfComlinkGuiAction.onClick} title={rfComlinkGuiAction.title} type="button">{rfComlinkGuiAction.label}</button> : null}
       </section>
     </aside>
   )

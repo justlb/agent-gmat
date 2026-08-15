@@ -11,10 +11,9 @@ import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { prepareOpalisInputs } from "./opalisPreparation.routes.js"
 import { loadOpalisResultSummary } from "./opalisResults.js"
-import { runSimuCicForRun } from "./simuCic.routes.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { writeConsolidatedRunReport } from "./consolidatedRunReport.js"
-import { updateRunWorkflowLog } from "./workflowRunLog.js"
+import { loadRunWorkflowLog, updateRunWorkflowLog } from "./workflowRunLog.js"
 import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
 
 type RunBody = { runPath?: unknown }
@@ -55,14 +54,14 @@ function requiredOpalisConfig(config: AppConfig) {
   return { installationDir: tool.installationDir!, timeoutMs: tool.timeoutMs, workerPython: tool.workerPython! }
 }
 
-function runCommand(executable: string, args: string[], cwd: string, timeoutMs: number) {
+function runCommand(executable: string, args: string[], cwd: string, timeoutMs: number, operation: "preparation" | "calculation") {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(executable, args, { cwd, windowsHide: true })
     registerActiveCalculation(cwd, child)
     let output = ""
     child.stdout.on("data", chunk => { output += String(chunk) })
     child.stderr.on("data", chunk => { output += String(chunk) })
-    const timer = setTimeout(() => { child.kill(); reject(new Error("OPALIS preparation timed out after " + timeoutMs + " ms")) }, timeoutMs)
+    const timer = setTimeout(() => { child.kill(); reject(new Error(`OPALIS ${operation} timed out after ${timeoutMs} ms`)) }, timeoutMs)
     child.once("error", error => { clearTimeout(timer); reject(error) })
     child.once("close", code => {
       unregisterActiveCalculation(cwd, child)
@@ -94,6 +93,8 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
+      const workflow = await loadRunWorkflowLog(runDir)
+      if (workflow.stages.simu_cic.status !== "completed") throw new Error("Run Simu-CIC first. OPALIS requires CIC files generated with the current attitude configuration.")
       const settings = requiredOpalisConfig(config)
       const inputs = await prepareOpalisInputs(path.resolve(root), runDir)
       if (inputs.validation.status !== "ready") {
@@ -113,7 +114,7 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
         "--output-dir", nativePath(outputDir),
         "--name", runName,
         "--no-run",
-      ], runDir, settings.timeoutMs)
+      ], runDir, settings.timeoutMs, "preparation")
       const scenario = path.join(outputDir, "02-resultats", `${runName}.opalis`)
       const summary = path.join(outputDir, "02-resultats", `${runName}.json`)
       const scenarioStat = await fs.stat(scenario).catch(() => null)
@@ -136,21 +137,16 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     let opalisStarted = false
     try {
-      let simuCic
-      try {
-        simuCic = await runSimuCicForRun(config, path.resolve(root), runDir)
-      } catch (error) {
-        await updateRunWorkflowLog(runDir, "simu_cic", "failed", getErrorMessage(error, "failed to run Simu-CIC"))
-        throw error
-      }
-      await updateRunWorkflowLog(runDir, "opalis", "running", "OPALIS calculation is running.")
-      opalisStarted = true
-      await appendRunConversation(runDir, { answer: "OPALIS calculation started using the Simu-CIC CIC output.", askedAt: new Date().toISOString(), channel: "opalis", question: "Run OPALIS calculation" })
+      const workflow = await loadRunWorkflowLog(runDir)
+      if (workflow.stages.simu_cic.status !== "completed") throw new Error("Run Simu-CIC first. OPALIS requires CIC files generated with the current attitude configuration.")
       const settings = requiredOpalisConfig(config)
       const inputs = await prepareOpalisInputs(path.resolve(root), runDir)
       if (inputs.validation.status !== "ready") {
-        throw new Error(opalisInputProblem("run", inputs))
+        throw new Error(`${opalisInputProblem("run", inputs)} Run Simu-CIC first to generate the required CIC files.`)
       }
+      await updateRunWorkflowLog(runDir, "opalis", "running", "OPALIS calculation is running using existing Simu-CIC CIC output.")
+      opalisStarted = true
+      await appendRunConversation(runDir, { answer: "OPALIS calculation started using the existing Simu-CIC CIC output.", askedAt: new Date().toISOString(), channel: "opalis", question: "Run OPALIS calculation" })
       await fs.access(PIPELINE)
       await fs.access(EMPTY_TEMPLATE)
       await fs.access(path.join(settings.installationDir, "lib", "OpalisApi.dll"))
@@ -164,7 +160,7 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
         "--opalis-dir", nativePath(settings.installationDir),
         "--output-dir", nativePath(outputDir),
         "--name", runName,
-      ], runDir, settings.timeoutMs)
+      ], runDir, settings.timeoutMs, "calculation")
       const scenario = path.join(outputDir, "02-resultats", `${runName}.opalis`)
       const summary = path.join(outputDir, "02-resultats", `${runName}.json`)
       const scenarioStat = await fs.stat(scenario).catch(() => null)
@@ -177,7 +173,6 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
         summary: path.relative(root, summary),
         parameters: inputs.output,
         output,
-        simuCic,
       }
       const consolidated = await writeConsolidatedRunReport(runDir)
       await updateRunWorkflowLog(runDir, "opalis", "completed", "OPALIS calculation completed.")

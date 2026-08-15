@@ -1,13 +1,13 @@
 {
   "id": "ref-leo-orbit-keeping",
   "version": "1.0.0",
-  "name": "Reference LEO Orbit Keeping",
+  "name": "Chemical Propulsion Sat",
   "description": "Physical reference for a chemical-propulsion LEO spacecraft. Mission orbit and run-specific values are intentionally excluded.",
   "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
   "mission_templates": ["orbit-keeping"],
   "satellite": {
     "identity": {
-      "name": "Reference LEO Orbit Keeping",
+      "name": "Chemical Propulsion Sat",
       "operator": "Reference program",
       "mission_type": "Earth observation"
     },
@@ -18,7 +18,7 @@
           "wet_at_launch": 400,
           "propellant": 100
         },
-        "drag_area_m2": 15,
+        "drag_area_m2": 2,
         "drag_coefficient": 2.2
       },
       "propulsion_subsystem": {
@@ -108,6 +108,16 @@
       },
       "rf_comlink": {
         "schema_version": 1,
+        "data_handling": {
+          "initial_memory_usage_bits": 0,
+          "memory_capacity_bits": 256000000000,
+          "payload_binary_rate": {
+            "mode": "periodic",
+            "rate_bps": 50000000,
+            "active_duration_s": 600,
+            "repeat_period_s": 5400
+          }
+        },
         "links": [
           {
             "id": "telecommand",

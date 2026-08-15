@@ -18,7 +18,7 @@
           "wet_at_launch": 306,
           "propellant": 10
         },
-        "drag_area_m2": 23,
+        "drag_area_m2": 2,
         "drag_coefficient": 2.2
       },
       "propulsion_subsystem": {
@@ -116,6 +116,13 @@
       },
       "rf_comlink": {
         "schema_version": 1,
+        "data_handling": {
+          "initial_memory_usage_bits": 0,
+          "memory_capacity_bits": 64000000000,
+          "payload_binary_rate": {
+            "mode": "none"
+          }
+        },
         "links": [
           {
             "id": "telecommand",

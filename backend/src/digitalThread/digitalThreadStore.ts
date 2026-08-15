@@ -124,6 +124,7 @@ function ensureMissionRequestShape(document: DigitalThreadDocument) {
   }
   const bus = asObject(satellite.bus) ?? (satellite.bus = {}, satellite.bus as { [key: string]: JsonValue })
   const rfComlink = asObject(bus.rf_comlink) ?? (bus.rf_comlink = {}, bus.rf_comlink as { [key: string]: JsonValue })
+  if (rfComlink.schema_version !== 1) { rfComlink.schema_version = 1; changed = true }
   if (!Array.isArray(rfComlink.links)) { rfComlink.links = []; changed = true }
   const rfRequest = asObject(analysis.rf_comlink) ?? (analysis.rf_comlink = {}, analysis.rf_comlink as { [key: string]: JsonValue })
   const rfDefaults: Record<string, JsonValue> = {
@@ -313,8 +314,13 @@ export async function syncSimuCicRequestToRunSnapshot(runDir: string, sourceDocu
   const outputDir = path.resolve(runDir)
   const snapshot = await loadRunDigitalThreadSnapshot(outputDir)
   snapshot.analysis_requests.simu_cic = JSON.parse(JSON.stringify(sourceDocument.analysis_requests.simu_cic)) as JsonValue
+  // RF-COMLINK inherits a unique Simu-CIC target. Keep that companion request
+  // in the immutable run snapshot too; otherwise RF preparation would read
+  // the pre-edit station choice even though Mission Studio shows the new one.
+  snapshot.analysis_requests.rf_comlink = JSON.parse(JSON.stringify(sourceDocument.analysis_requests.rf_comlink)) as JsonValue
   const provenance = asObject(snapshot.provenance.values) ?? {}
   provenance["analysis_requests.simu_cic"] = { source: "mission_discussion", synchronized_at: new Date().toISOString() }
+  provenance["analysis_requests.rf_comlink"] = { source: "mission_discussion", synchronized_at: new Date().toISOString() }
   snapshot.provenance.values = provenance
   assertDocument(snapshot)
   const source = `${JSON.stringify(snapshot, null, 2)}\n`
@@ -349,20 +355,48 @@ function explicitSimuCicConfiguration(message: string) {
   return null
 }
 
+/** Apply a simple, explicitly stated attitude command without involving the
+ * LLM. This is also used for mixed mission messages: a single turn may define
+ * both a GMAT orbit and a Simu-CIC attitude request. */
+export async function applyExplicitSimuCicConfiguration(workspaceDir: string, message: string) {
+  const request = explicitSimuCicConfiguration(message)
+  if (!request) return null
+  const document = await loadOrCreateDigitalThread(workspaceDir)
+  document.analysis_requests.simu_cic = request
+  synchronizeRfGroundStationChoice(document)
+  const provenance = asObject(document.provenance.values) ?? {}
+  provenance["analysis_requests.simu_cic"] = { source: "engineer_message", recorded_at: new Date().toISOString() }
+  document.provenance.values = provenance
+  assertValidSimuCicRequest(request)
+  await saveDigitalThread(workspaceDir, document)
+  const behavior = request.attitude_mode === "nadir_pointing"
+    ? "nadir pointing"
+    : `ground-station tracking for ${request.ground_station_ids.join(", ")} (nadir fallback when no station is visible)`
+  return { document, message: `Recorded Simu-CIC attitude behavior: ${behavior}.` }
+}
+
+/** Keep the RF target synchronized with an unambiguous Simu-CIC request.
+ * With multiple tracked stations, the RF selection remains a deliberate
+ * follow-up decision; with one station there is no second value to ask for. */
+function synchronizeRfGroundStationChoice(document: DigitalThreadDocument) {
+  const simuCic = asObject(document.analysis_requests.simu_cic)
+  const rfComlink = asObject(document.analysis_requests.rf_comlink) ?? {}
+  const stationIds = Array.isArray(simuCic?.ground_station_ids) && simuCic.ground_station_ids.every(value => typeof value === "string")
+    ? simuCic.ground_station_ids as string[]
+    : []
+  if (simuCic?.attitude_mode === "ground_station_tracking" && stationIds.length === 1) {
+    rfComlink.selected_ground_station_id = stationIds[0]
+  } else if (simuCic?.attitude_mode === "nadir_pointing") {
+    rfComlink.selected_ground_station_id = null
+  }
+  document.analysis_requests.rf_comlink = rfComlink
+}
+
 export async function updateDigitalThreadWithLlm({ connection, message, workspaceDir, allowedPaths: requestedAllowedPaths, fetchImpl = fetch }: { connection: Pick<ResolvedModelBackend, "apiKey" | "baseUrl" | "model">; message: string; workspaceDir: string; allowedPaths?: readonly string[]; fetchImpl?: typeof fetch }) {
   const document = await loadOrCreateDigitalThread(workspaceDir)
   const explicitSimuCicRequest = explicitSimuCicConfiguration(message)
   if (explicitSimuCicRequest) {
-    document.analysis_requests.simu_cic = explicitSimuCicRequest
-    const provenance = asObject(document.provenance.values) ?? {}
-    provenance["analysis_requests.simu_cic"] = { source: "engineer_message", recorded_at: new Date().toISOString() }
-    document.provenance.values = provenance
-    assertValidSimuCicRequest(explicitSimuCicRequest)
-    await saveDigitalThread(workspaceDir, document)
-    const behavior = explicitSimuCicRequest.attitude_mode === "nadir_pointing"
-      ? "nadir pointing"
-      : `ground-station tracking for ${explicitSimuCicRequest.ground_station_ids.join(", ")} (nadir fallback when no station is visible)`
-    return { document, message: `Recorded Simu-CIC attitude behavior: ${behavior}.` }
+    return (await applyExplicitSimuCicConfiguration(workspaceDir, message))!
   }
   const documentPaths = new Set(leafPaths(document))
   const allowedPaths = requestedAllowedPaths
@@ -409,6 +443,7 @@ export async function updateDigitalThreadWithLlm({ connection, message, workspac
   const simuCicRequest = asObject(document.analysis_requests.simu_cic)
   if (!simuCicRequest) throw new Error("Simu-CIC request is missing from the digital thread")
   assertValidSimuCicRequest(simuCicRequest)
+  synchronizeRfGroundStationChoice(document)
   await saveDigitalThread(workspaceDir, document)
   return { document, message: typeof patch.message === "string" ? patch.message.trim() : "Digital thread updated." }
 }

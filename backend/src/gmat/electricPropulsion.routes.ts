@@ -21,7 +21,7 @@ import { toGmatNativePath } from "./orbitKeepingRunner.js"
 type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
 type AnalyzeBody = { draftId?: unknown; question?: unknown; runPath?: unknown; workspaceDir?: unknown }
-type ElectricPropulsionFileKind = "calibration" | "digital-thread" | "ephemeris" | "log" | "manifest" | "opalis" | "report" | "result" | "script" | "timeseries" | "values"
+type ElectricPropulsionFileKind = "calibration" | "digital-thread" | "ephemeris" | "log" | "manifest" | "opalis" | "report" | "result" | "rf-comlink" | "script" | "timeseries" | "values"
 
 function resolveElectricPropulsionDraftArtifact(workspaceDir: string, draftId: string, fileName: string) {
   if (!/^electric_draft_[a-f0-9-]+$/u.test(draftId) || !["electric_propulsion_transfer.values.yaml"].includes(fileName)) return null
@@ -43,6 +43,7 @@ function electricPropulsionFileKind(fileName: string): ElectricPropulsionFileKin
   if (fileName === "EphemerisFile1.oem") return "ephemeris"
   if (fileName.endsWith(".scd")) return "opalis"
   if (fileName === "prepared-opalis.opalis" || fileName === "prepared-opalis.json" || fileName === "calculated-opalis.opalis" || fileName === "calculated-opalis.json" || fileName === "opalis-parameters.json") return "opalis"
+  if (fileName === "rf-comlink-inputs.json" || fileName === "prepared-rf-comlink.rfcl" || fileName === "calculated-rf-comlink.rfcl") return "rf-comlink"
   return null
 }
 
@@ -88,6 +89,17 @@ async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
         const filePath = path.join(generatedScenarioDir, entry.name)
         const stat = await fs.stat(filePath)
         files.push({ artifactId: run.name, fileName: entry.name, kind: "opalis", mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), runPath: path.relative(root, runDir), size: stat.size })
+      }
+      const rfComlinkFiles = [
+        ["rf-comlink", "01-input", "rf-comlink-inputs.json"],
+        ["rf-comlink", "02-scenario", "prepared-rf-comlink.rfcl"],
+        ["rf-comlink", "03-results", "calculated-rf-comlink.rfcl"],
+      ]
+      for (const parts of rfComlinkFiles) {
+        const filePath = path.join(runDir, ...parts)
+        const stat = await fs.stat(filePath).catch(() => null)
+        const kind = electricPropulsionFileKind(parts.at(-1) ?? "")
+        if (stat?.isFile() && kind) files.push({ artifactId: run.name, fileName: parts.at(-1)!, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), runPath: path.relative(root, runDir), size: stat.size })
       }
     }
   }

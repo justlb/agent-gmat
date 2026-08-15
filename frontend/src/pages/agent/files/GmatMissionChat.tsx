@@ -1,7 +1,7 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { MarkdownText } from '../../../components/outputMarkdown'
 import type { AgentChatMode } from '../AgentRecorderControl'
-import { getSelectedSatellite, type SimuCicConfiguration } from '../satelliteLibraryApi'
+import { getSelectedSatellite, listSimuCicGroundStations, saveSimuCicConfiguration, type PredefinedGroundStation, type SimuCicConfiguration } from '../satelliteLibraryApi'
 
 type Draft = {
   assistantMessage?: string
@@ -19,6 +19,7 @@ type Draft = {
 type Field = { derived?: 'initialAltitude'; label: string; path: string; unit?: string }
 type Assumption = { label: string; value: string }
 const EARTH_EQUATORIAL_RADIUS_KM = 6378.1363
+const RF_COMLINK_GROUND_STATION_IDS = ['kiruna', 'kourou', 'inuvik', 'aussaguel'] as const
 const ORBIT_FIELDS: Field[] = [
   { label: 'Epoch', path: 'initialOrbit.epoch' }, { label: 'Initial semi-major axis', path: 'initialOrbit.smaKm', unit: 'km' },
   { derived: 'initialAltitude', label: 'Initial altitude', path: 'initialOrbit.altitudeKm', unit: 'km' },
@@ -162,24 +163,35 @@ export type GmatMissionChatProps = {
   onEditMissionValues?: () => void
   onNewRun: () => void
   onRunSimuCic?: () => void
+  onSimuCicConfigurationChanged?: () => void
   onRunOpalis?: () => void
+  onPrepareRfComlink?: () => void
   onStopCalculations?: () => void
   onRetry: () => void
   onSend: (message: string, mode: AgentChatMode) => void
   onUpdateMissionValue?: (path: string, value: string) => void
   simuCicConversation?: Array<{ answer: string; askedAt: string; question: string }>
+  simuCicCompleted?: boolean
   simuCicRefreshNonce?: number
   simuCicRunning?: boolean
+  rfComlinkPreparing?: boolean
   workspaceDir?: string | null
 }
 
-export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, gmatRunFailed = false, onEditMissionValues, onExecute, onNewRun, onRunSimuCic, onRunOpalis, onStopCalculations, onRetry, onSend, onUpdateMissionValue, pending, simuCicConversation = [], simuCicRefreshNonce = 0, simuCicRunning = false, workspaceDir }: GmatMissionChatProps) {
+export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, gmatRunFailed = false, onEditMissionValues, onExecute, onNewRun, onRunSimuCic, onRunOpalis, onPrepareRfComlink, onStopCalculations, onRetry, onSend, onUpdateMissionValue, onSimuCicConfigurationChanged, pending, simuCicConversation = [], simuCicCompleted = false, simuCicRefreshNonce = 0, simuCicRunning = false, rfComlinkPreparing = false, workspaceDir }: GmatMissionChatProps) {
   const [message, setMessage] = useState('')
   const [simuCic, setSimuCic] = useState<SimuCicConfiguration>({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
+  const [groundStations, setGroundStations] = useState<PredefinedGroundStation[]>([])
+  const [simuCicConfigurationError, setSimuCicConfigurationError] = useState('')
   const [savedRunValues, setSavedRunValues] = useState<Record<string, string | number | null> | null>(null)
   const [runValuesVerification, setRunValuesVerification] = useState('')
   const [satelliteAssumptions, setSatelliteAssumptions] = useState<Assumption[]>([])
   const isRunScopedWorkspace = /[\\/]gmat[\\/]mission-runs[\\/][^\\/]+$/u.test(workspaceDir ?? '')
+  useEffect(() => {
+    let cancelled = false
+    void listSimuCicGroundStations().then(stations => { if (!cancelled) setGroundStations(stations) }).catch(() => { if (!cancelled) setGroundStations([]) })
+    return () => { cancelled = true }
+  }, [])
   useEffect(() => {
     let cancelled = false
     // Do not render an attitude law from the previously selected draft/run
@@ -236,6 +248,25 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
   const warnings = draft?.safety?.checks.filter(check => check.severity === 'warning') ?? []
   const simuCicNeedsStations = simuCic.attitude_mode === 'ground_station_tracking' && !simuCic.ground_station_ids.length
   const simuCicComplete = simuCic.attitude_mode === 'nadir_pointing' || (simuCic.attitude_mode === 'ground_station_tracking' && !simuCicNeedsStations)
+  const updateGroundStation = (stationId: string) => {
+    if (busy) return
+    const next: SimuCicConfiguration = stationId
+      ? { attitude_mode: 'ground_station_tracking', ground_station_ids: [stationId], simultaneous_visibility_policy: 'first_visible_station_wins' }
+      : { attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null }
+    const previous = simuCic
+    setSimuCic(next)
+    setSimuCicConfigurationError('')
+    void saveSimuCicConfiguration(next, workspaceDir)
+      .then(result => {
+        const saved = result.document.analysis_requests?.simu_cic
+        setSimuCic(saved?.attitude_mode === 'ground_station_tracking' ? saved : { attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
+        onSimuCicConfigurationChanged?.()
+      })
+      .catch(reason => {
+        setSimuCic(previous)
+        setSimuCicConfigurationError(reason instanceof Error ? reason.message : 'Unable to save the Simu-CIC configuration.')
+      })
+  }
   const runConversation = [
     ...(draft?.conversation ?? []).map(turn => ({ answer: turn.assistant, askedAt: '', question: turn.user })),
     ...conversation,
@@ -262,10 +293,14 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
                   return <li className={absent ? 'is-missing' : ''} key={field.derived ?? field.path}><span>{field.label}</span>{!activeRunId && onUpdateMissionValue ? <MissionValueField busy={busy} field={field} onSubmit={onUpdateMissionValue} value={typeof value === 'string' || typeof value === 'number' ? value : null} /> : <b>{absent ? 'Not provided' : `${value}${field.unit ? ` ${field.unit}` : ''}`}</b>}</li>
                 })}
               </ul></section>
-              {draft || activeRunId ? <section><header><strong>Required before Simu-CIC can run</strong><span>{simuCicComplete ? 'Complete' : simuCicNeedsStations ? 'Station required' : 'Attitude law required'}</span></header><ul>
+              {draft || activeRunId || templateSelected ? <section><header><strong>Required before Simu-CIC can run</strong><span>{simuCicComplete ? 'Complete' : simuCicNeedsStations ? 'Station required' : 'Attitude law required'}</span></header><ul>
                 <li><span>Attitude behavior</span><b>{simuCic.attitude_mode === 'nadir_pointing' ? 'Nadir pointing' : simuCic.attitude_mode === 'ground_station_tracking' ? 'Track ground station(s)' : 'Nadir pointing'}</b></li>
                 {simuCic.attitude_mode === 'ground_station_tracking' ? <li className={simuCicNeedsStations ? 'is-missing' : ''}><span>Ground stations</span><b>{simuCic.ground_station_ids.length ? simuCic.ground_station_ids.join(', ') : 'Not provided'}</b></li> : null}
-              </ul><p className="gmat-mission-simucic-hint">Ask the LLM in writing for the predefined ground-station list or to configure the attitude behavior.</p></section> : null}
+                <li className="gmat-mission-ground-station-picker"><label htmlFor="simu-cic-ground-station">Attitude target</label><select disabled={busy} id="simu-cic-ground-station" onChange={event => updateGroundStation(event.target.value)} value={simuCic.attitude_mode === 'ground_station_tracking' ? simuCic.ground_station_ids[0] ?? '' : ''}>
+                  <option value="">Nadir pointing (default)</option>
+                  {RF_COMLINK_GROUND_STATION_IDS.flatMap(id => groundStations.filter(station => station.id === id)).map(station => <option key={station.id} value={station.id}>{station.name} ({station.id})</option>)}
+                </select></li>
+              </ul>{simuCicConfigurationError ? <p className="gmat-mission-run-blocker">{simuCicConfigurationError}</p> : <p className="gmat-mission-simucic-hint">Choose nadir pointing or a predefined station. You can still ask the assistant for guidance or configure several stations in writing.</p>}</section> : null}
               {draft ? <><section><header><strong>Assumed defaults to confirm</strong><span>Template defaults and run-specific satellite values</span></header><ul className="assumptions">{(draft.safety?.assumptions ?? []).map(item => <li key={item.label}>{item.label}: {item.value}</li>)}{satelliteAssumptions.map(item => <li key={`satellite-${item.label}`}>{item.label}: {item.value}</li>)}</ul></section>
               {draft.runs?.length ? <RunComparisonMemory runs={draft.runs} /> : null}
               {!activeRunId ? <>
@@ -282,7 +317,8 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
             {activeRunId && onEditMissionValues ? <button className="gmat-mission-run-button" disabled={busy || !draft} type="button" onClick={onEditMissionValues}>Edit values / test variation</button> : null}
             {activeRunId && gmatRunFailed ? <><p className="gmat-mission-run-blocker">GMAT failed. Edit the mission values, then run GMAT again before continuing to Simu-CIC or OPALIS.</p><button className="gmat-mission-run-button" disabled={busy || !draft} type="button" onClick={onExecute}>Retry unchanged values</button></> : null}
             {activeRunId && !gmatRunFailed && onRunSimuCic ? <button className="gmat-mission-run-button" disabled={simuCicRunning} type="button" onClick={onRunSimuCic}>{simuCicRunning ? 'Running Simu-CIC…' : 'Run Simu-CIC'}</button> : null}
-            {activeRunId && !gmatRunFailed && onRunOpalis ? <button className="gmat-mission-run-button" disabled={simuCicRunning || busy} type="button" onClick={onRunOpalis}>Run OPALIS (includes Simu-CIC)</button> : null}
+            {activeRunId && !gmatRunFailed && onRunOpalis ? <button className="gmat-mission-run-button" disabled={!simuCicCompleted || simuCicRunning || busy} title={simuCicCompleted ? 'Run OPALIS from the CIC files already generated for this GMAT run.' : 'Run Simu-CIC first.'} type="button" onClick={onRunOpalis}>Run OPALIS</button> : null}
+            {activeRunId && !gmatRunFailed && onPrepareRfComlink ? <button className="gmat-mission-run-button" disabled={!simuCicCompleted || simuCicRunning || busy} title={simuCicCompleted ? 'Generate RF-COMLINK using this run’s Simu-CIC CIC files.' : 'Run Simu-CIC first.'} type="button" onClick={onPrepareRfComlink}>{rfComlinkPreparing ? 'Generating RF-COMLINK .rfcl…' : 'Generate RF-COMLINK .rfcl'}</button> : null}
             {activeRunId ? <button type="button" onClick={onNewRun}>Start separate GMAT mission</button> : null}
           </aside>
           <section className="gmat-mission-chat-thread" aria-live="polite">

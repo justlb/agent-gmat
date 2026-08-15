@@ -22,6 +22,7 @@ import { confirmOrbitKeepingDraft, createOrbitKeepingDraft, discussOrbitKeepingD
 import { routeMissionMessage } from './agent/missionRoutingApi'
 import { askMissionAssistant } from './agent/missionAssistantApi'
 import { cancelGmatCalculations, getRunWorkflowLog, openPreparedOpalisScenario, openSimuCicGui, runOpalisScenario, runSimuCic, type RunWorkflowLog } from './agent/simuCicApi'
+import { openRfComlinkGui, prepareRfComlinkScenario } from './agent/rfComlinkApi'
 import { createPlanningRun, type PlanningRun } from './agent/planningRunApi'
 import { updateMissionValue } from './agent/missionValuesApi'
 import {
@@ -52,12 +53,13 @@ type PendingGmatMessage = {
   status: 'sending' | 'failed'
 }
 
-const GMAT_WORKFLOW_LABELS: Record<'draft_llm' | 'run_gmat' | 'run_simucic' | 'prepare_opalis' | 'run_opalis', string> = {
+const GMAT_WORKFLOW_LABELS: Record<'draft_llm' | 'run_gmat' | 'run_simucic' | 'prepare_opalis' | 'run_opalis' | 'prepare_rf_comlink', string> = {
   draft_llm: 'LLM mission discussion',
   run_gmat: 'Run GMAT simulation',
   run_simucic: 'Run Simu-CIC simulation',
   prepare_opalis: 'Prepare OPALIS scenario',
   run_opalis: 'Run OPALIS calculation',
+  prepare_rf_comlink: 'Generate RF-COMLINK scenario',
 }
 
 function newGmatWorkflow(): WorkflowLoopProgressEntry[] {
@@ -94,13 +96,33 @@ function newOpalisRunWorkflow() {
           'completed',
         ),
         'run_simucic',
-        'running',
+        'completed',
       ),
       'prepare_opalis',
-      'pending',
+      'running',
     ),
     'run_opalis',
     'pending',
+  )
+}
+
+function hasGmatMissionRequest(message: string) {
+  return /electric\s*(?:propulsion|transfer|thrust)|orbit|reboost|station\s*keeping|initial\s*(?:altitude|semi|epoch)|\becc(?:entricity)?\b|\binc(?:lination)?\b|burn\s*duration|thrust\s*duration/iu.test(message)
+}
+
+function newRfComlinkWorkflow() {
+  return setGmatWorkflowStatus(
+    setGmatWorkflowStatus(
+      setGmatWorkflowStatus(
+        setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'),
+        'run_simucic',
+        'completed',
+      ),
+      'run_gmat',
+      'completed',
+    ),
+    'prepare_rf_comlink',
+    'running',
   )
 }
 
@@ -111,7 +133,8 @@ function workflowForSavedRun(log: RunWorkflowLog) {
   if (log.stages.opalis.status !== 'not_started') {
     entries = setGmatWorkflowStatus(entries, 'prepare_opalis', log.stages.opalis.status === 'running' ? 'running' : 'completed')
   }
-  return setGmatWorkflowStatus(entries, 'run_opalis', status(log.stages.opalis.status))
+  entries = setGmatWorkflowStatus(entries, 'run_opalis', status(log.stages.opalis.status))
+  return setGmatWorkflowStatus(entries, 'prepare_rf_comlink', status(log.stages.rf_comlink.status))
 }
 
 const AGENT_THEME_STORAGE_KEY = 'agent-theme'
@@ -143,6 +166,8 @@ export default function AgentPage() {
   const [simuCicGuiOpening, setSimuCicGuiOpening] = useState(false)
   const [simuCicRunning, setSimuCicRunning] = useState(false)
   const [opalisRunning, setOpalisRunning] = useState(false)
+  const [rfComlinkPreparing, setRfComlinkPreparing] = useState(false)
+  const [rfComlinkGuiOpening, setRfComlinkGuiOpening] = useState(false)
   // OPALIS preparation is now performed as part of the single Run OPALIS
   // action in Mission discussion. Keep this compatibility value false while
   // older progress-panel call sites are being phased out.
@@ -543,6 +568,8 @@ export default function AgentPage() {
   const activeNavIndex = visibleActiveView ? navItems.findIndex(item => item.href === `#${visibleActiveView}`) : -1
   const progressUpdatedAt = formatProgressUpdatedAt(progressData, navigator.language || 'zh-CN', t)
   const gmatActiveEntry = gmatWorkflowEntries?.find(entry => entry.status === 'running') ?? gmatWorkflowEntries?.find(entry => entry.status === 'failed')
+  const simuCicCompleted = gmatWorkflowEntries?.some(entry => entry.key === 'run_simucic' && entry.status === 'completed') ?? false
+  const rfComlinkPrepared = gmatWorkflowEntries?.some(entry => entry.key === 'prepare_rf_comlink' && entry.status === 'completed') ?? false
   const progressPercent = gmatWorkflowEntries ? undefined : workflowProgressSummary.percentage
   const progressStatusLabel = gmatWorkflowEntries ? `Mission workflow: ${gmatActiveEntry?.label ?? 'completed'}` : workflowProgressSummary.statusLabel || progressUpdatedAt
   const displayedProgressUpdatedAt = gmatWorkflowEntries?.find(entry => entry.status === 'running')?.updatedAt ?? progressUpdatedAt
@@ -563,7 +590,7 @@ export default function AgentPage() {
     setTextInputDisplay(prompt)
     const selectedMode = forcedMode ?? chatMode
     const isSimuCicPrompt = /simu\s*-?\s*cic|ground\s+(?:station|sat+ion)s?|station\s+au\s+sol|attitude|point(?:age|ing)|nadir|\b(?:follow|track|suiv\w*)\b/i.test(prompt)
-    if (selectedMode === 'general' || isSimuCicPrompt) {
+    if (selectedMode === 'general' || (isSimuCicPrompt && !hasGmatMissionRequest(prompt))) {
       setGmatGenerating(true)
       setPendingGmatMessage({ kind: 'draft', message: prompt, status: 'sending' })
       setGmatWorkflowEntries(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'running'))
@@ -589,6 +616,9 @@ export default function AgentPage() {
           if (result.kind === 'mission') {
             setChatMode(result.template === 'electric-propulsion-transfer' ? 'gmat-electric-propulsion' : 'gmat-orbit-keeping')
             setActiveGmatDraft(result.draft)
+            // A mixed GMAT + Simu-CIC message writes satellite.json after the
+            // GMAT draft. Force the sidebar to reread that exact document.
+            if (isSimuCicPrompt) setSatelliteRefreshNonce(value => value + 1)
             refreshWorkspaceViews()
             showSpeechText(result.draft.assistantMessage || result.message)
             setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'draft_llm', 'completed'), 'validate_draft', 'completed') : entries)
@@ -865,29 +895,75 @@ export default function AgentPage() {
   const handlePrepareOpalis = useCallback(() => undefined, [])
   const handleRunOpalis = useCallback(() => {
     if (!activeGmatRun || opalisRunning || simuCicRunning) return
+    if (!simuCicCompleted) {
+      setManagedRunError('Run Simu-CIC first. OPALIS requires the CIC files generated for this GMAT run.')
+      return
+    }
     setOpalisRunning(true)
     setManagedRunError('')
     setProgressPanelOpen(true)
     setGmatWorkflowEntries(newOpalisRunWorkflow())
     void runOpalisScenario(activeGmatRun.runPath)
       .then(result => {
-        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'run_simucic', 'completed'), 'prepare_opalis', 'completed'), 'run_opalis', 'completed') : entries)
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'prepare_opalis', 'completed'), 'run_opalis', 'completed') : entries)
         const askedAt = new Date().toISOString()
-        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation,
-          { answer: 'Simu-CIC completed. CIC data was generated for OPALIS.', askedAt, question: 'Run Simu-CIC' },
-          { answer: 'OPALIS calculation completed. Consolidated results are available for analysis.', askedAt, question: 'Run OPALIS calculation' },
-        ] } : current)
+        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: 'OPALIS calculation completed. Consolidated results are available for analysis.', askedAt, question: 'Run OPALIS calculation' }] } : current)
         showSpeechText('OPALIS calculation completed for run ' + activeGmatRun.runId + '. Results: ' + result.summary + '.')
         refreshWorkspaceViews()
       })
       .catch(reason => {
         setGmatWorkflowEntries(entries => entries
-          ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'run_simucic', 'failed'), 'run_opalis', 'failed')
+          ? setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'prepare_opalis', 'failed'), 'run_opalis', 'failed')
           : entries)
         setManagedRunError(reason instanceof Error ? reason.message : 'Unable to run OPALIS calculation')
       })
       .finally(() => setOpalisRunning(false))
-  }, [activeGmatRun, opalisRunning, refreshWorkspaceViews, showSpeechText, simuCicRunning])
+  }, [activeGmatRun, opalisRunning, refreshWorkspaceViews, showSpeechText, simuCicCompleted, simuCicRunning])
+  const handlePrepareRfComlink = useCallback(() => {
+    if (!activeGmatRun || rfComlinkPreparing || simuCicRunning || opalisRunning) return
+    if (!simuCicCompleted) {
+      setManagedRunError('Run Simu-CIC first. RF-COMLINK requires its CIC files for this GMAT run.')
+      return
+    }
+    setRfComlinkPreparing(true)
+    setManagedRunError('')
+    setProgressPanelOpen(true)
+    setGmatWorkflowEntries(newRfComlinkWorkflow())
+    void prepareRfComlinkScenario(activeGmatRun.runPath)
+      .then(result => {
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'prepare_rf_comlink', 'completed') : entries)
+        const askedAt = new Date().toISOString()
+        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, {
+          answer: `RF-COMLINK scenario prepared. You can download or open ${result.scenario}.`,
+          askedAt,
+          question: 'Generate RF-COMLINK .rfcl',
+        }] } : current)
+        showSpeechText(`RF-COMLINK scenario prepared for run ${activeGmatRun.runId}.`)
+        refreshWorkspaceViews()
+      })
+      .catch(reason => {
+        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'prepare_rf_comlink', 'failed') : entries)
+        setManagedRunError(reason instanceof Error ? reason.message : 'Unable to generate RF-COMLINK scenario')
+      })
+      .finally(() => setRfComlinkPreparing(false))
+  }, [activeGmatRun, opalisRunning, refreshWorkspaceViews, rfComlinkPreparing, showSpeechText, simuCicCompleted, simuCicRunning])
+  const handleOpenRfComlinkGui = useCallback(() => {
+    if (!activeGmatRun || rfComlinkGuiOpening || rfComlinkPreparing) return
+    setRfComlinkGuiOpening(true)
+    setManagedRunError('')
+    void openRfComlinkGui(activeGmatRun.runPath)
+      .then(result => {
+        const askedAt = new Date().toISOString()
+        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, {
+          answer: `RF-COMLINK GUI opened with this conversation’s scenario: ${result.scenario}.`,
+          askedAt,
+          question: 'Open RF-COMLINK GUI',
+        }] } : current)
+        showSpeechText(`RF-COMLINK GUI opened for run ${activeGmatRun.runId}.`)
+      })
+      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to open RF-COMLINK GUI'))
+      .finally(() => setRfComlinkGuiOpening(false))
+  }, [activeGmatRun, rfComlinkGuiOpening, rfComlinkPreparing, showSpeechText])
   const handleStopCalculations = useCallback(() => {
     const runPath = activeGmatRun?.runPath
     setGmatGenerating(false)
@@ -976,22 +1052,28 @@ export default function AgentPage() {
             title: activeGmatRun ? 'Open the generated Simu-CIC scenario for this run.' : 'Select a GMAT run first.',
           }}
           opalisPrepareAction={{
-            disabled: !activeGmatRun || opalisPreparing || opalisRunning || simuCicRunning,
+            disabled: !activeGmatRun || !simuCicCompleted || opalisPreparing || opalisRunning || simuCicRunning,
             label: opalisPreparing ? 'Preparing OPALIS…' : 'Prepare OPALIS scenario',
             onClick: handlePrepareOpalis,
-            title: activeGmatRun ? 'Build an OPALIS scenario from this run\'s satellite.json and Simu-CIC CIC files, without calculating it.' : 'Select a GMAT run first.',
+            title: !activeGmatRun ? 'Select a GMAT run first.' : !simuCicCompleted ? 'Run Simu-CIC first.' : 'Build an OPALIS scenario from this run\'s satellite.json and Simu-CIC CIC files, without calculating it.',
           }}
           opalisRunAction={{
-            disabled: !activeGmatRun || opalisRunning || opalisPreparing || simuCicRunning,
+            disabled: !activeGmatRun || !simuCicCompleted || opalisRunning || opalisPreparing || simuCicRunning,
             label: opalisRunning ? 'Running OPALISâ€¦' : 'Run OPALIS calculation',
             onClick: handleRunOpalis,
-            title: activeGmatRun ? 'Generate the OPALIS fluxes and run the electrical calculation in batch mode.' : 'Select a GMAT run first.',
+            title: !activeGmatRun ? 'Select a GMAT run first.' : !simuCicCompleted ? 'Run Simu-CIC first.' : 'Generate the OPALIS fluxes and run the electrical calculation in batch mode.',
           }}
           opalisGuiAction={{
-            disabled: !activeGmatRun || opalisGuiOpening || opalisRunning,
+            disabled: !activeGmatRun || !simuCicCompleted || opalisGuiOpening || opalisRunning,
             label: opalisGuiOpening ? 'Opening OPALIS…' : 'Open OPALIS GUI',
             onClick: handleOpenPreparedOpalis,
-            title: activeGmatRun ? 'Open this run’s calculated OPALIS scenario in the OPALIS GUI.' : 'Select a GMAT run first.',
+            title: !activeGmatRun ? 'Select a GMAT run first.' : !simuCicCompleted ? 'Run Simu-CIC first.' : 'Open this run’s calculated OPALIS scenario in the OPALIS GUI.',
+          }}
+          rfComlinkGuiAction={{
+            disabled: !activeGmatRun || !rfComlinkPrepared || rfComlinkGuiOpening || rfComlinkPreparing,
+            label: rfComlinkGuiOpening ? 'Opening RF-COMLINK…' : 'Open RF-COMLINK GUI',
+            onClick: handleOpenRfComlinkGui,
+            title: !activeGmatRun ? 'Select a GMAT run first.' : !rfComlinkPrepared ? 'Generate the RF-COMLINK scenario first.' : 'Open this run’s RF-COMLINK scenario.',
           }}
           onClose={() => setProgressPanelOpen(false)}
           progressUpdatedAt={displayedProgressUpdatedAt}
@@ -1041,7 +1123,7 @@ export default function AgentPage() {
           createVersionFromInput={createVersionFromInput}
           handleSelectFile={handleSelectFile}
           gmatMissionChat={{
-            busy: gmatGenerating || simuCicRunning || opalisRunning,
+            busy: gmatGenerating || simuCicRunning || opalisRunning || rfComlinkPreparing,
             chatMode,
             conversation: activeGmatRun?.conversation,
             draft: activeGmatDraft,
@@ -1061,7 +1143,15 @@ export default function AgentPage() {
             onExecute: handleExecuteGmatDraft,
             onNewRun: handleNewGmatDraft,
             onRunSimuCic: handleRunSimuCic,
+            onSimuCicConfigurationChanged: () => {
+              setSatelliteRefreshNonce(value => value + 1)
+              setGmatWorkflowEntries(entries => entries
+                ? setGmatWorkflowStatus(setGmatWorkflowStatus(setGmatWorkflowStatus(entries, 'run_simucic', 'pending'), 'prepare_opalis', 'pending'), 'prepare_rf_comlink', 'pending')
+                : entries)
+              refreshWorkspaceViews()
+            },
             onRunOpalis: handleRunOpalis,
+            onPrepareRfComlink: handlePrepareRfComlink,
             onStopCalculations: handleStopCalculations,
             onRetry: () => {
               if (pendingGmatMessage?.status === 'failed') handleTextSubmit(pendingGmatMessage.message, chatMode)
@@ -1083,7 +1173,10 @@ export default function AgentPage() {
             },
             simuCicConversation,
             simuCicRefreshNonce: satelliteRefreshNonce,
+            simuCicCompleted,
             simuCicRunning,
+            rfComlinkPreparing,
+            workspaceDir: gmatWorkspaceDir,
           }}
           manifestLoading={manifestLoading}
           onSelectGmatDraft={(draft: GmatSavedDraft) => {
