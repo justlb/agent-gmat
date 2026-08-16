@@ -125,6 +125,17 @@ const MEMORY_FIELDS: Array<[string, string, string?]> = [
   ['Fuel', 'spacecraft.initialFuelMassKg', 'kg'], ['Burn', 'transfer.burnDurationDays', 'days'], ['Reboost', 'stationKeeping.minimumAltitudeKm', 'km'],
 ]
 
+const COMPARISON_LABELS: Record<string, string> = {
+  'initialOrbit.epoch': 'Epoch', 'initialOrbit.smaKm': 'SMA', 'initialOrbit.eccentricity': 'ECC', 'initialOrbit.inclinationDeg': 'INC',
+  'initialOrbit.raanDeg': 'RAAN', 'initialOrbit.argPeriapsisDeg': 'AOP', 'initialOrbit.trueAnomalyDeg': 'TA',
+  'spacecraft.dryMassKg': 'Dry mass', 'spacecraft.initialFuelMassKg': 'Fuel', 'spacecraft.dragAreaM2': 'Drag area',
+  'spacecraft.dragCoefficient': 'Drag coefficient', 'propulsion.ispSeconds': 'Isp', 'transfer.burnDurationDays': 'Burn',
+  'stationKeeping.minimumAltitudeKm': 'Reboost altitude', 'stationKeeping.targetSmaKm': 'Target SMA',
+  'stationKeeping.fuelReserveKg': 'Fuel reserve', 'endOfLife.finalAltitudeKm': 'End altitude',
+  'propulsion.maximumUsablePowerKw': 'Maximum power', 'propulsion.minimumUsablePowerKw': 'Minimum power',
+  'power.initialMaxPowerKw': 'Solar power', 'power.busLoadKw': 'Bus load', 'power.systemMarginPercent': 'Power margin',
+}
+
 function RunComparisonMemory({ runs }: { runs: NonNullable<Draft>['runs'] }) {
   const ordered = [...(runs ?? [])].sort((left, right) => right.completedAt.localeCompare(left.completedAt))
   const inputs = (run: typeof ordered[number]) => MEMORY_FIELDS.flatMap(([label, path, unit]) => {
@@ -133,7 +144,9 @@ function RunComparisonMemory({ runs }: { runs: NonNullable<Draft>['runs'] }) {
   })
   const changedFrom = (run: typeof ordered[number], previous: typeof ordered[number] | undefined) => !previous?.missionValues || !run.missionValues
     ? []
-    : MEMORY_FIELDS.filter(([, path]) => run.missionValues?.[path] !== previous.missionValues?.[path]).map(([label]) => label)
+    : Array.from(new Set([...Object.keys(run.missionValues), ...Object.keys(previous.missionValues)])).sort()
+      .filter(path => run.missionValues?.[path] !== previous.missionValues?.[path])
+      .map(path => COMPARISON_LABELS[path] ?? path)
   return <section className="gmat-run-comparison-memory">
     <header><strong>Run comparison memory</strong><span>{ordered.length} saved</span></header>
     <p>Each result keeps the exact mission values used for it.</p>
@@ -145,7 +158,7 @@ function RunComparisonMemory({ runs }: { runs: NonNullable<Draft>['runs'] }) {
         result.finalFuelMassKg !== undefined ? `Final fuel ${result.finalFuelMassKg.toFixed(3)} kg` : null,
       ].filter(Boolean)
       const changed = changedFrom(run, prior)
-      return <li key={run.runId}><div><strong>{run.runId}</strong><b className={`is-${result.status}`}>{result.status}</b></div><small>{inputs(run).join(' | ') || 'Legacy run: input snapshot unavailable'}</small>{metrics.length ? <small>{metrics.join(' | ')}</small> : null}{changed.length ? <small>Changed vs previous: {changed.join(', ')}</small> : null}</li>
+      return <li key={run.runId}><div><strong>{run.runId}</strong><b className={`is-${result.status}`}>{result.status}</b></div><small>{inputs(run).join(' | ') || 'Legacy run: input snapshot unavailable'}</small>{metrics.length ? <small>{metrics.join(' | ')}</small> : null}{changed.length ? <small>Changed vs previous: {changed.slice(0, 6).join(', ')}{changed.length > 6 ? ` +${changed.length - 6} more` : ''}</small> : null}</li>
     })}</ul>
   </section>
 }
@@ -165,6 +178,7 @@ export type GmatMissionChatProps = {
   onRunSimuCic?: () => void
   onSimuCicConfigurationChanged?: () => void
   onRunOpalis?: () => void
+  onSaveRfComlinkResults?: () => void
   onPrepareRfComlink?: () => void
   onStopCalculations?: () => void
   onRetry: () => void
@@ -175,10 +189,13 @@ export type GmatMissionChatProps = {
   simuCicRefreshNonce?: number
   simuCicRunning?: boolean
   rfComlinkPreparing?: boolean
+  rfComlinkPrepared?: boolean
+  rfComlinkCalculationStarting?: boolean
+  rfComlinkResultsSaving?: boolean
   workspaceDir?: string | null
 }
 
-export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, gmatRunFailed = false, onEditMissionValues, onExecute, onNewRun, onRunSimuCic, onRunOpalis, onPrepareRfComlink, onStopCalculations, onRetry, onSend, onUpdateMissionValue, onSimuCicConfigurationChanged, pending, simuCicConversation = [], simuCicCompleted = false, simuCicRefreshNonce = 0, simuCicRunning = false, rfComlinkPreparing = false, workspaceDir }: GmatMissionChatProps) {
+export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, gmatRunFailed = false, onEditMissionValues, onExecute, onNewRun, onRunSimuCic, onRunOpalis, onPrepareRfComlink, onSaveRfComlinkResults, onStopCalculations, onRetry, onSend, onUpdateMissionValue, onSimuCicConfigurationChanged, pending, simuCicConversation = [], simuCicCompleted = false, simuCicRefreshNonce = 0, simuCicRunning = false, rfComlinkPreparing = false, rfComlinkPrepared = false, rfComlinkCalculationStarting = false, rfComlinkResultsSaving = false, workspaceDir }: GmatMissionChatProps) {
   const [message, setMessage] = useState('')
   const [simuCic, setSimuCic] = useState<SimuCicConfiguration>({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
   const [groundStations, setGroundStations] = useState<PredefinedGroundStation[]>([])
@@ -318,7 +335,8 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
             {activeRunId && gmatRunFailed ? <><p className="gmat-mission-run-blocker">GMAT failed. Edit the mission values, then run GMAT again before continuing to Simu-CIC or OPALIS.</p><button className="gmat-mission-run-button" disabled={busy || !draft} type="button" onClick={onExecute}>Retry unchanged values</button></> : null}
             {activeRunId && !gmatRunFailed && onRunSimuCic ? <button className="gmat-mission-run-button" disabled={simuCicRunning} type="button" onClick={onRunSimuCic}>{simuCicRunning ? 'Running Simu-CIC…' : 'Run Simu-CIC'}</button> : null}
             {activeRunId && !gmatRunFailed && onRunOpalis ? <button className="gmat-mission-run-button" disabled={!simuCicCompleted || simuCicRunning || busy} title={simuCicCompleted ? 'Run OPALIS from the CIC files already generated for this GMAT run.' : 'Run Simu-CIC first.'} type="button" onClick={onRunOpalis}>Run OPALIS</button> : null}
-            {activeRunId && !gmatRunFailed && onPrepareRfComlink ? <button className="gmat-mission-run-button" disabled={!simuCicCompleted || simuCicRunning || busy} title={simuCicCompleted ? 'Generate RF-COMLINK using this run’s Simu-CIC CIC files.' : 'Run Simu-CIC first.'} type="button" onClick={onPrepareRfComlink}>{rfComlinkPreparing ? 'Generating RF-COMLINK .rfcl…' : 'Generate RF-COMLINK .rfcl'}</button> : null}
+            {activeRunId && !gmatRunFailed && onPrepareRfComlink ? <button className="gmat-mission-run-button" disabled={!simuCicCompleted || simuCicRunning || busy || rfComlinkPreparing || rfComlinkCalculationStarting} title={simuCicCompleted ? 'Prepare and open the run-local RF-COMLINK calculation.' : 'Run Simu-CIC first.'} type="button" onClick={onPrepareRfComlink}>{rfComlinkPreparing || rfComlinkCalculationStarting ? 'Starting RF-COMLINK…' : 'Run RF-COMLINK'}</button> : null}
+            {activeRunId && !gmatRunFailed && onSaveRfComlinkResults ? <button className="gmat-mission-run-button" disabled={!rfComlinkPrepared || rfComlinkResultsSaving || rfComlinkCalculationStarting} title="After calculating and saving in RF-COMLINK, archive the reports for discussion." type="button" onClick={onSaveRfComlinkResults}>{rfComlinkResultsSaving ? 'Saving RF-COMLINK results…' : 'Save RF-COMLINK results'}</button> : null}
             {activeRunId ? <button type="button" onClick={onNewRun}>Start separate GMAT mission</button> : null}
           </aside>
           <section className="gmat-mission-chat-thread" aria-live="polite">

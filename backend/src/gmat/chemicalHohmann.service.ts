@@ -1,11 +1,11 @@
 import fs from "node:fs/promises"
-import { spawn } from "node:child_process"
 import path from "node:path"
 import { stringify } from "yaml"
 
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
-import { registerActiveCalculation, unregisterActiveCalculation } from "./activeCalculationRegistry.js"
+import { runManagedProcess } from "./externalProcess.js"
+import { snapshotRunArtifacts } from "./artifactHistory.js"
 import { keplerianToCartesian } from "./orbitCoordinates.js"
 import type { ChemicalHohmannDraft } from "./chemicalHohmannDraft.js"
 import { defaultChemicalHohmannTemplatePath } from "./chemicalHohmannTemplate.js"
@@ -36,6 +36,15 @@ export type ChemicalHohmannGenerationResult = {
   runId: string
   scriptPath: string
   valuesPath: string
+}
+
+const CHEMICAL_HOHMANN_MUTABLE_ARTIFACTS = [
+  "EphemerisFile1.oem", "chemical_hohmann_transfer.script", "chemical_hohmann_transfer.values.yaml", "gmat.log", "gmat_result.json", "run_manifest.json", "satellite.json", "satellite.digital-thread.json",
+]
+
+/** Freezes the active Hohmann workspace after every execution. */
+export function snapshotChemicalHohmannExecution(runDir: string) {
+  return snapshotRunArtifacts(runDir, "gmat", CHEMICAL_HOHMANN_MUTABLE_ARTIFACTS)
 }
 
 function finiteNumber(values: ChemicalHohmannRenderValues, field: keyof ChemicalHohmannRenderValues) {
@@ -113,7 +122,26 @@ function addHohmannEphemerisWriter(script: string, outputPath: string) {
     "",
   ].join("\n")
   if (!/^BeginMissionSequence;$/mu.test(script)) throw new Error("chemical Hohmann template does not expose BeginMissionSequence")
-  return script.replace(/^BeginMissionSequence;$/mu, `${block}BeginMissionSequence;`)
+  // Creating an EphemerisFile object only declares the subscriber. GMAT does
+  // not write samples until it is explicitly enabled in the mission sequence.
+  // This mirrors the proven orbit-keeping and electric-transfer pipelines.
+  const withSubscriber = script.replace(
+    /^BeginMissionSequence;$/mu,
+    `${block}BeginMissionSequence;\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;`,
+  )
+  // The tutorial's last propagation is a single "propagate to epoch" command.
+  // GMAT's console can complete that command without emitting subscriber
+  // samples, leaving a zero-byte OEM. Use the same one-integrator-step loop
+  // already proven in the electric-transfer pipeline. The loop has the exact
+  // same final elapsed-seconds target as the tutorial command.
+  const finalPropagation = /Propagate 'Prop One Day' DefaultProp\(DefaultSC\) \{DefaultSC\.ElapsedSecs = ([-+0-9.eE]+)\};/u
+  const match = withSubscriber.match(finalPropagation)
+  if (!match) throw new Error("chemical Hohmann template does not expose its final propagation command")
+  return withSubscriber.replace(finalPropagation, [
+    `While 'Sample post-transfer trajectory for OEM output' DefaultSC.ElapsedSecs < ${match[1]}`,
+    "   Propagate 'Propagate one output step' DefaultProp(DefaultSC);",
+    "EndWhile;",
+  ].join("\n"))
 }
 
 export async function generateChemicalHohmannMission({ draft, workspaceDir, templatePath = defaultChemicalHohmannTemplatePath(), execution }: { draft: ChemicalHohmannDraft; workspaceDir: string; templatePath?: string; execution?: { bin: string; timeoutMs: number } }): Promise<ChemicalHohmannGenerationResult> {
@@ -138,19 +166,8 @@ export async function generateChemicalHohmannMission({ draft, workspaceDir, temp
   let executionResult: { durationMs: number; error?: string; exitCode: number | null; status: "completed" | "failed" | "timeout" } | undefined
   if (execution) {
     const started = Date.now()
-    const chunks: Buffer[] = []
-    let timedOut = false
-    const exitCode = await new Promise<number | null>((resolve, reject) => {
-      const child = spawn(execution.bin, ["--run", toGmatNativePath(scriptPath)], { cwd: runDir, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] })
-      registerActiveCalculation(runDir, child)
-      child.stdout.on("data", chunk => chunks.push(Buffer.from(chunk)))
-      child.stderr.on("data", chunk => chunks.push(Buffer.from(chunk)))
-      child.once("error", error => { unregisterActiveCalculation(runDir, child); reject(error) })
-      child.once("close", code => { unregisterActiveCalculation(runDir, child); resolve(code) })
-      const timeout = setTimeout(() => { timedOut = true; child.kill("SIGKILL") }, execution.timeoutMs)
-      child.once("close", () => clearTimeout(timeout))
-    }).catch(error => { chunks.push(Buffer.from(error instanceof Error ? error.message : String(error))); return null })
-    await fs.writeFile(logPath, Buffer.concat(chunks))
+    const { exitCode, output, timedOut } = await runManagedProcess({ args: ["--run", toGmatNativePath(scriptPath)], command: execution.bin, cwd: runDir, timeoutMs: execution.timeoutMs })
+    await fs.writeFile(logPath, output)
     const oemWasWritten = exitCode === 0 && await fs.stat(ephemerisPath).then(stat => stat.size > 0).catch(() => false)
     const status = timedOut ? "timeout" : exitCode === 0 && oemWasWritten ? "completed" : "failed"
     executionResult = { durationMs: Date.now() - started, exitCode, status, ...(status === "completed" ? {} : { error: timedOut ? `GMAT timed out after ${execution.timeoutMs} ms` : exitCode === null ? "GMAT could not be started" : exitCode === 0 ? "GMAT completed but did not produce EphemerisFile1.oem" : `GMAT exited with code ${exitCode}` }) }

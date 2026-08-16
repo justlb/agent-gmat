@@ -1,15 +1,10 @@
-import { joinApiPath } from '../../app/apiBase'
+import { buildApiUrl, requestApiJson } from '../../app/apiClient'
+import type { GmatMissionDraftBase } from './gmatMissionTypes'
 
-export type ChemicalHohmannDraft = {
-  confirmed: boolean
-  conversation: Array<{ assistant: string; user: string }>
+export type ChemicalHohmannDraft = GmatMissionDraftBase<'collecting' | 'ready' | 'confirmed'> & {
   createdAt: string
-  draftId: string
-  missing: string[]
-  status: 'collecting' | 'ready' | 'confirmed'
   templateId: 'chemical-hohmann-transfer'
   updatedAt: string
-  values: Record<string, string | number | null>
 }
 
 export type ChemicalHohmannExecution = {
@@ -22,43 +17,53 @@ export type ChemicalHohmannExecution = {
   valuesPath: string
 }
 
-async function responseError(response: Response) {
-  const payload = await response.json().catch(() => ({})) as { error?: unknown; message?: unknown }
-  if (typeof payload.error === 'string') return payload.error
-  if (typeof payload.message === 'string') return payload.message
-  return `Chemical Hohmann request failed: ${response.status}`
+export type ChemicalHohmannFile = {
+  artifactId: string
+  fileName: string
+  historical?: boolean
+  kind: 'digital-thread' | 'ephemeris' | 'log' | 'manifest' | 'result' | 'rf-comlink' | 'script' | 'values'
+  mtimeMs: number
+  relativePath: string
+  runPath: string
+  size: number
 }
 
 const base = '/gmat/chemical-hohmann-transfer'
 
 export async function createChemicalHohmannDraft(workspaceDir: string) {
-  const response = await fetch(joinApiPath(undefined, `${base}/drafts`), {
+  return requestApiJson<ChemicalHohmannDraft>(`${base}/drafts`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceDir }),
   })
-  if (!response.ok) throw new Error(await responseError(response))
-  return response.json() as Promise<ChemicalHohmannDraft>
+}
+
+export async function listChemicalHohmannDrafts(workspaceDir: string) {
+  const payload = await requestApiJson<{ drafts?: ChemicalHohmannDraft[] }>(`${base}/drafts`, { cache: 'no-store', query: { workspaceDir } })
+  return Array.isArray(payload.drafts) ? payload.drafts : []
+}
+
+export async function listChemicalHohmannFiles(workspaceDir: string) {
+  const payload = await requestApiJson<{ files?: ChemicalHohmannFile[] }>(`${base}/files`, { cache: 'no-store', query: { workspaceDir } })
+  return Array.isArray(payload.files) ? payload.files : []
+}
+
+export function chemicalHohmannFileDownloadUrl(file: Pick<ChemicalHohmannFile, 'relativePath'>, workspaceDir: string) {
+  return buildApiUrl(`${base}/files/download`, { query: { relativePath: file.relativePath, workspaceDir } })
 }
 
 export async function confirmChemicalHohmannDraft(draftId: string, workspaceDir: string) {
-  const response = await fetch(joinApiPath(undefined, `${base}/drafts/${encodeURIComponent(draftId)}/confirm`), {
+  return requestApiJson<ChemicalHohmannDraft>(`${base}/drafts/${encodeURIComponent(draftId)}/confirm`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceDir }),
   })
-  if (!response.ok) throw new Error(await responseError(response))
-  return response.json() as Promise<ChemicalHohmannDraft>
 }
 
 export async function discussChemicalHohmannDraft(draftId: string, message: string, workspaceDir: string) {
-  const response = await fetch(joinApiPath(undefined, `${base}/drafts/${encodeURIComponent(draftId)}/messages`), {
+  return requestApiJson<ChemicalHohmannDraft>(`${base}/drafts/${encodeURIComponent(draftId)}/messages`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, workspaceDir }),
   })
-  if (!response.ok) throw new Error(await responseError(response))
-  return response.json() as Promise<ChemicalHohmannDraft>
 }
 
 export async function executeChemicalHohmannDraft(draftId: string, workspaceDir: string) {
-  const response = await fetch(joinApiPath(undefined, `${base}/drafts/${encodeURIComponent(draftId)}/execute`), {
+  return requestApiJson<ChemicalHohmannExecution>(`${base}/drafts/${encodeURIComponent(draftId)}/execute`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceDir }),
   })
-  if (!response.ok) throw new Error(await responseError(response))
-  return response.json() as Promise<ChemicalHohmannExecution>
 }

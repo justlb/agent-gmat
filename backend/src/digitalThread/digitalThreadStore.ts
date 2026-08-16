@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url"
 
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { PREDEFINED_GROUND_STATIONS, assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
+import { gmatTemplateDefinition, type GmatTemplateId } from "../gmat/templateRegistry.js"
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 export type DigitalThreadDocument = { [key: string]: JsonValue } & {
@@ -55,6 +56,10 @@ export function digitalThreadPath(workspaceDir: string) {
   return path.join(path.resolve(workspaceDir), "digital-thread", "satellite.json")
 }
 
+function satelliteRevisionPath(workspaceDir: string, revision: number) {
+  return path.join(path.resolve(workspaceDir), "digital-thread", "revisions", `satellite.r${String(revision).padStart(6, "0")}.json`)
+}
+
 export function planningRunWorkspaceDir(workspaceDir: string, planningRunId: string) {
   if (!/^\d{2}-\d{2}-\d{2}_\d{2}-\d{2}(?:_\d{2})?$/u.test(planningRunId)) throw new Error("invalid planning run id")
   return path.join(path.resolve(workspaceDir), "gmat", "mission-runs", planningRunId)
@@ -72,14 +77,10 @@ export function isMissionRunWorkspace(workspaceDir: string) {
 /** A draft owns a private digital-thread workspace. GMAT artifacts remain in the
  * parent workspace, while this context prevents another draft from changing its
  * satellite or mission inputs. */
-export function draftDigitalThreadWorkspaceDir(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer", draftId: string) {
+export function draftDigitalThreadWorkspaceDir(workspaceDir: string, template: GmatTemplateId, draftId: string) {
   if (!/^[A-Za-z0-9_-]+$/u.test(draftId)) throw new Error("invalid GMAT draft id")
   const root = path.resolve(workspaceDir)
-  return template === "orbit-keeping"
-    ? path.join(root, "gmat", "drafts", draftId)
-    : template === "electric-propulsion-transfer"
-      ? path.join(root, "gmat", "electric-propulsion-transfer", "drafts", draftId)
-      : path.join(root, "gmat", "chemical-hohmann-transfer", "drafts", draftId)
+  return path.join(root, ...gmatTemplateDefinition(template).draftDirectory, draftId)
 }
 
 function asObject(value: JsonValue | undefined): { [key: string]: JsonValue } | null {
@@ -277,13 +278,21 @@ export async function saveDigitalThread(workspaceDir: string, document: DigitalT
   const metadata = document.digital_thread
   metadata.revision = incrementRevision ? Number(metadata.revision ?? 0) + 1 : Number(metadata.revision ?? 0)
   metadata.updated_at = new Date().toISOString()
+  metadata.canonical_satellite_path = "digital-thread/satellite.json"
   const output = digitalThreadPath(workspaceDir)
+  const source = `${JSON.stringify(document, null, 2)}\n`
   await fs.mkdir(path.dirname(output), { recursive: true })
   const temporary = `${output}.${crypto.randomUUID()}.tmp`
-  await fs.writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, "utf8")
+  await fs.writeFile(temporary, source, "utf8")
   await fs.rename(temporary, output)
+  const revision = satelliteRevisionPath(workspaceDir, Number(metadata.revision ?? 0))
+  await fs.mkdir(path.dirname(revision), { recursive: true })
+  await fs.writeFile(revision, source, "utf8")
   if (isMissionRunWorkspace(workspaceDir)) {
-    await fs.writeFile(path.join(path.resolve(workspaceDir), "satellite.json"), `${JSON.stringify(document, null, 2)}\n`, "utf8")
+    // This root-level copy is a tool-facing export. The canonical document
+    // and every revision live under digital-thread/ and are read by backend
+    // adapters; consumers can verify the revision in the run manifest.
+    await fs.writeFile(path.join(path.resolve(workspaceDir), "satellite.json"), source, "utf8")
   }
   return document
 }

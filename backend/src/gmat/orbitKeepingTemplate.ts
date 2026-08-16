@@ -1,9 +1,10 @@
 import fs from "node:fs/promises"
 import path from "node:path"
+import { getBackendRoot } from "../config.js"
 
 export const ORBIT_KEEPING_TEMPLATE_ID = "orbit-keeping"
 
-export function defaultOrbitKeepingTemplatePath(projectRoot = process.cwd()) {
+export function defaultOrbitKeepingTemplatePath(projectRoot = getBackendRoot()) {
   return path.join(
     projectRoot,
     "workflow_agents",

@@ -79,6 +79,40 @@ async function findGmatEphemeris(runDir: string) {
   return null
 }
 
+/**
+ * GMAT GUI can legitimately finish a script after the earlier console launch
+ * has failed to flush its OEM subscriber. The resulting OEM is the artifact
+ * consumed by Simu-CIC, so reconcile the stale console status before blocking
+ * the downstream workflow. This never promotes a run without a non-empty OEM.
+ */
+async function reconcileGmatStatusFromEphemeris(runDir: string, ephemeris: string | null) {
+  if (!ephemeris) return false
+  const resultPath = path.join(runDir, "gmat_result.json")
+  const current = JSON.parse(await fs.readFile(resultPath, "utf8").catch(() => "null")) as Record<string, unknown> | null
+  if (current?.status !== "failed" && current?.status !== "timeout") return false
+  const { error: _previousError, ...resultWithoutError } = current
+  await fs.writeFile(resultPath, `${JSON.stringify({
+    ...resultWithoutError,
+    status: "completed",
+    recoveredFrom: "validated_oem_after_gmat_gui_execution",
+  }, null, 2)}\n`, "utf8")
+
+  const manifestPath = path.join(runDir, "run_manifest.json")
+  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8").catch(() => "null")) as Record<string, unknown> | null
+  if (manifest) {
+    const outputs = manifest.outputs && typeof manifest.outputs === "object" && !Array.isArray(manifest.outputs)
+      ? manifest.outputs as Record<string, unknown>
+      : {}
+    await fs.writeFile(manifestPath, `${JSON.stringify({
+      ...manifest,
+      status: "completed",
+      completedAt: new Date().toISOString(),
+      outputs: { ...outputs, ephemeris: path.basename(ephemeris) },
+    }, null, 2)}\n`, "utf8")
+  }
+  return true
+}
+
 async function runCommand(executable: string, args: string[], cwd: string, timeoutMs: number) {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(executable, args, { cwd, windowsHide: true })
@@ -169,9 +203,11 @@ async function openGui(config: AppConfig, runDir: string) {
 export async function runSimuCicForRun(config: AppConfig, root: string, runDir: string) {
   const settings = requiredSimuCicConfig(config)
   const gmatResult = JSON.parse(await fs.readFile(path.join(runDir, "gmat_result.json"), "utf8").catch(() => "null")) as { status?: unknown } | null
-  if (gmatResult?.status === "failed" || gmatResult?.status === "timeout") {
+  const ephemeris = await findGmatEphemeris(runDir)
+  if ((gmatResult?.status === "failed" || gmatResult?.status === "timeout") && !ephemeris) {
     throw new Error("GMAT failed for this run. Run GMAT successfully before starting Simu-CIC.")
   }
+  await reconcileGmatStatusFromEphemeris(runDir, ephemeris)
   await updateRunWorkflowLog(runDir, "simu_cic", "running", "Simu-CIC calculation is running.")
   await appendRunConversation(runDir, { answer: "Simu-CIC calculation started.", askedAt: new Date().toISOString(), channel: "simu-cic", question: "Run Simu-CIC" })
   const inputScenario = await snapshotBaseScenario(settings, runDir)

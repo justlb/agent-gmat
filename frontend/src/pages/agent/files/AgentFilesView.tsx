@@ -5,9 +5,11 @@ import { WorkspaceFilePreviewPanel } from '../WorkspaceFilePreviewPanel'
 import { joinApiPath } from '../../../app/apiBase'
 import { listOrbitKeepingDrafts, listOrbitKeepingFiles, orbitKeepingFileDownloadUrl, type OrbitKeepingDraft, type OrbitKeepingFile } from '../orbitKeepingApi'
 import { electricPropulsionFileDownloadUrl, listElectricPropulsionDrafts, listElectricPropulsionFiles, type ElectricPropulsionFile } from '../electricPropulsionApi'
+import { chemicalHohmannFileDownloadUrl, listChemicalHohmannFiles, type ChemicalHohmannFile } from '../chemicalHohmannApi'
 import { GmatMissionChat, type GmatMissionChatProps } from './GmatMissionChat'
 
-type MissionFile = (OrbitKeepingFile | ElectricPropulsionFile) & { missionType: 'electric-propulsion-transfer' | 'orbit-keeping' }
+type MissionFile = (ChemicalHohmannFile | OrbitKeepingFile | ElectricPropulsionFile) & { missionType: 'chemical-hohmann-transfer' | 'electric-propulsion-transfer' | 'orbit-keeping' }
+type ConversationalMissionFile = Exclude<MissionFile, { missionType: 'chemical-hohmann-transfer' }>
 export type GmatSavedDraft = OrbitKeepingDraft & { missionType: MissionFile['missionType'] }
 
 type GmatRun = {
@@ -84,6 +86,16 @@ function isPrimaryRunFile(file: MissionFile) {
   return ['digital-thread', 'report', 'ephemeris'].includes(file.kind)
 }
 
+function missionLabel(missionType: MissionFile['missionType']) {
+  if (missionType === 'chemical-hohmann-transfer') return 'Chemical Hohmann Transfer'
+  return missionType === 'electric-propulsion-transfer' ? 'Electric Transfer' : 'Orbit Keeping'
+}
+
+function missionFileDownloadUrl(file: MissionFile, workspaceDir?: string | null) {
+  if (file.missionType === 'chemical-hohmann-transfer') return workspaceDir ? chemicalHohmannFileDownloadUrl(file, workspaceDir) : '#'
+  return file.missionType === 'electric-propulsion-transfer' ? electricPropulsionFileDownloadUrl(file) : orbitKeepingFileDownloadUrl(file)
+}
+
 async function listMissionRunFiles(planningRun: PlanningDiscussion) {
   const query = new URLSearchParams({ workspaceDir: planningRun.workspaceDir }).toString()
   const response = await fetch(`${joinApiPath(undefined, '/digital-thread/mission-run/files')}?${query}`, { cache: 'no-store' })
@@ -98,7 +110,7 @@ type AgentFilesViewProps = {
   activeContext: ComponentProps<typeof GeneratedFilesTreeCard>['activeContext']
   handleSelectFile: (entry: GeneratedFileTreeEntry) => void
   onSelectGmatDraft?: (draft: GmatSavedDraft) => void
-  onSelectGmatRun?: (run: { missionType: MissionFile['missionType']; runId: string; runPath: string }) => void
+  onSelectGmatRun?: (run: { missionType: ConversationalMissionFile['missionType']; runId: string; runPath: string }) => void
   gmatMissionChat: Omit<GmatMissionChatProps, 'activeRunId'>
   selectedFileError: string
   selectedFileLoading: boolean
@@ -135,12 +147,16 @@ export function AgentFilesView({
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([listOrbitKeepingFiles(), listElectricPropulsionFiles(), listOrbitKeepingDrafts(workspaceDir), listElectricPropulsionDrafts(workspaceDir)])
-      .then(([orbitKeepingFiles, electricPropulsionFiles, orbitKeepingDrafts, electricPropulsionDrafts]) => {
+    const chemicalFiles = workspaceDir && /[\\/]gmat[\\/]mission-runs[\\/][^\\/]+$/u.test(workspaceDir)
+      ? listChemicalHohmannFiles(workspaceDir)
+      : Promise.resolve([])
+    void Promise.all([listOrbitKeepingFiles(), listElectricPropulsionFiles(), chemicalFiles, listOrbitKeepingDrafts(workspaceDir), listElectricPropulsionDrafts(workspaceDir)])
+      .then(([orbitKeepingFiles, electricPropulsionFiles, chemicalHohmannFiles, orbitKeepingDrafts, electricPropulsionDrafts]) => {
         if (!cancelled) {
           setGmatFiles([
             ...orbitKeepingFiles.map(file => ({ ...file, missionType: 'orbit-keeping' as const })),
             ...electricPropulsionFiles.map(file => ({ ...file, missionType: 'electric-propulsion-transfer' as const })),
+            ...chemicalHohmannFiles.map(file => ({ ...file, missionType: 'chemical-hohmann-transfer' as const })),
           ].sort((left, right) => right.mtimeMs - left.mtimeMs))
           setGmatDrafts([
             ...orbitKeepingDrafts.map(draft => ({ ...draft, missionType: 'orbit-keeping' as const })),
@@ -217,15 +233,15 @@ export function AgentFilesView({
               {gmatRuns.map(run => (
                 <section className={activeGmatRunPath === run.runPath ? 'is-active' : ''} key={run.runPath}>
                   <header>
-                    <strong>{run.missionType === 'electric-propulsion-transfer' ? 'Electric Transfer' : 'Orbit Keeping'} · {run.runId}</strong>
-                    {run.files.some(file => file.kind === 'manifest') && run.files.some(file => file.kind === 'result') ? (
+                    <strong>{run.files.some(file => file.historical) ? `Archived ${missionLabel(run.missionType)} · ${run.runId}` : `${missionLabel(run.missionType)} · ${run.runId}`}</strong>
+                    {!run.files.some(file => file.historical) && run.missionType !== 'chemical-hohmann-transfer' && run.files.some(file => file.kind === 'manifest') && run.files.some(file => file.kind === 'result') ? (
                       <button type="button" onClick={() => onSelectGmatRun?.({ missionType: run.missionType, runId: run.runId, runPath: run.runPath })}>
                         {activeGmatRunPath === run.runPath ? 'Active conversation' : 'Discuss this run'}
                       </button>
-                    ) : <small>Legacy run</small>}
+                    ) : <small>{run.files.some(file => file.historical) ? 'Immutable artifact version' : run.missionType === 'chemical-hohmann-transfer' ? 'Hohmann run' : 'Legacy run'}</small>}
                   </header>
                   {run.files.filter(isPrimaryRunFile).map(file => (
-                    <a href={file.missionType === 'electric-propulsion-transfer' ? electricPropulsionFileDownloadUrl(file) : orbitKeepingFileDownloadUrl(file)} key={`${file.missionType}:${file.relativePath}`}>
+                    <a href={missionFileDownloadUrl(file, workspaceDir)} key={`${file.missionType}:${file.relativePath}`}>
                       <span>{file.fileName}</span>
                       <small>Download</small>
                     </a>
@@ -234,7 +250,7 @@ export function AgentFilesView({
                     <details className="agent-gmat-technical-files">
                       <summary>Technical files ({run.files.filter(file => !isPrimaryRunFile(file)).length})</summary>
                       {run.files.filter(file => !isPrimaryRunFile(file)).map(file => (
-                        <a href={file.missionType === 'electric-propulsion-transfer' ? electricPropulsionFileDownloadUrl(file) : orbitKeepingFileDownloadUrl(file)} key={`${file.missionType}:${file.relativePath}`}>
+                        <a href={missionFileDownloadUrl(file, workspaceDir)} key={`${file.missionType}:${file.relativePath}`}>
                           <span>{file.fileName}</span><small>Download</small>
                         </a>
                       ))}

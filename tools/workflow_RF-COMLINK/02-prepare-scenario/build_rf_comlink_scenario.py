@@ -15,7 +15,7 @@ import shutil
 import tempfile
 import uuid
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -118,6 +118,32 @@ def find_ground_station_database_record(template: Path, station_id: str | None, 
     }
 
 
+def rf_comlink_cic(source: Path, destination: Path) -> Path:
+    """Convert Simu-CIC's MJD timestamps to RF-COMLINK's UTC CIC dates.
+
+    Simu-CIC writes valid CIC v3 with a two-field MJD date. RF-COMLINK's
+    reader rejects that variant ("unable to define date format") and expects
+    an ISO-8601 UTC date at the beginning of each data line.
+    """
+    lines: list[str] = []
+    origin = datetime(1858, 11, 17, tzinfo=timezone.utc)
+    for raw in source.read_text(encoding="utf-8-sig", errors="replace").splitlines():
+        fields = raw.split()
+        if len(fields) >= 3:
+            try:
+                mjd, seconds = float(fields[0]), float(fields[1])
+                if 30000 <= mjd <= 100000 and -1 <= seconds <= 172800:
+                    instant = origin + timedelta(days=mjd, seconds=seconds)
+                    timestamp = instant.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+                    lines.append("\t".join([timestamp, *fields[2:]]))
+                    continue
+            except ValueError:
+                pass
+        lines.append("CIC_MEM_VERS = 2.0" if raw.strip().startswith("CIC_MEM_VERS") else raw)
+    destination.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return destination
+
+
 def set_file_reference(parent: ET.Element, tag: str, source: Path, ephemeris_dir: Path) -> None:
     """Embed a CIC file using RF-COMLINK's serialized file-reference form."""
     reference = parent.find(tag)
@@ -138,7 +164,7 @@ def set_file_reference(parent: ET.Element, tag: str, source: Path, ephemeris_dir
     ephemeris_dir.mkdir(parents=True, exist_ok=True)
     # RF-COMLINK resolves ZIP entries with a fixed lowercase `.txt` suffix,
     # even when OriginalFileName carries an uppercase `.TXT` extension.
-    shutil.copyfile(source, ephemeris_dir / f"{source.stem}_{identifier}.txt")
+    rf_comlink_cic(source, ephemeris_dir / f"{source.stem}_{identifier}.txt")
 
 
 def cic_sources(run_dir: Path, cic_inputs: list[str]) -> tuple[Path, Path, Path]:

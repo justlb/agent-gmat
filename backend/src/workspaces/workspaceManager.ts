@@ -1,17 +1,11 @@
 import fs from "fs/promises"
 import path from "path"
-import { fileURLToPath } from "url"
 import { getRequestWorkspaceRootOverride } from "../server/requestContext.js"
 import { isPathInside } from "../shared/index.js"
-import { loadConfig } from "../config.js"
+import { loadConfig, resolveProjectPath } from "../config.js"
 import { resolveUserWorkspaceRoot, resolveWorkspaceTemplateRoot } from "./workspacePaths.js"
 
-const BACKEND_SRC_DIR = path.dirname(fileURLToPath(import.meta.url))
-const BACKEND_ROOT = path.basename(BACKEND_SRC_DIR) === "workspaces"
-  ? path.resolve(BACKEND_SRC_DIR, "..", "..")
-  : path.resolve(BACKEND_SRC_DIR, "..")
-const APP_ROOT = path.resolve(BACKEND_ROOT, "..")
-const APP_CONFIG_JSON = path.join(APP_ROOT, "config.json")
+const APP_CONFIG_JSON = resolveProjectPath("config.json")
 const WORKSPACES_DIR = "workspaces"
 const CURRENT_WORKSPACE_FILE = ".current-workspace.json"
 const LEGACY_CAD_CONFIG_KEY = ["free", "cad"].join("")

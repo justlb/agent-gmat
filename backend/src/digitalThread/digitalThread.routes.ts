@@ -10,16 +10,12 @@ import { adaptDigitalThreadToGmat } from "./gmatDigitalThreadAdapter.js"
 import { createEphemeralDigitalThread, createPlanningRun, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
 import { getSatelliteDefinition, listSatelliteDefinitions, selectSatelliteDefinition } from "./satelliteLibrary.js"
 import { assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
-import { loadMissionConversation } from "./missionConversationStore.js"
+import { appendMissionConversation, loadMissionConversation } from "./missionConversationStore.js"
 import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { resolveMissionWorkspace } from "../gmat/missionWorkspace.js"
 
 function resolveWorkspaceDir(root: string, requested: unknown) {
-  const requestedPath = typeof requested === "string" && requested.trim() ? requested : null
-  // Mission-file listings expose run paths relative to the user workspace.
-  // Accept that stable API form as well as an absolute workspace path.
-  const workspaceDir = requestedPath ? path.resolve(path.isAbsolute(requestedPath) ? requestedPath : path.join(root, requestedPath)) : path.resolve(root)
-  if (!isPathInside(path.resolve(root), workspaceDir)) throw new Error("workspaceDir must be inside the current user workspace")
-  return workspaceDir
+  return resolveMissionWorkspace(root, requested, { resolveRelativeToRoot: true })
 }
 
 function resolveMissionRunArtifact(root: string, workspaceDir: string, fileName: string) {
@@ -89,6 +85,20 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
       const workspaceDir = resolveWorkspaceDir(root, req.body?.workspaceDir)
       if (!isMissionRunWorkspace(workspaceDir)) return reply.status(409).send({ error: "start a dated mission discussion before selecting a satellite" })
       const result = await selectSatelliteDefinition(workspaceDir, id, typeof req.body?.version === "string" ? req.body.version : undefined)
+      // A satellite replacement changes the propagated object. Existing GMAT,
+      // Simu-CIC, OPALIS and RF-COMLINK outputs remain archived artifacts, but
+      // must never be presented as valid inputs for the new satellite.
+      await Promise.all([
+        updateRunWorkflowLog(workspaceDir, "simu_cic", "not_started", "Satellite changed. Run GMAT and Simu-CIC again for the selected satellite."),
+        updateRunWorkflowLog(workspaceDir, "opalis", "not_started", "Satellite changed. Run GMAT and Simu-CIC again before OPALIS."),
+        updateRunWorkflowLog(workspaceDir, "rf_comlink", "not_started", "Satellite changed. Run GMAT and Simu-CIC again before RF-COMLINK."),
+      ])
+      await appendMissionConversation(workspaceDir, {
+        answer: `Satellite changed to ${result.definition.name} v${result.definition.version}. Previous trajectory-dependent calculations are invalidated; create and run a new GMAT mission before continuing.`,
+        askedAt: new Date().toISOString(),
+        channel: "gmat-draft",
+        question: "Select satellite",
+      })
       return reply.send(result)
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to select satellite definition") }) }
   })

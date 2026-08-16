@@ -1,9 +1,10 @@
 import fs from "node:fs/promises"
 import path from "node:path"
+import { getBackendRoot } from "../config.js"
 
 export const CHEMICAL_HOHMANN_TRANSFER_TEMPLATE_ID = "chemical-hohmann-transfer"
 
-export function defaultChemicalHohmannTemplatePath(projectRoot = process.cwd()) {
+export function defaultChemicalHohmannTemplatePath(projectRoot = getBackendRoot()) {
   return path.join(projectRoot, "workflow_agents", "gmat_skills", "chemical-hohmann-transfer-template", "references", "chemical_hohmann_transfer.script")
 }
 

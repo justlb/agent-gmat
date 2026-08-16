@@ -1,7 +1,6 @@
-import { spawn } from "node:child_process"
-import { registerActiveCalculation, unregisterActiveCalculation } from "./activeCalculationRegistry.js"
 import fs from "node:fs/promises"
 import path from "node:path"
+import { runManagedProcess } from "./externalProcess.js"
 
 export type OrbitKeepingReportSample = {
   altitudeKm: number
@@ -83,37 +82,15 @@ export async function runOrbitKeepingGmat({
   const timeSeriesPath = path.join(runDir, "OrbitAnalysisReport.txt")
   const logPath = path.join(runDir, "gmat.log")
   const startedAt = Date.now()
-  const chunks: Buffer[] = []
-  let timedOut = false
-
-  const exitCode = await new Promise<number | null>((resolve, reject) => {
-    const child = spawn(bin, ["--run", toGmatNativePath(scriptPath)], {
-      cwd: runDir,
-      windowsHide: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    })
-    registerActiveCalculation(runDir, child)
-    child.stdout.on("data", chunk => chunks.push(Buffer.from(chunk)))
-    child.stderr.on("data", chunk => chunks.push(Buffer.from(chunk)))
-    child.once("error", reject)
-    child.once("close", code => { unregisterActiveCalculation(runDir, child); resolve(code) })
-    const timeout = setTimeout(() => {
-      timedOut = true
-      child.kill("SIGKILL")
-    }, timeoutMs)
-    child.once("close", () => clearTimeout(timeout))
-  }).catch(async error => {
-    chunks.push(Buffer.from(error instanceof Error ? error.stack ?? error.message : String(error)))
-    return null
-  })
-
-  await fs.writeFile(logPath, Buffer.concat(chunks))
+  const execution = await runManagedProcess({ args: ["--run", toGmatNativePath(scriptPath)], command: bin, cwd: runDir, timeoutMs })
+  const { exitCode, output, timedOut } = execution
+  await fs.writeFile(logPath, output)
   const reportSource = await fs.readFile(reportPath, "utf8").catch(() => "")
   const timeSeriesSource = await fs.readFile(timeSeriesPath, "utf8").catch(() => "")
   const samples = parseOrbitKeepingReport(reportSource)
   const timeSeriesSamples = parseOrbitKeepingTimeSeriesReport(timeSeriesSource)
   const status = timedOut ? "timeout" : exitCode === 0 && samples.length > 0 ? "completed" : "failed"
-  const solverIterations = (Buffer.concat(chunks).toString("utf8").match(/DefaultDC Iteration \d+/gu) ?? []).length
+  const solverIterations = (output.toString("utf8").match(/DefaultDC Iteration \d+/gu) ?? []).length
   const error = status === "completed"
     ? undefined
     : timedOut

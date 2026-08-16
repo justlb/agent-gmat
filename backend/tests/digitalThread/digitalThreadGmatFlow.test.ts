@@ -127,6 +127,10 @@ describe("digital thread to GMAT flow", () => {
     assert.equal(document.digital_thread.satellite_definition, undefined)
     await fs.access(path.join(planningRun.workspaceDir, "satellite.json"))
     await fs.access(path.join(planningRun.workspaceDir, "digital-thread", "satellite.json"))
+    await fs.access(path.join(planningRun.workspaceDir, "digital-thread", "revisions", "satellite.r000000.json"))
+    document.digital_thread.updated_at = "2026-08-16T00:00:00.000Z"
+    await saveDigitalThread(planningRun.workspaceDir, document)
+    await fs.access(path.join(planningRun.workspaceDir, "digital-thread", "revisions", "satellite.r000001.json"))
   })
 
   it("never carries a satellite or Simu-CIC configuration from an earlier planning run", async () => {

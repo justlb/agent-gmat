@@ -20,6 +20,28 @@ export async function openRfComlinkGui(runPath: string) {
   return response.json() as Promise<{ ok: true; scenario: string }>
 }
 
+/** Copies the prepared scenario into this run's results directory and opens it for calculation. */
+export async function startRfComlinkCalculation(runPath: string) {
+  const response = await fetch(joinApiPath(undefined, "/rf-comlink/start-calculation"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runPath }),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+  return response.json() as Promise<{ ok: true; scenario: string }>
+}
+
+/** Archives the calculated scenario and extracts its reports for mission discussion. */
+export async function saveRfComlinkResults(runPath: string) {
+  const response = await fetch(joinApiPath(undefined, "/rf-comlink/save-results"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runPath }),
+  })
+  if (!response.ok) throw new Error(await responseError(response))
+  return response.json() as Promise<{ ok: true; reportCount: number; summary: string }>
+}
+
 /** Writes the run-local RF input manifest after verifying the actual CIC files. */
 export async function prepareRfComlinkInputs(runPath: string) {
   const response = await fetch(joinApiPath(undefined, "/rf-comlink/prepare-inputs"), {

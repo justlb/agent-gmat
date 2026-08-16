@@ -1,8 +1,9 @@
 import path from "node:path"
+import { getBackendRoot } from "../config.js"
 
 export const ELECTRIC_PROPULSION_TRANSFER_TEMPLATE_ID = "electric-propulsion-transfer"
 
-export function defaultElectricPropulsionTemplatePath(projectRoot = process.cwd()) {
+export function defaultElectricPropulsionTemplatePath(projectRoot = getBackendRoot()) {
   return path.join(
     projectRoot,
     "workflow_agents",

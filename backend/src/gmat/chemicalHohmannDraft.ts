@@ -5,6 +5,7 @@ import { parseDocument, stringify } from "yaml"
 import { initializeDraftDigitalThread, isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { requestGmatModel } from "./modelRequest.js"
+import { writeDraftRunComparisonIndex } from "./draftRunComparison.js"
 
 export type ChemicalHohmannDraftValue = string | number | null
 export type ChemicalHohmannDraft = {
@@ -15,10 +16,20 @@ export type ChemicalHohmannDraft = {
   digitalThreadRequiredPaths?: string[]
   draftId: string
   missing: string[]
+  runs: ChemicalHohmannDraftRun[]
   status: "collecting" | "ready" | "confirmed"
   templateId: "chemical-hohmann-transfer"
   updatedAt: string
   values: Record<string, ChemicalHohmannDraftValue>
+}
+
+export type ChemicalHohmannDraftRun = {
+  completedAt: string
+  missionValues?: Record<string, ChemicalHohmannDraftValue>
+  result: { error?: string; executionDurationMs?: number; status: "generated" | "completed" | "failed" | "timeout" }
+  runId: string
+  /** Immutable artifact snapshot relative to the active mission workspace. */
+  runPath: string
 }
 
 const EARTH_EQUATORIAL_RADIUS_KM = 6378.1363
@@ -93,14 +104,25 @@ async function save(workspaceDir: string, draft: ChemicalHohmannDraft) {
 export async function createChemicalHohmannDraft(workspaceDir: string, initialValues: Record<string, ChemicalHohmannDraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
   const values = Object.fromEntries(fields.map(field => [field.path, initialValues[field.path] ?? (field.path === "transfer.targetEccentricity" ? 0.005 : field.path === "transfer.finalPropagationSeconds" ? 86400 : null)]))
   const now = new Date().toISOString()
-  const draft = await save(workspaceDir, refresh({ confirmed: false, conversation: [], createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), templateId: "chemical-hohmann-transfer", values }))
+  const draft = await save(workspaceDir, refresh({ confirmed: false, conversation: [], createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "chemical-hohmann-transfer", values }))
   await initializeDraftDigitalThread(workspaceDir, "chemical-hohmann-transfer", draft.draftId)
   return draft
 }
 export async function loadChemicalHohmannDraft(workspaceDir: string, draftId: string) {
   const parsed = JSON.parse(await fs.readFile(draftPath(workspaceDir, draftId), "utf8")) as ChemicalHohmannDraft
   if (parsed.templateId !== "chemical-hohmann-transfer" || !parsed.values) throw new Error("unsupported chemical Hohmann GMAT draft")
-  return refresh({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], digitalThreadRequiredPaths: Array.isArray(parsed.digitalThreadRequiredPaths) ? parsed.digitalThreadRequiredPaths : [], values: { ...parsed.values } })
+  return refresh({ ...parsed, confirmed: parsed.confirmed === true, conversation: Array.isArray(parsed.conversation) ? parsed.conversation : [], digitalThreadRequiredPaths: Array.isArray(parsed.digitalThreadRequiredPaths) ? parsed.digitalThreadRequiredPaths : [], runs: Array.isArray(parsed.runs) ? parsed.runs : [], values: { ...parsed.values } })
+}
+
+/** Records each execution while the active workspace remains available to downstream tools. */
+export async function recordChemicalHohmannDraftRun(workspaceDir: string, draftId: string, run: ChemicalHohmannDraftRun) {
+  const draft = await loadChemicalHohmannDraft(workspaceDir, draftId)
+  if (draft.status !== "confirmed") throw new Error("chemical Hohmann draft must be confirmed before recording a run")
+  if (!/^[-A-Za-z0-9_]+$/u.test(run.runId) || !/^artifact-history[\\/]gmat[\\/][-A-Za-z0-9_]+$/u.test(run.runPath)) throw new Error("invalid chemical Hohmann artifact snapshot")
+  const runs = [...draft.runs.filter(existing => existing.runId !== run.runId), { ...run, missionValues: { ...draft.values } }]
+  const saved = await save(workspaceDir, refresh({ ...draft, runs }))
+  await writeDraftRunComparisonIndex({ draftDirectory: path.dirname(draftPath(workspaceDir, draftId)), runs: saved.runs, templateId: saved.templateId })
+  return saved
 }
 export async function setChemicalHohmannDraftValue(workspaceDir: string, draft: ChemicalHohmannDraft, requestedPath: string, rawValue: string) {
   const raw = rawValue.trim()
@@ -152,6 +174,13 @@ function assistantPatch(source: string) {
   return { message: typeof result.message === "string" ? result.message.trim() : "", updates }
 }
 
+function conversationMemory(conversation: ChemicalHohmannDraft["conversation"]) {
+  // Current values are authoritative; this bounded history retains the
+  // engineer's rationale without allowing a long discussion to exhaust the
+  // model context window.
+  return conversation.slice(-24).map(turn => ({ assistant: turn.assistant, user: turn.user }))
+}
+
 /** Lets the LLM fill the same deterministic inputs as the form. It may only
  * return an allow-listed patch; validation and satellite.json synchronization
  * remain backend-owned. */
@@ -170,7 +199,9 @@ export async function discussChemicalHohmannDraft({ connection, draft, message, 
     "For a calendar time with an explicit timezone, emit initialOrbit.utcGregorian as UTC ISO; the backend converts it deterministically to TAIModJulian. Do not emit an epoch for a calendar time without a timezone.",
     "For phrases such as 'from 300 km to 500 km', emit initialOrbit.altitudeKm and transfer.targetAltitudeKm; the backend derives the two radii using Earth equatorial radius 6378.1363 km.",
     `Allowed paths: ${[...fields.map(field => field.path), "initialOrbit.altitudeKm", "initialOrbit.utcGregorian", "transfer.targetAltitudeKm"].join(", ")}.`,
+    "Current values are the authoritative mission state. Preserve them unless the user explicitly asks to change a value; never infer that an earlier value was forgotten because it is absent from the latest message.",
     `Current values: ${JSON.stringify(draft.values)}.`,
+    draft.conversation.length ? `Discussion memory (oldest to newest, last ${Math.min(draft.conversation.length, 24)} turns): ${JSON.stringify(conversationMemory(draft.conversation))}.` : "Discussion memory: no prior turns.",
     `User message: ${message}`,
   ].join("\n\n")
   const response = await requestGmatModel(fetchImpl, `${connection.baseUrl.replace(/\/+$/u, "")}/responses`, { method: "POST", headers: { Authorization: `Bearer ${connection.apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: connection.model, input: prompt, max_output_tokens: 600 }) })

@@ -1,9 +1,8 @@
-import { spawn } from "node:child_process"
-import { registerActiveCalculation, unregisterActiveCalculation } from "./activeCalculationRegistry.js"
 import fs from "node:fs/promises"
 import path from "node:path"
 
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
+import { runManagedProcess } from "./externalProcess.js"
 
 export type ElectricPropulsionReportSample = {
   argPeriapsisDeg: number
@@ -44,19 +43,8 @@ export async function runElectricPropulsionGmat({ bin, scriptPath, timeoutMs }: 
   const reportPath = path.join(runDir, "ElectricTransferReport.txt")
   const logPath = path.join(runDir, "gmat.log")
   const startedAt = Date.now()
-  const chunks: Buffer[] = []
-  let timedOut = false
-  const exitCode = await new Promise<number | null>((resolve, reject) => {
-    const child = spawn(bin, ["--run", toGmatNativePath(scriptPath)], { cwd: runDir, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] })
-    registerActiveCalculation(runDir, child)
-    child.stdout.on("data", chunk => chunks.push(Buffer.from(chunk)))
-    child.stderr.on("data", chunk => chunks.push(Buffer.from(chunk)))
-    child.once("error", reject)
-    child.once("close", code => { unregisterActiveCalculation(runDir, child); resolve(code) })
-    const timeout = setTimeout(() => { timedOut = true; child.kill("SIGKILL") }, timeoutMs)
-    child.once("close", () => clearTimeout(timeout))
-  }).catch(error => { chunks.push(Buffer.from(error instanceof Error ? error.stack ?? error.message : String(error))); return null })
-  await fs.writeFile(logPath, Buffer.concat(chunks))
+  const { exitCode, output: log, timedOut } = await runManagedProcess({ args: ["--run", toGmatNativePath(scriptPath)], command: bin, cwd: runDir, timeoutMs })
+  await fs.writeFile(logPath, log)
   const samples = parseElectricPropulsionReport(await fs.readFile(reportPath, "utf8").catch(() => ""))
   const status = timedOut ? "timeout" : exitCode === 0 && samples.length ? "completed" : "failed"
   const error = status === "completed" ? undefined : timedOut ? `GMAT timed out after ${timeoutMs} ms` : exitCode === null ? "GMAT could not be started" : samples.length === 0 ? "GMAT produced no parseable ElectricTransferReport.txt" : `GMAT exited with code ${exitCode}`

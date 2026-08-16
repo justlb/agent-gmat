@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import type { GmatMissionTemplateId } from './gmatMissionTemplates'
 
 type TemplateDefinition = {
-  id: 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer'
+  id: GmatMissionTemplateId
   name: string
   summary: string
   objective: string

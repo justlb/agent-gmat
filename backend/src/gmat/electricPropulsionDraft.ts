@@ -7,6 +7,7 @@ import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian, semiMajorAxisFromPeriapsisAltitude, type CartesianState, type KeplerianElements } from "./orbitCoordinates.js"
 import { requestGmatModel } from "./modelRequest.js"
 import type { ElectricPropulsionValueChange, ElectricPropulsionValues } from "./electricPropulsionValues.js"
+import { writeDraftRunComparisonIndex } from "./draftRunComparison.js"
 
 type DraftValue = string | number | null
 type DraftValues = Record<string, DraftValue>
@@ -395,7 +396,10 @@ export async function recordElectricPropulsionDraftRun(workspaceDir: string, dra
   const draft = await loadElectricPropulsionDraft(workspaceDir, draftId)
   if (draft.status !== "confirmed") throw new Error("GMAT draft must be confirmed before recording a run")
   if (!/^[-A-Za-z0-9_]+$/u.test(run.runId) || !/^gmat[\\/](?:electric-propulsion-transfer|mission-runs)[\\/][-A-Za-z0-9_]+$/u.test(run.runPath)) throw new Error("invalid GMAT electric-propulsion run reference")
-  return saveDraft(workspaceDir, refreshDraft({ ...draft, runs: [...draft.runs.filter(existing => existing.runId !== run.runId), { ...run, missionValues: { ...draft.values } }] }))
+  const runs = [...draft.runs.filter(existing => existing.runId !== run.runId), { ...run, missionValues: { ...draft.values } }]
+  const saved = await saveDraft(workspaceDir, refreshDraft({ ...draft, runs }))
+  await writeDraftRunComparisonIndex({ draftDirectory: path.dirname(draftPath(workspaceDir, draftId)), runs: saved.runs, templateId: saved.templateId })
+  return saved
 }
 export function draftToElectricPropulsionChanges(draft: ElectricPropulsionDraft, values: ElectricPropulsionValues): ElectricPropulsionValueChange[] {
   if (draft.status !== "confirmed" || draft.safety.checks.some(check => check.severity === "error")) throw new Error("GMAT electric-propulsion draft is not ready for execution")

@@ -39,6 +39,19 @@ function record(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : null
 }
 
+function rfInputProblem(missing: string[]) {
+  const details: string[] = []
+  if (missing.some(item => item.includes("attitude_mode=ground_station_tracking") || item.includes("executed attitude.mode=ground_station_tracking"))) {
+    details.push("Select a ground-station attitude target (for example Kourou), then rerun Simu-CIC before RF-COMLINK.")
+  }
+  if (missing.some(item => item.includes("ground_station_ids") || item.includes("selected_ground_station_id") || item.includes("executed ground station"))) {
+    details.push("RF-COMLINK needs one station selected both in the Simu-CIC request and in the newly generated CIC files.")
+  }
+  const satelliteFields = missing.filter(item => item.startsWith("satellite.bus.rf_comlink"))
+  if (satelliteFields.length) details.push(`Satellite RF data are incomplete: ${satelliteFields.join(", ")}.`)
+  return details.length ? details.join(" ") : `RF-COMLINK inputs are incomplete: ${missing.join(", ")}`
+}
+
 function resolveGmatRunDir(root: string, candidate: unknown) {
   if (typeof candidate !== "string" || !candidate.trim()) return null
   const runDir = path.resolve(root, candidate)
@@ -135,7 +148,7 @@ export async function rfComlinkPreparationRoutes(fastify: FastifyInstance) {
       const inputs = await prepareRFComlinkInputs(path.resolve(root), runDir)
       if (inputs.validation.status !== "ready") {
         await updateRunWorkflowLog(runDir, "rf_comlink", "failed", `Missing RF-COMLINK data: ${inputs.validation.missing.join(", ")}`)
-        return reply.status(422).send({ error: `RF-COMLINK inputs are incomplete: ${inputs.validation.missing.join(", ")}`, ...inputs })
+        return reply.status(422).send({ error: rfInputProblem(inputs.validation.missing), ...inputs })
       }
       const templateOverride = process.env.RF_COMLINK_TEMPLATE?.trim()
       // `vide.rfcl` is the vendor's empty scenario structure.  Satellite

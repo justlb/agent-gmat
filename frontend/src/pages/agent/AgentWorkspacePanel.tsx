@@ -15,6 +15,7 @@ import { AgentFilesView } from './files/AgentFilesView'
 import { SatelliteLibrary } from './SatelliteLibrary'
 import { TemplateLibrary } from './TemplateLibrary'
 import { MissionStudio } from './MissionStudio'
+import type { GmatMissionTemplateId } from './gmatMissionTemplates'
 import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
 
 type CurrentWorkspaceCardProps = ComponentProps<typeof CurrentWorkspaceCard>
@@ -24,7 +25,7 @@ type AgentFilesViewProps = ComponentProps<typeof AgentFilesView>
 type AgentWorkspacePanelProps = {
   activeGmatRunPath?: string
   activeGmatRunId?: AgentFilesViewProps['activeGmatRunId']
-  activeGmatRunTemplate?: 'chemical-hohmann-transfer' | 'electric-propulsion-transfer' | 'orbit-keeping'
+  activeGmatRunTemplate?: GmatMissionTemplateId
   activeContext: AgentFilesViewProps['activeContext'] & {
     versionDir?: string | null
     versionId?: string | null
@@ -76,8 +77,8 @@ type AgentWorkspacePanelProps = {
   planningDiscussion?: { createdAt: string; planningRunId: string; workspaceDir: string } | null
   onMissionSatelliteSelected?: () => void
   onChemicalHohmannRunExecuted?: ComponentProps<typeof MissionStudio>['onChemicalHohmannRunExecuted']
-  missionTemplate?: 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer' | null
-  onMissionTemplateSelected?: (template: 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer' | null) => void
+  missionTemplate?: GmatMissionTemplateId | null
+  onMissionTemplateSelected?: (template: GmatMissionTemplateId | null) => void
   onStartMission?: () => Promise<{ workspaceDir: string }>
 }
 

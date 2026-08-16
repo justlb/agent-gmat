@@ -3,7 +3,9 @@ import path from "node:path"
 
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import type { ElectricPropulsionDraftRun } from "./electricPropulsionDraft.js"
+import { buildDraftRunComparisonEntries } from "./draftRunComparison.js"
 import { loadOpalisResultSummary } from "../opalis/opalisResults.js"
+import { loadRFComlinkResultSummary } from "../rfComlink/rfComlinkResults.js"
 
 export type ElectricPropulsionRunConversationTurn = { answer: string; askedAt: string; question: string }
 
@@ -27,10 +29,11 @@ export async function analyzeElectricPropulsionRunWithLlm({ connection, question
   fetchImpl?: typeof fetch
   timeoutMs?: number
 }) {
-  const [manifest, result, report, opalisResult, consolidatedReport] = await Promise.all([
+  const [manifest, result, report, opalisResult, consolidatedReport, rfComlinkResult] = await Promise.all([
     fs.readFile(path.join(runDir, "run_manifest.json"), "utf8"), fs.readFile(path.join(runDir, "gmat_result.json"), "utf8"), fs.readFile(path.join(runDir, "ElectricTransferReport.txt"), "utf8").catch(() => ""),
     loadOpalisResultSummary(runDir),
     fs.readFile(path.join(runDir, "consolidated-run-report.json"), "utf8").catch(() => ""),
+    loadRFComlinkResultSummary(runDir),
   ])
   const previousTurns = await loadElectricPropulsionRunConversation(runDir)
   const prompt = [
@@ -41,7 +44,8 @@ export async function analyzeElectricPropulsionRunWithLlm({ connection, question
     report ? `GMAT electric transfer report:\n${report.slice(0, 100_000)}` : "GMAT electric transfer report: unavailable",
     opalisResult ? `OPALIS electrical calculation summary (derived from calculated-opalis.json):\n${JSON.stringify(opalisResult)}` : "OPALIS electrical calculation: unavailable for this run.",
     consolidatedReport ? `Consolidated GMAT + Simu-CIC + OPALIS report:\n${consolidatedReport.slice(0, 100_000)}` : "Consolidated report: unavailable.",
-    relatedRuns.length ? `Other immutable runs in this mission discussion:\n${JSON.stringify(relatedRuns, null, 2)}` : "No linked comparison runs.",
+    rfComlinkResult ? `RF-COMLINK saved calculation reports:\n${JSON.stringify(rfComlinkResult)}` : "RF-COMLINK calculation: unavailable for this run.",
+    relatedRuns.length ? `Mission run comparison index. Each entry is immutable, includes the exact inputs used, and lists every changed input relative to the preceding run. The current run is included for traceability; compare normalized results only and do not invent report details not shown here:\n${JSON.stringify(buildDraftRunComparisonEntries(relatedRuns), null, 2)}` : "No linked comparison runs.",
     previousTurns.length ? `Previous discussion:\n${JSON.stringify(previousTurns.slice(-10), null, 2)}` : "",
   ].filter(Boolean).join("\n\n")
   const startedAt = Date.now()

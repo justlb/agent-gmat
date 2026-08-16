@@ -1,6 +1,8 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 
+import { updateJsonFile } from "../shared/atomicPersistence.js"
+
 export type WorkflowStage = "opalis" | "rf_comlink" | "simu_cic"
 export type WorkflowStageStatus = "completed" | "failed" | "not_started" | "running"
 
@@ -40,13 +42,18 @@ export async function loadRunWorkflowLog(runDir: string): Promise<WorkflowRunLog
 }
 
 export async function updateRunWorkflowLog(runDir: string, stage: WorkflowStage, status: WorkflowStageStatus, message: string | null) {
-  const current = await loadRunWorkflowLog(runDir)
-  const updatedAt = new Date().toISOString()
-  const next: WorkflowRunLog = {
-    ...current,
-    updated_at: updatedAt,
-    stages: { ...current.stages, [stage]: { message, status, updated_at: updatedAt } },
-  }
-  await fs.writeFile(path.join(runDir, fileName), `${JSON.stringify(next, null, 2)}\n`, "utf8")
-  return next
+  const output = path.join(runDir, fileName)
+  return updateJsonFile<WorkflowRunLog>(output, emptyLog(), current => {
+    const fallback = emptyLog()
+    const normalized: WorkflowRunLog = {
+      ...fallback, ...current,
+      stages: {
+        simu_cic: { ...fallback.stages.simu_cic, ...current.stages?.simu_cic },
+        opalis: { ...fallback.stages.opalis, ...current.stages?.opalis },
+        rf_comlink: { ...fallback.stages.rf_comlink, ...current.stages?.rf_comlink },
+      },
+    }
+    const updatedAt = new Date().toISOString()
+    return { ...normalized, updated_at: updatedAt, stages: { ...normalized.stages, [stage]: { message, status, updated_at: updatedAt } } }
+  })
 }

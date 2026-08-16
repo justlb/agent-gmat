@@ -1,10 +1,10 @@
 import path from "node:path"
-import type { AppConfig } from "../config.js"
+import { resolveProjectPath, type AppConfig } from "../config.js"
 
 export type WorkspacePathConfig = Pick<AppConfig, "auth" | "workspace">
 
 export function resolveWorkspaceTemplateRoot(config: Pick<AppConfig, "workspace">) {
-  return path.resolve(config.workspace.templateDir ?? path.resolve(process.cwd(), "..", "data", "input_data"))
+  return path.resolve(config.workspace.templateDir ?? resolveProjectPath("data", "input_data"))
 }
 
 export function resolveUsersRootFromConfig(config: WorkspacePathConfig) {

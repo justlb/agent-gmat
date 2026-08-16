@@ -2,6 +2,7 @@ import { useEffect, useState, type ComponentProps } from 'react'
 
 import { AgentFilesView } from './files/AgentFilesView'
 import { ChemicalHohmannForm } from './ChemicalHohmannForm'
+import type { GmatMissionTemplateId } from './gmatMissionTemplates'
 import { getSelectedSatellite, listSatelliteDefinitions, selectSatelliteDefinition, type SatelliteDefinition } from './satelliteLibraryApi'
 
 type Props = ComponentProps<typeof AgentFilesView> & {
@@ -9,8 +10,8 @@ type Props = ComponentProps<typeof AgentFilesView> & {
   refreshSatellite?: number
   onSatelliteSelected?: () => void
   onChemicalHohmannRunExecuted?: (run: { result: { error?: string; executionDurationMs?: number; status: 'generated' | 'completed' | 'failed' | 'timeout' }; runId: string; runPath: string }) => void
-  missionTemplate?: 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer' | null
-  onMissionTemplateSelected?: (template: 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer' | null) => void
+  missionTemplate?: GmatMissionTemplateId | null
+  onMissionTemplateSelected?: (template: GmatMissionTemplateId | null) => void
   onStartMission?: () => Promise<{ workspaceDir: string }>
 }
 
@@ -76,5 +77,5 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onChemicalHo
     </section>
   </div>
 
-  return <div className="mission-studio">{error ? <p className="satellite-library-error">{error}</p> : null}<AgentFilesView {...files} missionContent={missionTemplate === 'chemical-hohmann-transfer' ? <ChemicalHohmannForm activeRunId={files.activeGmatRunId} onChanged={() => onSatelliteSelected?.()} onRunExecuted={onChemicalHohmannRunExecuted} onRunOpalis={files.gmatMissionChat.onRunOpalis} onRunRfComlink={files.gmatMissionChat.onPrepareRfComlink} onRunSimuCic={files.gmatMissionChat.onRunSimuCic} selectedSatelliteId={selectedId} simuCicCompleted={files.gmatMissionChat.simuCicCompleted} simuCicRunning={files.gmatMissionChat.simuCicRunning} workspaceDir={workspaceDir} /> : undefined} topContent={source} /></div>
+  return <div className="mission-studio">{error ? <p className="satellite-library-error">{error}</p> : null}<AgentFilesView {...files} missionContent={missionTemplate === 'chemical-hohmann-transfer' ? <ChemicalHohmannForm activeRunId={files.activeGmatRunId} conversation={files.gmatMissionChat.conversation} onNewRun={files.gmatMissionChat.onNewRun} onRunExecuted={onChemicalHohmannRunExecuted} onRunOpalis={files.gmatMissionChat.onRunOpalis} onRunRfComlink={files.gmatMissionChat.onPrepareRfComlink} onRunSimuCic={files.gmatMissionChat.onRunSimuCic} onSaveRfComlinkResults={files.gmatMissionChat.onSaveRfComlinkResults} onSimuCicConfigurationChanged={files.gmatMissionChat.onSimuCicConfigurationChanged} rfComlinkCalculationStarting={files.gmatMissionChat.rfComlinkCalculationStarting} rfComlinkPrepared={files.gmatMissionChat.rfComlinkPrepared} rfComlinkPreparing={files.gmatMissionChat.rfComlinkPreparing} rfComlinkResultsSaving={files.gmatMissionChat.rfComlinkResultsSaving} selectedSatelliteId={selectedId} simuCicCompleted={files.gmatMissionChat.simuCicCompleted} simuCicRunning={files.gmatMissionChat.simuCicRunning} workspaceDir={workspaceDir} /> : undefined} topContent={source} /></div>
 }

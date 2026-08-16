@@ -10,18 +10,21 @@ import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { analyzeElectricPropulsionRunWithLlm, loadElectricPropulsionRunConversation } from "./electricPropulsionAnalysis.js"
 import { appendElectricPropulsionDraftConversation, discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
+import { analyzeChemicalHohmannRunWithLlm } from "./chemicalHohmannAnalysis.js"
+import { loadChemicalHohmannDraft } from "./chemicalHohmannDraft.js"
 import { analyzeOrbitKeepingRunWithLlm, loadOrbitKeepingRunConversation } from "./orbitKeepingAnalysis.js"
 import { appendOrbitKeepingDraftConversation, discussOrbitKeepingDraft, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
 import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
+import { resolveMissionWorkspace } from "./missionWorkspace.js"
+import { analyzeRFComlinkRunWithLlm } from "../rfComlink/rfComlinkAnalysis.js"
+import { loadRFComlinkResultSummary } from "../rfComlink/rfComlinkResults.js"
 
 type Intent = "analysis" | "change" | "knowledge" | "advice" | "simu-cic"
 type Body = { draftId?: unknown; message?: unknown; runPath?: unknown; workspaceDir?: unknown }
 
 function resolveWorkspaceDir(root: string, requested: unknown) {
-  const workspaceDir = typeof requested === "string" && requested.trim() ? path.resolve(requested) : path.resolve(root)
-  if (!isPathInside(path.resolve(root), workspaceDir)) throw new Error("workspaceDir must be inside the current user workspace")
-  return workspaceDir
+  return resolveMissionWorkspace(root, requested)
 }
 
 async function resolveRunDir(root: string, requested: unknown) {
@@ -32,7 +35,7 @@ async function resolveRunDir(root: string, requested: unknown) {
   if (normalized.includes("/orbit-keeping/")) return { runDir, template: "orbit-keeping" as const }
   if (normalized.includes("/electric-propulsion-transfer/")) return { runDir, template: "electric-propulsion-transfer" as const }
   const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
-  if (manifest.templateId !== "orbit-keeping" && manifest.templateId !== "electric-propulsion-transfer") return null
+  if (manifest.templateId !== "orbit-keeping" && manifest.templateId !== "electric-propulsion-transfer" && manifest.templateId !== "chemical-hohmann-transfer") return null
   return { runDir, template: manifest.templateId }
 }
 
@@ -135,6 +138,15 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
       if (intent === "analysis") {
         if (!activeRun) return reply.send({ answer: "Select a GMAT run before asking for an analysis of saved results.", intent, kind: "answer" })
         const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
+        if (await loadRFComlinkResultSummary(activeRun.runDir)) {
+          const result = await analyzeRFComlinkRunWithLlm({ connection: resolveModelBackend(config, "chatModel"), question: message, runDir: activeRun.runDir })
+          return reply.send({ answer: result.answer, intent, kind: "analysis" })
+        }
+        if (activeRun.template === "chemical-hohmann-transfer") {
+          const draft = draftId ? await loadChemicalHohmannDraft(workspaceDir, draftId) : null
+          const result = await analyzeChemicalHohmannRunWithLlm({ connection: resolveModelBackend(config, "chatModel"), question: message, relatedRuns: draft?.runs ?? [], runDir: activeRun.runDir })
+          return reply.send({ answer: result.answer, intent, kind: "analysis" })
+        }
         if (activeRun.template === "orbit-keeping") {
           const draft = draftId ? await loadOrbitKeepingDraft(workspaceDir, draftId) : null
           const result = await analyzeOrbitKeepingRunWithLlm({ connection: resolveModelBackend(config, "chatModel"), question: message, relatedRuns: draft?.runs ?? [], runDir: activeRun.runDir })

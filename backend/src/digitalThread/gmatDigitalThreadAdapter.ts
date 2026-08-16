@@ -1,14 +1,16 @@
 import type { DigitalThreadDocument, JsonValue } from "./digitalThreadStore.js"
 import { getAtPath, loadOrCreateDigitalThread, saveDigitalThread, setAtPath } from "./digitalThreadStore.js"
+import { gmatTemplateDefinition, type GmatTemplateId } from "../gmat/templateRegistry.js"
 
-export type GmatDigitalThreadTemplate = "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer"
+export type GmatDigitalThreadTemplate = GmatTemplateId
 export type DigitalThreadGuard = { code: string; message: string; path: string }
 export type DigitalThreadDerivation = { formula: string; inputs: string[]; output: string; value: number | string }
 
 function analysisTemplateKey(template: string) {
-  if (template === "electric-propulsion-transfer") return "electric_propulsion_transfer"
-  if (template === "chemical-hohmann-transfer") return "chemical_hohmann_transfer"
-  return "orbit_keeping"
+  // Orbit Keeping keeps its engineering-contract identifier in persisted
+  // drafts; the registry identifier remains the shorter route/template name.
+  if (template === "orbit-keeping-earth-keplerian") return "orbit_keeping"
+  return gmatTemplateDefinition(template as GmatTemplateId).analysisRequestKey
 }
 
 const JULIAN_DATE_AT_UNIX_EPOCH = 2440587.5

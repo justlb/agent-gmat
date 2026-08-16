@@ -143,6 +143,11 @@ const PROJECT_CONFIG_FILE = path.join(PROJECT_ROOT, "config.json")
 const LOCAL_CONFIG_FILE = path.resolve(process.cwd(), "config.json")
 const CONFIG_FILE = fs.existsSync(PROJECT_CONFIG_FILE) ? PROJECT_CONFIG_FILE : LOCAL_CONFIG_FILE
 
+/** Stable project paths, independent of the process working directory. */
+export function getBackendRoot() { return BACKEND_ROOT }
+export function getProjectRoot() { return PROJECT_ROOT }
+export function resolveProjectPath(...parts: string[]) { return path.join(PROJECT_ROOT, ...parts) }
+
 type RawOpenAiConfig = Partial<AppConfig["openai"]> & {
   base_url?: unknown
 }

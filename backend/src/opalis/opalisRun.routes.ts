@@ -7,6 +7,7 @@ import type { FastifyInstance } from "fastify"
 
 import type { AppConfig } from "../config.js"
 import { toGmatNativePath } from "../gmat/orbitKeepingRunner.js"
+import { snapshotRunArtifacts } from "../gmat/artifactHistory.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { prepareOpalisInputs } from "./opalisPreparation.routes.js"
@@ -56,18 +57,37 @@ function requiredOpalisConfig(config: AppConfig) {
 
 function runCommand(executable: string, args: string[], cwd: string, timeoutMs: number, operation: "preparation" | "calculation") {
   return new Promise<string>((resolve, reject) => {
-    const child = spawn(executable, args, { cwd, windowsHide: true })
+    const child = spawn(executable, args, { cwd, detached: process.platform !== "win32", windowsHide: true })
     registerActiveCalculation(cwd, child)
     let output = ""
+    let settled = false
+    const finish = (callback: () => void) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      unregisterActiveCalculation(cwd, child)
+      callback()
+    }
+    const terminate = () => {
+      // The OPALIS worker is Python hosting .NET. On POSIX/WSL, killing only
+      // Python can leave the hosted calculation alive, so terminate its group.
+      if (process.platform !== "win32" && child.pid) {
+        try { process.kill(-child.pid, "SIGKILL"); return } catch { /* fall through */ }
+      }
+      child.kill("SIGKILL")
+    }
     child.stdout.on("data", chunk => { output += String(chunk) })
     child.stderr.on("data", chunk => { output += String(chunk) })
-    const timer = setTimeout(() => { child.kill(); reject(new Error(`OPALIS ${operation} timed out after ${timeoutMs} ms`)) }, timeoutMs)
-    child.once("error", error => { clearTimeout(timer); reject(error) })
+    const timer = setTimeout(() => finish(() => {
+      terminate()
+      reject(new Error(`OPALIS ${operation} timed out after ${timeoutMs} ms`))
+    }), timeoutMs)
+    child.once("error", error => finish(() => reject(error)))
     child.once("close", code => {
-      unregisterActiveCalculation(cwd, child)
-      clearTimeout(timer)
-      if (code === 0) resolve(output)
-      else reject(new Error("OPALIS preparation failed with code " + code + ": " + output.slice(-2_000)))
+      finish(() => {
+        if (code === 0) resolve(output)
+        else reject(new Error(`OPALIS ${operation} failed with code ${code}: ${output.slice(-2_000)}`))
+      })
     })
   })
 }
@@ -103,6 +123,10 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       await fs.access(PIPELINE)
       await fs.access(EMPTY_TEMPLATE)
       await fs.access(path.join(settings.installationDir, "lib", "OpalisApi.dll"))
+      await snapshotRunArtifacts(runDir, "opalis-preparation", [
+        "opalis/03-opalis/02-resultats/prepared-opalis.opalis",
+        "opalis/03-opalis/02-resultats/prepared-opalis.json",
+      ])
       const outputDir = path.join(runDir, "opalis", "03-opalis")
       const runName = "prepared-opalis"
       const output = await runCommand(settings.workerPython, [
@@ -150,6 +174,11 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       await fs.access(PIPELINE)
       await fs.access(EMPTY_TEMPLATE)
       await fs.access(path.join(settings.installationDir, "lib", "OpalisApi.dll"))
+      await snapshotRunArtifacts(runDir, "opalis", [
+        "opalis/03-opalis/02-resultats/calculated-opalis.opalis",
+        "opalis/03-opalis/02-resultats/calculated-opalis.json",
+        "consolidated-run-report.json",
+      ])
       const outputDir = path.join(runDir, "opalis", "03-opalis")
       const runName = "calculated-opalis"
       const output = await runCommand(settings.workerPython, [

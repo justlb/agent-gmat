@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import path from "node:path"
 import { describe, it } from "node:test"
+import { getProjectRoot } from "../../../src/config.js"
 import {
   resolveUsersRootFromConfig,
   resolveUserWorkspaceRoot,
@@ -48,7 +49,7 @@ describe("workspace path helpers", () => {
         usersRoot: null as never,
       },
     })
-    const defaultTemplateRoot = path.resolve(process.cwd(), "..", "data", "input_data")
+    const defaultTemplateRoot = path.join(getProjectRoot(), "data", "input_data")
 
     assert.equal(resolveWorkspaceTemplateRoot(config), defaultTemplateRoot)
     assert.equal(resolveUsersRootFromConfig(config), path.join(defaultTemplateRoot, "auth-users"))

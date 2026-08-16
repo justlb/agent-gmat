@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
+import type { GmatChatMode } from './gmatMissionTemplates'
 import type { AgentSpeechState, AgentWorkspaceView, RecorderState } from './types'
 
 type AgentInputMode = 'voice' | 'text'
-export type AgentChatMode = 'general' | 'gmat-orbit-keeping' | 'gmat-electric-propulsion'
+export type AgentChatMode = 'general' | GmatChatMode
 
 type AgentRecorderControlProps = {
   activeGmatRunId?: string

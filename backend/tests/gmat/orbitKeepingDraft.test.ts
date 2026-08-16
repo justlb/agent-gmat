@@ -46,6 +46,8 @@ describe("orbit keeping mission draft", () => {
     })
     assert.equal(withRun.runs.length, 1)
     assert.equal(withRun.runs[0].runId, "26-07-30_10-00")
+    const comparison = JSON.parse(await fs.readFile(path.join(workspaceDir, "gmat", "drafts", confirmed.draftId, "run-comparison.json"), "utf8")) as { entries: Array<{ run_id: string }> }
+    assert.deepEqual(comparison.entries.map(entry => entry.run_id), ["26-07-30_10-00"])
   })
 
   it("accepts a standard Responses API output block when output_text is absent", async () => {

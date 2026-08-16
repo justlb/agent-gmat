@@ -16,7 +16,9 @@ import { appendElectricPropulsionDraftConversation, confirmElectricPropulsionDra
 import { generateElectricPropulsionMission } from "./electricPropulsion.service.js"
 import { extractElectricPropulsionValues } from "./electricPropulsionValues.js"
 import { defaultElectricPropulsionTemplatePath } from "./electricPropulsionTemplate.js"
+import { resolveMissionWorkspace } from "./missionWorkspace.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
+import { listRunArtifactHistory } from "./artifactHistory.js"
 
 type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
@@ -43,13 +45,13 @@ function electricPropulsionFileKind(fileName: string): ElectricPropulsionFileKin
   if (fileName === "EphemerisFile1.oem") return "ephemeris"
   if (fileName.endsWith(".scd")) return "opalis"
   if (fileName === "prepared-opalis.opalis" || fileName === "prepared-opalis.json" || fileName === "calculated-opalis.opalis" || fileName === "calculated-opalis.json" || fileName === "opalis-parameters.json") return "opalis"
-  if (fileName === "rf-comlink-inputs.json" || fileName === "prepared-rf-comlink.rfcl" || fileName === "calculated-rf-comlink.rfcl") return "rf-comlink"
+  if (fileName === "rf-comlink-inputs.json" || fileName === "prepared-rf-comlink.rfcl" || fileName === "calculated-rf-comlink.rfcl" || fileName === "rf-comlink-results.json") return "rf-comlink"
   return null
 }
 
 async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
   const root = path.resolve(userWorkspaceRoot)
-  const files: Array<{ artifactId: string; fileName: string; kind: ElectricPropulsionFileKind; mtimeMs: number; relativePath: string; runPath?: string; size: number }> = []
+  const files: Array<{ artifactId: string; fileName: string; historical?: boolean; kind: ElectricPropulsionFileKind; mtimeMs: number; relativePath: string; runPath?: string; size: number }> = []
   const addMissionRunFiles = async (runsDir: string) => {
     const runs = await fs.readdir(runsDir, { withFileTypes: true }).catch(() => [])
     for (const run of runs) {
@@ -94,12 +96,20 @@ async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
         ["rf-comlink", "01-input", "rf-comlink-inputs.json"],
         ["rf-comlink", "02-scenario", "prepared-rf-comlink.rfcl"],
         ["rf-comlink", "03-results", "calculated-rf-comlink.rfcl"],
+        ["rf-comlink", "03-results", "rf-comlink-results.json"],
       ]
       for (const parts of rfComlinkFiles) {
         const filePath = path.join(runDir, ...parts)
         const stat = await fs.stat(filePath).catch(() => null)
         const kind = electricPropulsionFileKind(parts.at(-1) ?? "")
         if (stat?.isFile() && kind) files.push({ artifactId: run.name, fileName: parts.at(-1)!, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), runPath: path.relative(root, runDir), size: stat.size })
+      }
+      for (const artifact of await listRunArtifactHistory(runDir)) {
+        const kind = electricPropulsionFileKind(path.basename(artifact.filePath))
+        if (!kind) continue
+        const versionDir = path.join(runDir, "artifact-history", artifact.stage, artifact.version)
+        const stat = await fs.stat(artifact.filePath)
+        files.push({ artifactId: `${run.name} · ${artifact.version}`, fileName: path.basename(artifact.filePath), historical: true, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, artifact.filePath), runPath: path.relative(root, versionDir), size: stat.size })
       }
     }
   }
@@ -142,15 +152,15 @@ function resolveListedElectricPropulsionFilePath(userWorkspaceRoot: string, rela
   const root = path.resolve(userWorkspaceRoot)
   const filePath = path.resolve(root, relativePath)
   const normalized = filePath.split(path.sep).join("/")
-  if (!isPathInside(root, filePath) || !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/calculated-rf-comlink\.rfcl))$/u.test(normalized)) return null
+  const segments = path.relative(root, filePath).split(path.sep)
+  const historyIndex = segments.indexOf("artifact-history")
+  const historicalArtifact = historyIndex >= 0 && segments.length > historyIndex + 3 && /^[A-Za-z0-9_-]+$/u.test(segments[historyIndex + 1]) && /^[-A-Za-z0-9_]+$/u.test(segments[historyIndex + 2]) && Boolean(electricPropulsionFileKind(path.basename(filePath)))
+  if (!isPathInside(root, filePath) || (!historicalArtifact && !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/(?:calculated-rf-comlink\.rfcl|rf-comlink-results\.json)))$/u.test(normalized))) return null
   return filePath
 }
 
 function resolveOutputWorkspaceDir(userWorkspaceRoot: string, requestedWorkspaceDir: unknown) {
-  if (typeof requestedWorkspaceDir !== "string" || !requestedWorkspaceDir.trim()) return userWorkspaceRoot
-  const workspaceDir = path.resolve(requestedWorkspaceDir)
-  if (!isPathInside(path.resolve(userWorkspaceRoot), workspaceDir)) throw new Error("workspaceDir must be inside the current user workspace")
-  return workspaceDir
+  return resolveMissionWorkspace(userWorkspaceRoot, requestedWorkspaceDir)
 }
 function resolveRunDir(userWorkspaceRoot: string, runPath: unknown) {
   if (typeof runPath !== "string" || !runPath.trim()) return null

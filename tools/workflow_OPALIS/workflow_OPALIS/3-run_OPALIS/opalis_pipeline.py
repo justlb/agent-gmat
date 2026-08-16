@@ -9,6 +9,7 @@ calcul, puis sauvegarde les resultats.
 from __future__ import annotations
 
 import argparse
+import os
 import bisect
 import json
 import math
@@ -35,6 +36,7 @@ DEFAULT_OPALIS_DIR = (
 DEFAULT_SIMULATION = SCRIPT_DIR / "templates" / "empty.opalis"
 TIMESTEP_PATH = "SimulationModel.SimulationTiming.Timestep"
 DURATION_PATH = "SimulationModel.SimulationTiming.Simultime"
+MAX_AUTOMATIC_SIMULATION_STEPS = int(os.environ.get("OPALIS_MAX_SIMULATION_STEPS", "100000"))
 INTERPOLATION_PATH = "SimulationModel.InterpolateEphemeris"
 
 
@@ -823,6 +825,8 @@ def main(argv: list[str] | None = None) -> int:
         applied_parameters.append(
             {"path": TIMESTEP_PATH, "value": opalis.json_value(value), "source": step_source}
         )
+    effective_step_seconds = automatic_step if automatic_step is not None else reference_time_step
+    effective_duration_seconds = reference_duration
     if not args.no_auto_duration:
         # Ne remplace pas un parametre statique du cas A si les nouvelles
         # entrees couvrent deja sa duree. Reduit seulement si elles sont plus
@@ -832,21 +836,56 @@ def main(argv: list[str] | None = None) -> int:
             if reference_duration > 0
             else float(timing["duration_seconds"])
         )
+        # A zero duration means "automatic" in the satellite contract. Do
+        # not turn that into a multi-day, sub-second integration merely
+        # because Simu-CIC produced a long ephemeris. Keep the automatic run
+        # bounded; an explicit satellite duration remains under user control.
+        if reference_duration <= 0 and automatic_step is not None:
+            automatic_limit_duration = MAX_AUTOMATIC_SIMULATION_STEPS * automatic_step
+            if duration > automatic_limit_duration:
+                timing["automatic_duration_capped_from_seconds"] = duration
+                timing["automatic_duration_cap_seconds"] = automatic_limit_duration
+                duration = automatic_limit_duration
         _, value = opalis.set_property(
             simulation, f"{DURATION_PATH}={duration:.15g}"
         )
         applied_parameters.append(
             {"path": DURATION_PATH, "value": opalis.json_value(value), "source": "ephemerides"}
         )
+        effective_duration_seconds = duration
 
     for assignment in args.set:
         path, value = opalis.set_property(simulation, assignment)
         applied_parameters.append(
             {"path": path, "value": opalis.json_value(value), "source": "--set"}
         )
+        if path == TIMESTEP_PATH:
+            effective_step_seconds = float(assignment.split("=", 1)[1])
+        elif path == DURATION_PATH:
+            effective_duration_seconds = float(assignment.split("=", 1)[1])
 
-    final_step = opalis.optional_property(simulation, TIMESTEP_PATH)
-    final_duration = opalis.optional_property(simulation, DURATION_PATH)
+    # `Simultime` is an OPALIS .NET OpalisTime object. Its textual form is
+    # locale/type dependent, so reading it back through Python and calling
+    # float() can fail even though the preceding property assignment worked.
+    # Keep the validated seconds used for the assignment as the execution
+    # contract instead.
+    final_step = effective_step_seconds
+    final_duration = effective_duration_seconds
+    if not args.no_run:
+        try:
+            step_seconds = float(str(final_step))
+            duration_seconds = float(str(final_duration))
+        except (TypeError, ValueError) as exc:
+            raise opalis.OpalisPythonError("OPALIS timing is not numeric after synchronization.") from exc
+        if step_seconds <= 0 or duration_seconds <= 0:
+            raise opalis.OpalisPythonError("OPALIS timing must have a strictly positive step and duration.")
+        estimated_steps = math.ceil(duration_seconds / step_seconds)
+        if estimated_steps > MAX_AUTOMATIC_SIMULATION_STEPS:
+            raise opalis.OpalisPythonError(
+                "OPALIS automatic calculation is blocked: "
+                f"{estimated_steps} integration steps exceeds the {MAX_AUTOMATIC_SIMULATION_STEPS} safety limit. "
+                "Reduce the simulation duration or use a coarser approved OPALIS timestep."
+            )
     print(
         "Synchronisation temporelle OPALIS : "
         f"pas={final_step} s, duree={final_duration} s "

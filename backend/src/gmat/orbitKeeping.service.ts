@@ -2,6 +2,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { stringify } from "yaml"
 
+import { getBackendRoot } from "../config.js"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { assertOrbitKeepingSimulationSafety } from "./orbitKeepingDraft.js"
 import { editOrbitKeepingValuesWithLlm, type OrbitKeepingLlmEditResult } from "./orbitKeepingLlmEdit.js"
@@ -55,7 +56,7 @@ export type GenerateOrbitKeepingMissionResult = Pick<OrbitKeepingLlmEditResult, 
   valuesPath: string
 }
 
-export function defaultOrbitKeepingValuesPath(projectRoot = process.cwd()) {
+export function defaultOrbitKeepingValuesPath(projectRoot = getBackendRoot()) {
   return path.join(
     projectRoot,
     "workflow_agents",
