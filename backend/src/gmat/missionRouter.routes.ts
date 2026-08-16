@@ -11,9 +11,10 @@ import { SATELLITE_RUN_OVERRIDE_PATHS, applyExplicitSimuCicConfiguration, draftD
 import { PREDEFINED_GROUND_STATIONS } from "../opalis/groundStationCatalog.js"
 import { appendElectricPropulsionDraftConversation, createElectricPropulsionDraft, discussElectricPropulsionDraft, loadElectricPropulsionDraft, setElectricPropulsionDraftValue } from "./electricPropulsionDraft.js"
 import { appendOrbitKeepingDraftConversation, createOrbitKeepingDraft, discussOrbitKeepingDraft, loadOrbitKeepingDraft, setOrbitKeepingDraftValue } from "./orbitKeepingDraft.js"
+import { createChemicalHohmannDraft, loadChemicalHohmannDraft, setChemicalHohmannDraftValue } from "./chemicalHohmannDraft.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
 
-type MissionTemplate = "orbit-keeping" | "electric-propulsion-transfer"
+type MissionTemplate = "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer"
 type RoutingDecision = { target: "clarify" | "general" | MissionTemplate; message: string }
 
 function isSimuCicRequest(message: string) {
@@ -121,7 +122,7 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
     const fieldPath = typeof req.body?.path === "string" ? req.body.path : ""
     const rawValue = typeof req.body?.value === "string" || typeof req.body?.value === "number" ? String(req.body.value) : ""
     const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
-    if ((template !== "orbit-keeping" && template !== "electric-propulsion-transfer") || !fieldPath || !rawValue.trim()) {
+    if ((template !== "orbit-keeping" && template !== "electric-propulsion-transfer" && template !== "chemical-hohmann-transfer") || !fieldPath || !rawValue.trim()) {
       return reply.status(400).send({ error: "template, path, and value are required" })
     }
     const workspaceDir = typeof req.body?.workspaceDir === "string" && req.body.workspaceDir.trim() ? path.resolve(req.body.workspaceDir) : root
@@ -140,6 +141,14 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         const baseDraft = draftId ? await loadOrbitKeepingDraft(workspaceDir, draftId) : await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
         const draft = await setOrbitKeepingDraftValue(workspaceDir, baseDraft, fieldPath, rawValue)
         const draftWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", draft.draftId)
+        await syncDigitalThreadFromGmatDraft(draftWorkspace, draft)
+        await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
+        return reply.send({ draft, template })
+      }
+      if (template === "chemical-hohmann-transfer") {
+        const baseDraft = draftId ? await loadChemicalHohmannDraft(workspaceDir, draftId) : await createChemicalHohmannDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
+        const draft = await setChemicalHohmannDraftValue(workspaceDir, baseDraft, fieldPath, rawValue)
+        const draftWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "chemical-hohmann-transfer", draft.draftId)
         await syncDigitalThreadFromGmatDraft(draftWorkspace, draft)
         await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
         return reply.send({ draft, template })

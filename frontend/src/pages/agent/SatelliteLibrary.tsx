@@ -45,7 +45,7 @@ export function SatelliteLibrary({ workspaceDir }: { workspaceDir?: string | nul
     ['Bus load', `${value(definition, 'bus.electrical_subsystem.spacecraft_bus_load_kw', 'kW')} · ${value(definition, 'bus.electrical_subsystem.bus_voltage_v', 'V')}`],
     ['OPALIS distribution', `${value(definition, 'bus.opalis.power_distribution.consumption_mode')} · ${value(definition, 'bus.opalis.power_distribution.constant_load_w', 'W')}`],
   ]
-  const renderRows = (definition: SatelliteDefinition, items: TechnicalRow[]) => <dl className="satellite-technical-summary">{items.map(([label, detail]) => <div key={label}><dt>{label}</dt><dd>{detail}</dd></div>)}</dl>
+  const renderRows = (items: TechnicalRow[]) => <dl className="satellite-technical-summary">{items.map(([label, detail]) => <div key={label}><dt>{label}</dt><dd>{detail}</dd></div>)}</dl>
   const renderSolarSections = (definition: SatelliteDefinition) => {
     const sections = metric(definition, 'bus.opalis.solar_generator.sections')
     if (!Array.isArray(sections) || !sections.length) return <p className="satellite-no-sections">No OPALIS solar section is defined.</p>
@@ -76,12 +76,12 @@ export function SatelliteLibrary({ workspaceDir }: { workspaceDir?: string | nul
         {definitions.map(definition => <article className={`satellite-definition-card ${definition.id === activeDefinitionId ? 'is-selected' : ''}`} key={`${definition.id}:${definition.version}`}>
           <header><span>REFERENCE DEFINITION</span><small>v{definition.version}</small></header><h3>{definition.name}</h3><p>{definition.description}</p>
           <div className="satellite-metrics"><span>Dry mass <strong>{value(definition, 'bus.physical.mass_kg.dry', 'kg')}</strong></span><span>Solar array <strong>{value(definition, 'bus.electrical_subsystem.solar_panels.total_area_m2', 'm²')}</strong></span><span>RF links <strong>{Array.isArray(metric(definition, 'bus.rf_comlink.links')) ? (metric(definition, 'bus.rf_comlink.links') as unknown[]).length : 0}</strong></span></div>
-          {renderRows(definition, rows(definition).slice(0, 6))}
+          {renderRows(rows(definition).slice(0, 6))}
           <div className="satellite-tags">{definition.capabilities.map(capability => <span key={capability}>{capability}</span>)}{definition.mission_templates.map(template => <span key={template}>{templateLabel(template)}</span>)}{runSatelliteId === definition.id ? <span>Current run source</span> : null}</div>
           <div className="satellite-definition-actions"><button type="button" onClick={() => setActiveDefinitionId(definition.id)}>View full definition</button><a className="satellite-definition-download" href={satelliteDefinitionDownloadUrl(definition)}>Download JSON</a></div>
         </article>)}
       </div>
-      <aside className="satellite-active-card">{active ? <><span>SPACECRAFT DEFINITION</span><small>{active.id}@{active.version}</small><h3>{active.name}</h3><p>{value(active, 'identity.operator')} · {value(active, 'identity.mission_type')}</p><a className="satellite-definition-download" href={satelliteDefinitionDownloadUrl(active)}>Download complete reference JSON</a><hr /><h4>Mass, aerodynamics &amp; propulsion</h4>{renderRows(active, rows(active).slice(2, 8))}<h4>Electrical system</h4>{renderRows(active, rows(active).slice(8, 12))}<h4>Solar-array sections</h4>{renderSolarSections(active)}<h4>RF-COMLINK links</h4>{renderRfLinks(active)}<h4>Compatible GMAT templates</h4><div className="satellite-tags">{active.mission_templates.map(template => <span key={template}>{templateLabel(template)}</span>)}</div></> : <p>No satellite definition is available.</p>}</aside>
+      <aside className="satellite-active-card">{active ? <><span>SPACECRAFT DEFINITION</span><small>{active.id}@{active.version}</small><h3>{active.name}</h3><p>{value(active, 'identity.operator')} · {value(active, 'identity.mission_type')}</p><a className="satellite-definition-download" href={satelliteDefinitionDownloadUrl(active)}>Download complete reference JSON</a><hr /><h4>Mass, aerodynamics &amp; propulsion</h4>{renderRows(rows(active).slice(2, 8))}<h4>Electrical system</h4>{renderRows(rows(active).slice(8, 12))}<h4>Solar-array sections</h4>{renderSolarSections(active)}<h4>RF-COMLINK links</h4>{renderRfLinks(active)}<h4>Compatible GMAT templates</h4><div className="satellite-tags">{active.mission_templates.map(template => <span key={template}>{templateLabel(template)}</span>)}</div></> : <p>No satellite definition is available.</p>}</aside>
     </div>
   </div>
 }

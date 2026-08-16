@@ -1,18 +1,20 @@
 import { useEffect, useState, type ComponentProps } from 'react'
 
 import { AgentFilesView } from './files/AgentFilesView'
+import { ChemicalHohmannForm } from './ChemicalHohmannForm'
 import { getSelectedSatellite, listSatelliteDefinitions, selectSatelliteDefinition, type SatelliteDefinition } from './satelliteLibraryApi'
 
 type Props = ComponentProps<typeof AgentFilesView> & {
   workspaceDir?: string | null
   refreshSatellite?: number
   onSatelliteSelected?: () => void
-  missionTemplate?: 'orbit-keeping' | 'electric-propulsion-transfer' | null
-  onMissionTemplateSelected?: (template: 'orbit-keeping' | 'electric-propulsion-transfer' | null) => void
+  onChemicalHohmannRunExecuted?: (run: { result: { error?: string; executionDurationMs?: number; status: 'generated' | 'completed' | 'failed' | 'timeout' }; runId: string; runPath: string }) => void
+  missionTemplate?: 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer' | null
+  onMissionTemplateSelected?: (template: 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer' | null) => void
   onStartMission?: () => Promise<{ workspaceDir: string }>
 }
 
-export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteSelected, missionTemplate = null, onMissionTemplateSelected, onStartMission, ...files }: Props) {
+export function MissionStudio({ workspaceDir, refreshSatellite = 0, onChemicalHohmannRunExecuted, onSatelliteSelected, missionTemplate = null, onMissionTemplateSelected, onStartMission, ...files }: Props) {
   const [definitions, setDefinitions] = useState<SatelliteDefinition[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [error, setError] = useState('')
@@ -42,16 +44,17 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteS
     <section className="mission-template-source">
       <div>
         <span>GMAT MISSION TEMPLATE</span>
-        <strong>{missionTemplate === 'orbit-keeping' ? 'Orbit keeping' : missionTemplate === 'electric-propulsion-transfer' ? 'Electric propulsion transfer' : 'Let the assistant choose'}</strong>
-        <small>{templateLocked ? 'The template is locked for the current draft.' : 'Choose it first, or let the assistant route your mission description.'}</small>
+        <strong>{missionTemplate === 'orbit-keeping' ? 'Orbit keeping' : missionTemplate === 'electric-propulsion-transfer' ? 'Electric propulsion transfer' : missionTemplate === 'chemical-hohmann-transfer' ? 'Chemical Hohmann transfer' : 'Choose a template'}</strong>
+        <small>{templateLocked ? 'The template is locked for the current draft.' : 'Choose the mission model before entering mission parameters.'}</small>
       </div>
       <select aria-label="GMAT mission template" disabled={templateLocked || (!canSelectForRun && !onStartMission)} value={missionTemplate ?? ''} onChange={event => {
-        const next = event.target.value === 'orbit-keeping' || event.target.value === 'electric-propulsion-transfer' ? event.target.value : null
+        const next = event.target.value === 'orbit-keeping' || event.target.value === 'electric-propulsion-transfer' || event.target.value === 'chemical-hohmann-transfer' ? event.target.value : null
         void ensureMissionRun().then(() => onMissionTemplateSelected?.(next)).catch(reason => setError(reason instanceof Error ? reason.message : 'Unable to start a mission run'))
       }}>
-        <option value="">Let the assistant choose...</option>
+        <option value="">Choose a template...</option>
         <option value="orbit-keeping">Orbit keeping</option>
         <option value="electric-propulsion-transfer">Electric propulsion transfer</option>
+        <option value="chemical-hohmann-transfer">Chemical Hohmann transfer</option>
       </select>
     </section>
     <section className="mission-satellite-source">
@@ -73,5 +76,5 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteS
     </section>
   </div>
 
-  return <div className="mission-studio">{error ? <p className="satellite-library-error">{error}</p> : null}<AgentFilesView {...files} topContent={source} /></div>
+  return <div className="mission-studio">{error ? <p className="satellite-library-error">{error}</p> : null}<AgentFilesView {...files} missionContent={missionTemplate === 'chemical-hohmann-transfer' ? <ChemicalHohmannForm activeRunId={files.activeGmatRunId} onChanged={() => onSatelliteSelected?.()} onRunExecuted={onChemicalHohmannRunExecuted} onRunOpalis={files.gmatMissionChat.onRunOpalis} onRunRfComlink={files.gmatMissionChat.onPrepareRfComlink} onRunSimuCic={files.gmatMissionChat.onRunSimuCic} selectedSatelliteId={selectedId} simuCicCompleted={files.gmatMissionChat.simuCicCompleted} simuCicRunning={files.gmatMissionChat.simuCicRunning} workspaceDir={workspaceDir} /> : undefined} topContent={source} /></div>
 }

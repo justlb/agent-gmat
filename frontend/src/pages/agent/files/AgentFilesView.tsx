@@ -74,7 +74,10 @@ function missionRunFileDownloadUrl(planningRun: PlanningDiscussion, file: string
 }
 
 function isPrimaryMissionFile(file: string) {
-  return file === 'satellite.json'
+  // These are the three artifacts an engineer needs immediately while the
+  // mission is being drafted or after a failed execution. Keep the remaining
+  // logs and result files under the technical-files disclosure.
+  return file === 'satellite.json' || file.endsWith('.values.yaml') || file.endsWith('.script')
 }
 
 function isPrimaryRunFile(file: MissionFile) {
@@ -102,6 +105,7 @@ type AgentFilesViewProps = {
   selectedFilePath: string
   selectedFilePreview: WorkspaceFilePreview | null
   planningDiscussion?: PlanningDiscussion | null
+  missionContent?: ReactNode
   topContent?: ReactNode
   workspaceDir?: string | null
   workspaceRefreshNonce?: number
@@ -119,6 +123,7 @@ export function AgentFilesView({
   selectedFilePath,
   selectedFilePreview,
   planningDiscussion,
+  missionContent,
   topContent,
   workspaceDir,
   workspaceRefreshNonce = 0,
@@ -158,7 +163,7 @@ export function AgentFilesView({
   // The API list is asynchronous. Merge the active draft so a freshly opened
   // conversation is visible in the Mission Files panel in the same render.
   const activeDraft = gmatMissionChat.draft?.draftId
-    ? { ...gmatMissionChat.draft, missionType: gmatMissionChat.chatMode === 'gmat-electric-propulsion' ? 'electric-propulsion-transfer' as const : 'orbit-keeping' as const }
+    ? { ...gmatMissionChat.draft, missionType: gmatMissionChat.chatMode === 'gmat-electric-propulsion' ? 'electric-propulsion-transfer' as const : 'orbit-keeping' as const } as unknown as GmatSavedDraft
     : null
   const displayedDrafts = activeDraft && !gmatDrafts.some(draft => draft.draftId === activeDraft.draftId && draft.missionType === activeDraft.missionType)
     ? [activeDraft, ...gmatDrafts]
@@ -261,7 +266,7 @@ export function AgentFilesView({
       </aside>
       <div className="agent-file-log-pane">
         {topContent}
-        <GmatMissionChat activeRunId={activeGmatRunId} workspaceDir={activeGmatRunPath ?? workspaceDir} {...gmatMissionChat} />
+        {missionContent ?? <GmatMissionChat activeRunId={activeGmatRunId} workspaceDir={activeGmatRunPath ?? workspaceDir} {...gmatMissionChat} />}
         {selectedFilePath ? <details className="agent-file-preview-details">
           <summary>Preview selected workspace file</summary>
           <WorkspaceFilePreviewPanel

@@ -1,14 +1,14 @@
-import type { ElectricPropulsionDraft } from "../gmat/electricPropulsionDraft.js"
-import type { OrbitKeepingDraft } from "../gmat/orbitKeepingDraft.js"
 import type { DigitalThreadDocument, JsonValue } from "./digitalThreadStore.js"
 import { getAtPath, loadOrCreateDigitalThread, saveDigitalThread, setAtPath } from "./digitalThreadStore.js"
 
-export type GmatDigitalThreadTemplate = "orbit-keeping" | "electric-propulsion-transfer"
+export type GmatDigitalThreadTemplate = "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer"
 export type DigitalThreadGuard = { code: string; message: string; path: string }
 export type DigitalThreadDerivation = { formula: string; inputs: string[]; output: string; value: number | string }
 
 function analysisTemplateKey(template: string) {
-  return template === "electric-propulsion-transfer" ? "electric_propulsion_transfer" : "orbit_keeping"
+  if (template === "electric-propulsion-transfer") return "electric_propulsion_transfer"
+  if (template === "chemical-hohmann-transfer") return "chemical_hohmann_transfer"
+  return "orbit_keeping"
 }
 
 const JULIAN_DATE_AT_UNIX_EPOCH = 2440587.5
@@ -149,13 +149,19 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   requireNumber(document, "satellite.bus.physical.mass_kg.dry", "spacecraft.dryMassKg", values, guards)
   const propulsionType = stringAt(document, "satellite.bus.propulsion_subsystem.type")?.toLowerCase() ?? ""
 
-  if (template === "orbit-keeping") {
-    if (!propulsionType || !/(chemical|bipropellant|monopropellant)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: "The orbit-keeping template requires an explicitly identified chemical propulsion subsystem.", path: "satellite.bus.propulsion_subsystem.type" })
-    requireNumber(document, "analysis_requests.gmat.orbit_keeping.minimum_reboost_altitude_km", "stationKeeping.minimumAltitudeKm", values, guards)
-    optionalNumber(document, "analysis_requests.gmat.orbit_keeping.target_semi_major_axis_km", "stationKeeping.targetSmaKm", values)
-    optionalNumber(document, "analysis_requests.gmat.orbit_keeping.fuel_reserve_kg", "stationKeeping.fuelReserveKg", values)
-    optionalNumber(document, "analysis_requests.gmat.orbit_keeping.final_altitude_km", "endOfLife.finalAltitudeKm", values)
-    optionalNumber(document, "analysis_requests.gmat.orbit_keeping.initial_fuel_mass_kg", "spacecraft.initialFuelMassKg", values)
+  if (template === "orbit-keeping" || template === "chemical-hohmann-transfer") {
+    if (!propulsionType || !/(chemical|bipropellant|monopropellant)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: `The ${template === "chemical-hohmann-transfer" ? "chemical Hohmann-transfer" : "orbit-keeping"} template requires an explicitly identified chemical propulsion subsystem.`, path: "satellite.bus.propulsion_subsystem.type" })
+    if (template === "orbit-keeping") {
+      requireNumber(document, "analysis_requests.gmat.orbit_keeping.minimum_reboost_altitude_km", "stationKeeping.minimumAltitudeKm", values, guards)
+      optionalNumber(document, "analysis_requests.gmat.orbit_keeping.target_semi_major_axis_km", "stationKeeping.targetSmaKm", values)
+      optionalNumber(document, "analysis_requests.gmat.orbit_keeping.fuel_reserve_kg", "stationKeeping.fuelReserveKg", values)
+      optionalNumber(document, "analysis_requests.gmat.orbit_keeping.final_altitude_km", "endOfLife.finalAltitudeKm", values)
+      optionalNumber(document, "analysis_requests.gmat.orbit_keeping.initial_fuel_mass_kg", "spacecraft.initialFuelMassKg", values)
+    } else {
+      requireNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.target_orbit.radius_km", "transfer.targetRadiusKm", values, guards)
+      optionalNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.target_orbit.eccentricity", "transfer.targetEccentricity", values)
+      optionalNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.final_propagation_seconds", "transfer.finalPropagationSeconds", values)
+    }
     optionalNumber(document, "satellite.bus.physical.drag_area_m2", "spacecraft.dragAreaM2", values)
     optionalNumber(document, "satellite.bus.physical.drag_coefficient", "spacecraft.dragCoefficient", values)
     optionalNumber(document, "satellite.bus.propulsion_subsystem.specific_impulse_seconds", "propulsion.ispSeconds", values)
@@ -180,7 +186,9 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   }
   const requiredDraftPaths = template === "orbit-keeping"
     ? ["spacecraft.dryMassKg"]
-    : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.burnDurationDays"]
+    : template === "chemical-hohmann-transfer"
+      ? ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.targetRadiusKm"]
+      : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.burnDurationDays"]
   for (const fieldPath of requiredDraftPaths) {
     if ((values[fieldPath] === null || values[fieldPath] === undefined || values[fieldPath] === "") && !guards.some(guard => guard.path === fieldPath)) {
       guards.push({ code: "missing_adapter_input", message: `The GMAT adapter cannot produce required value ${fieldPath} from the digital thread.`, path: fieldPath })
@@ -199,11 +207,17 @@ const MISSION_ORBIT_PATHS: Record<string, string> = {
   "initialOrbit.trueAnomalyDeg": "true_anomaly_deg",
 }
 
-function missionDraftPaths(templateId: OrbitKeepingDraft["templateId"] | ElectricPropulsionDraft["templateId"]) {
+function missionDraftPaths(templateId: string) {
   const root = `analysis_requests.gmat.${analysisTemplateKey(templateId)}`
   return {
     ...Object.fromEntries(Object.entries(MISSION_ORBIT_PATHS).map(([draftPath, threadPath]) => [draftPath, `${root}.initial_orbit.${threadPath}`])),
-    ...(templateId === "electric-propulsion-transfer"
+    ...(templateId === "chemical-hohmann-transfer"
+      ? {
+          "transfer.targetRadiusKm": `${root}.target_orbit.radius_km`,
+          "transfer.targetEccentricity": `${root}.target_orbit.eccentricity`,
+          "transfer.finalPropagationSeconds": `${root}.final_propagation_seconds`,
+        }
+      : templateId === "electric-propulsion-transfer"
       ? { "transfer.burnDurationDays": `${root}.burn_duration_days` }
       : {
           "stationKeeping.minimumAltitudeKm": `${root}.minimum_reboost_altitude_km`,
@@ -225,7 +239,7 @@ const SATELLITE_DRAFT_PATHS: Record<string, string> = {
   "power.systemMarginPercent": "satellite.bus.electrical_subsystem.system_margin_percent",
 }
 
-export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft: Pick<OrbitKeepingDraft | ElectricPropulsionDraft, "templateId" | "values">) {
+export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft: { templateId: string; values: Record<string, string | number | null> }) {
   const document = await loadOrCreateDigitalThread(workspaceDir)
   const provenance = document.provenance.values as { [key: string]: JsonValue }
   // A mission may update mission inputs only. Physical spacecraft values are

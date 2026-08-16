@@ -1,0 +1,30 @@
+{
+  "id": "chemical-hohmann-transfer",
+  "name": "Chemical Hohmann transfer",
+  "description": "Two-impulse Earth-orbit transfer solved by GMAT's differential corrector.",
+  "gmat_reference_script": "references/chemical_hohmann_transfer.script",
+  "source": "GMAT Tut_SimpleOrbitTransfer.script",
+  "propulsion_requirement": "chemical",
+  "initial_state_representation": "Cartesian",
+  "mission_inputs": {
+    "required": [
+      "initial_epoch",
+      "initial_orbit",
+      "target_orbit_radius"
+    ],
+    "defaults": {
+      "target_eccentricity": 0.005,
+      "final_propagation_seconds": 86400
+    }
+  },
+  "satellite_inputs": [
+    "satellite.bus.physical.mass_kg.dry",
+    "satellite.bus.physical.drag_area_m2",
+    "satellite.bus.physical.drag_coefficient",
+    "satellite.bus.propulsion_subsystem.specific_impulse_seconds"
+  ],
+  "planned_physical_extension": {
+    "status": "not_enabled",
+    "description": "The canonical tutorial keeps DecrementMass=false. A separate, validated variant will add a chemical tank and propellant depletion after this baseline is verified."
+  }
+}

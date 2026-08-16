@@ -1,7 +1,7 @@
 import { joinApiPath } from '../../app/apiBase'
 import type { OrbitKeepingDraft } from './orbitKeepingApi'
 
-export type MissionTemplate = 'orbit-keeping' | 'electric-propulsion-transfer'
+export type MissionTemplate = 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer'
 
 export async function updateMissionValue({ draftId, path, template, value, workspaceDir }: {
   draftId?: string

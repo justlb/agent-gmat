@@ -72,12 +72,14 @@ export function isMissionRunWorkspace(workspaceDir: string) {
 /** A draft owns a private digital-thread workspace. GMAT artifacts remain in the
  * parent workspace, while this context prevents another draft from changing its
  * satellite or mission inputs. */
-export function draftDigitalThreadWorkspaceDir(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer", draftId: string) {
+export function draftDigitalThreadWorkspaceDir(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer", draftId: string) {
   if (!/^[A-Za-z0-9_-]+$/u.test(draftId)) throw new Error("invalid GMAT draft id")
   const root = path.resolve(workspaceDir)
   return template === "orbit-keeping"
     ? path.join(root, "gmat", "drafts", draftId)
-    : path.join(root, "gmat", "electric-propulsion-transfer", "drafts", draftId)
+    : template === "electric-propulsion-transfer"
+      ? path.join(root, "gmat", "electric-propulsion-transfer", "drafts", draftId)
+      : path.join(root, "gmat", "chemical-hohmann-transfer", "drafts", draftId)
 }
 
 function asObject(value: JsonValue | undefined): { [key: string]: JsonValue } | null {
@@ -107,13 +109,19 @@ function ensureMissionRequestShape(document: DigitalThreadDocument) {
   }
   const analysis = document.analysis_requests
   const gmat = asObject(analysis.gmat) ?? (analysis.gmat = {}, analysis.gmat as { [key: string]: JsonValue })
-  for (const template of ["orbit_keeping", "electric_propulsion_transfer"]) {
+  for (const template of ["orbit_keeping", "electric_propulsion_transfer", "chemical_hohmann_transfer"]) {
     const request = asObject(gmat[template]) ?? (gmat[template] = {}, gmat[template] as { [key: string]: JsonValue })
     const orbit = asObject(request.initial_orbit) ?? (request.initial_orbit = {}, request.initial_orbit as { [key: string]: JsonValue })
     for (const field of ["epoch_tai_mod_julian", "semi_major_axis_km", "eccentricity", "inclination_deg", "raan_deg", "arg_of_perigee_deg", "true_anomaly_deg"]) {
       if (!(field in orbit)) { orbit[field] = null; changed = true }
     }
   }
+  const hohmann = asObject(gmat.chemical_hohmann_transfer)!
+  const targetOrbit = asObject(hohmann.target_orbit) ?? (hohmann.target_orbit = {}, hohmann.target_orbit as { [key: string]: JsonValue })
+  for (const [field, defaultValue] of Object.entries({ radius_km: null, eccentricity: 0.005 } satisfies Record<string, JsonValue>)) {
+    if (!(field in targetOrbit)) { targetOrbit[field] = defaultValue; changed = true }
+  }
+  if (!("final_propagation_seconds" in hohmann)) { hohmann.final_propagation_seconds = 86400; changed = true }
   const simuCic = asObject(analysis.simu_cic) ?? (analysis.simu_cic = {}, analysis.simu_cic as { [key: string]: JsonValue })
   for (const [field, defaultValue] of Object.entries({
     attitude_mode: "nadir_pointing",
@@ -234,7 +242,7 @@ export async function loadOrCreateDigitalThread(workspaceDir: string) {
 
 /** Starts a clean, per-draft digital thread from the selected satellite only.
  * Earlier mission values deliberately do not leak into a new draft. */
-export async function initializeDraftDigitalThread(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer", draftId: string) {
+export async function initializeDraftDigitalThread(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer", draftId: string) {
   const draftWorkspaceDir = draftDigitalThreadWorkspaceDir(workspaceDir, template, draftId)
   const output = digitalThreadPath(draftWorkspaceDir)
   const existing = await fs.readFile(output, "utf8").catch(() => null)

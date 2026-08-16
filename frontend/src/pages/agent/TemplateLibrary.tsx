@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 type TemplateDefinition = {
-  id: 'orbit-keeping' | 'electric-propulsion-transfer'
+  id: 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer'
   name: string
   summary: string
   objective: string
@@ -31,6 +31,16 @@ const TEMPLATES: TemplateDefinition[] = [
     satelliteRequirements: ['Dry mass', 'Electric propellant capacity', 'Thruster power limits', 'Solar-array power, bus load and margin'],
     outputs: ['GMAT script and values', 'Electric-transfer report', 'OEM ephemeris', 'Run-local satellite.json'],
     downstream: ['Simu-CIC attitude and CIC files', 'OPALIS electrical model', 'RF-COMLINK link analysis'],
+  },
+  {
+    id: 'chemical-hohmann-transfer',
+    name: 'Chemical Hohmann transfer',
+    summary: 'Two-impulse chemical transfer solved by GMAT’s differential corrector.',
+    objective: 'Raise or lower an Earth orbit using a transfer-orbit burn followed by a circularisation burn at apoapsis.',
+    requiredMissionInputs: ['Initial epoch', 'Initial altitude or semi-major axis', 'Eccentricity', 'Inclination', 'Target orbit radius'],
+    satelliteRequirements: ['Dry mass', 'Chemical propulsion and Isp', 'Drag area and coefficient'],
+    outputs: ['GMAT script and values', 'GMAT execution log', 'Run-local satellite.json'],
+    downstream: ['GMAT execution only in the initial baseline'],
   },
 ]
 

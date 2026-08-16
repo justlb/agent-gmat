@@ -24,7 +24,7 @@ type AgentFilesViewProps = ComponentProps<typeof AgentFilesView>
 type AgentWorkspacePanelProps = {
   activeGmatRunPath?: string
   activeGmatRunId?: AgentFilesViewProps['activeGmatRunId']
-  activeGmatRunTemplate?: 'electric-propulsion-transfer' | 'orbit-keeping'
+  activeGmatRunTemplate?: 'chemical-hohmann-transfer' | 'electric-propulsion-transfer' | 'orbit-keeping'
   activeContext: AgentFilesViewProps['activeContext'] & {
     versionDir?: string | null
     versionId?: string | null
@@ -75,8 +75,9 @@ type AgentWorkspacePanelProps = {
   missionWorkspaceDir?: string | null
   planningDiscussion?: { createdAt: string; planningRunId: string; workspaceDir: string } | null
   onMissionSatelliteSelected?: () => void
-  missionTemplate?: 'orbit-keeping' | 'electric-propulsion-transfer' | null
-  onMissionTemplateSelected?: (template: 'orbit-keeping' | 'electric-propulsion-transfer' | null) => void
+  onChemicalHohmannRunExecuted?: ComponentProps<typeof MissionStudio>['onChemicalHohmannRunExecuted']
+  missionTemplate?: 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer' | null
+  onMissionTemplateSelected?: (template: 'orbit-keeping' | 'electric-propulsion-transfer' | 'chemical-hohmann-transfer' | null) => void
   onStartMission?: () => Promise<{ workspaceDir: string }>
 }
 
@@ -143,6 +144,7 @@ export function AgentWorkspacePanel({
   missionWorkspaceDir,
   planningDiscussion,
   onMissionSatelliteSelected,
+  onChemicalHohmannRunExecuted,
   missionTemplate,
   onMissionTemplateSelected,
   onStartMission,
@@ -311,6 +313,7 @@ export function AgentWorkspacePanel({
             planningDiscussion={planningDiscussion}
             refreshSatellite={satelliteRefreshNonce}
             onSatelliteSelected={onMissionSatelliteSelected ?? refreshWorkspaceViews}
+            onChemicalHohmannRunExecuted={onChemicalHohmannRunExecuted}
             missionTemplate={missionTemplate}
             onMissionTemplateSelected={onMissionTemplateSelected}
             onStartMission={onStartMission}

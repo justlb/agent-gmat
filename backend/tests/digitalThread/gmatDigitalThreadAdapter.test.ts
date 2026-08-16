@@ -52,4 +52,31 @@ describe("GMAT digital-thread adapter", () => {
     assert.equal(result.ready, false)
     assert.ok(result.guards.some(guard => guard.code === "missing_solar_power_model"))
   })
+
+  it("maps a chemical Hohmann-transfer request from the run-local digital thread", () => {
+    const document = documentWithSolar({ total_power_generated_watts: 8500 })
+    document.satellite.bus.propulsion_subsystem = {
+      type: "Bipropellant chemical propulsion",
+      specific_impulse_seconds: 320,
+    }
+    document.satellite.bus.physical = {
+      mass_kg: { dry: 300, propellant: 100 },
+      drag_area_m2: 2,
+      drag_coefficient: 2.2,
+    }
+    ;((document.analysis_requests.gmat as Record<string, unknown>).chemical_hohmann_transfer = {
+      initial_orbit: {
+        epoch_tai_mod_julian: "31253.5", semi_major_axis_km: 6678.1363, eccentricity: 0, inclination_deg: 51.6,
+        raan_deg: 0, arg_of_perigee_deg: 0, true_anomaly_deg: 0,
+      },
+      target_orbit: { radius_km: 7178.1363, eccentricity: 0.005 },
+      final_propagation_seconds: 86400,
+    }
+
+    const result = adaptDigitalThreadToGmat(document, "chemical-hohmann-transfer")
+    assert.equal(result.ready, true)
+    assert.equal(result.values["transfer.targetRadiusKm"], 7178.1363)
+    assert.equal(result.values["propulsion.ispSeconds"], 320)
+    assert.equal(result.values["spacecraft.dragAreaM2"], 2)
+  })
 })

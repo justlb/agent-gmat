@@ -23,7 +23,7 @@ function resolveWorkspaceDir(root: string, requested: unknown) {
 }
 
 function resolveMissionRunArtifact(root: string, workspaceDir: string, fileName: string) {
-  const allowedFiles = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
+  const allowedFiles = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
   const resolvedWorkspace = path.resolve(workspaceDir)
   if (!isPathInside(path.resolve(root), resolvedWorkspace) || !resolvedWorkspace.split(path.sep).includes("mission-runs") || !allowedFiles.test(fileName)) return null
   return path.join(resolvedWorkspace, fileName)
@@ -122,7 +122,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     const draftId = typeof req.query.draftId === "string" ? req.query.draftId : ""
     const template = req.query.template
-    if (!draftId || (template !== "orbit-keeping" && template !== "electric-propulsion-transfer")) {
+    if (!draftId || (template !== "orbit-keeping" && template !== "electric-propulsion-transfer" && template !== "chemical-hohmann-transfer")) {
       return reply.status(400).send({ error: "draftId and a supported template are required" })
     }
     try {
@@ -141,7 +141,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
       const filePath = resolveMissionRunArtifact(root, workspaceDir, fileName)
       const source = filePath ? await fs.readFile(filePath, "utf8").catch(() => null) : null
       if (source === null) return reply.status(404).send({ error: "mission-run file is not available" })
-      const contentType = fileName.endsWith(".yaml") ? "application/x-yaml; charset=utf-8" : "application/json; charset=utf-8"
+      const contentType = fileName.endsWith(".yaml") ? "application/x-yaml; charset=utf-8" : fileName.endsWith(".json") ? "application/json; charset=utf-8" : "text/plain; charset=utf-8"
       return reply.header("Content-Type", contentType).header("Content-Disposition", `attachment; filename="${fileName}"`).send(source)
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download mission-run file") }) }
   })
@@ -152,7 +152,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     try {
       const workspaceDir = resolveWorkspaceDir(root, req.query.workspaceDir)
       if (!workspaceDir.split(path.sep).includes("mission-runs")) return reply.status(400).send({ error: "workspaceDir is not a mission run" })
-      const allowed = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
+      const allowed = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
       const entries = await fs.readdir(workspaceDir, { withFileTypes: true })
       const files = await Promise.all(entries.filter(entry => entry.isFile() && allowed.test(entry.name)).map(async entry => ({ fileName: entry.name, mtimeMs: (await fs.stat(path.join(workspaceDir, entry.name))).mtimeMs })))
       return reply.send({ files: files.sort((left, right) => left.fileName.localeCompare(right.fileName)) })
