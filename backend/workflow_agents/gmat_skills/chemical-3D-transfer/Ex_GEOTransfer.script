@@ -55,8 +55,11 @@ AllForces.PrimaryBodies                    = {Earth};
 AllForces.SRP                              = On;
 AllForces.RelativisticCorrection           = Off;
 AllForces.ErrorControl                     = RSSStep;
-AllForces.GravityField.Earth.Degree        = 20;
-AllForces.GravityField.Earth.Order         = 20;
+% A degree/order 4 field is sufficient for the interactive transfer design
+% solve.  The tutorial's 20x20 model made each targeter iteration needlessly
+% slow, especially when running the generated script in the GMAT console.
+AllForces.GravityField.Earth.Degree        = 4;
+AllForces.GravityField.Earth.Order         = 4;
 AllForces.GravityField.Earth.PotentialFile = 'JGM2.cof';
 AllForces.GravityField.Earth.TideModel     = 'None';
 AllForces.SRP.Flux                         = 1367;
@@ -127,7 +130,7 @@ MOI.GravitationalAccel = 9.810000000000001;
 %----------------------------------------
 %---------- Arrays, Variables, Strings
 %----------------------------------------
-Create Variable I lowerBound upperBound;
+Create Variable I lowerBound upperBound OutputEndElapsedDays;
 
 lowerBound = -119;
 upperBound = -117.5;
@@ -319,9 +322,11 @@ EndTarget;  % For targeter DC
 
 % Do not collect OEM points during differential-corrector iterations.  GMAT
 % may have only one point in a discarded target pass, which cannot satisfy
-% the EphemerisFile interpolator.  The converged trajectory starts here.
+% the EphemerisFile interpolator.  ElapsedDays is mission-absolute, so derive
+% the output boundary from the converged trajectory's current epoch.
+OutputEndElapsedDays = geoSat.ElapsedDays + 10;
 Toggle EphemerisFile1 On;
-Propagate 'Prop 10 days' DefaultProp(geoSat) {geoSat.ElapsedDays = 10};
+Propagate 'Prop 10 days' DefaultProp(geoSat) {geoSat.ElapsedDays = OutputEndElapsedDays};
 
 
 

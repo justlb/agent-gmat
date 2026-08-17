@@ -186,9 +186,6 @@ function renderScript(source: string, values: Record<string, Value>) {
     ["geoSat.SMA", String(initialSmaKm)],
     ["geoSat.ECC", String(requiredNumber(values, "initialOrbit.eccentricity"))],
     ["geoSat.INC", String(requiredNumber(values, "initialOrbit.inclinationDeg"))],
-    ["geoSat.RAAN", "0"],
-    ["geoSat.AOP", "0"],
-    ["geoSat.TA", "0"],
     ["geoSat.DryMass", String(requiredNumber(values, "spacecraft.dryMassKg"))],
     ["geoSat.Cd", String(requiredNumber(values, "spacecraft.dragCoefficient"))],
     ["geoSat.DragArea", String(requiredNumber(values, "spacecraft.dragAreaM2"))],
@@ -197,8 +194,6 @@ function renderScript(source: string, values: Record<string, Value>) {
     ["MOI.Isp", String(requiredNumber(values, "propulsion.ispSeconds"))],
   ] as const) script = replace(script, property, value)
   return script
-    .replace(/geoSat\.RMAG = 85000/u, `geoSat.RMAG = ${finalSmaKm}`)
-    .replace(/geoSat\.RMAG = 42195/u, `geoSat.RMAG = ${finalSmaKm}`)
     .replace(/INC = 2/u, `INC = ${requiredNumber(values, "transfer.finalInclinationDeg")}`)
     .replace(/geoSat\.Earth\.SMA = 42166\.90/u, `geoSat.Earth.SMA = ${finalSmaKm}`)
 }
