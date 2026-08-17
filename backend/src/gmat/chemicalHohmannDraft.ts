@@ -33,6 +33,8 @@ export type ChemicalHohmannDraftRun = {
 }
 
 const EARTH_EQUATORIAL_RADIUS_KM = 6378.1363
+const GMAT_TAI_MOD_JULIAN_MIN = 10_000
+const GMAT_TAI_MOD_JULIAN_MAX = 100_000
 const JULIAN_DATE_AT_UNIX_EPOCH = 2440587.5
 const GMAT_MODIFIED_JULIAN_OFFSET = 2430000
 const TAI_UTC_LEAP_SECONDS: ReadonlyArray<readonly [string, number]> = [
@@ -63,7 +65,11 @@ function draftPath(workspaceDir: string, draftId: string) {
   if (!/^draft_[a-f0-9-]+$/u.test(draftId)) throw new Error("invalid GMAT draft id")
   return path.join(path.resolve(workspaceDir), "gmat", "chemical-hohmann-transfer", "drafts", draftId, "draft.json")
 }
-function isEpoch(value: unknown): value is string { return typeof value === "string" && /^\d+(?:\.\d+)?$/u.test(value.trim()) }
+function isEpoch(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d+(?:\.\d+)?$/u.test(value.trim())) return false
+  const epoch = Number(value)
+  return epoch >= GMAT_TAI_MOD_JULIAN_MIN && epoch <= GMAT_TAI_MOD_JULIAN_MAX
+}
 function utcGregorianToTaiModJulian(utcGregorian: string) {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/u.test(utcGregorian)) throw new Error("calendar epoch must use UTC ISO format, for example 2026-08-15T04:00:00Z")
   const milliseconds = Date.parse(utcGregorian)
@@ -77,7 +83,7 @@ function validate(values: ChemicalHohmannDraft["values"], requiredPaths: string[
     const value = values[field.path]
     if (field.required && (value === null || value === undefined || value === "")) { missing.push(field.path); continue }
     if (value === null || value === undefined || value === "") continue
-    if (field.path === "initialOrbit.epoch") { if (!isEpoch(value)) throw new Error("Initial epoch must be a numeric TAIModJulian value"); continue }
+    if (field.path === "initialOrbit.epoch") { if (!isEpoch(value)) throw new Error(`Initial epoch must be a numeric TAIModJulian value between ${GMAT_TAI_MOD_JULIAN_MIN} and ${GMAT_TAI_MOD_JULIAN_MAX}`); continue }
     if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${field.label} must be a finite number`)
     if ("min" in field && field.min !== undefined && value < field.min) throw new Error(`${field.label} must be at least ${field.min}`)
     if ("max" in field && field.max !== undefined && value > field.max) throw new Error(`${field.label} must be at most ${field.max}`)

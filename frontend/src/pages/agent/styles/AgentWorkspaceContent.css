@@ -2194,6 +2194,7 @@
 }
 
 .agent-progress-gmat-gui:disabled { cursor: not-allowed; opacity: 0.48; }
+.agent-progress-script-link { display: block; text-align: center; text-decoration: none; }
 
 .agent-gmat-files-card a {
   padding: 7px 0;

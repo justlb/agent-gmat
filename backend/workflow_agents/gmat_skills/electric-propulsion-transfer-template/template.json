@@ -1,0 +1,36 @@
+{
+  "id": "electric-propulsion-transfer",
+  "name": "Electric propulsion transfer",
+  "description": "Low-thrust electric orbit transfer driven by the selected satellite electrical system.",
+  "analysis_request_key": "electric_propulsion_transfer",
+  "draft_directory": ["gmat", "electric-propulsion-transfer", "drafts"],
+  "chat_mode": "gmat-electric-propulsion",
+  "gmat_reference_script": "references/electric_propulsion_transfer.script",
+  "gmat_reference_values": "references/electric_propulsion_transfer.values.yaml",
+  "artifacts": [
+    { "path": "electric_propulsion_transfer.script", "kind": "script" },
+    { "path": "electric_propulsion_transfer.values.yaml", "kind": "values" },
+    { "path": "gmat_result.json", "kind": "result" },
+    { "path": "run_manifest.json", "kind": "manifest" },
+    { "path": "satellite.json", "kind": "digital-thread", "primary": true },
+    { "path": "satellite.digital-thread.json", "kind": "digital-thread" },
+    { "path": "EphemerisFile1.oem", "kind": "ephemeris", "primary": true },
+    { "path": "ElectricTransferReport.txt", "kind": "report", "primary": true },
+    { "path": "electric_transfer_timeseries.json", "kind": "timeseries" },
+    { "path": "gmat.log", "kind": "log" }
+  ],
+  "propulsion_requirement": "electric",
+  "initial_state_representation": "Keplerian",
+  "mission_inputs": {
+    "required": ["initial_epoch", "initial_orbit", "electric_thrust_duration"],
+    "defaults": {}
+  },
+  "satellite_inputs": [
+    "satellite.bus.physical.mass_kg.dry",
+    "satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg",
+    "satellite.bus.propulsion_subsystem.electric_thruster.minimum_usable_power_kw",
+    "satellite.bus.propulsion_subsystem.electric_thruster.maximum_usable_power_kw",
+    "satellite.bus.electrical_subsystem.solar_panels.total_power_generated_watts"
+  ],
+  "downstream_analyses": ["simu-cic", "opalis", "rf-comlink"]
+}

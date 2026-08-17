@@ -1,26 +1,25 @@
 import { useEffect, useState, type ComponentProps } from 'react'
 
 import { AgentFilesView } from './files/AgentFilesView'
-import { ChemicalHohmannForm } from './ChemicalHohmannForm'
-import type { GmatMissionTemplateId } from './gmatMissionTemplates'
+import { GMAT_MISSION_TEMPLATE_DEFINITIONS, isGmatMissionTemplateId, missionTemplateDefinition, type GmatMissionTemplateId } from './gmatMissionTemplates'
 import { getSelectedSatellite, listSatelliteDefinitions, selectSatelliteDefinition, type SatelliteDefinition } from './satelliteLibraryApi'
 
 type Props = ComponentProps<typeof AgentFilesView> & {
   workspaceDir?: string | null
   refreshSatellite?: number
   onSatelliteSelected?: () => void
-  onChemicalHohmannRunExecuted?: (run: { result: { error?: string; executionDurationMs?: number; status: 'generated' | 'completed' | 'failed' | 'timeout' }; runId: string; runPath: string }) => void
   missionTemplate?: GmatMissionTemplateId | null
   onMissionTemplateSelected?: (template: GmatMissionTemplateId | null) => void
   onStartMission?: () => Promise<{ workspaceDir: string }>
 }
 
-export function MissionStudio({ workspaceDir, refreshSatellite = 0, onChemicalHohmannRunExecuted, onSatelliteSelected, missionTemplate = null, onMissionTemplateSelected, onStartMission, ...files }: Props) {
+export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteSelected, missionTemplate = null, onMissionTemplateSelected, onStartMission, ...files }: Props) {
   const [definitions, setDefinitions] = useState<SatelliteDefinition[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [error, setError] = useState('')
   const canSelectForRun = /[\\/]gmat[\\/]mission-runs[\\/][^\\/]+$/u.test(workspaceDir ?? '')
   const templateLocked = Boolean(files.activeGmatRunId || files.gmatMissionChat.draft)
+  const satelliteLocked = Boolean(files.activeGmatRunId)
   const ensureMissionRun = async () => {
     if (canSelectForRun && workspaceDir) return workspaceDir
     if (!onStartMission) throw new Error('Unable to start a new mission run')
@@ -45,17 +44,15 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onChemicalHo
     <section className="mission-template-source">
       <div>
         <span>GMAT MISSION TEMPLATE</span>
-        <strong>{missionTemplate === 'orbit-keeping' ? 'Orbit keeping' : missionTemplate === 'electric-propulsion-transfer' ? 'Electric propulsion transfer' : missionTemplate === 'chemical-hohmann-transfer' ? 'Chemical Hohmann transfer' : 'Choose a template'}</strong>
+        <strong>{missionTemplate ? missionTemplateDefinition(missionTemplate).label : 'Choose a template'}</strong>
         <small>{templateLocked ? 'The template is locked for the current draft.' : 'Choose the mission model before entering mission parameters.'}</small>
       </div>
       <select aria-label="GMAT mission template" disabled={templateLocked || (!canSelectForRun && !onStartMission)} value={missionTemplate ?? ''} onChange={event => {
-        const next = event.target.value === 'orbit-keeping' || event.target.value === 'electric-propulsion-transfer' || event.target.value === 'chemical-hohmann-transfer' ? event.target.value : null
+        const next = isGmatMissionTemplateId(event.target.value) ? event.target.value : null
         void ensureMissionRun().then(() => onMissionTemplateSelected?.(next)).catch(reason => setError(reason instanceof Error ? reason.message : 'Unable to start a mission run'))
       }}>
         <option value="">Choose a template...</option>
-        <option value="orbit-keeping">Orbit keeping</option>
-        <option value="electric-propulsion-transfer">Electric propulsion transfer</option>
-        <option value="chemical-hohmann-transfer">Chemical Hohmann transfer</option>
+        {Object.values(GMAT_MISSION_TEMPLATE_DEFINITIONS).map(template => <option key={template.id} value={template.id}>{template.label}</option>)}
       </select>
     </section>
     <section className="mission-satellite-source">
@@ -64,7 +61,7 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onChemicalHo
         <strong>{selected?.name ?? 'No satellite selected'}</strong>
         <small>{selected ? `${selected.id}@${selected.version} · Versioned physical definition` : 'Select a satellite in Satellite Library before starting a GMAT mission.'}</small>
       </div>
-      <select aria-label="Satellite version" disabled={!canSelectForRun && !onStartMission} value={selectedId} onChange={event => {
+      <select aria-label="Satellite version" disabled={satelliteLocked || (!canSelectForRun && !onStartMission)} value={selectedId} onChange={event => {
         const next = definitions.find(item => item.id === event.target.value)
         if (!next) return
         void ensureMissionRun().then(runWorkspaceDir => selectSatelliteDefinition(next.id, next.version, runWorkspaceDir))
@@ -77,5 +74,5 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onChemicalHo
     </section>
   </div>
 
-  return <div className="mission-studio">{error ? <p className="satellite-library-error">{error}</p> : null}<AgentFilesView {...files} missionContent={missionTemplate === 'chemical-hohmann-transfer' ? <ChemicalHohmannForm activeRunId={files.activeGmatRunId} conversation={files.gmatMissionChat.conversation} onNewRun={files.gmatMissionChat.onNewRun} onRunExecuted={onChemicalHohmannRunExecuted} onRunOpalis={files.gmatMissionChat.onRunOpalis} onRunRfComlink={files.gmatMissionChat.onPrepareRfComlink} onRunSimuCic={files.gmatMissionChat.onRunSimuCic} onSaveRfComlinkResults={files.gmatMissionChat.onSaveRfComlinkResults} onSimuCicConfigurationChanged={files.gmatMissionChat.onSimuCicConfigurationChanged} rfComlinkCalculationStarting={files.gmatMissionChat.rfComlinkCalculationStarting} rfComlinkPrepared={files.gmatMissionChat.rfComlinkPrepared} rfComlinkPreparing={files.gmatMissionChat.rfComlinkPreparing} rfComlinkResultsSaving={files.gmatMissionChat.rfComlinkResultsSaving} selectedSatelliteId={selectedId} simuCicCompleted={files.gmatMissionChat.simuCicCompleted} simuCicRunning={files.gmatMissionChat.simuCicRunning} workspaceDir={workspaceDir} /> : undefined} topContent={source} /></div>
+  return <div className="mission-studio">{error ? <p className="satellite-library-error">{error}</p> : null}<AgentFilesView {...files} topContent={source} /></div>
 }

@@ -22,8 +22,12 @@ export async function analyzeRFComlinkRunWithLlm({ connection, question, runDir,
 }) {
   const summary = await loadRFComlinkResultSummary(runDir)
   if (!summary) throw new Error("RF-COMLINK results are not saved for this run. Run the calculation and select Save RF-COMLINK results first.")
-  const [manifest, conversation] = await Promise.all([
+  const [manifest, gmatResult, simuCicDefinition, opalisResult, consolidatedReport, conversation] = await Promise.all([
     fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}"),
+    fs.readFile(path.join(runDir, "gmat_result.json"), "utf8").catch(() => "{}"),
+    fs.readFile(path.join(runDir, "opalis", "02-simu-cic", "simucic.definition.json"), "utf8").catch(() => "{}"),
+    fs.readFile(path.join(runDir, "opalis", "03-opalis", "02-resultats", "calculated-opalis.json"), "utf8").catch(() => "{}"),
+    fs.readFile(path.join(runDir, "consolidated-run-report.json"), "utf8").catch(() => "{}"),
     fs.readFile(path.join(runDir, "conversation.json"), "utf8").catch(() => "[]"),
   ])
   const response = await fetchImpl(`${connection.baseUrl.replace(/\/+$/u, "")}/responses`, {
@@ -32,10 +36,14 @@ export async function analyzeRFComlinkRunWithLlm({ connection, question, runDir,
     body: JSON.stringify({
       model: connection.model,
       input: [
-        "You are an RF systems engineering assistant analyzing a saved RF-COMLINK calculation.",
-        "Answer only from the supplied reports. State clearly when a requested metric is absent; do not claim RF-COMLINK was rerun.",
+        "You are an RF systems engineering assistant analyzing one immutable end-to-end mission run.",
+        "Answer only from the supplied GMAT, Simu-CIC, OPALIS, and RF-COMLINK artifacts. State clearly when a requested metric is absent; do not claim a tool was rerun.",
         `Question: ${question}`,
         `GMAT run manifest:\n${manifest}`,
+        `GMAT result:\n${gmatResult}`,
+        `Simu-CIC executed attitude and station definition:\n${simuCicDefinition}`,
+        `OPALIS calculated result:\n${opalisResult}`,
+        `Consolidated workflow report:\n${consolidatedReport}`,
         `RF-COMLINK result summary and extracted reports:\n${JSON.stringify(summary)}`,
         `Previous run discussion:\n${conversation}`,
       ].join("\n\n"),

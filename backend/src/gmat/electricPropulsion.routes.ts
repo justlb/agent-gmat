@@ -19,6 +19,7 @@ import { defaultElectricPropulsionTemplatePath } from "./electricPropulsionTempl
 import { resolveMissionWorkspace } from "./missionWorkspace.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 import { listRunArtifactHistory } from "./artifactHistory.js"
+import { finalizeMissionRun } from "./missionRunLifecycle.js"
 
 type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
@@ -296,10 +297,7 @@ export async function electricPropulsionRoutes(fastify: FastifyInstance, { confi
       const values = extractElectricPropulsionValues(await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8"))
       const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", draft.draftId))
       const result = await generateElectricPropulsionMission({ changes: draftToElectricPropulsionChanges(draft, values), execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined, onProgress: progress => sendEvent("progress", progress), request: `Confirmed GMAT electric-propulsion draft ${draft.draftId}`, workspaceDir })
-      const runPath = path.relative(path.resolve(root), result.runDir)
-      await snapshotMissionConversationForRun(workspaceDir, result.runDir, draft.conversation)
-      await appendRunConversation(result.runDir, { answer: result.result.status === "failed" || result.result.status === "timeout" ? `GMAT ${result.result.status}: ${result.result.error || "GMAT did not produce a usable result. Review the generated log file for details."}` : result.result.warnings?.length ? `GMAT completed with safety warnings: ${result.result.warnings.join(" ")}` : "GMAT completed successfully. You can now ask questions about the saved results or request a revised run.", askedAt: new Date().toISOString(), channel: "gmat-draft", question: "GMAT execution" })
-      await snapshotDigitalThreadForRun(workspaceDir, result.runDir, digitalThreadSnapshot)
+      const runPath = await finalizeMissionRun({ digitalThreadSnapshot, draftConversation: draft.conversation, result: result.result, root, runDir: result.runDir, workspaceDir })
       await recordElectricPropulsionDraftRun(workspaceDir, draft.draftId, { changes: result.changes, completedAt: new Date().toISOString(), result: result.result, runId: result.runId, runPath })
       sendEvent("result", { ...result, draftId: draft.draftId, runPath })
     } catch (error) { sendEvent("error", { error: getErrorMessage(error, "failed to execute electric-propulsion GMAT draft") }) } finally {

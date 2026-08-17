@@ -97,9 +97,11 @@ export async function runOrbitKeepingGmat({
       ? `GMAT timed out after ${timeoutMs} ms${solverIterations ? `. The DefaultDC reboost solver was still iterating (${solverIterations} iterations recorded); inspect gmat.log and review maneuver bounds or target convergence.` : ""}`
       : exitCode === null
         ? "GMAT could not be started"
-        : samples.length === 0
-          ? "GMAT produced no parseable ReboostReport.txt"
-          : `GMAT exited with code ${exitCode}`
+        : exitCode !== 0
+          ? "GMAT rejected the generated script before producing reports; inspect gmat.log for the GMAT error."
+          : samples.length === 0
+            ? "GMAT completed but did not produce a parseable ReboostReport.txt required for Orbit Keeping analysis."
+            : `GMAT exited with code ${exitCode}`
 
   return {
     completedAt: new Date().toISOString(),

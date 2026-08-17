@@ -126,7 +126,7 @@ function OpalisResultsCard({ result }: { result: OpalisResultSummary }) {
   </section>
 }
 
-export function GmatAnalysisPanel({ runPath, template, runs = [] }: { runPath?: string; template?: 'chemical-hohmann-transfer' | 'electric-propulsion-transfer' | 'orbit-keeping'; runs?: Array<{ result: { finalFuelMassKg?: number; fuelUsedBetweenReportsKg?: number; minimumReportedAltitudeKm?: number; status: string }; runId: string }> }) {
+export function GmatAnalysisPanel({ runPath, template, runs = [] }: { runPath?: string; template?: 'chemical-3d-transfer' | 'chemical-hohmann-transfer' | 'electric-propulsion-transfer' | 'orbit-keeping'; runs?: Array<{ result: { finalFuelMassKg?: number; fuelUsedBetweenReportsKg?: number; minimumReportedAltitudeKm?: number; status: string }; runId: string }> }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [metric, setMetric] = useState<Metric>('altitudeKm')

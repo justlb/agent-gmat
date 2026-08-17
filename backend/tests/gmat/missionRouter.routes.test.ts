@@ -13,6 +13,10 @@ describe("GMAT mission router", () => {
       parseMissionRoutingDecision('{"target":"clarify","message":"Do you need station keeping or an electric transfer?"}'),
       { target: "clarify", message: "Do you need station keeping or an electric transfer?" },
     )
+    assert.deepEqual(
+      parseMissionRoutingDecision('{"target":"chemical-hohmann-transfer","message":"I will prepare a two-impulse transfer."}'),
+      { target: "chemical-hohmann-transfer", message: "I will prepare a two-impulse transfer." },
+    )
   })
 
   it("rejects malformed or unsupported LLM output", () => {

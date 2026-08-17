@@ -16,6 +16,7 @@ import { orbitKeepingRoutes } from "../gmat/orbitKeeping.routes.js"
 import { electricPropulsionRoutes } from "../gmat/electricPropulsion.routes.js"
 import { chemicalHohmannRoutes } from "../gmat/chemicalHohmann.routes.js"
 import { missionRouterRoutes } from "../gmat/missionRouter.routes.js"
+import { missionTemplatesRoutes } from "../gmat/missionTemplates.routes.js"
 import { digitalThreadRoutes } from "../digitalThread/digitalThread.routes.js"
 import { simuCicRoutes } from "../opalis/simuCic.routes.js"
 import { opalisPreparationRoutes } from "../opalis/opalisPreparation.routes.js"
@@ -47,6 +48,7 @@ export async function registerApiRoutes(
   await fastify.register(electricPropulsionRoutes, { config })
   await fastify.register(chemicalHohmannRoutes, { config })
   await fastify.register(missionRouterRoutes, { config })
+  await fastify.register(missionTemplatesRoutes, { config })
   await fastify.register(missionAssistantRoutes, { config })
   await fastify.register(digitalThreadRoutes, { config })
   await fastify.register(simuCicRoutes, { config })

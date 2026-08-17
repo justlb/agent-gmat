@@ -1,15 +1,9 @@
 import path from "node:path"
-import { getBackendRoot } from "../config.js"
+import { gmatTemplateDefinition } from "./templateRegistry.js"
 
 export const ELECTRIC_PROPULSION_TRANSFER_TEMPLATE_ID = "electric-propulsion-transfer"
 
-export function defaultElectricPropulsionTemplatePath(projectRoot = getBackendRoot()) {
-  return path.join(
-    projectRoot,
-    "workflow_agents",
-    "gmat_skills",
-    "electric-propulsion-transfer-template",
-    "references",
-    "electric_propulsion_transfer.script",
-  )
+export function defaultElectricPropulsionTemplatePath() {
+  const template = gmatTemplateDefinition(ELECTRIC_PROPULSION_TRANSFER_TEMPLATE_ID)
+  return path.join(template.skillDirectory, template.gmatReferenceScript)
 }

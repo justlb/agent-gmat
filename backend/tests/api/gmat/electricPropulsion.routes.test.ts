@@ -54,7 +54,7 @@ describe("electric-propulsion GMAT draft routes", () => {
       const response = await server.inject({ method: "GET", url: "/api/gmat/electric-propulsion-transfer/files", headers: { "x-codex-user-id": "alice" } })
       assert.equal(response.statusCode, 200)
       const files = (response.json() as { files: Array<{ artifactId: string; fileName: string; relativePath: string }> }).files
-      assert.deepEqual(files.map(file => file.fileName).sort(), ["electric_propulsion_transfer.script", "gmat_result.json"])
+      assert.deepEqual(files.map(file => file.fileName).sort(), ["electric_propulsion_transfer.script", "gmat_result.json", "run_manifest.json"])
       assert.ok(files.every(file => file.artifactId === "26-08-12_16-08" && file.relativePath.includes("gmat")))
     } finally {
       await server.close()

@@ -4,7 +4,7 @@
   "name": "Fudan Satellite",
   "description": "Physical reference for the Fudan Test Satellite 01 low-Earth-orbit technology-verification spacecraft. Mission orbit and run-specific values are intentionally excluded.",
   "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
-  "mission_templates": ["orbit-keeping", "electric-propulsion-transfer"],
+  "mission_templates": ["electric-propulsion-transfer"],
   "satellite": {
     "identity": {
       "name": "Fudan Test Satellite 01",
@@ -29,6 +29,9 @@
         "electric_thruster": {
           "nominal_thrust_range_mn": [4, 13],
           "maximum_operating_power_kw": 0.4,
+          "minimum_usable_power_kw": 0.3,
+          "maximum_usable_power_kw": 0.4,
+          "propellant_mass_kg": 4.6,
           "maximum_propellant_loading_kg": 7,
           "design_lifetime_hours": 3500
         }
@@ -150,6 +153,7 @@
               "boresight_body_axes": ["+Z", "-Z"],
               "polarization": "LHCP",
               "gain_db": 0,
+              "figure_of_merit_db_per_k": -20,
               "gain_valid_within_deg": 65
             }
           },

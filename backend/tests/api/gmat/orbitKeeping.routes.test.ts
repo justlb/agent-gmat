@@ -75,6 +75,7 @@ describe("POST /api/gmat/orbit-keeping/generate", () => {
         "orbit_keeping.values.yaml",
         "orbit_timeseries.json",
         "run_manifest.json",
+        "workflow-status.json",
       ])
       assert.match(runDirectory, /^\d{2}-\d{2}-\d{2}_\d{2}-\d{2}$/u)
 

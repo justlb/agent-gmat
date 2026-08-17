@@ -99,6 +99,8 @@ const MISSION_FIELD_PATHS = new Set([
   "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg",
   "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg", "transfer.burnDurationDays",
 ])
+const GMAT_TAI_MOD_JULIAN_MIN = 10_000
+const GMAT_TAI_MOD_JULIAN_MAX = 100_000
 const CARTESIAN_STATE_PATHS = ["initialState.xKm", "initialState.yKm", "initialState.zKm", "initialState.vxKmPerSec", "initialState.vyKmPerSec", "initialState.vzKmPerSec"] as const
 const KEPLERIAN_ORBIT_PATHS = ["initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg"] as const
 const DERIVED_INPUT_PATHS = ["initialOrbit.altitudeKm", "initialOrbit.periapsisAltitudeKm", "initialOrbit.utcGregorian", "coordinateConversion.request", ...CARTESIAN_STATE_PATHS] as const
@@ -138,6 +140,8 @@ function validateValues(values: DraftValues, additionalRequiredPaths: string[] =
     if (value === null || value === undefined || value === "") continue
     if (field.path === "initialOrbit.epoch") {
       if (typeof value !== "string" || !/^\d+(?:\.\d+)?$/u.test(value.trim())) throw new Error("initialOrbit.epoch must be a numeric TAIModJulian value")
+      const epoch = Number(value)
+      if (epoch < GMAT_TAI_MOD_JULIAN_MIN || epoch > GMAT_TAI_MOD_JULIAN_MAX) throw new Error(`initialOrbit.epoch must be between ${GMAT_TAI_MOD_JULIAN_MIN} and ${GMAT_TAI_MOD_JULIAN_MAX} TAIModJulian for this mission model`)
       continue
     }
     if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${field.path} must be a finite number`)
@@ -272,7 +276,7 @@ async function saveDraft(workspaceDir: string, draft: ElectricPropulsionDraft) {
 
 export async function createElectricPropulsionDraft(workspaceDir: string, initialValues: Record<string, DraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
   const now = new Date().toISOString()
-  const draft = await saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "electric-propulsion-transfer", values: Object.fromEntries(fields.map(field => [field.path, MISSION_FIELD_PATHS.has(field.path) ? null : initialValues[field.path] ?? null])) }))
+  const draft = await saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "electric-propulsion-transfer", values: Object.fromEntries(fields.map(field => [field.path, initialValues[field.path] ?? null])) }))
   await initializeDraftDigitalThread(workspaceDir, "electric-propulsion-transfer", draft.draftId)
   return draft
 }

@@ -9,13 +9,11 @@ import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../dig
 import { getSatelliteDefinition } from "../digitalThread/satelliteLibrary.js"
 import { SATELLITE_RUN_OVERRIDE_PATHS, applyExplicitSimuCicConfiguration, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
 import { PREDEFINED_GROUND_STATIONS } from "../opalis/groundStationCatalog.js"
-import { appendElectricPropulsionDraftConversation, createElectricPropulsionDraft, discussElectricPropulsionDraft, loadElectricPropulsionDraft, setElectricPropulsionDraftValue } from "./electricPropulsionDraft.js"
-import { appendOrbitKeepingDraftConversation, createOrbitKeepingDraft, discussOrbitKeepingDraft, loadOrbitKeepingDraft, setOrbitKeepingDraftValue } from "./orbitKeepingDraft.js"
-import { createChemicalHohmannDraft, loadChemicalHohmannDraft, setChemicalHohmannDraftValue } from "./chemicalHohmannDraft.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
+import { appendMissionTemplateDraftConversation, missionTemplateRuntime } from "./missionTemplateRuntime.js"
+import { allGmatTemplateDefinitions, gmatTemplateDefinition, isGmatTemplateId, type GmatTemplateId } from "./templateRegistry.js"
 
-type MissionTemplate = "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer"
-type RoutingDecision = { target: "clarify" | "general" | MissionTemplate; message: string }
+type RoutingDecision = { target: "clarify" | "general" | GmatTemplateId; message: string }
 
 function isSimuCicRequest(message: string) {
   const normalized = message.toLocaleLowerCase()
@@ -26,7 +24,7 @@ function isSimuCicRequest(message: string) {
 /** A mixed turn such as "electric transfer ... and follow Kourou" must not be
  * diverted into the Simu-CIC-only route before GMAT values are parsed. */
 function hasGmatMissionRequest(message: string) {
-  return /electric\s*(?:propulsion|transfer|thrust)|orbit|reboost|station\s*keeping|initial\s*(?:altitude|semi|epoch)|\becc(?:entricity)?\b|\binc(?:lination)?\b|burn\s*duration|thrust\s*duration/iu.test(message)
+  return /electric\s*(?:propulsion|transfer|thrust)|chemical\s*(?:transfer|burn)|hohmann|circulari[sz](?:e|ation)|orbit|reboost|station\s*keeping|initial\s*(?:altitude|semi|epoch)|\becc(?:entricity)?\b|\binc(?:lination)?\b|burn\s*duration|thrust\s*duration/iu.test(message)
 }
 
 /** These requests affect the selected vehicle for this discussion, rather
@@ -44,10 +42,9 @@ function resolveActiveGmatRunDir(root: string, requested: unknown) {
 }
 
 async function appendRequestedDraftTurn(workspaceDir: string, draftId: string, template: unknown, assistant: string, user: string) {
-  if (!draftId) return undefined
-  if (template === "orbit-keeping") return appendOrbitKeepingDraftConversation(workspaceDir, draftId, { assistant, user })
-  if (template === "electric-propulsion-transfer") return appendElectricPropulsionDraftConversation(workspaceDir, draftId, { assistant, user })
-  return undefined
+  return draftId && typeof template === "string" && isGmatTemplateId(template)
+    ? appendMissionTemplateDraftConversation(template, workspaceDir, draftId, { assistant, user })
+    : undefined
 }
 
 async function applyMixedSimuCicRequest(message: string, draftWorkspace: string, planningWorkspace: string, activeRunDir: string | null) {
@@ -82,7 +79,7 @@ export function parseMissionRoutingDecision(source: string): RoutingDecision {
   try { parsed = JSON.parse(normalized) } catch { throw new Error("LLM routing response is not valid JSON") }
   if (!parsed || typeof parsed !== "object") throw new Error("LLM routing response is invalid")
   const candidate = parsed as { target?: unknown; message?: unknown }
-  if (candidate.target !== "orbit-keeping" && candidate.target !== "electric-propulsion-transfer" && candidate.target !== "clarify" && candidate.target !== "general") {
+  if (candidate.target !== "clarify" && candidate.target !== "general" && (typeof candidate.target !== "string" || !isGmatTemplateId(candidate.target))) {
     throw new Error("LLM routing response has an unknown target")
   }
   if (typeof candidate.message !== "string" || !candidate.message.trim()) throw new Error("LLM routing response has no message")
@@ -93,10 +90,11 @@ async function routeMissionMessage(config: AppConfig, message: string) {
   const connection = resolveModelBackend(config, "chatModel")
   const prompt = [
     "You route a user message in a spacecraft engineering application.",
-    "Return JSON only: {\"target\": \"orbit-keeping\"|\"electric-propulsion-transfer\"|\"clarify\"|\"general\", \"message\": \"string\"}.",
-    "Choose orbit-keeping only when the user clearly requests station keeping, reboost, drag decay maintenance, or an orbit-maintenance GMAT mission.",
-    "Choose electric-propulsion-transfer only when the user clearly requests an electric/thrust transfer or finite electric burn GMAT mission.",
-    "Choose clarify when the user appears to want a GMAT mission but its mission family is ambiguous. In message, ask one short question that distinguishes orbit keeping from electric propulsion. Do not invent parameters.",
+    `Return JSON only: {\"target\": ${[...allGmatTemplateDefinitions().map(template => `\"${template.id}\"`), "\"clarify\"", "\"general\""].join("|")}, \"message\": \"string\"}.`,
+    "Choose orbit-keeping only for station keeping, reboost, drag decay maintenance, or an orbit-maintenance GMAT mission.",
+    "Choose electric-propulsion-transfer only for an electric/thrust transfer or finite electric burn GMAT mission.",
+    "Choose chemical-hohmann-transfer only for a chemical two-impulse, Hohmann, or circularisation transfer.",
+    "Choose clarify when the user appears to want a GMAT mission but its family is ambiguous. Ask one short question and do not invent parameters.",
     "Choose general for all non-GMAT mission requests. In message, briefly state that it is a general request.",
     `User message: ${message}`,
   ].join("\n\n")
@@ -122,7 +120,7 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
     const fieldPath = typeof req.body?.path === "string" ? req.body.path : ""
     const rawValue = typeof req.body?.value === "string" || typeof req.body?.value === "number" ? String(req.body.value) : ""
     const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
-    if ((template !== "orbit-keeping" && template !== "electric-propulsion-transfer" && template !== "chemical-hohmann-transfer") || !fieldPath || !rawValue.trim()) {
+    if (typeof template !== "string" || !isGmatTemplateId(template) || !fieldPath || !rawValue.trim()) {
       return reply.status(400).send({ error: "template, path, and value are required" })
     }
     const workspaceDir = typeof req.body?.workspaceDir === "string" && req.body.workspaceDir.trim() ? path.resolve(req.body.workspaceDir) : root
@@ -137,25 +135,10 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
       if (!satellite.mission_templates.includes(template)) return reply.status(409).send({ error: `selected satellite is not compatible with ${template}` })
       const adapted = adaptDigitalThreadToGmat(planningThread, template)
       if (adapted.guards.some(guard => guard.code === "incompatible_propulsion")) return reply.status(409).send({ error: "selected satellite propulsion is incompatible with this template" })
-      if (template === "orbit-keeping") {
-        const baseDraft = draftId ? await loadOrbitKeepingDraft(workspaceDir, draftId) : await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
-        const draft = await setOrbitKeepingDraftValue(workspaceDir, baseDraft, fieldPath, rawValue)
-        const draftWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", draft.draftId)
-        await syncDigitalThreadFromGmatDraft(draftWorkspace, draft)
-        await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
-        return reply.send({ draft, template })
-      }
-      if (template === "chemical-hohmann-transfer") {
-        const baseDraft = draftId ? await loadChemicalHohmannDraft(workspaceDir, draftId) : await createChemicalHohmannDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
-        const draft = await setChemicalHohmannDraftValue(workspaceDir, baseDraft, fieldPath, rawValue)
-        const draftWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "chemical-hohmann-transfer", draft.draftId)
-        await syncDigitalThreadFromGmatDraft(draftWorkspace, draft)
-        await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
-        return reply.send({ draft, template })
-      }
-      const baseDraft = draftId ? await loadElectricPropulsionDraft(workspaceDir, draftId) : await createElectricPropulsionDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
-      const draft = await setElectricPropulsionDraftValue(workspaceDir, baseDraft, fieldPath, rawValue)
-      const draftWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", draft.draftId)
+      const runtime = missionTemplateRuntime(template)
+      const baseDraft = draftId ? await runtime.load(workspaceDir, draftId) : await runtime.create(workspaceDir, adapted.values, adapted.requiredDraftPaths)
+      const draft = await runtime.setValue(workspaceDir, baseDraft, fieldPath, rawValue)
+      const draftWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, template, draft.draftId)
       await syncDigitalThreadFromGmatDraft(draftWorkspace, draft)
       await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
       return reply.send({ draft, template })
@@ -174,7 +157,7 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
     if (!isMissionRunWorkspace(workspaceDir)) return reply.status(409).send({ error: "start a dated mission discussion before sending GMAT messages" })
     const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
     const template = req.body?.template
-    const draftThreadWorkspace = draftId && (template === "orbit-keeping" || template === "electric-propulsion-transfer")
+    const draftThreadWorkspace = draftId && typeof template === "string" && isGmatTemplateId(template)
       ? draftDigitalThreadWorkspaceDir(workspaceDir, template, draftId)
       : workspaceDir
     const activeRunDir = resolveActiveGmatRunDir(root, req.body?.runPath)
@@ -205,13 +188,13 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
       // change (e.g. "set dry mass to 320 kg").  Such a message is often
       // routed as general by a model although it belongs to this GMAT draft.
       const runOverrideRequest = isSatelliteRunOverrideRequest(message)
-      const selectedTemplate = template === "orbit-keeping" || template === "electric-propulsion-transfer" ? template : null
+      const selectedTemplate = typeof template === "string" && isGmatTemplateId(template) ? template : null
       const decision = runOverrideRequest && selectedTemplate
         ? { target: selectedTemplate, message: "Recorded the run-specific satellite configuration change." } satisfies RoutingDecision
         // The explicit UI choice is authoritative for the first turn. The
         // LLM still guides the mission definition inside that template.
         : selectedTemplate && !draftId
-          ? { target: selectedTemplate, message: `Using the selected ${selectedTemplate === "orbit-keeping" ? "orbit-keeping" : "electric-propulsion transfer"} template.` } satisfies RoutingDecision
+          ? { target: selectedTemplate, message: `Using the selected ${gmatTemplateDefinition(selectedTemplate).name} template.` } satisfies RoutingDecision
           : await routeMissionMessage(config, message)
       if (decision.target === "general") {
         // General questions must remain part of the mission record as well.
@@ -257,17 +240,13 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         }
       }
       if (!satelliteSelection || typeof satelliteSelection.id !== "string") {
-        const templateName = decision.target === "orbit-keeping" ? "orbit-keeping" : "electric-propulsion transfer"
+        const templateName = gmatTemplateDefinition(decision.target).name
         const clarification = `Step 1: select a satellite compatible with the ${templateName} template. Step 2: enter the mission inputs shown in Required before GMAT can run, one at a time or in a single message. I will keep the run-specific satellite.json updated and tell you what is still needed.`
         // A mission discussion needs a visible, persistent GMAT draft even
         // before its satellite is selected.  It owns the empty satellite.json
         // that will later be populated by Satellite Library.
-        const draft = decision.target === "orbit-keeping"
-          ? await createOrbitKeepingDraft(workspaceDir)
-          : await createElectricPropulsionDraft(workspaceDir)
-        const savedDraft = decision.target === "orbit-keeping"
-          ? await appendOrbitKeepingDraftConversation(workspaceDir, draft.draftId, { assistant: clarification, user: message })
-          : await appendElectricPropulsionDraftConversation(workspaceDir, draft.draftId, { assistant: clarification, user: message })
+        const draft = await missionTemplateRuntime(decision.target).create(workspaceDir)
+        const savedDraft = await appendRequestedDraftTurn(workspaceDir, draft.draftId, decision.target, clarification, message) ?? draft
         await appendMissionConversation(workspaceDir, { answer: clarification, askedAt: savedDraft.updatedAt, channel: "gmat-draft", question: message })
         return reply.send({ draft: savedDraft, kind: "mission", message: clarification, template: decision.target })
       }
@@ -302,36 +281,16 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
         const draft = await appendRequestedDraftTurn(workspaceDir, draftId, template, clarification, message)
         return reply.send({ draft, kind: "clarify", message: clarification })
       }
-        if (decision.target === "orbit-keeping") {
-          // A first mission message can arrive before the satellite choice.
-          // Continue that same draft after the physical definition is selected
-          // instead of discarding the user's original mission description.
-          const existingDraft = draftId && template === "orbit-keeping"
-            ? await loadOrbitKeepingDraft(workspaceDir, draftId)
-            : null
-          const draft = existingDraft
-            ? { ...existingDraft, digitalThreadRequiredPaths: adapted.requiredDraftPaths, values: { ...existingDraft.values, ...Object.fromEntries(Object.entries(adapted.values).filter(([, value]) => value !== null)) } }
-            : await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
-          let updatedDraft = await discussOrbitKeepingDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
-          await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
-          const createdDraftThreadWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId)
-          await syncDigitalThreadFromGmatDraft(createdDraftThreadWorkspace, updatedDraft)
-          await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
-          const simuCicMessage = await applyMixedSimuCicRequest(message, createdDraftThreadWorkspace, workspaceDir, activeRunDir)
-          if (simuCicMessage) updatedDraft = { ...updatedDraft, assistantMessage: [updatedDraft.assistantMessage, simuCicMessage].filter(Boolean).join("\n\n") }
-        return reply.send({ adapter: adapted, digitalThread: await loadOrCreateDigitalThread(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", updatedDraft.draftId)), draft: updatedDraft, kind: "mission", message: [decision.message, simuCicMessage].filter((value): value is string => Boolean(value)).join("\n\n"), template: decision.target })
-      }
-      // See the orbit-keeping branch above: retain the draft and the first
-      // message that asked for a mission before a satellite was selected.
-      const existingDraft = draftId && template === "electric-propulsion-transfer"
-        ? await loadElectricPropulsionDraft(workspaceDir, draftId)
-        : null
+      // Continue an existing draft after satellite selection; otherwise create
+      // a template-owned draft from the digital-thread adapter values.
+      const runtime = missionTemplateRuntime(decision.target)
+      const existingDraft = draftId && template === decision.target ? await runtime.load(workspaceDir, draftId) : null
       const draft = existingDraft
         ? { ...existingDraft, digitalThreadRequiredPaths: adapted.requiredDraftPaths, values: { ...existingDraft.values, ...Object.fromEntries(Object.entries(adapted.values).filter(([, value]) => value !== null)) } }
-        : await createElectricPropulsionDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
-      let updatedDraft = await discussElectricPropulsionDraft({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
+        : await runtime.create(workspaceDir, adapted.values, adapted.requiredDraftPaths)
+      let updatedDraft = await runtime.discuss({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
       await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })
-      const createdDraftThreadWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", updatedDraft.draftId)
+      const createdDraftThreadWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, decision.target, updatedDraft.draftId)
       await syncDigitalThreadFromGmatDraft(createdDraftThreadWorkspace, updatedDraft)
       await syncDigitalThreadFromGmatDraft(workspaceDir, updatedDraft)
       const simuCicMessage = await applyMixedSimuCicRequest(message, createdDraftThreadWorkspace, workspaceDir, activeRunDir)

@@ -11,11 +11,11 @@ import { extractElectricPropulsionValues } from "../../src/gmat/electricPropulsi
 const connection = { apiKey: "test", baseUrl: "https://model.example.test/v1", model: "test" }
 
 describe("electric-propulsion transfer mission draft", () => {
-  it("requires the Keplerian state, masses, and burn duration before confirmation", async () => {
+  it("requires the Keplerian state and burn duration before confirmation", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "electric-draft-"))
     const initial = await createElectricPropulsionDraft(workspaceDir)
     assert.deepEqual(initial.missing, [
-      "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "spacecraft.dryMassKg", "spacecraft.initialFuelMassKg", "transfer.burnDurationDays",
+      "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.burnDurationDays",
     ])
     const updates = [
       ["initialOrbit.epoch", "21545"], ["initialOrbit.smaKm", 7191.938817629013], ["initialOrbit.eccentricity", 0.02454974900598137],

@@ -4,7 +4,7 @@
   "name": "Chemical Propulsion Sat",
   "description": "Physical reference for a chemical-propulsion LEO spacecraft. Mission orbit and run-specific values are intentionally excluded.",
   "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
-  "mission_templates": ["orbit-keeping", "chemical-hohmann-transfer"],
+  "mission_templates": ["orbit-keeping", "chemical-hohmann-transfer", "chemical-3d-transfer"],
   "satellite": {
     "identity": {
       "name": "Chemical Propulsion Sat",

@@ -149,7 +149,8 @@ describe("orbit keeping mission draft", () => {
     const template = await fs.readFile(defaultOrbitKeepingTemplatePath(), "utf8")
     const changes = draftToOrbitKeepingChanges(confirmed, extractOrbitKeepingValues(template))
     assert.ok(changes.some(change => change.id.includes("targetSMA") && change.value === "6578.1363"))
-    assert.equal(changes.some(change => change.id.includes("DefaultSC_DragArea")), false)
+    // Optional spacecraft values use validated template defaults when omitted.
+    assert.ok(changes.some(change => change.id.includes("DefaultSC_DragArea") && change.value === "15"))
   })
 
   it("blocks confirmation when the initial or target perigee enters the atmosphere", async () => {

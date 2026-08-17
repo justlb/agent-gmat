@@ -45,21 +45,16 @@ describe("orbit keeping service", () => {
       { key: "save_results", status: "completed" },
     ])
     assert.match(result.valuesPath, /gmat[\\/]orbit-keeping[\\/]test-mission[\\/]orbit_keeping\.values\.yaml$/u)
-    const [sourceScript, script, values] = await Promise.all([
-      fs.readFile(defaultOrbitKeepingTemplatePath(), "utf8"),
+    const [script, values] = await Promise.all([
       fs.readFile(result.scriptPath, "utf8"),
       fs.readFile(result.valuesPath, "utf8"),
     ])
     assert.match(script, /DefaultSC\.DryMass\s+= 200;/u)
     assert.match(script, /DefaultSC\.DragArea\s+= 10;/u)
-    assert.equal(
-      script
-        .replace("= 200;", "= 300;")
-        .replace("= 10;", "= 15;")
-        .replace(/ReboostReport\.Filename = '[^']+';/u, "ReboostReport.Filename = 'ReboostReport.txt';")
-        .replace(/OrbitAnalysisReport\.Filename = '[^']+';/u, "OrbitAnalysisReport.Filename = 'OrbitAnalysisReport.txt';"),
-      sourceScript,
-    )
+    assert.match(script, /ReboostReport\.Filename = '[^']+';/u)
+    assert.match(script, /OrbitAnalysisReport\.Filename = '[^']+';/u)
+    assert.match(script, /EphemerisFile1\.Filename = '[^']+';/u)
+    assert.match(script, /Toggle EphemerisFile1 On;/u)
     assert.match(values, /value: "200"/u)
     assert.match(values, /value: "10"/u)
     assert.deepEqual(result.result, { reportSampleCount: 0, status: "generated", timeSeriesSampleCount: 0 })

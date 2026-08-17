@@ -2,7 +2,20 @@
   "id": "chemical-hohmann-transfer",
   "name": "Chemical Hohmann transfer",
   "description": "Two-impulse Earth-orbit transfer solved by GMAT's differential corrector.",
+  "analysis_request_key": "chemical_hohmann_transfer",
+  "draft_directory": ["gmat", "chemical-hohmann-transfer", "drafts"],
+  "chat_mode": "gmat-chemical-hohmann",
   "gmat_reference_script": "references/chemical_hohmann_transfer.script",
+  "artifacts": [
+    { "path": "chemical_hohmann_transfer.script", "kind": "script" },
+    { "path": "chemical_hohmann_transfer.values.yaml", "kind": "values" },
+    { "path": "gmat_result.json", "kind": "result" },
+    { "path": "run_manifest.json", "kind": "manifest" },
+    { "path": "satellite.json", "kind": "digital-thread", "primary": true },
+    { "path": "satellite.digital-thread.json", "kind": "digital-thread" },
+    { "path": "EphemerisFile1.oem", "kind": "ephemeris", "primary": true },
+    { "path": "gmat.log", "kind": "log" }
+  ],
   "source": "GMAT Tut_SimpleOrbitTransfer.script",
   "propulsion_requirement": "chemical",
   "initial_state_representation": "Cartesian",
@@ -23,6 +36,7 @@
     "satellite.bus.physical.drag_coefficient",
     "satellite.bus.propulsion_subsystem.specific_impulse_seconds"
   ],
+  "downstream_analyses": ["simu-cic", "opalis", "rf-comlink"],
   "planned_physical_extension": {
     "status": "not_enabled",
     "description": "The canonical tutorial keeps DecrementMass=false. A separate, validated variant will add a chemical tank and propellant depletion after this baseline is verified."

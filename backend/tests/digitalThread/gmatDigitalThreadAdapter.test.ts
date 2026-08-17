@@ -71,7 +71,7 @@ describe("GMAT digital-thread adapter", () => {
       },
       target_orbit: { radius_km: 7178.1363, eccentricity: 0.005 },
       final_propagation_seconds: 86400,
-    }
+    })
 
     const result = adaptDigitalThreadToGmat(document, "chemical-hohmann-transfer")
     assert.equal(result.ready, true)

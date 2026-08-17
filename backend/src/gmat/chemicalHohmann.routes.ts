@@ -15,6 +15,7 @@ import { appendChemicalHohmannDraftConversation, confirmChemicalHohmannDraft, cr
 import { generateChemicalHohmannMission, snapshotChemicalHohmannExecution } from "./chemicalHohmann.service.js"
 import { resolveMissionWorkspace } from "./missionWorkspace.js"
 import { listRunArtifactHistory } from "./artifactHistory.js"
+import { finalizeMissionRun } from "./missionRunLifecycle.js"
 
 type WorkspaceBody = { workspaceDir?: unknown }
 type ChemicalHohmannFileKind = "digital-thread" | "ephemeris" | "log" | "manifest" | "opalis" | "result" | "rf-comlink" | "script" | "simu-cic" | "values"
@@ -169,9 +170,7 @@ export async function chemicalHohmannRoutes(fastify: FastifyInstance, { config }
       await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
       const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftDigitalThreadWorkspaceDir(workspaceDir, "chemical-hohmann-transfer", draft.draftId))
       const result = await generateChemicalHohmannMission({ draft, workspaceDir, execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined })
-      await snapshotDigitalThreadForRun(workspaceDir, result.runDir, digitalThreadSnapshot)
-      await snapshotMissionConversationForRun(workspaceDir, result.runDir, draft.conversation)
-      await appendRunConversation(result.runDir, { answer: result.result.status === "completed" ? "GMAT completed successfully. The Hohmann run context is saved for follow-up analysis." : `GMAT ${result.result.status}: ${result.result.error ?? "Review gmat.log."}`, askedAt: new Date().toISOString(), channel: "gmat-draft", question: "GMAT execution" })
+      await finalizeMissionRun({ digitalThreadSnapshot, draftConversation: draft.conversation, result: result.result, root, runDir: result.runDir, workspaceDir })
       const snapshotDir = await snapshotChemicalHohmannExecution(result.runDir)
       if (!snapshotDir) throw new Error("chemical Hohmann execution did not produce artifacts to preserve")
       const snapshotPath = path.relative(workspaceDir, snapshotDir).split(path.sep).join("/")

@@ -9,19 +9,22 @@ import { appendMissionConversation, appendRunConversation } from "../digitalThre
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { analyzeElectricPropulsionRunWithLlm, loadElectricPropulsionRunConversation } from "./electricPropulsionAnalysis.js"
-import { appendElectricPropulsionDraftConversation, discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
+import { discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
 import { analyzeChemicalHohmannRunWithLlm } from "./chemicalHohmannAnalysis.js"
-import { loadChemicalHohmannDraft } from "./chemicalHohmannDraft.js"
+import { discussChemicalHohmannDraft, loadChemicalHohmannDraft } from "./chemicalHohmannDraft.js"
+import { discussChemical3dDraft, loadChemical3dDraft } from "./chemical3dTransfer.js"
 import { analyzeOrbitKeepingRunWithLlm, loadOrbitKeepingRunConversation } from "./orbitKeepingAnalysis.js"
-import { appendOrbitKeepingDraftConversation, discussOrbitKeepingDraft, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
+import { discussOrbitKeepingDraft, loadOrbitKeepingDraft } from "./orbitKeepingDraft.js"
 import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
 import { resolveMissionWorkspace } from "./missionWorkspace.js"
 import { analyzeRFComlinkRunWithLlm } from "../rfComlink/rfComlinkAnalysis.js"
 import { loadRFComlinkResultSummary } from "../rfComlink/rfComlinkResults.js"
+import { appendMissionTemplateDraftConversation } from "./missionTemplateRuntime.js"
+import { isGmatTemplateId } from "./templateRegistry.js"
 
 type Intent = "analysis" | "change" | "knowledge" | "advice" | "simu-cic"
-type Body = { draftId?: unknown; message?: unknown; runPath?: unknown; workspaceDir?: unknown }
+type Body = { allowMissionChanges?: unknown; draftId?: unknown; message?: unknown; runPath?: unknown; workspaceDir?: unknown }
 
 function resolveWorkspaceDir(root: string, requested: unknown) {
   return resolveMissionWorkspace(root, requested)
@@ -35,7 +38,7 @@ async function resolveRunDir(root: string, requested: unknown) {
   if (normalized.includes("/orbit-keeping/")) return { runDir, template: "orbit-keeping" as const }
   if (normalized.includes("/electric-propulsion-transfer/")) return { runDir, template: "electric-propulsion-transfer" as const }
   const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
-  if (manifest.templateId !== "orbit-keeping" && manifest.templateId !== "electric-propulsion-transfer" && manifest.templateId !== "chemical-hohmann-transfer") return null
+  if (manifest.templateId !== "orbit-keeping" && manifest.templateId !== "electric-propulsion-transfer" && manifest.templateId !== "chemical-hohmann-transfer" && manifest.templateId !== "chemical-3d-transfer") return null
   return { runDir, template: manifest.templateId }
 }
 
@@ -96,6 +99,9 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
       const activeRun = await resolveRunDir(root, req.body?.runPath)
       const intent = await classify(config, message)
       if (intent === "simu-cic") {
+        if (activeRun && req.body?.allowMissionChanges !== true) {
+          return reply.send({ answer: "This run's Simu-CIC configuration is immutable. Select Change mission values before creating a new variation; OPALIS and RF-COMLINK remain available for the saved CIC output.", intent, kind: "answer" })
+        }
         if (!isMissionRunWorkspace(workspaceDir)) {
           return reply.status(409).send({ error: "start a dated mission discussion before configuring Simu-CIC" })
         }
@@ -109,6 +115,16 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
       if (intent === "change") {
         const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
         if (!draftId || !activeRun) return reply.send({ answer: "To change mission values, open or create a GMAT draft first. Existing runs remain immutable; the change will create a new run.", intent, kind: "answer" })
+        if (req.body?.allowMissionChanges !== true) {
+          return reply.send({ answer: "This run is immutable. Select Change mission values before requesting a new trajectory or satellite variation; OPALIS and RF-COMLINK remain available for this saved run.", intent, kind: "answer" })
+        }
+        if (activeRun.template === "chemical-3d-transfer") {
+          const existingDraft = await loadChemical3dDraft(workspaceDir, draftId)
+          const draft = await discussChemical3dDraft({ connection: resolveModelBackend(config, "chatModel"), draft: existingDraft, message, workspaceDir })
+          await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
+          await appendMissionConversation(workspaceDir, { answer: draft.assistantMessage ?? "Mission draft updated.", askedAt: draft.updatedAt, channel: "gmat-draft", question: message })
+          return reply.send({ draft, intent, kind: "draft" })
+        }
         if (activeRun.template === "orbit-keeping") {
           const existingDraft = await loadOrbitKeepingDraft(workspaceDir, draftId)
           // A revision continues the same engineering discussion. Bring the
@@ -120,6 +136,13 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
             conversation: [...existingDraft.conversation, ...runConversation.map(turn => ({ assistant: turn.answer, user: turn.question }))]
               .filter((turn, index, turns) => turns.findIndex(candidate => candidate.user === turn.user && candidate.assistant === turn.assistant) === index),
           }, message, workspaceDir })
+          await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
+          await appendMissionConversation(workspaceDir, { answer: draft.assistantMessage ?? "Mission draft updated.", askedAt: draft.updatedAt, channel: "gmat-draft", question: message })
+          return reply.send({ draft, intent, kind: "draft" })
+        }
+        if (activeRun.template === "chemical-hohmann-transfer") {
+          const existingDraft = await loadChemicalHohmannDraft(workspaceDir, draftId)
+          const draft = await discussChemicalHohmannDraft({ connection: resolveModelBackend(config, "chatModel"), draft: existingDraft, message, workspaceDir })
           await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
           await appendMissionConversation(workspaceDir, { answer: draft.assistantMessage ?? "Mission draft updated.", askedAt: draft.updatedAt, channel: "gmat-draft", question: message })
           return reply.send({ draft, intent, kind: "draft" })
@@ -152,9 +175,12 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
           const result = await analyzeOrbitKeepingRunWithLlm({ connection: resolveModelBackend(config, "chatModel"), question: message, relatedRuns: draft?.runs ?? [], runDir: activeRun.runDir })
           return reply.send({ answer: result.answer, intent, kind: "analysis" })
         }
-        const draft = draftId ? await loadElectricPropulsionDraft(workspaceDir, draftId) : null
-        const result = await analyzeElectricPropulsionRunWithLlm({ connection: resolveModelBackend(config, "chatModel"), question: message, relatedRuns: draft?.runs ?? [], runDir: activeRun.runDir })
-        return reply.send({ answer: result.answer, intent, kind: "analysis" })
+        if (activeRun.template === "electric-propulsion-transfer") {
+          const draft = draftId ? await loadElectricPropulsionDraft(workspaceDir, draftId) : null
+          const result = await analyzeElectricPropulsionRunWithLlm({ connection: resolveModelBackend(config, "chatModel"), question: message, relatedRuns: draft?.runs ?? [], runDir: activeRun.runDir })
+          return reply.send({ answer: result.answer, intent, kind: "analysis" })
+        }
+        return reply.send({ answer: "This saved Chemical 3D GEO run is immutable. Its generated GMAT artifacts remain available for review; use Change mission values to create a new variation.", intent, kind: "analysis" })
       }
       const answer = await answerFromContext(config, intent, message, workspaceDir)
       if (activeRun) await appendRunConversation(activeRun.runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: message })
@@ -167,8 +193,7 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
       const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
       if (workspaceDir && activeRun) {
         await appendRunConversation(activeRun.runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: message }).catch(() => undefined)
-        if (draftId && activeRun.template === "orbit-keeping") await appendOrbitKeepingDraftConversation(workspaceDir, draftId, { assistant: answer, user: message }).catch(() => undefined)
-        if (draftId && activeRun.template === "electric-propulsion-transfer") await appendElectricPropulsionDraftConversation(workspaceDir, draftId, { assistant: answer, user: message }).catch(() => undefined)
+        if (draftId && isGmatTemplateId(activeRun.template)) await appendMissionTemplateDraftConversation(activeRun.template, workspaceDir, draftId, { assistant: answer, user: message }).catch(() => undefined)
       }
       return reply.status(422).send({ error: errorMessage })
     }

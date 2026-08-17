@@ -3,6 +3,7 @@ import path from "node:path"
 import { stringify } from "yaml"
 
 import { getBackendRoot } from "../config.js"
+import { gmatTemplateDefinition } from "./templateRegistry.js"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { assertOrbitKeepingSimulationSafety } from "./orbitKeepingDraft.js"
 import { editOrbitKeepingValuesWithLlm, type OrbitKeepingLlmEditResult } from "./orbitKeepingLlmEdit.js"
@@ -56,15 +57,10 @@ export type GenerateOrbitKeepingMissionResult = Pick<OrbitKeepingLlmEditResult, 
   valuesPath: string
 }
 
-export function defaultOrbitKeepingValuesPath(projectRoot = getBackendRoot()) {
-  return path.join(
-    projectRoot,
-    "workflow_agents",
-    "gmat_skills",
-    "orbit-keeping-template",
-    "references",
-    "orbit_keeping.values.yaml",
-  )
+export function defaultOrbitKeepingValuesPath() {
+  const template = gmatTemplateDefinition("orbit-keeping")
+  if (!template.gmatReferenceValues) throw new Error("orbit-keeping manifest must declare gmat_reference_values")
+  return path.join(template.skillDirectory, template.gmatReferenceValues)
 }
 
 function formatRunDirectoryName(date: Date) {

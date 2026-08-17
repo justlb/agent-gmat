@@ -127,6 +127,8 @@ const MISSION_FIELD_PATHS = new Set([
   "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg",
   "stationKeeping.minimumAltitudeKm", "stationKeeping.targetSmaKm", "stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm", "spacecraft.initialFuelMassKg",
 ])
+const GMAT_TAI_MOD_JULIAN_MIN = 10_000
+const GMAT_TAI_MOD_JULIAN_MAX = 100_000
 // These mission policies are explicit, reviewable defaults rather than data
 // the assistant must collect before every GMAT run.
 const ASSUMED_MISSION_FIELD_PATHS = new Set(["stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm"])
@@ -189,6 +191,8 @@ function validateValues(values: DraftValues, additionalRequiredPaths: string[] =
       if (typeof value !== "string" || !/^\d+(?:\.\d+)?$/u.test(value.trim())) {
         throw new Error("initialOrbit.epoch must be a numeric TAIModJulian value, for example 21545 or 31251.50043")
       }
+      const epoch = Number(value)
+      if (epoch < GMAT_TAI_MOD_JULIAN_MIN || epoch > GMAT_TAI_MOD_JULIAN_MAX) throw new Error(`initialOrbit.epoch must be between ${GMAT_TAI_MOD_JULIAN_MIN} and ${GMAT_TAI_MOD_JULIAN_MAX} TAIModJulian for this mission model`)
       continue
     }
     if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${field.path} must be a finite number`)
@@ -386,9 +390,11 @@ async function saveDraft(workspaceDir: string, draft: OrbitKeepingDraft) {
 export async function createOrbitKeepingDraft(workspaceDir: string, initialValues: Record<string, DraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
   const values = Object.fromEntries(fields.map(field => [
     field.path,
-    MISSION_FIELD_PATHS.has(field.path) && !ASSUMED_MISSION_FIELD_PATHS.has(field.path)
-      ? null
-      : initialValues[field.path] ?? TEMPLATE_DEFAULT_VALUES[field.path] ?? null,
+    initialValues[field.path] ?? (
+      MISSION_FIELD_PATHS.has(field.path) && !ASSUMED_MISSION_FIELD_PATHS.has(field.path)
+        ? null
+        : TEMPLATE_DEFAULT_VALUES[field.path] ?? null
+    ),
   ])) as DraftValues
   const now = new Date().toISOString()
   const draft = await saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], targetSmaFollowsInitial: true, templateId: ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.id, values }))

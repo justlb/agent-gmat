@@ -86,46 +86,6 @@ export async function getOrbitKeepingTimeSeries(runPath: string, apiBase?: strin
   return Array.isArray(payload.samples) ? payload.samples : []
 }
 
-export async function createOrbitKeepingDraft(workspaceDir?: string | null) {
-  const response = await fetch(joinApiPath(undefined, '/gmat/orbit-keeping/drafts'), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(workspaceDir ? { workspaceDir } : {}) }),
-  })
-  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
-  return response.json() as Promise<OrbitKeepingDraft>
-}
-
-export async function listOrbitKeepingDrafts(workspaceDir?: string | null) {
-  const url = `${joinApiPath(undefined, '/gmat/orbit-keeping/drafts')}?${new URLSearchParams(workspaceDir ? { workspaceDir } : {}).toString()}`
-  const response = await fetch(url, { cache: 'no-store' })
-  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
-  const payload = await response.json() as { drafts?: OrbitKeepingDraft[] }
-  return Array.isArray(payload.drafts) ? payload.drafts : []
-}
-
-export async function discussOrbitKeepingDraft(draftId: string, message: string, workspaceDir?: string | null) {
-  const response = await fetch(joinApiPath(undefined, `/gmat/orbit-keeping/drafts/${encodeURIComponent(draftId)}/messages`), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, ...(workspaceDir ? { workspaceDir } : {}) }),
-  })
-  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
-  return response.json() as Promise<OrbitKeepingDraft>
-}
-
-export async function confirmOrbitKeepingDraft(draftId: string, workspaceDir?: string | null) {
-  const response = await fetch(joinApiPath(undefined, `/gmat/orbit-keeping/drafts/${encodeURIComponent(draftId)}/confirm`), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(workspaceDir ? { workspaceDir } : {}) }),
-  })
-  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
-  return response.json() as Promise<OrbitKeepingDraft>
-}
-
-export async function executeOrbitKeepingDraft(draftId: string, workspaceDir?: string | null) {
-  const response = await fetch(joinApiPath(undefined, `/gmat/orbit-keeping/drafts/${encodeURIComponent(draftId)}/execute`), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(workspaceDir ? { workspaceDir } : {}) }),
-  })
-  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
-  return response.json() as Promise<OrbitKeepingGenerateResult>
-}
-
 /** Executes an already confirmed draft and forwards each real backend stage. */
 export async function executeOrbitKeepingDraftWithProgress(draftId: string, {
   onProgress,

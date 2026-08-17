@@ -30,17 +30,6 @@ export type ChemicalHohmannFile = {
 
 const base = '/gmat/chemical-hohmann-transfer'
 
-export async function createChemicalHohmannDraft(workspaceDir: string) {
-  return requestApiJson<ChemicalHohmannDraft>(`${base}/drafts`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceDir }),
-  })
-}
-
-export async function listChemicalHohmannDrafts(workspaceDir: string) {
-  const payload = await requestApiJson<{ drafts?: ChemicalHohmannDraft[] }>(`${base}/drafts`, { cache: 'no-store', query: { workspaceDir } })
-  return Array.isArray(payload.drafts) ? payload.drafts : []
-}
-
 export async function listChemicalHohmannFiles(workspaceDir: string) {
   const payload = await requestApiJson<{ files?: ChemicalHohmannFile[] }>(`${base}/files`, { cache: 'no-store', query: { workspaceDir } })
   return Array.isArray(payload.files) ? payload.files : []
@@ -48,18 +37,6 @@ export async function listChemicalHohmannFiles(workspaceDir: string) {
 
 export function chemicalHohmannFileDownloadUrl(file: Pick<ChemicalHohmannFile, 'relativePath'>, workspaceDir: string) {
   return buildApiUrl(`${base}/files/download`, { query: { relativePath: file.relativePath, workspaceDir } })
-}
-
-export async function confirmChemicalHohmannDraft(draftId: string, workspaceDir: string) {
-  return requestApiJson<ChemicalHohmannDraft>(`${base}/drafts/${encodeURIComponent(draftId)}/confirm`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceDir }),
-  })
-}
-
-export async function discussChemicalHohmannDraft(draftId: string, message: string, workspaceDir: string) {
-  return requestApiJson<ChemicalHohmannDraft>(`${base}/drafts/${encodeURIComponent(draftId)}/messages`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, workspaceDir }),
-  })
 }
 
 export async function executeChemicalHohmannDraft(draftId: string, workspaceDir: string) {

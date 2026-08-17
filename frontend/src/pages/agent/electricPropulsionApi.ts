@@ -53,28 +53,6 @@ export async function openElectricPropulsionRunInGui(runPath: string) {
   if (!response.ok) throw new Error(await errorMessage(response))
 }
 
-export async function createElectricPropulsionDraft(workspaceDir?: string | null) {
-  const response = await fetch(joinApiPath(undefined, `${base}/drafts`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(workspaceDir ? { workspaceDir } : {}) }) })
-  if (!response.ok) throw new Error(await errorMessage(response))
-  return response.json() as Promise<ElectricPropulsionDraft>
-}
-export async function listElectricPropulsionDrafts(workspaceDir?: string | null) {
-  const url = `${joinApiPath(undefined, `${base}/drafts`)}?${new URLSearchParams(workspaceDir ? { workspaceDir } : {}).toString()}`
-  const response = await fetch(url, { cache: 'no-store' })
-  if (!response.ok) throw new Error(await errorMessage(response))
-  const payload = await response.json() as { drafts?: ElectricPropulsionDraft[] }
-  return Array.isArray(payload.drafts) ? payload.drafts : []
-}
-export async function discussElectricPropulsionDraft(draftId: string, message: string, workspaceDir?: string | null) {
-  const response = await fetch(joinApiPath(undefined, `${base}/drafts/${encodeURIComponent(draftId)}/messages`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, ...(workspaceDir ? { workspaceDir } : {}) }) })
-  if (!response.ok) throw new Error(await errorMessage(response))
-  return response.json() as Promise<ElectricPropulsionDraft>
-}
-export async function confirmElectricPropulsionDraft(draftId: string, workspaceDir?: string | null) {
-  const response = await fetch(joinApiPath(undefined, `${base}/drafts/${encodeURIComponent(draftId)}/confirm`), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(workspaceDir ? { workspaceDir } : {}) }) })
-  if (!response.ok) throw new Error(await errorMessage(response))
-  return response.json() as Promise<ElectricPropulsionDraft>
-}
 export async function executeElectricPropulsionDraftWithProgress(draftId: string, { onProgress, workspaceDir }: { onProgress: (event: ElectricPropulsionProgressEvent) => void; workspaceDir?: string | null }) {
   const response = await fetch(joinApiPath(undefined, `${base}/drafts/${encodeURIComponent(draftId)}/execute/events`), { method: 'POST', headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(workspaceDir ? { workspaceDir } : {}) }) })
   if (!response.ok) throw new Error(await errorMessage(response))

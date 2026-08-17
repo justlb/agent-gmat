@@ -47,6 +47,9 @@ function rfInputProblem(missing: string[]) {
   if (missing.some(item => item.includes("ground_station_ids") || item.includes("selected_ground_station_id") || item.includes("executed ground station"))) {
     details.push("RF-COMLINK needs one station selected both in the Simu-CIC request and in the newly generated CIC files.")
   }
+  if (missing.some(item => item.includes("contains no visible samples"))) {
+    details.push("The selected Simu-CIC ground station has no visible samples in its CIC file. Select the station, rerun Simu-CIC, and verify the GMAT OEM covers the intended orbit before preparing RF-COMLINK.")
+  }
   const satelliteFields = missing.filter(item => item.startsWith("satellite.bus.rf_comlink"))
   if (satelliteFields.length) details.push(`Satellite RF data are incomplete: ${satelliteFields.join(", ")}.`)
   return details.length ? details.join(" ") : `RF-COMLINK inputs are incomplete: ${missing.join(", ")}`
@@ -99,6 +102,15 @@ export async function prepareRFComlinkInputs(root: string, runDir: string) {
     return stat?.isFile() && stat.size > 0 ? null : `CIC/Sat/${file}`
   }))
   missing.push(...unavailable.filter((value): value is string => value !== null))
+  const visibilityFile = sourceFiles.find(file => file.startsWith("Sat_GEOMETRICAL_VISIBILITY_"))
+  if (visibilityFile && !unavailable.some(value => value?.endsWith(visibilityFile))) {
+    const source = await fs.readFile(path.join(cicDirectory, visibilityFile), "utf8").catch(() => "")
+    // Simu-CIC visibility CIC rows end with 0 (not visible) or 1 (visible).
+    // Do not allow RF-COMLINK to report an artificial zero availability when
+    // the upstream trajectory/station configuration contains no pass at all.
+    const hasVisibleSample = source.split(/\r?\n/u).some(line => /\s1\s*$/u.test(line))
+    if (!hasVisibleSample) missing.push(`CIC/Sat/${visibilityFile} contains no visible samples`)
+  }
 
   const uniqueMissing = [...new Set(missing)]
   const uniqueWarnings = [...new Set(warnings)]

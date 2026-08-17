@@ -1,11 +1,12 @@
 import fs from "node:fs/promises"
 import path from "node:path"
-import { getBackendRoot } from "../config.js"
+import { gmatTemplateDefinition } from "./templateRegistry.js"
 
 export const CHEMICAL_HOHMANN_TRANSFER_TEMPLATE_ID = "chemical-hohmann-transfer"
 
-export function defaultChemicalHohmannTemplatePath(projectRoot = getBackendRoot()) {
-  return path.join(projectRoot, "workflow_agents", "gmat_skills", "chemical-hohmann-transfer-template", "references", "chemical_hohmann_transfer.script")
+export function defaultChemicalHohmannTemplatePath() {
+  const template = gmatTemplateDefinition(CHEMICAL_HOHMANN_TRANSFER_TEMPLATE_ID)
+  return path.join(template.skillDirectory, template.gmatReferenceScript)
 }
 
 /** Materialises the immutable GMAT tutorial reference without interpretation. */

@@ -151,18 +151,24 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   requireNumber(document, "satellite.bus.physical.mass_kg.dry", "spacecraft.dryMassKg", values, guards)
   const propulsionType = stringAt(document, "satellite.bus.propulsion_subsystem.type")?.toLowerCase() ?? ""
 
-  if (template === "orbit-keeping" || template === "chemical-hohmann-transfer") {
-    if (!propulsionType || !/(chemical|bipropellant|monopropellant)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: `The ${template === "chemical-hohmann-transfer" ? "chemical Hohmann-transfer" : "orbit-keeping"} template requires an explicitly identified chemical propulsion subsystem.`, path: "satellite.bus.propulsion_subsystem.type" })
+  if (template === "orbit-keeping" || template === "chemical-hohmann-transfer" || template === "chemical-3d-transfer") {
+    if (!propulsionType || !/(chemical|bipropellant|monopropellant)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: `The ${template === "chemical-hohmann-transfer" ? "chemical Hohmann-transfer" : template === "chemical-3d-transfer" ? "chemical 3D GEO-transfer" : "orbit-keeping"} template requires an explicitly identified chemical propulsion subsystem.`, path: "satellite.bus.propulsion_subsystem.type" })
     if (template === "orbit-keeping") {
       requireNumber(document, "analysis_requests.gmat.orbit_keeping.minimum_reboost_altitude_km", "stationKeeping.minimumAltitudeKm", values, guards)
       optionalNumber(document, "analysis_requests.gmat.orbit_keeping.target_semi_major_axis_km", "stationKeeping.targetSmaKm", values)
       optionalNumber(document, "analysis_requests.gmat.orbit_keeping.fuel_reserve_kg", "stationKeeping.fuelReserveKg", values)
       optionalNumber(document, "analysis_requests.gmat.orbit_keeping.final_altitude_km", "endOfLife.finalAltitudeKm", values)
-      optionalNumber(document, "analysis_requests.gmat.orbit_keeping.initial_fuel_mass_kg", "spacecraft.initialFuelMassKg", values)
-    } else {
+      const initialFuelMass = firstNumber(document, "analysis_requests.gmat.orbit_keeping.initial_fuel_mass_kg", "satellite.bus.physical.mass_kg.propellant")
+      if (initialFuelMass !== null) values["spacecraft.initialFuelMassKg"] = initialFuelMass
+    } else if (template === "chemical-hohmann-transfer") {
       requireNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.target_orbit.radius_km", "transfer.targetRadiusKm", values, guards)
       optionalNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.target_orbit.eccentricity", "transfer.targetEccentricity", values)
       optionalNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.final_propagation_seconds", "transfer.finalPropagationSeconds", values)
+    } else {
+      const initialSma = values["initialOrbit.smaKm"]
+      if (typeof initialSma === "number") values["initialOrbit.altitudeKm"] = initialSma - 6378.1363
+      optionalNumber(document, "analysis_requests.gmat.chemical_3d_transfer.final_altitude_km", "transfer.finalAltitudeKm", values)
+      optionalNumber(document, "analysis_requests.gmat.chemical_3d_transfer.final_inclination_deg", "transfer.finalInclinationDeg", values)
     }
     optionalNumber(document, "satellite.bus.physical.drag_area_m2", "spacecraft.dragAreaM2", values)
     optionalNumber(document, "satellite.bus.physical.drag_coefficient", "spacecraft.dragCoefficient", values)
@@ -190,6 +196,8 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
     ? ["spacecraft.dryMassKg"]
     : template === "chemical-hohmann-transfer"
       ? ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.targetRadiusKm"]
+      : template === "chemical-3d-transfer"
+        ? ["initialOrbit.epoch", "initialOrbit.altitudeKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.finalAltitudeKm", "transfer.finalInclinationDeg"]
       : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.burnDurationDays"]
   for (const fieldPath of requiredDraftPaths) {
     if ((values[fieldPath] === null || values[fieldPath] === undefined || values[fieldPath] === "") && !guards.some(guard => guard.path === fieldPath)) {
@@ -219,6 +227,8 @@ function missionDraftPaths(templateId: string) {
           "transfer.targetEccentricity": `${root}.target_orbit.eccentricity`,
           "transfer.finalPropagationSeconds": `${root}.final_propagation_seconds`,
         }
+      : templateId === "chemical-3d-transfer"
+      ? { "initialOrbit.altitudeKm": `${root}.initial_orbit.altitude_km`, "transfer.finalAltitudeKm": `${root}.final_altitude_km`, "transfer.finalInclinationDeg": `${root}.final_inclination_deg` }
       : templateId === "electric-propulsion-transfer"
       ? { "transfer.burnDurationDays": `${root}.burn_duration_days` }
       : {

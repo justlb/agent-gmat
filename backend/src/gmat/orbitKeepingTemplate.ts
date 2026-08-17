@@ -1,18 +1,12 @@
 import fs from "node:fs/promises"
 import path from "node:path"
-import { getBackendRoot } from "../config.js"
+import { gmatTemplateDefinition } from "./templateRegistry.js"
 
 export const ORBIT_KEEPING_TEMPLATE_ID = "orbit-keeping"
 
-export function defaultOrbitKeepingTemplatePath(projectRoot = getBackendRoot()) {
-  return path.join(
-    projectRoot,
-    "workflow_agents",
-    "gmat_skills",
-    "orbit-keeping-template",
-    "references",
-    "orbit_keeping.script",
-  )
+export function defaultOrbitKeepingTemplatePath() {
+  const template = gmatTemplateDefinition(ORBIT_KEEPING_TEMPLATE_ID)
+  return path.join(template.skillDirectory, template.gmatReferenceScript)
 }
 
 /**
