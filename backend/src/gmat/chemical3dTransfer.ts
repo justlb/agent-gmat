@@ -8,6 +8,7 @@ import { runManagedProcess } from "./externalProcess.js"
 import { requestGmatModel } from "./modelRequest.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 import { gmatTemplateDefinition } from "./templateRegistry.js"
+import { assertGmatMissionGuardrails, validateGmatMissionGuardrails } from "./missionGuardrails.js"
 
 type Value = string | number | null
 type Run = { completedAt: string; result: { error?: string; status: string }; runId: string; runPath: string }
@@ -96,12 +97,16 @@ export async function setChemical3dDraftValue(workspaceDir: string, draft: Chemi
   const value: Value = field === "initialOrbit.epoch" ? raw.trim() : Number(raw)
   if (value === "" || (typeof value === "number" && !Number.isFinite(value))) throw new Error("a finite value is required")
   if (field === "initialOrbit.epoch") validateEpoch(value)
-  return save(workspaceDir, refresh({ ...draft, confirmed: false, values: { ...draft.values, [field]: value } }))
+  const values = { ...draft.values, [field]: value }
+  const guardrails = validateGmatMissionGuardrails("chemical-3d-transfer", values)
+  if (guardrails.length) throw new Error(`GMAT mission guardrails failed: ${guardrails.map(guard => guard.message).join(" ")}`)
+  return save(workspaceDir, refresh({ ...draft, confirmed: false, values }))
 }
 
 export async function confirmChemical3dDraft(workspaceDir: string, draftId: string) {
   const draft = await loadChemical3dDraft(workspaceDir, draftId)
   if (draft.missing.length) throw new Error(`GMAT draft is incomplete: ${draft.missing.join(", ")}`)
+  assertGmatMissionGuardrails("chemical-3d-transfer", draft.values)
   return save(workspaceDir, refresh({ ...draft, confirmed: true }))
 }
 
@@ -177,7 +182,7 @@ function replace(script: string, property: string, value: string) {
   return script.replace(pattern, `$1${value};`)
 }
 
-function renderScript(source: string, values: Record<string, Value>) {
+function renderScript(source: string, values: Record<string, Value>, ephemerisPath: string) {
   const initialSmaKm = EARTH_RADIUS_KM + requiredNumber(values, "initialOrbit.altitudeKm")
   const finalSmaKm = EARTH_RADIUS_KM + requiredNumber(values, "transfer.finalAltitudeKm")
   let script = source
@@ -192,6 +197,10 @@ function renderScript(source: string, values: Record<string, Value>) {
     ["TOI.Isp", String(requiredNumber(values, "propulsion.ispSeconds"))],
     ["MCC.Isp", String(requiredNumber(values, "propulsion.ispSeconds"))],
     ["MOI.Isp", String(requiredNumber(values, "propulsion.ispSeconds"))],
+    // GMAT otherwise resolves the relative OEM filename against its own
+    // output directory. The downstream tools only inspect the dated run
+    // directory, therefore the generated script must own an explicit path.
+    ["EphemerisFile1.Filename", `'${toGmatNativePath(ephemerisPath).replace(/\\\\/gu, "/")}'`],
   ] as const) script = replace(script, property, value)
   return script
     .replace(/INC = 2/u, `INC = ${requiredNumber(values, "transfer.finalInclinationDeg")}`)
@@ -200,16 +209,17 @@ function renderScript(source: string, values: Record<string, Value>) {
 
 export async function generateChemical3dMission({ draft, workspaceDir, execution }: { draft: Chemical3dDraft; workspaceDir: string; execution?: { bin: string; timeoutMs: number } }) {
   if (!draft.confirmed || draft.missing.length) throw new Error("confirm the complete chemical 3D draft before execution")
+  assertGmatMissionGuardrails("chemical-3d-transfer", draft.values)
   if (!isMissionRunWorkspace(workspaceDir)) throw new Error("chemical 3D generation requires a dated mission run workspace")
   const runDir = path.resolve(workspaceDir)
   const definition = gmatTemplateDefinition("chemical-3d-transfer")
-  const script = renderScript(await fs.readFile(path.join(definition.skillDirectory, definition.gmatReferenceScript), "utf8"), draft.values)
   const scriptPath = path.join(runDir, "chemical_3d_transfer.script")
   const valuesPath = path.join(runDir, "chemical_3d_transfer.values.yaml")
   const resultPath = path.join(runDir, "gmat_result.json")
   const manifestPath = path.join(runDir, "run_manifest.json")
   const logPath = path.join(runDir, "gmat.log")
   const ephemerisPath = path.join(runDir, "EphemerisFile1.oem")
+  const script = renderScript(await fs.readFile(path.join(definition.skillDirectory, definition.gmatReferenceScript), "utf8"), draft.values, ephemerisPath)
   await Promise.all([fs.writeFile(scriptPath, script), fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values }))])
   let result: { error?: string; executionDurationMs?: number; status: "generated" | "completed" | "failed" | "timeout" } = { status: "generated" }
   if (execution) {

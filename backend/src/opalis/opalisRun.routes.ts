@@ -35,6 +35,9 @@ function nativePath(filePath: string) { return toGmatNativePath(filePath) }
 
 function opalisInputProblem(action: "prepared" | "run", inputs: { validation: { missing: string[]; warnings: string[] } }) {
   const missing = inputs.validation.missing.filter(Boolean)
+  if (missing.length === 1 && missing[0] === "digital_thread.satellite_definition") {
+    return `OPALIS cannot be ${action} yet. No satellite is selected for this dated mission. Choose a compatible satellite first; its OPALIS electrical model will then be written to this run's satellite.json.`
+  }
   if (missing.length) return `OPALIS cannot be ${action} yet. Missing data: ${missing.join(", ")}`
   // Defensive fallback for old or externally-created validation snapshots.
   // A non-ready result must always explain what is blocking it.

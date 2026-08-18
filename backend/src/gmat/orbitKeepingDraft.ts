@@ -290,6 +290,10 @@ function buildSafetyReview(values: DraftValues, targetSmaFollowsInitial: boolean
     if (typeof minimumAltitude === "number" && minimumAltitude > perigeeAltitude) {
       checks.push({ code: "reboost_above_initial_orbit", message: `Minimum reboost altitude (${minimumAltitude} km) cannot exceed the initial perigee altitude (${perigeeAltitude.toFixed(1)} km).`, severity: "error" })
     }
+    const apogeeAltitude = initialSma * (1 + eccentricity) - EARTH_EQUATORIAL_RADIUS_KM
+    if (perigeeAltitude > 2_000 || apogeeAltitude > 2_000) {
+      checks.push({ code: "orbit_keeping_leo_only", message: "The orbit-keeping template supports LEO only: both perigee and apogee must remain at or below 2000 km.", severity: "error" })
+    }
   }
   if (typeof targetSma === "number" && typeof eccentricity === "number") {
     const perigeeAltitude = targetSma * (1 - eccentricity) - EARTH_EQUATORIAL_RADIUS_KM
@@ -302,6 +306,9 @@ function buildSafetyReview(values: DraftValues, targetSmaFollowsInitial: boolean
   }
   if (typeof initialFuelMass === "number" && initialFuelMass > 0 && typeof fuelReserve === "number" && fuelReserve >= initialFuelMass) {
     checks.push({ code: "fuel_reserve", message: "Fuel reserve must be lower than the initial fuel mass so that a reboost can begin.", severity: "error" })
+  }
+  if (typeof initialFuelMass === "number" && (initialFuelMass < 0 || initialFuelMass > 100)) {
+    checks.push({ code: "initial_fuel_mass", message: "Initial fuel mass must be between 0 and 100 kg for the orbit-keeping mission model.", severity: "error" })
   }
   if (typeof finalAltitude === "number" && finalAltitude < 150) {
     checks.push({ code: "final_altitude", message: `Final altitude is ${finalAltitude} km; it must be at least 150 km.`, severity: "error" })

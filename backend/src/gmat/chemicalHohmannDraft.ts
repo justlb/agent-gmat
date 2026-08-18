@@ -6,6 +6,7 @@ import { initializeDraftDigitalThread, isMissionRunWorkspace } from "../digitalT
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { requestGmatModel } from "./modelRequest.js"
 import { writeDraftRunComparisonIndex } from "./draftRunComparison.js"
+import { assertGmatMissionGuardrails, validateGmatMissionGuardrails } from "./missionGuardrails.js"
 
 export type ChemicalHohmannDraftValue = string | number | null
 export type ChemicalHohmannDraft = {
@@ -151,11 +152,14 @@ export async function setChemicalHohmannDraftValue(workspaceDir: string, draft: 
     if (requestedPath !== "initialOrbit.epoch" && (!Number.isFinite(value) || typeof value !== "number")) throw new Error(`${field.label} must be a finite number`)
     values[requestedPath] = value
   }
+  const guardrails = validateGmatMissionGuardrails("chemical-hohmann-transfer", values)
+  if (guardrails.length) throw new Error(`GMAT mission guardrails failed: ${guardrails.map(guard => guard.message).join(" ")}`)
   return save(workspaceDir, refresh({ ...draft, confirmed: false, values }))
 }
 export async function confirmChemicalHohmannDraft(workspaceDir: string, draftId: string) {
   const draft = await loadChemicalHohmannDraft(workspaceDir, draftId)
   if (draft.missing.length) throw new Error(`GMAT draft is incomplete: ${draft.missing.join(", ")}`)
+  assertGmatMissionGuardrails("chemical-hohmann-transfer", draft.values)
   return save(workspaceDir, refresh({ ...draft, confirmed: true }))
 }
 

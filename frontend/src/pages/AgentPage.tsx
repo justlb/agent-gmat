@@ -1219,6 +1219,13 @@ export default function AgentPage() {
             error: error || managedRunError,
             gmatRunFailed: activeGmatRun?.result?.status === 'failed' || activeGmatRun?.result?.status === 'timeout',
             pending: pendingGmatMessage,
+            onEnsureMissionRun: () => activePlanningRun
+              ? Promise.resolve(activePlanningRun.workspaceDir)
+              : createPlanningRun(activeContext.versionDir).then(planningRun => {
+                  setActivePlanningRun(planningRun)
+                  refreshWorkspaceViews()
+                  return planningRun.workspaceDir
+                }),
             onExecute: handleExecuteGmatDraft,
             onMissionValuesChangeRequested: () => setMissionValuesChangeRequested(true),
             onNewRun: handleNewGmatDraft,

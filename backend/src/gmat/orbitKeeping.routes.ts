@@ -24,7 +24,7 @@ type GenerateOrbitKeepingBody = { request?: unknown; workspaceDir?: unknown }
 type AnalyzeOrbitKeepingBody = { draftId?: unknown; question?: unknown; runPath?: unknown; workspaceDir?: unknown }
 type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
-type OrbitKeepingFileKind = "digital-thread" | "ephemeris" | "log" | "manifest" | "opalis" | "report" | "result" | "rf-comlink" | "script" | "timeseries" | "values"
+type OrbitKeepingFileKind = "digital-thread" | "ephemeris" | "log" | "manifest" | "opalis" | "report" | "result" | "rf-comlink" | "script" | "timeseries" | "values" | "vts"
 
 function resolveOrbitKeepingDraftArtifact(workspaceDir: string, draftId: string, fileName: string) {
   if (!/^draft_[a-f0-9-]+$/u.test(draftId) || !["orbit_keeping.values.yaml"].includes(fileName)) return null
@@ -47,6 +47,7 @@ function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
   if (fileName === "ReboostReport.txt" || fileName === "OrbitAnalysisReport.txt") return "report"
   if (fileName === "gmat.log") return "log"
   if (fileName === "EphemerisFile1.oem") return "ephemeris"
+  if (fileName === "gmat-orbit.vts" || fileName === "GMAT_OEM_POSITION.TXT") return "vts"
   if (fileName.endsWith(".scd")) return "opalis"
   if (fileName === "prepared-opalis.opalis" || fileName === "prepared-opalis.json" || fileName === "calculated-opalis.opalis" || fileName === "calculated-opalis.json" || fileName === "opalis-parameters.json") return "opalis"
   if (fileName === "rf-comlink-inputs.json" || fileName === "prepared-rf-comlink.rfcl" || fileName === "calculated-rf-comlink.rfcl" || fileName === "rf-comlink-results.json") return "rf-comlink"
@@ -103,6 +104,13 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
         ["rf-comlink", "03-results", "rf-comlink-results.json"],
       ]
       for (const parts of rfComlinkFiles) {
+        const filePath = path.join(runDir, ...parts)
+        const stat = await fs.stat(filePath).catch(() => null)
+        const kind = orbitKeepingFileKind(parts.at(-1) ?? "")
+        if (stat?.isFile() && kind) files.push({ artifactId: run.name, fileName: parts.at(-1)!, kind, mtimeMs: stat.mtimeMs, relativePath: path.relative(root, filePath), runPath: path.relative(root, runDir), size: stat.size })
+      }
+      const vtsFiles = [["vts", "gmat-orbit.vts"], ["vts", "Data", "GMAT_OEM_POSITION.TXT"]]
+      for (const parts of vtsFiles) {
         const filePath = path.join(runDir, ...parts)
         const stat = await fs.stat(filePath).catch(() => null)
         const kind = orbitKeepingFileKind(parts.at(-1) ?? "")
@@ -174,7 +182,7 @@ function resolveListedOrbitKeepingFilePath(userWorkspaceRoot: string, relativePa
   const relativeSegments = path.relative(root, filePath).split(path.sep)
   const historyIndex = relativeSegments.indexOf("artifact-history")
   const historicalArtifact = historyIndex >= 0 && relativeSegments.length > historyIndex + 3 && /^[A-Za-z0-9_-]+$/u.test(relativeSegments[historyIndex + 1]) && /^[-A-Za-z0-9_]+$/u.test(relativeSegments[historyIndex + 2]) && Boolean(orbitKeepingFileKind(path.basename(filePath)))
-  const currentArtifact = /\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/(?:calculated-rf-comlink\.rfcl|rf-comlink-results\.json)))$/u.test(normalized)
+  const currentArtifact = /\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log|vts\/(?:gmat-orbit\.vts|Data\/GMAT_OEM_POSITION\.TXT)|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/(?:calculated-rf-comlink\.rfcl|rf-comlink-results\.json)))$/u.test(normalized)
   if (!isPathInside(root, filePath) || (!historicalArtifact && !currentArtifact)) return null
   return filePath
 }

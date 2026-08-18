@@ -13,6 +13,7 @@
     "test:e2e:gmat:electric": "node --import tsx --test tests/e2e/electricPropulsionGmat.e2e.test.ts"
     ,"campaign:gmat": "node --import tsx scripts/gmatCompatibilityCampaign.ts"
     ,"test:e2e:digital-thread": "node --import tsx --test tests/e2e/digitalThreadMissionConsistency.e2e.test.ts"
+    ,"test:smoke:mission": "node --import tsx --test tests/e2e/digitalThreadMissionConsistency.e2e.test.ts tests/vts/vts.routes.test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",

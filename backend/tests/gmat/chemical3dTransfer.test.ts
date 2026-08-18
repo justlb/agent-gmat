@@ -29,6 +29,7 @@ test("chemical 3D GEO transfer renders only its declared mission geometry", asyn
   assert.match(script, /Achieve 'Achieve RMAG' DC\(geoSat\.RMAG = 42195/u)
   assert.match(script, /Achieve 'Achieve SMA' DC\(geoSat\.Earth\.SMA = 42164\.1363/u)
   assert.match(script, /Create EphemerisFile EphemerisFile1;/u)
+  assert.match(script, /EphemerisFile1\.Filename = '[^']+[\\/]EphemerisFile1\.oem';/u)
   assert.match(script, /AllForces\.GravityField\.Earth\.Degree\s*=\s*4;/u)
   assert.match(script, /AllForces\.GravityField\.Earth\.Order\s*=\s*4;/u)
   assert.match(script, /BeginMissionSequence;\s*% GMAT subscribers[\s\S]*?Toggle EphemerisFile1 Off;/u)

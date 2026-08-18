@@ -105,6 +105,23 @@ export function adaptDigitalThreadToOpalis(document: DigitalThreadDocument): Opa
   const parameters: OpalisParameter[] = []
   const missing: string[] = []
   const warnings: string[] = []
+  // A dated mission starts from an intentionally empty digital thread. Do
+  // not drown the engineer in every OPALIS field when the actual missing
+  // action is simply selecting the physical satellite for this run.
+  const selectedSatelliteId = getAtPath(document, "digital_thread.satellite_definition.id")
+  if (typeof selectedSatelliteId !== "string" || !selectedSatelliteId.trim()) {
+    return {
+      parameters,
+      schema_version: 1,
+      source_satellite: "satellite.json",
+      template: null,
+      validation: {
+        missing: ["digital_thread.satellite_definition"],
+        status: "blocked",
+        warnings: ["Select a satellite for this dated mission. Its OPALIS electrical model will be copied into satellite.json."],
+      },
+    }
+  }
   for (const mapping of STATIC_MAPPINGS) addMappedParameter(parameters, missing, document, mapping)
   addSectionParameters(parameters, missing, document)
   const templateValue = getAtPath(document, "satellite.bus.opalis.model.template_id")

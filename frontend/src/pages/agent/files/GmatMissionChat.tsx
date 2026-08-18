@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { MarkdownText } from '../../../components/outputMarkdown'
 import type { AgentChatMode } from '../AgentRecorderControl'
 import { getSelectedSatellite, listSimuCicGroundStations, saveSimuCicConfiguration, type PredefinedGroundStation, type SimuCicConfiguration } from '../satelliteLibraryApi'
@@ -161,6 +161,9 @@ function RunComparisonMemory({ runs }: { runs: NonNullable<Draft>['runs'] }) {
 export type GmatMissionChatProps = {
   activeRunId?: string
   chatMode: AgentChatMode
+  /** Mission Studio inserts its template and satellite selectors directly
+   * below the General heading, before mission-specific values. */
+  contextContent?: ReactNode
   conversation?: Array<{ answer: string; askedAt: string; question: string }>
   draft: Draft
   error: string
@@ -168,6 +171,9 @@ export type GmatMissionChatProps = {
   busy: boolean
   pending?: { error?: string; kind: 'draft' | 'run'; message: string; status: 'sending' | 'failed' } | null
   onExecute: () => void
+  /** Creates the dated mission folder when the engineer configures a
+   * downstream tool before the first GMAT execution. */
+  onEnsureMissionRun?: () => Promise<string>
   onMissionValuesChangeRequested?: () => void
   onNewRun: () => void
   onRunSimuCic?: () => void
@@ -191,7 +197,7 @@ export type GmatMissionChatProps = {
   workspaceDir?: string | null
 }
 
-export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = [], draft, error, gmatRunFailed = false, onExecute, onMissionValuesChangeRequested, onNewRun, onRunSimuCic, onRunOpalis, onPrepareRfComlink, onSaveRfComlinkResults, onOpenRfComlinkGui, onStopCalculations, onRetry, onSend, onUpdateMissionValue, onSimuCicConfigurationChanged, pending, simuCicConversation = [], simuCicCompleted = false, simuCicRefreshNonce = 0, simuCicRunning = false, rfComlinkPreparing = false, rfComlinkPrepared = false, rfComlinkCalculationStarting = false, rfComlinkResultsSaving = false, workspaceDir }: GmatMissionChatProps) {
+export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, conversation = [], draft, error, gmatRunFailed = false, onEnsureMissionRun, onExecute, onMissionValuesChangeRequested, onNewRun, onRunSimuCic, onRunOpalis, onPrepareRfComlink, onSaveRfComlinkResults, onOpenRfComlinkGui, onStopCalculations, onRetry, onSend, onUpdateMissionValue, onSimuCicConfigurationChanged, pending, simuCicConversation = [], simuCicCompleted = false, simuCicRefreshNonce = 0, simuCicRunning = false, rfComlinkPreparing = false, rfComlinkPrepared = false, rfComlinkCalculationStarting = false, rfComlinkResultsSaving = false, workspaceDir }: GmatMissionChatProps) {
   const [message, setMessage] = useState('')
   const [editingRunValues, setEditingRunValues] = useState(false)
   const [simuCic, setSimuCic] = useState<SimuCicConfiguration>({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
@@ -278,7 +284,12 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
     const previous = simuCic
     setSimuCic(next)
     setSimuCicConfigurationError('')
-    void saveSimuCicConfiguration(next, workspaceDir)
+    const runWorkspace = isRunScopedWorkspace && workspaceDir
+      ? Promise.resolve(workspaceDir)
+      : onEnsureMissionRun
+        ? onEnsureMissionRun()
+        : Promise.reject(new Error('Start a dated mission discussion before configuring Simu-CIC.'))
+    void runWorkspace.then(runWorkspaceDir => saveSimuCicConfiguration(next, runWorkspaceDir))
       .then(result => {
         const saved = result.document.analysis_requests?.simu_cic
         setSimuCic(saved?.attitude_mode === 'ground_station_tracking' ? saved : { attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
@@ -298,8 +309,9 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
   ].filter((turn, index, turns) => turns.findIndex(candidate => candidate.question === turn.question && candidate.answer === turn.answer) === index)
 
   return (
-    <section className="gmat-mission-chat" aria-label="GMAT mission conversation">
+    <section className={`gmat-mission-chat ${contextContent ? 'has-mission-context' : ''}`} aria-label="GMAT mission conversation">
       <div className="gmat-mission-chat-tabs" aria-label="Conversation channel"><span>General</span></div>
+      {contextContent ? <div className="gmat-mission-context">{contextContent}</div> : null}
       <div className="gmat-mission-chat-layout">
           <aside className="gmat-mission-chat-sidebar">
             {activeRunId ? <><strong>Run values</strong><span>{activeRunId}</span></> : null}
@@ -307,12 +319,18 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
               <section><header><strong>{activeRunId ? 'Saved GMAT mission values' : 'Required before GMAT can run'}</strong><span>{missing.length ? `${missing.length} remaining` : 'Complete'}</span></header>{activeRunId ? <p className="gmat-mission-source-verification">{editingRunValues ? 'Editing a value creates a new variation and preserves this run.' : runValuesVerification}</p> : null}<ul>
                 {fields.map(field => {
                   const semiMajorAxis = displayedValues?.['initialOrbit.smaKm']
-                  const derivedAltitude = field.derived === 'initialAltitude' && typeof semiMajorAxis === 'number'
-                    ? Number((semiMajorAxis - EARTH_EQUATORIAL_RADIUS_KM).toFixed(3))
+                  const semiMajorAxisKm = typeof semiMajorAxis === 'number'
+                    ? semiMajorAxis
+                    : typeof semiMajorAxis === 'string' && Number.isFinite(Number(semiMajorAxis)) ? Number(semiMajorAxis) : null
+                  const derivedAltitude = field.derived === 'initialAltitude' && semiMajorAxisKm !== null
+                    ? Number((semiMajorAxisKm - EARTH_EQUATORIAL_RADIUS_KM).toFixed(3))
                     : null
                   const rawValue = field.derived ? derivedAltitude : displayedValues?.[field.path]
-                  const value = field.valueTransform === 'earth-radius' && typeof rawValue === 'number'
-                    ? Number((rawValue - EARTH_EQUATORIAL_RADIUS_KM).toFixed(6))
+                  const numericRawValue = typeof rawValue === 'number'
+                    ? rawValue
+                    : typeof rawValue === 'string' && Number.isFinite(Number(rawValue)) ? Number(rawValue) : null
+                  const value = field.valueTransform === 'earth-radius' && numericRawValue !== null
+                    ? Number((numericRawValue - EARTH_EQUATORIAL_RADIUS_KM).toFixed(6))
                     : rawValue
                   const absent = field.derived ? derivedAltitude === null : value === null || value === undefined || value === ''
                   return <li className={absent ? 'is-missing' : ''} key={field.derived ?? field.path}><span>{field.label}</span>{(!activeRunId || editingRunValues) && onUpdateMissionValue ? <MissionValueField busy={busy} field={field} onSubmit={onUpdateMissionValue} value={typeof rawValue === 'string' || typeof rawValue === 'number' ? rawValue : null} /> : <b>{absent ? 'Not provided' : `${value}${field.unit ? ` ${field.unit}` : ''}`}</b>}</li>
@@ -321,12 +339,12 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, conversation = []
               {draft || activeRunId || templateSelected ? <section><header><strong>Required before Simu-CIC can run</strong><span>{simuCicComplete ? 'Complete' : simuCicNeedsStations ? 'Station required' : 'Attitude law required'}</span></header><ul>
                 <li><span>Attitude behavior</span><b>{simuCic.attitude_mode === 'nadir_pointing' ? 'Nadir pointing' : simuCic.attitude_mode === 'ground_station_tracking' ? 'Track ground station(s)' : 'Nadir pointing'}</b></li>
                 {simuCic.attitude_mode === 'ground_station_tracking' ? <li className={simuCicNeedsStations ? 'is-missing' : ''}><span>Ground stations</span><b>{simuCic.ground_station_ids.length ? simuCic.ground_station_ids.join(', ') : 'Not provided'}</b></li> : null}
-                <li className="gmat-mission-ground-station-picker"><label htmlFor="simu-cic-ground-station">Attitude target</label><select disabled={busy || simuCicRunning || Boolean(activeRunId && simuCicCompleted && !editingRunValues)} id="simu-cic-ground-station" onChange={event => updateGroundStation(event.target.value)} value={simuCic.attitude_mode === 'ground_station_tracking' ? simuCic.ground_station_ids[0] ?? '' : ''}>
+                <li className="gmat-mission-ground-station-picker"><label htmlFor="simu-cic-ground-station">Attitude target</label><select disabled={busy || simuCicRunning} id="simu-cic-ground-station" onChange={event => updateGroundStation(event.target.value)} value={simuCic.attitude_mode === 'ground_station_tracking' ? simuCic.ground_station_ids[0] ?? '' : ''}>
                   <option value="">Nadir pointing (default)</option>
                   {RF_COMLINK_GROUND_STATION_IDS.flatMap(id => groundStations.filter(station => station.id === id)).map(station => <option key={station.id} value={station.id}>{station.name} ({station.id})</option>)}
                 </select></li>
               </ul>{simuCicConfigurationError ? <p className="gmat-mission-run-blocker">{simuCicConfigurationError}</p> : <p className="gmat-mission-simucic-hint">Choose nadir pointing or a predefined station. You can still ask the assistant for guidance or configure several stations in writing.</p>}</section> : null}
-              {draft ? <><section><header><strong>Assumed defaults to confirm</strong><span>Template defaults and run-specific satellite values</span></header><ul className="assumptions">{(draft.safety?.assumptions ?? []).map(item => <li key={item.label}>{item.label}: {item.value}</li>)}{satelliteAssumptions.map(item => <li key={`satellite-${item.label}`}>{item.label}: {item.value}</li>)}</ul></section>
+              {draft ? <><details className="gmat-mission-assumptions"><summary><strong>Assumed defaults to confirm</strong><span>Template defaults and satellite values</span></summary><ul className="assumptions">{(draft.safety?.assumptions ?? []).map(item => <li key={item.label}>{item.label}: {item.value}</li>)}{satelliteAssumptions.map(item => <li key={`satellite-${item.label}`}>{item.label}: {item.value}</li>)}</ul></details>
               {draft.runs?.length ? <RunComparisonMemory runs={draft.runs} /> : null}
               {!activeRunId ? <>
                 <button

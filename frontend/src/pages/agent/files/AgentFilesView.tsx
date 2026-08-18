@@ -231,7 +231,7 @@ export function AgentFilesView({
                 <section className={activeGmatRunPath === run.runPath ? 'is-active' : ''} key={run.runPath}>
                   <header>
                     <strong>{run.files.some(file => file.historical) ? `Archived ${missionLabel(run.missionType)} · ${run.runId}` : `${missionLabel(run.missionType)} · ${run.runId}`}</strong>
-                    {!run.files.some(file => file.historical) && run.files.some(file => file.kind === 'manifest') && run.files.some(file => file.kind === 'result') ? (
+                    {!run.files.some(file => file.historical) && run.files.some(file => file.kind === 'script') ? (
                       <button type="button" onClick={() => onSelectGmatRun?.({ ...(run.draftId ? { draftId: run.draftId } : {}), missionType: run.missionType, runId: run.runId, runPath: run.runPath })}>
                         {activeGmatRunPath === run.runPath ? 'Active conversation' : 'Discuss this run'}
                       </button>
@@ -278,8 +278,7 @@ export function AgentFilesView({
         </section>
       </aside>
       <div className="agent-file-log-pane">
-        {topContent}
-        {missionContent ?? <GmatMissionChat activeRunId={activeGmatRunId} workspaceDir={activeGmatRunPath ?? workspaceDir} {...gmatMissionChat} />}
+        {missionContent ?? <GmatMissionChat {...gmatMissionChat} activeRunId={activeGmatRunId} contextContent={topContent} workspaceDir={activeGmatRunPath ?? workspaceDir} />}
         {selectedFilePath ? <details className="agent-file-preview-details">
           <summary>Preview selected workspace file</summary>
           <WorkspaceFilePreviewPanel

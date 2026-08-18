@@ -2259,6 +2259,46 @@
   padding: 8px 10px;
 }
 
+.gmat-analysis-run-selector {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(210px, 1fr) minmax(180px, .8fr) minmax(180px, .8fr);
+}
+
+.gmat-analysis-run-selector label {
+  color: #b9cce0;
+  display: grid;
+  font-size: 11px;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.gmat-analysis-run-selector select {
+  background: #06172b;
+  border: 1px solid rgba(96, 165, 250, .48);
+  border-radius: 7px;
+  color: #eaf7ff;
+  font: inherit;
+  min-inline-size: 0;
+  padding: 8px 9px;
+}
+
+.gmat-analysis-run-selector select:disabled { cursor: not-allowed; opacity: .55; }
+.gmat-analysis-run-summary { background: rgba(7, 34, 59, .44); }
+.gmat-analysis-run-summary .gmat-vts-launch { background: rgba(8, 93, 123, .72); border: 1px solid rgba(34, 211, 238, .64); border-radius: 7px; color: #ecfeff; cursor: pointer; font-size: 11px; font-weight: 800; margin-top: 10px; padding: 8px 12px; }
+.gmat-analysis-run-summary small { color: #fda4af; display: block; font-size: 10px; line-height: 1.35; margin-top: 7px; }
+.gmat-analysis-run-summary small.is-success { color: #67e8f9; }
+.gmat-analysis-comparison-deltas { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+.gmat-analysis-comparison-deltas span { background: rgba(245, 158, 11, .12); border: 1px solid rgba(245, 158, 11, .28); border-radius: 6px; color: #fde68a; font-size: 10px; padding: 5px 7px; }
+.gmat-analysis-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 7px; }
+.gmat-analysis-legend span { align-items: center; color: #dbeafe; display: inline-flex; font-size: 11px; gap: 6px; }
+.gmat-analysis-legend i { block-size: 3px; border-radius: 4px; inline-size: 18px; }
+
+@media (max-width: 850px) {
+  .gmat-analysis-run-selector { grid-template-columns: 1fr; }
+}
+
 .satellite-library, .mission-studio { box-sizing: border-box; block-size: 100%; min-block-size: 0; overflow-y: auto; padding: 18px 20px; }
 .satellite-library-intro, .mission-template-source, .mission-satellite-source { align-items: center; background: linear-gradient(120deg, rgba(13, 28, 56, .93), rgba(3, 16, 29, .94)); border: 1px solid rgba(56, 189, 248, .38); border-radius: 13px; display: flex; justify-content: space-between; gap: 18px; padding: 19px 22px; }
 .satellite-library-intro span, .satellite-active-card > span, .mission-template-source span, .mission-satellite-source span { color: #67e8f9; display: block; font-size: 11px; font-weight: 900; letter-spacing: .06em; }
@@ -2413,3 +2453,30 @@
 .agent-gmat-draft-digital-thread { display: grid !important; gap: 2px; margin: 7px 0 0; padding: 7px !important; border: 1px solid rgba(23, 231, 255, .24); border-radius: 7px; background: rgba(6, 31, 54, .62); text-decoration: none; }.agent-gmat-draft-digital-thread span { color: #67e8f9; font-size: 10px; font-weight: 800; }.agent-gmat-draft-digital-thread small { color: #9ec1da; font-size: 9px; }
 .agent-gmat-draft-file { align-items: center; border-bottom: 1px solid rgba(148, 163, 184, .16); color: #dbeafe; display: flex !important; font-size: 10px; gap: 8px; justify-content: space-between; padding: 7px 0 !important; text-decoration: none; }.agent-gmat-draft-file small { color: #93c5fd; font-size: 9px; font-weight: 800; }
 @media (max-width: 1100px) { .satellite-library-grid { grid-template-columns: 1fr; }.satellite-definition-list { grid-template-columns: 1fr; } }
+
+.agent-workspace-panel.is-mission-view .agent-workspace-body > .mission-studio { block-size: 100%; min-block-size: 0; }
+.mission-studio { display: grid; block-size: 100%; min-block-size: 0; grid-template-rows: auto minmax(0, 1fr); }
+.mission-studio > .satellite-library-error { grid-row: 1; }
+.mission-studio > .agent-file-stage { grid-row: 2; block-size: auto; min-block-size: 0; }
+.mission-studio .agent-file-log-pane { min-block-size: 0; grid-template-rows: minmax(0, 1fr) auto; }
+.mission-studio .gmat-mission-chat { block-size: 100%; min-block-size: 0; max-block-size: 100%; }
+.mission-studio .gmat-mission-chat.has-mission-context { grid-template-rows: 29px auto minmax(0, 1fr); }
+.mission-studio .agent-file-stage { grid-template-columns: minmax(185px, 16%) minmax(0, 1fr); }
+.mission-studio .gmat-mission-chat-layout { grid-template-columns: minmax(185px, 16%) minmax(0, 1fr); }
+.mission-studio .gmat-mission-assumptions { margin: 10px 0 14px; border: 1px solid rgba(92, 152, 195, .22); border-radius: 6px; }
+.mission-studio .gmat-mission-assumptions summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; list-style: none; padding: 8px; color: #eaf7ff; font-size: 11px; }
+.mission-studio .gmat-mission-assumptions summary::-webkit-details-marker { display: none; }
+.mission-studio .gmat-mission-assumptions summary::before { content: '▸'; color: var(--hud-cyan); }
+.mission-studio .gmat-mission-assumptions[open] summary::before { content: '▾'; }
+.mission-studio .gmat-mission-assumptions summary strong { flex: 1; }
+.mission-studio .gmat-mission-assumptions summary span { color: #8fb3cd; font-size: 10px; text-align: right; }
+.mission-studio .gmat-mission-assumptions .assumptions { margin: 0; padding: 0 8px 8px; }
+.mission-studio .gmat-mission-context { padding: 8px 10px; border-bottom: 1px solid rgba(92, 152, 195, .18); background: rgba(2, 12, 24, .42); }
+.mission-studio .gmat-mission-context .mission-setup-sources { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mission-studio .gmat-mission-context .mission-template-source, .mission-studio .gmat-mission-context .mission-satellite-source { min-width: 0; margin: 0; padding: 8px 10px; }
+.mission-studio .gmat-mission-context .mission-template-source select, .mission-studio .gmat-mission-context .mission-satellite-source select { min-inline-size: min(48%, 240px); }
+.mission-studio .gmat-mission-chat-tabs { align-items: center; display: flex; justify-content: space-between; }
+.mission-studio .gmat-mission-chat-tabs > span { line-height: 29px; }
+@media (max-width: 800px) {
+  .mission-studio .gmat-mission-context .mission-setup-sources { grid-template-columns: 1fr; }
+}

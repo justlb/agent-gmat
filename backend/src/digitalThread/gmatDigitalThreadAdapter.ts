@@ -1,6 +1,7 @@
 import type { DigitalThreadDocument, JsonValue } from "./digitalThreadStore.js"
 import { getAtPath, loadOrCreateDigitalThread, saveDigitalThread, setAtPath } from "./digitalThreadStore.js"
 import { gmatTemplateDefinition, type GmatTemplateId } from "../gmat/templateRegistry.js"
+import { validateGmatMissionGuardrails } from "../gmat/missionGuardrails.js"
 
 export type GmatDigitalThreadTemplate = GmatTemplateId
 export type DigitalThreadGuard = { code: string; message: string; path: string }
@@ -204,6 +205,11 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
       guards.push({ code: "missing_adapter_input", message: `The GMAT adapter cannot produce required value ${fieldPath} from the digital thread.`, path: fieldPath })
     }
   }
+  // Keep the adapter from presenting a run as ready when the source-of-truth
+  // already describes an impossible orbit or an incoherent template request.
+  // Draft-specific UI checks remain useful feedback, while this shared gate
+  // covers every route that starts from satellite.json.
+  guards.push(...validateGmatMissionGuardrails(template, values))
   return { derivations, guards, ready: guards.length === 0, requiredDraftPaths, template, values }
 }
 

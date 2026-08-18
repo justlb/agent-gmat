@@ -86,7 +86,7 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showCompl
   if (activeView === 'bom' && showComplianceCheckConfig) return 'Config'
   if (activeView === 'bom') return showGncConfig ? 'GNC Config' : 'Config'
   if (activeView === 'model') return 'Preview'
-  if (activeView === 'tools') return showGncConfig ? 'GNC Tools' : 'Simulation Tools'
+  if (activeView === 'tools') return showGncConfig ? 'GNC Tools' : 'GMAT Results'
   if (activeView === 'log') return 'Workspace Files'
   if (activeView === 'satellites') return 'Satellite Library'
   if (activeView === 'templates') return 'GMAT Template Library'
@@ -122,7 +122,7 @@ export function AgentWorkspacePanel({
   selectedFileLoading,
   selectedFilePath,
   selectedFilePreview,
-  setActiveTool,
+  setActiveTool: _setActiveTool,
   setSelectedBomId,
   requestDeleteVersion,
   refreshWorkspaceViews,
@@ -132,7 +132,7 @@ export function AgentWorkspacePanel({
   showModelPreview,
   switchActiveWorkspace,
   t,
-  toolUrls,
+  toolUrls: _toolUrls,
   versionAction,
   versionDeleteTarget,
   versionError,
@@ -153,17 +153,6 @@ export function AgentWorkspacePanel({
     activeView ? 'is-open' : 'is-collapsed',
     activeView ? `is-${activeView}-view` : '',
   ].filter(Boolean).join(' ')
-  const toolTabs: AgentToolView[] = showGncConfig
-    ? ['gnc-dashboard', 'gnc']
-    : ['gmat-analysis', 'cad', 'paraview', 'comsol']
-  const toolLabel = (tool: AgentToolView) => {
-    if (tool === 'cad') return 'CAD'
-    if (tool === 'paraview') return 'ParaView'
-    if (tool === 'comsol') return 'COMSOL'
-    if (tool === 'gnc-dashboard') return 'GNC Dashboard'
-    if (tool === 'gmat-analysis') return 'GMAT Analysis'
-    return 'GNC'
-  }
   const thermalConfigContent = usesCatchSupportingTable(activeContext) ? (
     <CatchSupportingTableEditor
       activeContext={activeContext}
@@ -215,20 +204,6 @@ export function AgentWorkspacePanel({
           <strong>{getWorkspacePanelTitle(activeView, showComplianceCheckConfig, showGncConfig)}</strong>
           <span>{activeView ? `${getWorkspaceDisplayName(activeContext.workspaceName)}${activeContext.versionId ? ` · ${activeContext.versionId}` : ''}` : 'Choose a section from the left navigation'}</span>
         </div>
-        {activeView === 'tools' && (
-          <div className="agent-tool-tabs">
-            {toolTabs.map(tool => (
-              <button
-                key={tool}
-                type="button"
-                className={activeTool === tool ? 'active' : undefined}
-                onClick={() => setActiveTool(tool)}
-              >
-                {toolLabel(tool)}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
       <div className="agent-workspace-body">
         {!activeView ? (
@@ -282,14 +257,12 @@ export function AgentWorkspacePanel({
           <div className="agent-empty-state">This task has no 3D preview.</div>
         ) : activeView === 'tools' && activeTool === 'gnc-dashboard' && showGncConfig ? (
           <GncDashboardPanel activeContext={activeContext} />
-        ) : activeView === 'tools' && activeTool === 'gmat-analysis' ? (
-          <GmatAnalysisPanel runPath={activeGmatRunPath} template={activeGmatRunTemplate} />
         ) : activeView === 'tools' ? (
-          toolUrls[activeTool] ? (
-            <iframe className="agent-embed-frame" title={activeTool} src={toolUrls[activeTool]} />
-          ) : (
-            <div className="agent-empty-state">This simulation tool has no remote window available.</div>
-          )
+          <GmatAnalysisPanel
+            runPath={activeGmatRunPath}
+            template={activeGmatRunTemplate}
+            workspaceDir={missionWorkspaceDir ?? activeContext.versionDir}
+          />
         ) : activeView === 'satellites' ? (
           <SatelliteLibrary workspaceDir={missionWorkspaceDir ?? activeContext.versionDir} />
         ) : activeView === 'templates' ? (

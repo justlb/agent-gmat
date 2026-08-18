@@ -24,6 +24,7 @@ import { opalisRunRoutes } from "../opalis/opalisRun.routes.js"
 import { missionAssistantRoutes } from "../gmat/missionAssistant.routes.js"
 import { rfComlinkRoutes } from "../rfComlink/rfComlink.routes.js"
 import { rfComlinkPreparationRoutes } from "../rfComlink/rfComlinkPreparation.routes.js"
+import { vtsRoutes } from "../vts/vts.routes.js"
 
 export async function registerApiRoutes(
   fastify: FastifyInstance,
@@ -56,4 +57,5 @@ export async function registerApiRoutes(
   await fastify.register(opalisRunRoutes, { config })
   await fastify.register(rfComlinkRoutes)
   await fastify.register(rfComlinkPreparationRoutes)
+  await fastify.register(vtsRoutes)
 }

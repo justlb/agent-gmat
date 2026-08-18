@@ -10,6 +10,7 @@ import { keplerianToCartesian } from "./orbitCoordinates.js"
 import type { ChemicalHohmannDraft } from "./chemicalHohmannDraft.js"
 import { defaultChemicalHohmannTemplatePath } from "./chemicalHohmannTemplate.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
+import { assertGmatMissionGuardrails } from "./missionGuardrails.js"
 
 export type ChemicalHohmannRenderValues = {
   "initialOrbit.argPeriapsisDeg"?: number | null
@@ -146,6 +147,7 @@ function addHohmannEphemerisWriter(script: string, outputPath: string) {
 
 export async function generateChemicalHohmannMission({ draft, workspaceDir, templatePath = defaultChemicalHohmannTemplatePath(), execution }: { draft: ChemicalHohmannDraft; workspaceDir: string; templatePath?: string; execution?: { bin: string; timeoutMs: number } }): Promise<ChemicalHohmannGenerationResult> {
   if (!draft.confirmed) throw new Error("chemical Hohmann GMAT draft must be confirmed before generation")
+  assertGmatMissionGuardrails("chemical-hohmann-transfer", draft.values)
   const runDir = path.resolve(workspaceDir)
   if (!isMissionRunWorkspace(runDir)) throw new Error("chemical Hohmann generation requires a dated mission run workspace")
   const [template] = await Promise.all([fs.readFile(templatePath, "utf8"), fs.mkdir(runDir, { recursive: true })])
