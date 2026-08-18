@@ -12,6 +12,7 @@ import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 
 type RunBody = { runPath?: unknown }
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -149,6 +150,7 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       const reportCount = Array.isArray(summary.reports) ? summary.reports.length : 0
       await updateRunWorkflowLog(runDir, "rf_comlink", "completed", `Saved RF-COMLINK calculation with ${reportCount} report(s).`)
       await appendRunConversation(runDir, { answer: `RF-COMLINK results were saved with ${reportCount} report(s). You can now ask about link budget, availability, telemetry, or telecommand results.`, askedAt: new Date().toISOString(), channel: "rf-comlink", question: "Save RF-COMLINK results" })
+      await writeRunAnalysisContext(runDir)
       return reply.send({ ok: true, reportCount, summary: path.relative(root, summaryPath).split(path.sep).join("/") })
     } catch (error) {
       const message = getErrorMessage(error, "failed to save RF-COMLINK results")

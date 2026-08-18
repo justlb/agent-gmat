@@ -1289,7 +1289,10 @@ export default function AgentPage() {
             rfComlinkPrepared,
             rfComlinkCalculationStarting,
             rfComlinkResultsSaving,
-            workspaceDir: gmatWorkspaceDir,
+            // A historical run owns an immutable satellite.json snapshot.
+            // Its displayed values (including Simu-CIC attitude) must never
+            // be read from the currently open planning discussion.
+            workspaceDir: activeGmatRun?.runPath ?? gmatWorkspaceDir,
           }}
           manifestLoading={manifestLoading}
           onSelectGmatDraft={(draft: GmatSavedDraft) => {

@@ -4,8 +4,7 @@ import path from "node:path"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import type { OrbitKeepingDraftRun } from "./orbitKeepingDraft.js"
 import { buildDraftRunComparisonEntries } from "./draftRunComparison.js"
-import { loadOpalisResultSummary } from "../opalis/opalisResults.js"
-import { loadRFComlinkResultSummary } from "../rfComlink/rfComlinkResults.js"
+import { analysisContextForPrompt, loadRunAnalysisContext, writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 
 const DEFAULT_TIMEOUT_MS = 60_000
 
@@ -58,30 +57,20 @@ export async function analyzeOrbitKeepingRunWithLlm({
   fetchImpl?: typeof fetch
   timeoutMs?: number
 }) {
-  const [manifestSource, resultSource, reportSource, timeSeriesSource, opalisResult, consolidatedReport, rfComlinkResult] = await Promise.all([
+  const [manifestSource, analysisContext] = await Promise.all([
     fs.readFile(path.join(runDir, "run_manifest.json"), "utf8"),
-    fs.readFile(path.join(runDir, "gmat_result.json"), "utf8"),
-    fs.readFile(path.join(runDir, "ReboostReport.txt"), "utf8").catch(() => ""),
-    fs.readFile(path.join(runDir, "orbit_timeseries.json"), "utf8").catch(() => ""),
-    loadOpalisResultSummary(runDir),
-    fs.readFile(path.join(runDir, "consolidated-run-report.json"), "utf8").catch(() => ""),
-    loadRFComlinkResultSummary(runDir),
+    loadRunAnalysisContext(runDir).then(context => context ?? writeRunAnalysisContext(runDir).then(result => result.context)),
   ])
   const conversationPath = path.join(runDir, "conversation.json")
   const previousTurns = await loadOrbitKeepingRunConversation(runDir)
   const prompt = [
     "You are an engineering assistant analyzing immutable GMAT orbit-keeping runs from one mission discussion.",
-    "Answer only from the supplied run data. Do not claim that GMAT was rerun.",
-    "State clearly when the available report does not contain enough information.",
+    "Answer only from the supplied analysis context. Do not claim that GMAT was rerun.",
+    "For each conclusion, identify the tool and source file. Separate reported facts from engineering interpretation; state missing evidence explicitly.",
     "Use units and identify the run ID or IDs. Be concise and technically precise.",
     `Question: ${question}`,
     `Run manifest:\n${manifestSource}`,
-    `Normalized result:\n${resultSource}`,
-    reportSource ? `GMAT report samples:\n${reportSource.slice(0, 100_000)}` : "GMAT report samples: unavailable",
-    timeSeriesSource ? `GMAT engineering time series (epoch A1ModJulian; altitude km; fuel kg; total mass kg; SMA km; eccentricity; inclination deg):\n${timeSeriesSource.slice(0, 100_000)}` : "GMAT engineering time series: unavailable",
-    opalisResult ? `OPALIS electrical calculation summary (derived from calculated-opalis.json):\n${JSON.stringify(opalisResult)}` : "OPALIS electrical calculation: unavailable for this run.",
-    consolidatedReport ? `Consolidated GMAT + Simu-CIC + OPALIS report:\n${consolidatedReport.slice(0, 100_000)}` : "Consolidated report: unavailable.",
-    rfComlinkResult ? `RF-COMLINK saved calculation reports:\n${JSON.stringify(rfComlinkResult)}` : "RF-COMLINK calculation: unavailable for this run.",
+    analysisContextForPrompt(analysisContext),
     relatedRuns.length ? `Mission run comparison index. Each entry is immutable, includes the exact inputs used, and lists every changed input relative to the preceding run. The current run is included for traceability; compare normalized results only and do not invent report details not shown here:\n${JSON.stringify(buildDraftRunComparisonEntries(relatedRuns), null, 2)}` : "No other GMAT run is linked to this mission discussion yet.",
     previousTurns.length ? `Previous discussion:\n${JSON.stringify(previousTurns.slice(-10), null, 2)}` : "",
   ].filter(Boolean).join("\n\n")

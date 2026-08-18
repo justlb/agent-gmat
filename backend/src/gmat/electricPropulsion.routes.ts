@@ -36,6 +36,7 @@ function electricPropulsionFileKind(fileName: string): ElectricPropulsionFileKin
   if (fileName.endsWith(".values.yaml")) return "values"
   if (fileName === "gmat_result.json") return "result"
   if (fileName === "consolidated-run-report.json") return "result"
+  if (fileName === "run-analysis-context.json") return "result"
   if (fileName === "workflow-status.json") return "result"
   if (fileName === "satellite.digital-thread.json" || fileName === "satellite.json") return "digital-thread"
   if (fileName === "electric_transfer_timeseries.json") return "timeseries"
@@ -74,6 +75,7 @@ async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
       }
       const opalisFiles = [
         ["consolidated-run-report.json"],
+        ["run-analysis-context.json"],
         ["opalis", "02-simu-cic", "00-scenario-input", "simucic-input.scd"],
         ["opalis", "02-opalis-input", "opalis-parameters.json"],
         ["opalis", "03-opalis", "02-resultats", "prepared-opalis.opalis"],
@@ -164,7 +166,7 @@ function resolveListedElectricPropulsionFilePath(userWorkspaceRoot: string, rela
   const segments = path.relative(root, filePath).split(path.sep)
   const historyIndex = segments.indexOf("artifact-history")
   const historicalArtifact = historyIndex >= 0 && segments.length > historyIndex + 3 && /^[A-Za-z0-9_-]+$/u.test(segments[historyIndex + 1]) && /^[-A-Za-z0-9_]+$/u.test(segments[historyIndex + 2]) && Boolean(electricPropulsionFileKind(path.basename(filePath)))
-  if (!isPathInside(root, filePath) || (!historicalArtifact && !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log|vts\/(?:gmat-orbit\.vts|Data\/GMAT_OEM_POSITION\.TXT)|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/(?:calculated-rf-comlink\.rfcl|rf-comlink-results\.json)))$/u.test(normalized))) return null
+  if (!isPathInside(root, filePath) || (!historicalArtifact && !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|run-analysis-context|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log|vts\/(?:gmat-orbit\.vts|Data\/GMAT_OEM_POSITION\.TXT)|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/(?:calculated-rf-comlink\.rfcl|rf-comlink-results\.json)))$/u.test(normalized))) return null
   return filePath
 }
 

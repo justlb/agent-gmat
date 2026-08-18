@@ -2,7 +2,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { parseDocument, stringify } from "yaml"
 
-import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
+import { initializeDraftDigitalThread, isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { runManagedProcess } from "./externalProcess.js"
 import { requestGmatModel } from "./modelRequest.js"
@@ -74,7 +74,7 @@ async function save(workspaceDir: string, draft: Chemical3dDraft) {
 
 export async function createChemical3dDraft(workspaceDir: string, initialValues: Record<string, Value> = {}, digitalThreadRequiredPaths: string[] = []) {
   const now = new Date().toISOString()
-  return save(workspaceDir, refresh({
+  const draft = await save(workspaceDir, refresh({
     confirmed: false,
     conversation: [],
     createdAt: now,
@@ -84,6 +84,11 @@ export async function createChemical3dDraft(workspaceDir: string, initialValues:
     templateId: "chemical-3d-transfer",
     values: Object.fromEntries(fields.map(field => [field, initialValues[field] ?? null])),
   }))
+  // Every template owns a private, run-local satellite.json.  Without this
+  // initialization Chemical 3D could capture an empty draft context even
+  // though the planning run had a selected satellite.
+  await initializeDraftDigitalThread(workspaceDir, "chemical-3d-transfer", draft.draftId)
+  return draft
 }
 
 export async function loadChemical3dDraft(workspaceDir: string, draftId: string) {

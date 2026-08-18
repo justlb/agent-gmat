@@ -22,6 +22,7 @@ import { analyzeRFComlinkRunWithLlm } from "../rfComlink/rfComlinkAnalysis.js"
 import { loadRFComlinkResultSummary } from "../rfComlink/rfComlinkResults.js"
 import { appendMissionTemplateDraftConversation } from "./missionTemplateRuntime.js"
 import { isGmatTemplateId } from "./templateRegistry.js"
+import { analyzeRunWithAnalysisContext } from "../analysis/runAnalysisLlm.js"
 
 type Intent = "analysis" | "change" | "knowledge" | "advice" | "simu-cic"
 type Body = { allowMissionChanges?: unknown; draftId?: unknown; message?: unknown; runPath?: unknown; workspaceDir?: unknown }
@@ -180,7 +181,8 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
           const result = await analyzeElectricPropulsionRunWithLlm({ connection: resolveModelBackend(config, "chatModel"), question: message, relatedRuns: draft?.runs ?? [], runDir: activeRun.runDir })
           return reply.send({ answer: result.answer, intent, kind: "analysis" })
         }
-        return reply.send({ answer: "This saved Chemical 3D GEO run is immutable. Its generated GMAT artifacts remain available for review; use Change mission values to create a new variation.", intent, kind: "analysis" })
+        const result = await analyzeRunWithAnalysisContext({ connection: resolveModelBackend(config, "chatModel"), question: message, runDir: activeRun.runDir })
+        return reply.send({ answer: result.answer, intent, kind: "analysis" })
       }
       const answer = await answerFromContext(config, intent, message, workspaceDir)
       if (activeRun) await appendRunConversation(activeRun.runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: message })

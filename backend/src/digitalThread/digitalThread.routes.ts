@@ -7,7 +7,7 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { adaptDigitalThreadToGmat } from "./gmatDigitalThreadAdapter.js"
-import { createEphemeralDigitalThread, createPlanningRun, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
+import { createEphemeralDigitalThread, createPlanningRun, digitalThreadPath, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
 import { getSatelliteDefinition, listSatelliteDefinitions, selectSatelliteDefinition } from "./satelliteLibrary.js"
 import { assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
 import { appendMissionConversation, loadMissionConversation } from "./missionConversationStore.js"
@@ -37,13 +37,18 @@ function response(document: Awaited<ReturnType<typeof loadOrCreateDigitalThread>
   }
 }
 
-// Executed runs keep their visible satellite.json at the run root. Reading it
-// here makes the Mission Studio table show the exact Simu-CIC configuration
-// that the runner consumes, rather than an unrelated live planning workspace.
+// `digital-thread/satellite.json` is the one canonical document for a dated
+// mission. The root-level satellite.json and satellite.digital-thread.json
+// are tool-facing exports/snapshots only. Always prefer the canonical file in
+// the UI response: otherwise an older snapshot can display a previous ground
+// station or an empty satellite selection while the actual run configuration
+// is already correct.
 async function loadDigitalThreadForView(workspaceDir: string) {
   // The workspace root is never mission state. Returning an unsaved empty
   // document prevents a previous run from becoming input to the next one.
   if (!isMissionRunWorkspace(workspaceDir)) return createEphemeralDigitalThread()
+  const canonical = await fs.readFile(digitalThreadPath(workspaceDir), "utf8").catch(() => null)
+  if (canonical) return JSON.parse(canonical) as Awaited<ReturnType<typeof loadOrCreateDigitalThread>>
   for (const fileName of ["satellite.json", "satellite.digital-thread.json"]) {
     const source = await fs.readFile(path.join(workspaceDir, fileName), "utf8").catch(() => null)
     if (source) return JSON.parse(source) as Awaited<ReturnType<typeof loadOrCreateDigitalThread>>
@@ -132,7 +137,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     const draftId = typeof req.query.draftId === "string" ? req.query.draftId : ""
     const template = req.query.template
-    if (!draftId || (template !== "orbit-keeping" && template !== "electric-propulsion-transfer" && template !== "chemical-hohmann-transfer")) {
+    if (!draftId || (template !== "orbit-keeping" && template !== "electric-propulsion-transfer" && template !== "chemical-hohmann-transfer" && template !== "chemical-3d-transfer")) {
       return reply.status(400).send({ error: "draftId and a supported template are required" })
     }
     try {

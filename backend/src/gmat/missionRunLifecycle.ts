@@ -2,6 +2,7 @@ import path from "node:path"
 
 import { snapshotDigitalThreadForRun, type DigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { appendRunConversation, snapshotMissionConversationForRun } from "../digitalThread/missionConversationStore.js"
+import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 
 type MissionRunResult = { error?: string; status: string; warnings?: string[] }
 type DraftConversationTurn = { assistant: string; user: string }
@@ -31,5 +32,6 @@ export async function finalizeMissionRun({
       : "GMAT completed successfully. You can now ask questions about the saved results or request a revised run."
   await appendRunConversation(runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: "GMAT execution" })
   await snapshotDigitalThreadForRun(workspaceDir, runDir, digitalThreadSnapshot)
+  await writeRunAnalysisContext(runDir)
   return path.relative(path.resolve(root), runDir)
 }

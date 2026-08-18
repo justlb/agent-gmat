@@ -4,8 +4,7 @@ import path from "node:path"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import type { ElectricPropulsionDraftRun } from "./electricPropulsionDraft.js"
 import { buildDraftRunComparisonEntries } from "./draftRunComparison.js"
-import { loadOpalisResultSummary } from "../opalis/opalisResults.js"
-import { loadRFComlinkResultSummary } from "../rfComlink/rfComlinkResults.js"
+import { analysisContextForPrompt, loadRunAnalysisContext, writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 
 export type ElectricPropulsionRunConversationTurn = { answer: string; askedAt: string; question: string }
 
@@ -29,22 +28,17 @@ export async function analyzeElectricPropulsionRunWithLlm({ connection, question
   fetchImpl?: typeof fetch
   timeoutMs?: number
 }) {
-  const [manifest, result, report, opalisResult, consolidatedReport, rfComlinkResult] = await Promise.all([
-    fs.readFile(path.join(runDir, "run_manifest.json"), "utf8"), fs.readFile(path.join(runDir, "gmat_result.json"), "utf8"), fs.readFile(path.join(runDir, "ElectricTransferReport.txt"), "utf8").catch(() => ""),
-    loadOpalisResultSummary(runDir),
-    fs.readFile(path.join(runDir, "consolidated-run-report.json"), "utf8").catch(() => ""),
-    loadRFComlinkResultSummary(runDir),
+  const [manifest, analysisContext] = await Promise.all([
+    fs.readFile(path.join(runDir, "run_manifest.json"), "utf8"),
+    loadRunAnalysisContext(runDir).then(context => context ?? writeRunAnalysisContext(runDir).then(result => result.context)),
   ])
   const previousTurns = await loadElectricPropulsionRunConversation(runDir)
   const prompt = [
     "You are an engineering assistant analyzing an immutable GMAT finite-burn electric-propulsion transfer.",
-    "Answer only from the supplied data. Do not claim that GMAT was rerun and do not claim this non-targeted template reaches a particular final orbit unless the report demonstrates it.",
-    "The report columns are elapsed days, Keplerian elements (SMA km, ECC, INC/RAAN/AOP/TA degrees), electric propellant mass (kg), total mass (kg), thrust power available after the spacecraft bus load and power margin (kW), and electric-thruster mass flow rate (kg/s). State when data is unavailable.",
-    `Question: ${question}`, `Run manifest:\n${manifest}`, `Normalized result:\n${result}`,
-    report ? `GMAT electric transfer report:\n${report.slice(0, 100_000)}` : "GMAT electric transfer report: unavailable",
-    opalisResult ? `OPALIS electrical calculation summary (derived from calculated-opalis.json):\n${JSON.stringify(opalisResult)}` : "OPALIS electrical calculation: unavailable for this run.",
-    consolidatedReport ? `Consolidated GMAT + Simu-CIC + OPALIS report:\n${consolidatedReport.slice(0, 100_000)}` : "Consolidated report: unavailable.",
-    rfComlinkResult ? `RF-COMLINK saved calculation reports:\n${JSON.stringify(rfComlinkResult)}` : "RF-COMLINK calculation: unavailable for this run.",
+    "Answer only from the supplied analysis context. Do not claim that GMAT was rerun or that this non-targeted template reaches a final orbit unless the summarized evidence demonstrates it.",
+    "For every conclusion cite the tool and source file; clearly separate facts, interpretation, and missing evidence.",
+    `Question: ${question}`, `Run manifest:\n${manifest}`,
+    analysisContextForPrompt(analysisContext),
     relatedRuns.length ? `Mission run comparison index. Each entry is immutable, includes the exact inputs used, and lists every changed input relative to the preceding run. The current run is included for traceability; compare normalized results only and do not invent report details not shown here:\n${JSON.stringify(buildDraftRunComparisonEntries(relatedRuns), null, 2)}` : "No linked comparison runs.",
     previousTurns.length ? `Previous discussion:\n${JSON.stringify(previousTurns.slice(-10), null, 2)}` : "",
   ].filter(Boolean).join("\n\n")

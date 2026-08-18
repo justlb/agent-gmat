@@ -2,6 +2,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 
 import { loadOpalisResultSummary } from "./opalisResults.js"
+import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 
 export async function writeConsolidatedRunReport(runDir: string) {
   const readJson = async (fileName: string) => JSON.parse(await fs.readFile(path.join(runDir, fileName), "utf8").catch(() => "null")) as unknown
@@ -15,6 +16,7 @@ export async function writeConsolidatedRunReport(runDir: string) {
     .filter((entry): entry is string => typeof entry === "string")
     .filter(entry => /\.(?:CIC|sce|txt)$/iu.test(entry))
     .map(entry => path.join("opalis", "02-simu-cic", entry).split(path.sep).join("/"))
+  const analysis = await writeRunAnalysisContext(runDir)
   const report = {
     generated_at: new Date().toISOString(),
     schema_version: 1,
@@ -24,8 +26,9 @@ export async function writeConsolidatedRunReport(runDir: string) {
     opalis,
     satellite,
     simu_cic: { definition: simuCicDefinition, generated_files: cicFiles },
+    analysis_context: "run-analysis-context.json",
   }
   const output = path.join(runDir, "consolidated-run-report.json")
   await fs.writeFile(output, `${JSON.stringify(report, null, 2)}\n`, "utf8")
-  return { output, report }
+  return { output, report, analysisContext: analysis.output }
 }

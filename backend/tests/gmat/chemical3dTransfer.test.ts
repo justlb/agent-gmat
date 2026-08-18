@@ -5,7 +5,18 @@ import path from "node:path"
 import test from "node:test"
 
 import { confirmChemical3dDraft, createChemical3dDraft, discussChemical3dDraft, generateChemical3dMission, setChemical3dDraftValue } from "../../src/gmat/chemical3dTransfer.js"
-import { createPlanningRun } from "../../src/digitalThread/digitalThreadStore.js"
+import { createPlanningRun, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
+import { selectSatelliteDefinition } from "../../src/digitalThread/satelliteLibrary.js"
+
+test("chemical 3D draft inherits the selected run-local satellite", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-chemical-3d-satellite-"))
+  const planning = await createPlanningRun(root)
+  await selectSatelliteDefinition(planning.workspaceDir, "ref-leo-orbit-keeping")
+  const draft = await createChemical3dDraft(planning.workspaceDir)
+  const thread = await loadOrCreateDigitalThread(draftDigitalThreadWorkspaceDir(planning.workspaceDir, "chemical-3d-transfer", draft.draftId))
+  assert.equal((thread.digital_thread.satellite_definition as { id?: string }).id, "ref-leo-orbit-keeping")
+  assert.equal(((thread.satellite.bus as { physical?: { mass_kg?: { dry?: number } } }).physical?.mass_kg?.dry ?? null) !== null, true)
+})
 
 test("chemical 3D GEO transfer renders only its declared mission geometry", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-chemical-3d-"))

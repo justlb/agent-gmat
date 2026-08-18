@@ -25,6 +25,7 @@ const CHEMICAL_HOHMANN_ARTIFACT_KINDS: Record<string, ChemicalHohmannFileKind> =
   "chemical_hohmann_transfer.values.yaml": "values",
   "gmat.log": "log",
   "gmat_result.json": "result",
+  "run-analysis-context.json": "result",
   "run_manifest.json": "manifest",
   "satellite.json": "digital-thread",
   "opalis/01-conversion_vers_SIMU-CIC/EphemerisFile1_SIMU.txt": "simu-cic",

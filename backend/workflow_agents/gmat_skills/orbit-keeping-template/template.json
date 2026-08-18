@@ -11,6 +11,7 @@
     { "path": "orbit_keeping.script", "kind": "script" },
     { "path": "orbit_keeping.values.yaml", "kind": "values" },
     { "path": "gmat_result.json", "kind": "result" },
+    { "path": "run-analysis-context.json", "kind": "result" },
     { "path": "run_manifest.json", "kind": "manifest" },
     { "path": "satellite.json", "kind": "digital-thread", "primary": true },
     { "path": "satellite.digital-thread.json", "kind": "digital-thread" },

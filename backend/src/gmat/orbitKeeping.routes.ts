@@ -40,6 +40,7 @@ function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
   if (fileName.endsWith(".values.yaml")) return "values"
   if (fileName === "gmat_result.json") return "result"
   if (fileName === "consolidated-run-report.json") return "result"
+  if (fileName === "run-analysis-context.json") return "result"
   if (fileName === "workflow-status.json") return "result"
   if (fileName === "satellite.digital-thread.json" || fileName === "satellite.json") return "digital-thread"
   if (fileName === "orbit_timeseries.json") return "timeseries"
@@ -77,6 +78,7 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
       }
       const opalisFiles = [
         ["consolidated-run-report.json"],
+        ["run-analysis-context.json"],
         ["opalis", "02-simu-cic", "00-scenario-input", "simucic-input.scd"],
         ["opalis", "02-opalis-input", "opalis-parameters.json"],
         ["opalis", "03-opalis", "02-resultats", "prepared-opalis.opalis"],
@@ -182,7 +184,7 @@ function resolveListedOrbitKeepingFilePath(userWorkspaceRoot: string, relativePa
   const relativeSegments = path.relative(root, filePath).split(path.sep)
   const historyIndex = relativeSegments.indexOf("artifact-history")
   const historicalArtifact = historyIndex >= 0 && relativeSegments.length > historyIndex + 3 && /^[A-Za-z0-9_-]+$/u.test(relativeSegments[historyIndex + 1]) && /^[-A-Za-z0-9_]+$/u.test(relativeSegments[historyIndex + 2]) && Boolean(orbitKeepingFileKind(path.basename(filePath)))
-  const currentArtifact = /\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log|vts\/(?:gmat-orbit\.vts|Data\/GMAT_OEM_POSITION\.TXT)|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/(?:calculated-rf-comlink\.rfcl|rf-comlink-results\.json)))$/u.test(normalized)
+  const currentArtifact = /\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|run-analysis-context|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log|vts\/(?:gmat-orbit\.vts|Data\/GMAT_OEM_POSITION\.TXT)|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/(?:calculated-rf-comlink\.rfcl|rf-comlink-results\.json)))$/u.test(normalized)
   if (!isPathInside(root, filePath) || (!historicalArtifact && !currentArtifact)) return null
   return filePath
 }

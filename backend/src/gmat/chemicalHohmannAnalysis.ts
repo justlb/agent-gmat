@@ -5,6 +5,7 @@ import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { buildDraftRunComparisonEntries } from "./draftRunComparison.js"
 import type { ChemicalHohmannDraftRun } from "./chemicalHohmannDraft.js"
+import { analysisContextForPrompt, loadRunAnalysisContext, writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 
 function responseText(payload: unknown) {
   if (payload && typeof payload === "object" && typeof (payload as { output_text?: unknown }).output_text === "string") return (payload as { output_text: string }).output_text.trim()
@@ -22,10 +23,10 @@ export async function analyzeChemicalHohmannRunWithLlm({ connection, question, r
   fetchImpl?: typeof fetch
   timeoutMs?: number
 }) {
-  const [manifest, result, conversation] = await Promise.all([
+  const [manifest, conversation, analysisContext] = await Promise.all([
     fs.readFile(path.join(runDir, "run_manifest.json"), "utf8"),
-    fs.readFile(path.join(runDir, "gmat_result.json"), "utf8"),
     fs.readFile(path.join(runDir, "conversation.json"), "utf8").catch(() => "[]"),
+    loadRunAnalysisContext(runDir).then(context => context ?? writeRunAnalysisContext(runDir).then(result => result.context)),
   ])
   const response = await fetchImpl(`${connection.baseUrl.replace(/\/+$/u, "")}/responses`, {
     method: "POST",
@@ -34,10 +35,10 @@ export async function analyzeChemicalHohmannRunWithLlm({ connection, question, r
       model: connection.model,
       input: [
         "You are an engineering assistant analyzing immutable chemical Hohmann GMAT executions from one mission discussion.",
-        "Answer only from the supplied data. Do not claim GMAT was rerun. State when a requested orbital metric is unavailable.",
+        "Answer only from the supplied analysis context. Do not claim GMAT was rerun. Cite the tool and source file for facts; state when a requested orbital metric is unavailable.",
         `Question: ${question}`,
         `GMAT run manifest:\n${manifest}`,
-        `Normalized result:\n${result}`,
+        analysisContextForPrompt(analysisContext),
         relatedRuns.length ? `Mission run comparison index. Each entry has exact inputs and every changed input relative to the preceding execution. The artifact path identifies its immutable snapshot:\n${JSON.stringify(buildDraftRunComparisonEntries(relatedRuns), null, 2)}` : "No linked Hohmann comparison executions.",
         `Previous run discussion:\n${conversation}`,
       ].join("\n\n"),

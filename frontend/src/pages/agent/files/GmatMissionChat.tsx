@@ -131,6 +131,30 @@ const COMPARISON_LABELS: Record<string, string> = {
   'power.initialMaxPowerKw': 'Solar power', 'power.busLoadKw': 'Bus load', 'power.systemMarginPercent': 'Power margin',
 }
 
+/** Values that are fixed by the selected GMAT model rather than entered by
+ * the engineer. They are rendered alongside the run-local satellite values
+ * so the disclosure never becomes an empty, misleading control. */
+function implicitTemplateAssumptions(mode: AgentChatMode): Assumption[] {
+  const common: Assumption[] = [
+    { label: 'Central body', value: 'Earth' },
+    { label: 'Coordinate system', value: 'EarthMJ2000Eq' },
+    { label: 'Initial-state representation', value: 'Keplerian (SMA, ECC, INC, RAAN, AOP, TA)' },
+    { label: 'Initial RAAN', value: '0 deg' },
+    { label: 'Initial argument of periapsis', value: '0 deg' },
+    { label: 'Initial true anomaly', value: '0 deg' },
+  ]
+  if (mode === 'gmat-orbit-keeping') return [...common, { label: 'Gravity model', value: 'JGM2, degree/order 4' }, { label: 'Atmosphere model', value: 'MSISE90' }, { label: 'Thrust direction', value: 'VNB +V (prograde)' }]
+  if (mode === 'gmat-electric-propulsion') return [...common, { label: 'Gravity model', value: 'JGM2, degree/order 4' }, { label: 'Thrust direction', value: 'VNB +V (prograde)' }, { label: 'Solar-array reference epoch', value: 'Synchronized to mission epoch' }]
+  if (mode === 'gmat-chemical-3d') return [...common, { label: 'Transfer model', value: 'Fixed chemical LEO-to-GEO 3D transfer' }]
+  if (mode === 'gmat-chemical-hohmann') return [...common, { label: 'Transfer model', value: 'Fixed chemical Hohmann transfer' }]
+  return common
+}
+
+function uniqueAssumptions(items: Assumption[]) {
+  const seen = new Set<string>()
+  return items.filter(item => !seen.has(item.label) && (seen.add(item.label), true))
+}
+
 function RunComparisonMemory({ runs }: { runs: NonNullable<Draft>['runs'] }) {
   const ordered = [...(runs ?? [])].sort((left, right) => right.completedAt.localeCompare(left.completedAt))
   const inputs = (run: typeof ordered[number]) => MEMORY_FIELDS.flatMap(([label, path, unit]) => {
@@ -274,6 +298,11 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
   const missing = displayedValues ? fields.filter(field => !field.derived && (displayedValues[field.path] === null || displayedValues[field.path] === undefined || displayedValues[field.path] === '')).map(field => field.label) : []
   const blockers = draft?.safety?.checks.filter(check => check.severity === 'error') ?? []
   const warnings = draft?.safety?.checks.filter(check => check.severity === 'warning') ?? []
+  const assumptions = uniqueAssumptions([
+    ...implicitTemplateAssumptions(chatMode),
+    ...(draft?.safety?.assumptions ?? []),
+    ...satelliteAssumptions,
+  ])
   const simuCicNeedsStations = simuCic.attitude_mode === 'ground_station_tracking' && !simuCic.ground_station_ids.length
   const simuCicComplete = simuCic.attitude_mode === 'nadir_pointing' || (simuCic.attitude_mode === 'ground_station_tracking' && !simuCicNeedsStations)
   const updateGroundStation = (stationId: string) => {
@@ -344,8 +373,8 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
                   {RF_COMLINK_GROUND_STATION_IDS.flatMap(id => groundStations.filter(station => station.id === id)).map(station => <option key={station.id} value={station.id}>{station.name} ({station.id})</option>)}
                 </select></li>
               </ul>{simuCicConfigurationError ? <p className="gmat-mission-run-blocker">{simuCicConfigurationError}</p> : <p className="gmat-mission-simucic-hint">Choose nadir pointing or a predefined station. You can still ask the assistant for guidance or configure several stations in writing.</p>}</section> : null}
-              {draft ? <><details className="gmat-mission-assumptions"><summary><strong>Assumed defaults to confirm</strong><span>Template defaults and satellite values</span></summary><ul className="assumptions">{(draft.safety?.assumptions ?? []).map(item => <li key={item.label}>{item.label}: {item.value}</li>)}{satelliteAssumptions.map(item => <li key={`satellite-${item.label}`}>{item.label}: {item.value}</li>)}</ul></details>
-              {draft.runs?.length ? <RunComparisonMemory runs={draft.runs} /> : null}
+              {showMissionInputs ? <><details className="gmat-mission-assumptions"><summary><strong>Assumed defaults to confirm</strong><span>{assumptions.length} implicit values</span></summary><ul className="assumptions">{assumptions.map(item => <li key={item.label}>{item.label}: {item.value}</li>)}</ul></details>
+              {draft ? <><>{draft.runs?.length ? <RunComparisonMemory runs={draft.runs} /> : null}</>
               {!activeRunId ? <>
                 <button
                   className="gmat-mission-run-button"
@@ -355,7 +384,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
                   onClick={onExecute}
                 >Confirm and run GMAT</button>
                 {draft.status !== 'ready' && !draft.missing.length && blockers.length ? <p className="gmat-mission-run-blocker">GMAT is blocked by the safety check shown in the discussion.</p> : null}
-              </> : null}</> : null}
+              </> : null}</> : null}</> : null}
             </> : activeRunId ? <p>Loading saved mission values…</p> : <p>Describe the mission to start a new draft.</p>}
             {activeRunId && !editingRunValues ? <button className="gmat-mission-run-button" disabled={busy} type="button" onClick={() => { setEditingRunValues(true); onMissionValuesChangeRequested?.() }}>Change mission values</button> : null}
             {activeRunId && gmatRunFailed ? <><p className="gmat-mission-run-blocker">GMAT failed. Edit the mission values, then run GMAT again before continuing to Simu-CIC or OPALIS.</p><button className="gmat-mission-run-button" disabled={busy || !draft} type="button" onClick={onExecute}>Retry unchanged values</button></> : null}

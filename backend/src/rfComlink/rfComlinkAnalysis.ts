@@ -4,6 +4,7 @@ import path from "node:path"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { loadRFComlinkResultSummary } from "./rfComlinkResults.js"
+import { analysisContextForPrompt, loadRunAnalysisContext, writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 
 function responseText(payload: unknown) {
   if (payload && typeof payload === "object" && typeof (payload as { output_text?: unknown }).output_text === "string") return (payload as { output_text: string }).output_text.trim()
@@ -22,13 +23,10 @@ export async function analyzeRFComlinkRunWithLlm({ connection, question, runDir,
 }) {
   const summary = await loadRFComlinkResultSummary(runDir)
   if (!summary) throw new Error("RF-COMLINK results are not saved for this run. Run the calculation and select Save RF-COMLINK results first.")
-  const [manifest, gmatResult, simuCicDefinition, opalisResult, consolidatedReport, conversation] = await Promise.all([
+  const [manifest, conversation, analysisContext] = await Promise.all([
     fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}"),
-    fs.readFile(path.join(runDir, "gmat_result.json"), "utf8").catch(() => "{}"),
-    fs.readFile(path.join(runDir, "opalis", "02-simu-cic", "simucic.definition.json"), "utf8").catch(() => "{}"),
-    fs.readFile(path.join(runDir, "opalis", "03-opalis", "02-resultats", "calculated-opalis.json"), "utf8").catch(() => "{}"),
-    fs.readFile(path.join(runDir, "consolidated-run-report.json"), "utf8").catch(() => "{}"),
     fs.readFile(path.join(runDir, "conversation.json"), "utf8").catch(() => "[]"),
+    loadRunAnalysisContext(runDir).then(context => context ?? writeRunAnalysisContext(runDir).then(result => result.context)),
   ])
   const response = await fetchImpl(`${connection.baseUrl.replace(/\/+$/u, "")}/responses`, {
     method: "POST",
@@ -37,14 +35,10 @@ export async function analyzeRFComlinkRunWithLlm({ connection, question, runDir,
       model: connection.model,
       input: [
         "You are an RF systems engineering assistant analyzing one immutable end-to-end mission run.",
-        "Answer only from the supplied GMAT, Simu-CIC, OPALIS, and RF-COMLINK artifacts. State clearly when a requested metric is absent; do not claim a tool was rerun.",
+        "Answer only from the supplied run-analysis context. State clearly when a requested metric is absent; do not claim a tool was rerun. Cite the named tool and source file for facts, and distinguish facts from interpretation.",
         `Question: ${question}`,
         `GMAT run manifest:\n${manifest}`,
-        `GMAT result:\n${gmatResult}`,
-        `Simu-CIC executed attitude and station definition:\n${simuCicDefinition}`,
-        `OPALIS calculated result:\n${opalisResult}`,
-        `Consolidated workflow report:\n${consolidatedReport}`,
-        `RF-COMLINK result summary and extracted reports:\n${JSON.stringify(summary)}`,
+        analysisContextForPrompt(analysisContext),
         `Previous run discussion:\n${conversation}`,
       ].join("\n\n"),
       max_output_tokens: 1600,

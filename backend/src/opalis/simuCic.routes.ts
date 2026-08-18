@@ -14,6 +14,7 @@ import { writeSimuCicDefinition } from "./simuCicDefinition.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { cancelActiveCalculations, registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
 import { loadRunWorkflowLog, updateRunWorkflowLog } from "./workflowRunLog.js"
+import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 
 type RunBody = { runPath?: unknown }
 
@@ -240,6 +241,7 @@ export async function runSimuCicForRun(config: AppConfig, root: string, runDir: 
   }
   await updateRunWorkflowLog(runDir, "simu_cic", "completed", "Simu-CIC completed and generated CIC data.")
   await appendRunConversation(runDir, { answer: `Simu-CIC completed. CIC data generated in ${result.cicSatDir}.`, askedAt: new Date().toISOString(), channel: "simu-cic", question: "Run Simu-CIC" })
+  await writeRunAnalysisContext(runDir)
   return result
 }
 

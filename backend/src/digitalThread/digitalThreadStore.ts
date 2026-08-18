@@ -243,7 +243,7 @@ export async function loadOrCreateDigitalThread(workspaceDir: string) {
 
 /** Starts a clean, per-draft digital thread from the selected satellite only.
  * Earlier mission values deliberately do not leak into a new draft. */
-export async function initializeDraftDigitalThread(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer", draftId: string) {
+export async function initializeDraftDigitalThread(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer" | "chemical-3d-transfer", draftId: string) {
   const draftWorkspaceDir = draftDigitalThreadWorkspaceDir(workspaceDir, template, draftId)
   const output = digitalThreadPath(draftWorkspaceDir)
   const existing = await fs.readFile(output, "utf8").catch(() => null)
