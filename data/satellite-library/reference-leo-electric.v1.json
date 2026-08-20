@@ -24,10 +24,14 @@
       "propulsion_subsystem": {
         "type": "Electric propulsion (Krypton Hall-effect thruster)",
         "propellant": "Krypton",
-        "specific_impulse_seconds": 1600,
-        "nominal_thrust_newtons": 0.01,
+        "specific_impulse_seconds": 4200,
+        "nominal_thrust_newtons": 0.15,
+        "nominal_duty_cycle": 1,
         "electric_thruster": {
           "propellant_mass_kg": 10,
+          "nominal_thruster_power_kw": 4.2,
+          "fixed_efficiency": 0.73549875,
+          "constant_thrust_newtons": 0.15,
           "minimum_usable_power_kw": 1,
           "maximum_usable_power_kw": 4.2
         }
@@ -48,7 +52,7 @@
         "bus_voltage_v": 120,
         "spacecraft_bus_load_kw": 3.5,
         "electric_propulsion_mode": {
-          "bus_load_kw": 2.8
+          "bus_load_kw": 1.5
         },
         "system_margin_percent": 20
       },
@@ -80,8 +84,8 @@
         },
         "power_distribution": {
           "consumption_mode": "Constant",
-          "constant_load_w": 3500,
-          "margin_w": 700,
+          "constant_load_w": 1500,
+          "margin_w": 840,
           "rated_power_w": 4200
         },
         "environment": {

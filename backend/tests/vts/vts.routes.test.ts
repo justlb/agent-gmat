@@ -4,7 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import { test } from "node:test"
 
-import { prepareVtsProject } from "../../src/vts/vts.routes.js"
+import { loadVtsTrajectory, prepareVtsProject } from "../../src/vts/vts.routes.js"
 
 test("prepares a VTS project from GMAT OEM positions without changing the GMAT artifact", async () => {
   const runDir = await fs.mkdtemp(path.join(os.tmpdir(), "vts-gmat-run-"))
@@ -44,4 +44,8 @@ test("prepares a VTS project from GMAT OEM positions without changing the GMAT a
   assert.match(cic, /META_START[\s\S]+META_STOP/u)
   assert.match(cic, /^61253 0\.000000 6\.678136300000e\+03/mu)
   assert.equal(unchangedOem, originalOem)
+
+  const trajectory = await loadVtsTrajectory(runDir)
+  assert.equal(trajectory.frame, "EarthMJ2000Eq")
+  assert.deepEqual(trajectory.positions.map(position => [position.xKm, position.yKm, position.zKm]), [[6678.1363, 0, 0], [6662.031, 463.1734, 0]])
 })

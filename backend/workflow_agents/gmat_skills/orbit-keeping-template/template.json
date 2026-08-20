@@ -1,6 +1,6 @@
 {
   "id": "orbit-keeping",
-  "name": "Orbit keeping",
+  "name": "LEO Orbit Maintenance (Chemical)",
   "description": "Chemical-propulsion LEO station keeping with drag decay and reboost events.",
   "analysis_request_key": "orbit_keeping",
   "draft_directory": ["gmat", "drafts"],
@@ -14,11 +14,11 @@
     { "path": "run-analysis-context.json", "kind": "result" },
     { "path": "run_manifest.json", "kind": "manifest" },
     { "path": "satellite.json", "kind": "digital-thread", "primary": true },
-    { "path": "satellite.digital-thread.json", "kind": "digital-thread" },
     { "path": "EphemerisFile1.oem", "kind": "ephemeris", "primary": true },
     { "path": "ReboostReport.txt", "kind": "report", "primary": true },
     { "path": "OrbitAnalysisReport.txt", "kind": "report" },
     { "path": "orbit_timeseries.json", "kind": "timeseries" },
+    { "path": "opalis/03-opalis/02-resultats/calculated-opalis-timeseries.json", "kind": "opalis" },
     { "path": "gmat.log", "kind": "log" }
   ],
   "propulsion_requirement": "chemical",

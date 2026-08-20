@@ -11,6 +11,7 @@ import type { ChemicalHohmannDraft } from "./chemicalHohmannDraft.js"
 import { defaultChemicalHohmannTemplatePath } from "./chemicalHohmannTemplate.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 import { assertGmatMissionGuardrails } from "./missionGuardrails.js"
+import { loadSatelliteYamlSnapshot } from "./satelliteYamlSnapshot.js"
 
 export type ChemicalHohmannRenderValues = {
   "initialOrbit.argPeriapsisDeg"?: number | null
@@ -40,7 +41,7 @@ export type ChemicalHohmannGenerationResult = {
 }
 
 const CHEMICAL_HOHMANN_MUTABLE_ARTIFACTS = [
-  "EphemerisFile1.oem", "chemical_hohmann_transfer.script", "chemical_hohmann_transfer.values.yaml", "gmat.log", "gmat_result.json", "run_manifest.json", "satellite.json", "satellite.digital-thread.json",
+  "EphemerisFile1.oem", "chemical_hohmann_transfer.script", "chemical_hohmann_transfer.values.yaml", "gmat.log", "gmat_result.json", "run_manifest.json", "satellite.json",
 ]
 
 /** Freezes the active Hohmann workspace after every execution. */
@@ -161,9 +162,10 @@ export async function generateChemicalHohmannMission({ draft, workspaceDir, temp
   const runId = path.basename(runDir)
   const createdAt = new Date().toISOString()
   const logPath = path.join(runDir, "gmat.log")
+  const satelliteInputs = await loadSatelliteYamlSnapshot(workspaceDir)
   await Promise.all([
     fs.writeFile(scriptPath, script, "utf8"),
-    fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values }), "utf8"),
+    fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values, ...(satelliteInputs ? { satellite_inputs: satelliteInputs } : {}) }), "utf8"),
   ])
   let executionResult: { durationMs: number; error?: string; exitCode: number | null; status: "completed" | "failed" | "timeout" } | undefined
   if (execution) {

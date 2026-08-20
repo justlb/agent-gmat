@@ -2245,6 +2245,14 @@
 .opalis-result-warning, .opalis-result-info { margin: 10px 0 0; font-size: 12px; line-height: 1.4; }
 .opalis-result-warning { color: #fbbf24; }
 .opalis-result-info { color: #a5f3fc; }
+.opalis-result-groups { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; }
+.opalis-result-groups > div { background: rgba(2, 15, 29, .48); border: 1px solid rgba(96, 165, 250, .22); border-radius: 8px; padding: 11px; }
+.opalis-result-groups h3 { color: #e0f2fe; font-size: 12px; margin: 0 0 8px; }
+.opalis-result-groups dl { display: grid; gap: 5px 10px; grid-template-columns: minmax(0, 1fr) auto; margin: 0; }
+.opalis-result-groups dt { color: #9fb6cf; font-size: 10px; }
+.opalis-result-groups dd { color: #f1f5f9; font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 800; margin: 0; text-align: end; }
+.opalis-series-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 14px; }
+.opalis-series-chart { background: rgba(2, 15, 29, .32); border: 1px solid rgba(96, 165, 250, .18) !important; border-radius: 8px !important; padding: 11px !important; }
 
 .gmat-analysis-chart { color: #60a5fa; inline-size: 100%; margin-top: 14px; }
 .gmat-analysis-chart line { stroke: rgba(148, 163, 184, 0.5); }
@@ -2263,7 +2271,7 @@
   align-items: end;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(210px, 1fr) minmax(180px, .8fr) minmax(180px, .8fr);
+  grid-template-columns: minmax(210px, 1fr) minmax(220px, .8fr);
 }
 
 .gmat-analysis-run-selector label {
@@ -2285,10 +2293,20 @@
 }
 
 .gmat-analysis-run-selector select:disabled { cursor: not-allowed; opacity: .55; }
+.gmat-analysis-comparison-selector { align-items: end; background: rgba(7, 34, 59, .3); display: grid; gap: 8px 14px; grid-template-columns: minmax(0, 1fr) minmax(220px, .62fr); }
+.gmat-analysis-comparison-selector > strong, .gmat-analysis-comparison-selector > span { grid-column: 1; }
+.gmat-analysis-comparison-selector label { color: #b9cce0; display: grid; font-size: 11px; font-weight: 800; gap: 6px; grid-column: 2; grid-row: 1 / span 2; }
+.gmat-analysis-comparison-selector select { background: #06172b; border: 1px solid rgba(96, 165, 250, .48); border-radius: 7px; color: #eaf7ff; font: inherit; min-inline-size: 0; padding: 8px 9px; }
+.gmat-analysis-comparison-selector select:disabled { cursor: not-allowed; opacity: .55; }
+.opalis-comparison-selector { background: transparent; border: 0; margin-top: 14px; padding: 0; }
+.cesium-orbit-viewer { background: linear-gradient(120deg, rgba(7, 34, 59, .58), rgba(2, 15, 29, .92)); min-block-size: 420px; padding: 0 !important; overflow: hidden; }
+.cesium-orbit-viewer-heading { align-items: baseline; border-bottom: 1px solid rgba(96, 165, 250, .26); display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: space-between; padding: 12px 16px; }
+.cesium-orbit-viewer-heading strong { color: #e0f2fe; font-size: 14px; }
+.cesium-orbit-viewer-heading span { color: #93c5fd; font-size: 11px; }
+.cesium-orbit-canvas { block-size: 365px; min-block-size: 365px; }
+.cesium-orbit-canvas .cesium-viewer, .cesium-orbit-canvas .cesium-viewer-cesiumWidget, .cesium-orbit-canvas .cesium-widget { block-size: 100%; inline-size: 100%; }
+.cesium-orbit-canvas .cesium-viewer-bottom { display: none; }
 .gmat-analysis-run-summary { background: rgba(7, 34, 59, .44); }
-.gmat-analysis-run-summary .gmat-vts-launch { background: rgba(8, 93, 123, .72); border: 1px solid rgba(34, 211, 238, .64); border-radius: 7px; color: #ecfeff; cursor: pointer; font-size: 11px; font-weight: 800; margin-top: 10px; padding: 8px 12px; }
-.gmat-analysis-run-summary small { color: #fda4af; display: block; font-size: 10px; line-height: 1.35; margin-top: 7px; }
-.gmat-analysis-run-summary small.is-success { color: #67e8f9; }
 .gmat-analysis-comparison-deltas { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
 .gmat-analysis-comparison-deltas span { background: rgba(245, 158, 11, .12); border: 1px solid rgba(245, 158, 11, .28); border-radius: 6px; color: #fde68a; font-size: 10px; padding: 5px 7px; }
 .gmat-analysis-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 7px; }
@@ -2297,6 +2315,11 @@
 
 @media (max-width: 850px) {
   .gmat-analysis-run-selector { grid-template-columns: 1fr; }
+  .gmat-analysis-comparison-selector { grid-template-columns: 1fr; }
+  .gmat-analysis-comparison-selector label, .gmat-analysis-comparison-selector > strong, .gmat-analysis-comparison-selector > span { grid-column: 1; grid-row: auto; }
+  .cesium-orbit-viewer { min-block-size: 340px; }
+  .cesium-orbit-canvas { block-size: 285px; min-block-size: 285px; }
+  .opalis-result-groups, .opalis-series-grid { grid-template-columns: 1fr; }
 }
 
 .satellite-library, .mission-studio { box-sizing: border-box; block-size: 100%; min-block-size: 0; overflow-y: auto; padding: 18px 20px; }
@@ -2471,6 +2494,8 @@
 .mission-studio .gmat-mission-assumptions summary strong { flex: 1; }
 .mission-studio .gmat-mission-assumptions summary span { color: #8fb3cd; font-size: 10px; text-align: right; }
 .mission-studio .gmat-mission-assumptions .assumptions { margin: 0; padding: 0 8px 8px; }
+.mission-studio .gmat-mission-assumptions .gmat-mission-assumed-fields li { align-items: center; display: flex; justify-content: space-between; margin-left: 0; padding-left: 0; }
+.mission-studio .gmat-mission-assumptions .gmat-mission-assumed-fields .gmat-mission-required-input { width: 48%; }
 .mission-studio .gmat-mission-context { padding: 8px 10px; border-bottom: 1px solid rgba(92, 152, 195, .18); background: rgba(2, 12, 24, .42); }
 .mission-studio .gmat-mission-context .mission-setup-sources { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .mission-studio .gmat-mission-context .mission-template-source, .mission-studio .gmat-mission-context .mission-satellite-source { min-width: 0; margin: 0; padding: 8px 10px; }

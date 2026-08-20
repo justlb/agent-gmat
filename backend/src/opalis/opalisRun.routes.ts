@@ -11,7 +11,7 @@ import { snapshotRunArtifacts } from "../gmat/artifactHistory.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { prepareOpalisInputs } from "./opalisPreparation.routes.js"
-import { loadOpalisResultSummary } from "./opalisResults.js"
+import { loadOpalisResultSummary, loadOpalisTimeSeries } from "./opalisResults.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { writeConsolidatedRunReport } from "./consolidatedRunReport.js"
 import { loadRunWorkflowLog, updateRunWorkflowLog } from "./workflowRunLog.js"
@@ -110,6 +110,20 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
     }
   })
 
+  fastify.get<{ Querystring: { runPath?: unknown } }>("/api/opalis/timeseries", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    const runDir = root ? resolveGmatRunDir(path.resolve(root), req.query?.runPath) : null
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    try {
+      const result = await loadOpalisTimeSeries(runDir)
+      if (!result) return reply.status(404).send({ error: "No OPALIS time-series results are available for this GMAT run" })
+      return reply.send({ result })
+    } catch (error) {
+      return reply.status(422).send({ error: getErrorMessage(error, "failed to load OPALIS time series") })
+    }
+  })
+
   fastify.post<{ Body: RunBody }>("/api/opalis/prepare-scenario", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
@@ -180,6 +194,7 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       await snapshotRunArtifacts(runDir, "opalis", [
         "opalis/03-opalis/02-resultats/calculated-opalis.opalis",
         "opalis/03-opalis/02-resultats/calculated-opalis.json",
+        "opalis/03-opalis/02-resultats/calculated-opalis-timeseries.json",
         "consolidated-run-report.json",
       ])
       const outputDir = path.join(runDir, "opalis", "03-opalis")

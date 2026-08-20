@@ -135,6 +135,10 @@ async function runCommand(executable: string, args: string[], cwd: string, timeo
   })
 }
 
+function delay(milliseconds: number) {
+  return new Promise<void>(resolve => setTimeout(resolve, milliseconds))
+}
+
 async function convertGmatEphemeris(settings: ReturnType<typeof requiredSimuCicConfig>, runDir: string) {
   const ephemeris = await findGmatEphemeris(runDir)
   if (!ephemeris) {
@@ -147,12 +151,25 @@ async function convertGmatEphemeris(settings: ReturnType<typeof requiredSimuCicC
   await fs.access(converter).catch(() => {
     throw new Error("OPALIS ephemeris converter is unavailable: " + converter)
   })
-  const output = await runCommand(settings.workerPython, [
+  const args = [
     nativePath(converter),
     nativePath(ephemeris),
     "--output", nativePath(convertedEphemeris),
     "--json",
-  ], runDir, settings.timeoutMs)
+  ]
+  let output = ""
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    try {
+      output = await runCommand(settings.workerPython, args, runDir, settings.timeoutMs)
+      break
+    } catch (error) {
+      const message = getErrorMessage(error, "GMAT ephemeris conversion failed")
+      if (!/No convertible records found/u.test(message) || attempt === 5) throw error
+      // GMAT can expose the OEM before its subscriber has flushed the first
+      // state records. Retry only this explicitly transient condition.
+      await delay(500)
+    }
+  }
   const convertedStat = await fs.stat(convertedEphemeris).catch(() => null)
   if (!convertedStat?.isFile() || convertedStat.size === 0) {
     throw new Error("The GMAT ephemeris conversion did not produce a usable SIMU-CIC file")

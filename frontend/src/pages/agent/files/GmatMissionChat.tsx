@@ -71,7 +71,7 @@ function runValuesFromSatelliteJson(document: Record<string, unknown>, mode: Age
     'initialOrbit.inclinationDeg': valueAt(document, 'satellite.orbit.keplerian_elements.inclination_deg'),
   }
   if (mode === 'gmat-electric-propulsion') {
-    values['transfer.burnDurationDays'] = valueAt(document, 'analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days')
+    values['transfer.finalAltitudeKm'] = valueAt(document, 'analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km')
   } else if (mode === 'gmat-orbit-keeping') {
     values['spacecraft.initialFuelMassKg'] = valueAt(document, 'analysis_requests.gmat.orbit_keeping.initial_fuel_mass_kg')
     values['stationKeeping.minimumAltitudeKm'] = valueAt(document, 'analysis_requests.gmat.orbit_keeping.minimum_reboost_altitude_km')
@@ -93,7 +93,7 @@ function MissionValueField({ busy, field, onSubmit, value }: { busy: boolean; fi
   const displayValue = field.valueTransform === 'earth-radius' && typeof value === 'number'
     ? Number((value - EARTH_EQUATORIAL_RADIUS_KM).toFixed(6))
     : value
-  const savedValue = displayValue === null ? '' : String(displayValue)
+  const savedValue = displayValue === null ? field.defaultValue === undefined ? '' : String(field.defaultValue) : String(displayValue)
   const [entry, setEntry] = useState(savedValue)
   useEffect(() => { setEntry(savedValue) }, [savedValue])
   const submit = () => {
@@ -117,14 +117,14 @@ function MissionValueField({ busy, field, onSubmit, value }: { busy: boolean; fi
 
 const MEMORY_FIELDS: Array<[string, string, string?]> = [
   ['SMA', 'initialOrbit.smaKm', 'km'], ['ECC', 'initialOrbit.eccentricity'], ['INC', 'initialOrbit.inclinationDeg', 'deg'],
-  ['Fuel', 'spacecraft.initialFuelMassKg', 'kg'], ['Burn', 'transfer.burnDurationDays', 'days'], ['Reboost', 'stationKeeping.minimumAltitudeKm', 'km'],
+  ['Fuel', 'spacecraft.initialFuelMassKg', 'kg'], ['Target altitude', 'transfer.finalAltitudeKm', 'km'], ['Reboost', 'stationKeeping.minimumAltitudeKm', 'km'],
 ]
 
 const COMPARISON_LABELS: Record<string, string> = {
   'initialOrbit.epoch': 'Epoch', 'initialOrbit.smaKm': 'SMA', 'initialOrbit.eccentricity': 'ECC', 'initialOrbit.inclinationDeg': 'INC',
   'initialOrbit.raanDeg': 'RAAN', 'initialOrbit.argPeriapsisDeg': 'AOP', 'initialOrbit.trueAnomalyDeg': 'TA',
   'spacecraft.dryMassKg': 'Dry mass', 'spacecraft.initialFuelMassKg': 'Fuel', 'spacecraft.dragAreaM2': 'Drag area',
-  'spacecraft.dragCoefficient': 'Drag coefficient', 'propulsion.ispSeconds': 'Isp', 'transfer.burnDurationDays': 'Burn',
+  'spacecraft.dragCoefficient': 'Drag coefficient', 'propulsion.ispSeconds': 'Isp', 'transfer.finalAltitudeKm': 'Target altitude',
   'stationKeeping.minimumAltitudeKm': 'Reboost altitude', 'stationKeeping.targetSmaKm': 'Target SMA',
   'stationKeeping.fuelReserveKg': 'Fuel reserve', 'endOfLife.finalAltitudeKm': 'End altitude',
   'propulsion.maximumUsablePowerKw': 'Maximum power', 'propulsion.minimumUsablePowerKw': 'Minimum power',
@@ -274,6 +274,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
   }, [workspaceDir, isRunScopedWorkspace, draft?.draftId, draft?.status, draft?.updatedAt, activeRunId, chatMode, simuCicRefreshNonce])
   const template = chatMode === 'general' ? null : missionTemplateForChatMode(chatMode)
   const fields = (template ? missionTemplateDefinition(template).inputFields : [])
+  const assumedFields = (template ? missionTemplateDefinition(template).assumedFields ?? [] : [])
     .filter(field => field.path === 'spacecraft.initialFuelMassKg' || (!field.path.startsWith('spacecraft.') && !field.path.startsWith('propulsion.') && !field.path.startsWith('power.')))
   // A selected template exposes its required inputs immediately. The first
   // filled field creates/updates the draft through the normal LLM workflow.
@@ -373,7 +374,11 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
                   {RF_COMLINK_GROUND_STATION_IDS.flatMap(id => groundStations.filter(station => station.id === id)).map(station => <option key={station.id} value={station.id}>{station.name} ({station.id})</option>)}
                 </select></li>
               </ul>{simuCicConfigurationError ? <p className="gmat-mission-run-blocker">{simuCicConfigurationError}</p> : <p className="gmat-mission-simucic-hint">Choose nadir pointing or a predefined station. You can still ask the assistant for guidance or configure several stations in writing.</p>}</section> : null}
-              {showMissionInputs ? <><details className="gmat-mission-assumptions"><summary><strong>Assumed defaults to confirm</strong><span>{assumptions.length} implicit values</span></summary><ul className="assumptions">{assumptions.map(item => <li key={item.label}>{item.label}: {item.value}</li>)}</ul></details>
+              {showMissionInputs ? <><details className="gmat-mission-assumptions"><summary><strong>Assumed values</strong><span>{assumptions.length} values</span></summary>{assumedFields.length ? <ul className="assumptions gmat-mission-assumed-fields">{assumedFields.map(field => {
+                const rawValue = displayedValues?.[field.path] ?? field.defaultValue ?? null
+                const value = field.valueTransform === 'earth-radius' && typeof rawValue === 'number' ? Number((rawValue - EARTH_EQUATORIAL_RADIUS_KM).toFixed(6)) : rawValue
+                return <li key={field.path}><span>{field.label}</span>{(!activeRunId || editingRunValues) && onUpdateMissionValue ? <MissionValueField busy={busy} field={field} onSubmit={onUpdateMissionValue} value={typeof rawValue === 'string' || typeof rawValue === 'number' ? rawValue : null} /> : <b>{value === null ? 'Not provided' : `${value}${field.unit ? ` ${field.unit}` : ''}`}</b>}</li>
+              })}</ul> : null}<ul className="assumptions">{assumptions.map(item => <li key={item.label}>{item.label}: {item.value}</li>)}</ul></details>
               {draft ? <><>{draft.runs?.length ? <RunComparisonMemory runs={draft.runs} /> : null}</>
               {!activeRunId ? <>
                 <button
@@ -404,7 +409,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
               {warnings.map(item => <StatusMessage key={item.code} text={item.message} title="GMAT warning" />)}
               {activeRunId ? runConversation.map((turn, index) => <Turn answer={turn.answer} key={`${turn.askedAt}-${index}`} question={turn.question} />) : draft ? draftConversation.map((turn, index) => <Turn answer={turn.answer} key={`${turn.askedAt}-${index}`} question={turn.question} />) : simuCicConversation.map((turn, index) => <Turn answer={turn.answer} key={`${turn.askedAt}-${index}`} question={turn.question} />)}
               {pending ? <><p className="is-user is-pending"><span>You</span>{pending.message}</p>{pending.status === 'sending' ? <p className="is-assistant is-pending"><span>GMAT assistant</span>{pending.kind === 'run' ? 'Analyzing saved results…' : 'Thinking…'}</p> : <div className="gmat-mission-send-error"><span>GMAT assistant</span><p>{pending.error || 'Message was not sent.'}</p><button type="button" onClick={onRetry}>Retry</button></div>}</> : null}
-              {!activeRunId && !draft && !simuCicConversation.length && !pending ? <p className="gmat-mission-chat-placeholder">Start with the template selector, choose a compatible satellite, then describe the mission. The assistant will guide you through the remaining inputs.</p> : null}
+              {!activeRunId && !draft && !simuCicConversation.length && !pending ? <p className="gmat-mission-chat-placeholder">Start with the mission scenario selector, choose a compatible satellite, then describe the mission. The assistant will guide you through the remaining inputs.</p> : null}
             </div>
             <div className="gmat-mission-composer"><textarea disabled={busy} onChange={event => setMessage(event.target.value)} onKeyDown={onKeyDown} placeholder={activeRunId ? 'Ask a question about this completed run...' : 'Describe the mission parameters to validate...'} rows={3} value={message} /><button disabled={busy || !message.trim()} onClick={submit} type="button">Send</button>{busy && onStopCalculations ? <button className="gmat-mission-stop-button" onClick={onStopCalculations} type="button">Stop calculations</button> : null}</div>
           </section>

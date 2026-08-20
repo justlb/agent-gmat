@@ -1,6 +1,6 @@
 {
   "id": "chemical-3d-transfer",
-  "name": "Chemical 3D GEO transfer",
+  "name": "3D Chemical Transfer",
   "description": "Three-burn chemical transfer from an inclined Earth orbit to a near-geosynchronous orbit.",
   "analysis_request_key": "chemical_3d_transfer",
   "draft_directory": ["gmat", "chemical-3d-transfer", "drafts"],
@@ -15,7 +15,7 @@
     { "path": "run_manifest.json", "kind": "manifest" },
     { "path": "gmat.log", "kind": "log" },
     { "path": "satellite.json", "kind": "digital-thread", "primary": true },
-    { "path": "satellite.digital-thread.json", "kind": "digital-thread" }
+    { "path": "opalis/03-opalis/02-resultats/calculated-opalis-timeseries.json", "kind": "opalis" }
   ],
   "propulsion_requirement": "chemical",
   "initial_state_representation": "Keplerian",

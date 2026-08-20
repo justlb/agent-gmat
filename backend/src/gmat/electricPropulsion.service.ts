@@ -3,12 +3,13 @@ import { createHash } from "node:crypto"
 import path from "node:path"
 import { stringify } from "yaml"
 
-import { applyElectricPropulsionValueChanges, extractElectricPropulsionValues, renderElectricPropulsionValues, type ElectricPropulsionValueChange } from "./electricPropulsionValues.js"
+import { applyElectricPropulsionValueChanges, electricPropulsionSatelliteInputs, extractElectricPropulsionValues, renderElectricPropulsionValues, type ElectricPropulsionSatelliteInputs, type ElectricPropulsionValueChange } from "./electricPropulsionValues.js"
 import { runElectricPropulsionGmat, type ElectricPropulsionExecutionResult } from "./electricPropulsionRunner.js"
 import { defaultElectricPropulsionTemplatePath } from "./electricPropulsionTemplate.js"
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
+import { loadSatelliteYamlSnapshot } from "./satelliteYamlSnapshot.js"
 
 export type ElectricPropulsionProgress = { key: "load_template" | "llm_patch" | "render_script" | "run_gmat" | "save_results"; percent: number; status: "running" | "completed" }
 export type ElectricPropulsionRunResult = {
@@ -46,6 +47,7 @@ export type GenerateElectricPropulsionMissionResult = {
  * into the generated GMAT script, rather than editing that reference file.
  */
 type SatelliteElectricPropulsionCalibration = {
+  declaredFixedEfficiency: number | null
   dutyCycle: number
   fixedEfficiency: number
   ispSeconds: number
@@ -54,46 +56,60 @@ type SatelliteElectricPropulsionCalibration = {
   source: {
     isp: string
     dutyCycle: string
+    fixedEfficiency: string
     power: string
     thrust: string
   }
 }
 
-function positiveNumberAt(value: unknown, path: string) {
-  const result = path.split(".").reduce<unknown>((current, key) => current && typeof current === "object" ? (current as Record<string, unknown>)[key] : undefined, value)
-  return typeof result === "number" && Number.isFinite(result) && result > 0 ? result : null
-}
-
-async function loadSatelliteElectricPropulsionCalibration(workspaceDir: string): Promise<SatelliteElectricPropulsionCalibration | null> {
+async function loadSatelliteElectricPropulsionInputs(workspaceDir: string): Promise<ElectricPropulsionSatelliteInputs | null> {
   const satellitePath = path.join(path.resolve(workspaceDir), "satellite.json")
   const document = await fs.readFile(satellitePath, "utf8").then(source => JSON.parse(source) as unknown).catch(() => null)
-  if (!document) return null
-  const thrustPath = "satellite.bus.propulsion_subsystem.nominal_thrust_newtons"
-  const ispPath = "satellite.bus.propulsion_subsystem.specific_impulse_seconds"
-  const powerPath = "satellite.bus.propulsion_subsystem.electric_thruster.nominal_thruster_power_kw"
-  const dutyCyclePath = "satellite.bus.propulsion_subsystem.nominal_duty_cycle"
-  const nominalThrustNewtons = positiveNumberAt(document, thrustPath)
-  const ispSeconds = positiveNumberAt(document, ispPath)
-  const nominalPowerKw = positiveNumberAt(document, powerPath)
-  const dutyCycle = positiveNumberAt(document, dutyCyclePath) ?? 1
-  if (nominalThrustNewtons === null || ispSeconds === null || nominalPowerKw === null || dutyCycle > 1) return null
+  return document ? electricPropulsionSatelliteInputs(document) : null
+}
+
+function calibrationFromSatelliteInputs(inputs: ElectricPropulsionSatelliteInputs | undefined): SatelliteElectricPropulsionCalibration | null {
+  if (!inputs) return null
+  const nominalThrustNewtons = inputs.propulsion.nominalThrustNewtons
+  const ispSeconds = inputs.propulsion.specificImpulseSeconds
+  const nominalPowerKw = inputs.propulsion.nominalThrusterPowerKw
+  const dutyCycle = inputs.propulsion.dutyCycle ?? 1
+  const declaredFixedEfficiency = inputs.propulsion.fixedEfficiency
+  if (
+    nominalThrustNewtons === null || nominalThrustNewtons <= 0
+    || ispSeconds === null || ispSeconds <= 0
+    || nominalPowerKw === null || nominalPowerKw <= 0
+    || dutyCycle <= 0 || dutyCycle > 1
+    || (declaredFixedEfficiency !== null && (declaredFixedEfficiency <= 0 || declaredFixedEfficiency > 1))
+  ) return null
+  const fixedEfficiency = nominalThrustNewtons * ispSeconds * 9.80665 / (2 * nominalPowerKw * 1000 * dutyCycle)
   return {
     // FixedEfficiency keeps SolarPowerSystem1 in the propulsion calculation.
     // F = 2 * efficiency * P / (Isp * g0); calibrate it at the satellite's
     // declared nominal thrust/power operating point.
-    fixedEfficiency: nominalThrustNewtons * ispSeconds * 9.80665 / (2 * nominalPowerKw * 1000 * dutyCycle),
+    // Nominal thrust is an input, not just documentation: derive the GMAT
+    // FixedEfficiency value from the selected satellite's thrust, Isp and
+    // nominal power. A declared efficiency is retained for audit only.
+    declaredFixedEfficiency,
+    fixedEfficiency,
     dutyCycle,
     nominalPowerKw,
     nominalThrustNewtons,
     ispSeconds,
-    source: { isp: ispPath, thrust: thrustPath, power: powerPath, dutyCycle: dutyCyclePath },
+    source: {
+      isp: "satellite_inputs.propulsion.specificImpulseSeconds",
+      thrust: "satellite_inputs.propulsion.nominalThrustNewtons",
+      power: "satellite_inputs.propulsion.nominalThrusterPowerKw",
+      dutyCycle: "satellite_inputs.propulsion.dutyCycle",
+      fixedEfficiency: "derived from satellite_inputs propulsion thrust, Isp, nominal power, and duty cycle",
+    },
   }
 }
 
 function applySatelliteElectricPropulsionCalibration(script: string, calibration: SatelliteElectricPropulsionCalibration | null) {
   if (!calibration) return script
   const replacements: Array<[RegExp, string, string]> = [
-    [/^ElectricThruster1\.ThrustModel = ThrustMassPolynomial;$/mu, "ElectricThruster1.ThrustModel = FixedEfficiency;", "ElectricThruster1.ThrustModel"],
+    [/^ElectricThruster1\.ThrustModel = [^;]+;$/mu, "ElectricThruster1.ThrustModel = FixedEfficiency;", "ElectricThruster1.ThrustModel"],
     [/^ElectricThruster1\.Isp = [^;]+;$/mu, `ElectricThruster1.Isp = ${calibration.ispSeconds};`, "ElectricThruster1.Isp"],
     [/^ElectricThruster1\.FixedEfficiency = [^;]+;$/mu, `ElectricThruster1.FixedEfficiency = ${calibration.fixedEfficiency};`, "ElectricThruster1.FixedEfficiency"],
     [/^ElectricThruster1\.DutyCycle = [^;]+;$/mu, `ElectricThruster1.DutyCycle = ${calibration.dutyCycle};`, "ElectricThruster1.DutyCycle"],
@@ -110,20 +126,12 @@ function enableEphemerisOutput(script: string) {
   }
   const marker = "BeginMissionSequence;"
   if (!script.includes(marker)) throw new Error("electric-propulsion template does not expose its mission sequence")
-  const propagation = "Propagate 'Propagate' DefaultProp(DefaultSC) {DefaultSC.ElapsedDays = daysofpropagation};"
-  if (!script.includes(propagation)) throw new Error("electric-propulsion template does not expose its propagation command")
+  const propagation = "While 'Raise to target altitude' DefaultSC.Earth.Altitude < targetFinalAltitudeKm"
+  if (!script.includes(propagation) || !script.includes("Propagate 'Propagate one output step' DefaultProp(DefaultSC);")) throw new Error("electric-propulsion template does not expose its altitude-targeted propagation loop")
   const withSubscriber = script.includes("Toggle EphemerisFile1 On;")
     ? script
     : script.replace(marker, `${marker}\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;`)
-  if (withSubscriber.includes("Sample electric transfer for OEM output")) return withSubscriber
-  const report = "Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;"
-  if (!withSubscriber.includes(report)) throw new Error("electric-propulsion template does not expose its transfer report command")
-  return withSubscriber.replace(propagation, [
-    "While 'Sample electric transfer for OEM output' DefaultSC.ElapsedDays < daysofpropagation",
-    "  Propagate 'Propagate one output step' DefaultProp(DefaultSC);",
-    "  " + report,
-    "EndWhile;",
-  ].join("\n"))
+  return withSubscriber
 }
 
 function runDirectoryName(date: Date) {
@@ -226,14 +234,25 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   const resultPath = path.join(runDir, "gmat_result.json")
   const timeSeriesPath = path.join(runDir, "electric_transfer_timeseries.json")
   const manifestPath = path.join(runDir, "run_manifest.json")
-  const calibration = await loadSatelliteElectricPropulsionCalibration(workspaceDir)
+  // Persist the satellite translation in the same YAML that defines the GMAT
+  // slots.  Calibration is then derived from that in-memory YAML object, not
+  // re-read independently from satellite.json: the YAML is the auditable
+  // input immediately preceding script rendering.
+  const satelliteInputs = await loadSatelliteElectricPropulsionInputs(workspaceDir)
+  const satelliteSnapshot = await loadSatelliteYamlSnapshot(workspaceDir)
+  const valuesWithSatelliteInputs = satelliteInputs ? { ...renderedValues, satelliteInputs } : renderedValues
+  const calibration = calibrationFromSatelliteInputs(valuesWithSatelliteInputs.satelliteInputs)
   const renderedScript = applySatelliteElectricPropulsionCalibration(
-    enableEphemerisOutput(renderElectricPropulsionValues(template, renderedValues)),
+    enableEphemerisOutput(renderElectricPropulsionValues(template, valuesWithSatelliteInputs)),
     calibration,
   )
   await Promise.all([
     fs.writeFile(scriptPath, renderedScript, "utf8"),
-    fs.writeFile(valuesPath, stringify(renderedValues), "utf8"),
+    fs.writeFile(valuesPath, stringify({
+      ...valuesWithSatelliteInputs,
+      ...(satelliteInputs ? { electric_propulsion_inputs: satelliteInputs } : {}),
+      ...(satelliteSnapshot ? { satellite_inputs: satelliteSnapshot } : {}),
+    }), "utf8"),
     ...(calibration ? [fs.writeFile(calibrationPath, `${JSON.stringify({ schemaVersion: 1, model: "fixed-efficiency", ...calibration }, null, 2)}\n`, "utf8")] : []),
   ])
   onProgress?.({ key: "render_script", percent: 60, status: "completed" })

@@ -34,7 +34,7 @@ describe("GMAT mission guardrails", () => {
   it("rejects incoherent electric power combinations", () => {
     const guards = validateGmatMissionGuardrails("electric-propulsion-transfer", {
       ...earthOrbit,
-      "transfer.burnDurationDays": 3,
+      "transfer.finalAltitudeKm": 550,
       "spacecraft.initialFuelMassKg": 2,
       "propulsion.minimumUsablePowerKw": 2,
       "propulsion.maximumUsablePowerKw": 1,

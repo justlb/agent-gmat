@@ -267,7 +267,7 @@ export async function initializeDraftDigitalThread(workspaceDir: string, templat
 
 /** Reads the immutable digital-thread snapshot belonging to an executed run. */
 export async function loadRunDigitalThreadSnapshot(runDir: string) {
-  const source = await fs.readFile(path.join(path.resolve(runDir), "satellite.digital-thread.json"), "utf8")
+  const source = await fs.readFile(digitalThreadPath(path.resolve(runDir)), "utf8")
   const document: unknown = JSON.parse(source)
   assertDocument(document)
   return document
@@ -312,17 +312,15 @@ export async function captureDigitalThreadSnapshot(workspaceDir: string): Promis
 export async function snapshotDigitalThreadForRun(workspaceDir: string, runDir: string, snapshot?: DigitalThreadSnapshot) {
   const captured = snapshot ?? await captureDigitalThreadSnapshot(workspaceDir)
   const { document, source } = captured
-  const fileName = "satellite.digital-thread.json"
-  await fs.writeFile(path.join(runDir, fileName), source, "utf8")
-  // `satellite.json` is the user-facing source of truth stored with every
-  // run. Keep the historic filename as a compatibility snapshot as well.
+  // `digital-thread/satellite.json` remains canonical. This root-level file
+  // is its user-facing immutable export for the GMAT run.
   await fs.writeFile(path.join(runDir, "satellite.json"), source, "utf8")
   const sha256 = crypto.createHash("sha256").update(source).digest("hex")
   const manifestPath = path.join(runDir, "run_manifest.json")
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<string, unknown>
-  manifest.digitalThread = { file: "satellite.json", snapshot: fileName, revision: document.digital_thread.revision, schemaVersion: document.schema_version, sha256, threadId: document.digital_thread.thread_id }
+  manifest.digitalThread = { canonicalFile: "digital-thread/satellite.json", file: "satellite.json", revision: document.digital_thread.revision, schemaVersion: document.schema_version, sha256, threadId: document.digital_thread.thread_id }
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
-  return { fileName, sha256 }
+  return { fileName: "satellite.json", sha256 }
 }
 
 /** Applies the mutable Simu-CIC request to the selected run before Simu-CIC
@@ -340,12 +338,7 @@ export async function syncSimuCicRequestToRunSnapshot(runDir: string, sourceDocu
   provenance["analysis_requests.rf_comlink"] = { source: "mission_discussion", synchronized_at: new Date().toISOString() }
   snapshot.provenance.values = provenance
   assertDocument(snapshot)
-  const source = `${JSON.stringify(snapshot, null, 2)}\n`
-  await Promise.all([
-    fs.writeFile(path.join(outputDir, "satellite.digital-thread.json"), source, "utf8"),
-    fs.writeFile(path.join(outputDir, "satellite.json"), source, "utf8"),
-  ])
-  return snapshot
+  return saveDigitalThread(outputDir, snapshot)
 }
 
 function extractResponseText(payload: unknown) {

@@ -177,7 +177,12 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   } else {
     requireNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg", "spacecraft.initialFuelMassKg", values, guards)
     if (!propulsionType || !/(electric|hall|ion)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: "The electric-transfer template requires an explicitly identified electric propulsion subsystem.", path: "satellite.bus.propulsion_subsystem.type" })
-    requireNumber(document, "analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days", "transfer.burnDurationDays", values, guards)
+    // The reference GMAT script contains generic spacecraft aerodynamics.
+    // Preserve the fixed template structure, but always substitute the
+    // selected run's physical values when they are available.
+    optionalNumber(document, "satellite.bus.physical.drag_area_m2", "spacecraft.dragAreaM2", values)
+    optionalNumber(document, "satellite.bus.physical.drag_coefficient", "spacecraft.dragCoefficient", values)
+    requireNumber(document, "analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km", "transfer.finalAltitudeKm", values, guards)
     requireNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.minimum_usable_power_kw", "propulsion.minimumUsablePowerKw", values, guards)
     requireNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.maximum_usable_power_kw", "propulsion.maximumUsablePowerKw", values, guards)
     // The satellite may declare a reduced payload load during orbit raising.
@@ -199,7 +204,7 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
       ? ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.targetRadiusKm"]
       : template === "chemical-3d-transfer"
         ? ["initialOrbit.epoch", "initialOrbit.altitudeKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.finalAltitudeKm", "transfer.finalInclinationDeg"]
-      : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.burnDurationDays"]
+      : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.finalAltitudeKm"]
   for (const fieldPath of requiredDraftPaths) {
     if ((values[fieldPath] === null || values[fieldPath] === undefined || values[fieldPath] === "") && !guards.some(guard => guard.path === fieldPath)) {
       guards.push({ code: "missing_adapter_input", message: `The GMAT adapter cannot produce required value ${fieldPath} from the digital thread.`, path: fieldPath })
@@ -236,7 +241,7 @@ function missionDraftPaths(templateId: string) {
       : templateId === "chemical-3d-transfer"
       ? { "initialOrbit.altitudeKm": `${root}.initial_orbit.altitude_km`, "transfer.finalAltitudeKm": `${root}.final_altitude_km`, "transfer.finalInclinationDeg": `${root}.final_inclination_deg` }
       : templateId === "electric-propulsion-transfer"
-      ? { "transfer.burnDurationDays": `${root}.burn_duration_days` }
+      ? { "transfer.finalAltitudeKm": `${root}.target_final_altitude_km` }
       : {
           "stationKeeping.minimumAltitudeKm": `${root}.minimum_reboost_altitude_km`,
           "stationKeeping.targetSmaKm": `${root}.target_semi_major_axis_km`,
@@ -322,6 +327,18 @@ export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft
     const targetPath = `satellite.orbit.keplerian_elements.${orbitField}`
     setAtPath(document, targetPath, value)
     provenance[targetPath] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString() }
+  }
+  if (draft.templateId === "chemical-3d-transfer") {
+    // Chemical 3D uses altitude fields rather than a user-entered SMA. Keep
+    // the compact active orbit view in satellite.json synchronized as well
+    // as the template-specific request below.
+    const altitude = draft.values["initialOrbit.altitudeKm"]
+    if (typeof altitude === "number" && Number.isFinite(altitude)) {
+      const smaKm = altitude + 6378.1363
+      setAtPath(document, "satellite.orbit.keplerian_elements.semi_major_axis_km", smaKm)
+      for (const name of ["perigee", "apogee", "mean"]) setAtPath(document, `satellite.orbit.operational_parameters.altitude_km.${name}`, altitude)
+      provenance["satellite.orbit.keplerian_elements.semi_major_axis_km"] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString(), conversion: "altitude_km_plus_earth_equatorial_radius_km" }
+    }
   }
   return saveDigitalThread(workspaceDir, document)
 }

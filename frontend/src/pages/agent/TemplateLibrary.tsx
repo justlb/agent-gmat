@@ -8,14 +8,14 @@ export function TemplateLibrary() {
   const active = TEMPLATES.find(template => template.id === activeId) ?? TEMPLATES[0]
   return <div className="template-library">
     <section className="satellite-library-intro">
-      <div><span>GMAT MODEL LIBRARY</span><h2>Mission Templates</h2><p>Explore the deterministic GMAT models available in Mission Studio. Choosing a template for a run remains a Mission Studio action.</p></div>
+      <div><span>GMAT MODEL LIBRARY</span><h2>Mission Scenarios</h2><p>Explore the deterministic GMAT mission scenarios available in Mission Studio. Choosing a scenario for a run remains a Mission Studio action.</p></div>
     </section>
     <div className="template-library-grid">
       <div className="template-definition-list">
         {TEMPLATES.map(template => <article className={`template-definition-card ${template.id === activeId ? 'is-selected' : ''}`} key={template.id}>
-          <header><span>GMAT TEMPLATE</span><small>{template.id}</small></header><h3>{template.label}</h3><p>{template.summary}</p>
+          <header><span>GMAT MISSION SCENARIO</span><small>{template.id}</small></header><h3>{template.label}</h3><p>{template.summary}</p>
           <dl className="template-card-summary"><div><dt>Mission inputs</dt><dd>{template.inputFields.length}</dd></div><div><dt>Satellite constraints</dt><dd>{template.satelliteRequirements.length}</dd></div><div><dt>Downstream tools</dt><dd>{template.downstream.length}</dd></div></dl>
-          <button type="button" onClick={() => setActiveId(template.id)}>View template details</button>
+          <button type="button" onClick={() => setActiveId(template.id)}>View scenario details</button>
         </article>)}
       </div>
       <aside className="template-active-card">

@@ -78,7 +78,7 @@ const ELECTRIC_TRANSFER_MANDATORY_FIELDS: MandatoryGmatField[] = [
   { label: 'True anomaly', path: 'initialOrbit.trueAnomalyDeg', unit: 'deg' },
   { label: 'Dry mass', path: 'spacecraft.dryMassKg', unit: 'kg' },
   { label: 'Initial electric propellant mass', path: 'spacecraft.initialFuelMassKg', unit: 'kg' },
-  { label: 'Electric-thrust duration', path: 'transfer.burnDurationDays', unit: 'days' },
+  { label: 'Target final altitude', path: 'transfer.finalAltitudeKm', unit: 'km' },
   { label: 'Solar-array maximum power', path: 'power.initialMaxPowerKw', unit: 'kW' },
   { label: 'Spacecraft bus load', path: 'power.busLoadKw', unit: 'kW' },
   { label: 'Power-system margin', path: 'power.systemMarginPercent', unit: '%' },
@@ -427,10 +427,10 @@ export function AgentRecorderControl({
                       })}
                     </ul>
                   </section>
-                  <section className="agent-gmat-draft-assumptions" aria-label="Assumed defaults to confirm">
+                  <section className="agent-gmat-draft-assumptions" aria-label="Assumed values">
                     <header>
-                      <strong>Assumed defaults to confirm</strong>
-                      <span>Template defaults</span>
+                      <strong>Assumed values</strong>
+                      <span>Mission scenario defaults</span>
                     </header>
                     <div className="agent-gmat-optional-examples">
                       <ul>{(gmatDraft.safety?.assumptions ?? []).map(assumption => <li key={assumption.label}>{assumption.label}: {assumption.value}</li>)}</ul>

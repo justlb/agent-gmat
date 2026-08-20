@@ -11,16 +11,16 @@ import { extractElectricPropulsionValues } from "../../src/gmat/electricPropulsi
 const connection = { apiKey: "test", baseUrl: "https://model.example.test/v1", model: "test" }
 
 describe("electric-propulsion transfer mission draft", () => {
-  it("requires the Keplerian state and burn duration before confirmation", async () => {
+  it("requires the Keplerian state and target altitude before confirmation", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "electric-draft-"))
     const initial = await createElectricPropulsionDraft(workspaceDir)
     assert.deepEqual(initial.missing, [
-      "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.burnDurationDays",
+      "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.finalAltitudeKm",
     ])
     const updates = [
       ["initialOrbit.epoch", "21545"], ["initialOrbit.smaKm", 7191.938817629013], ["initialOrbit.eccentricity", 0.02454974900598137],
       ["initialOrbit.inclinationDeg", 12.85008005658097],
-      ["spacecraft.dryMassKg", 850], ["spacecraft.initialFuelMassKg", 756], ["transfer.burnDurationDays", 2],
+      ["spacecraft.dryMassKg", 850], ["spacecraft.initialFuelMassKg", 756], ["transfer.finalAltitudeKm", 550],
     ].map(([fieldPath, value]) => ({ path: fieldPath, value }))
     const ready = await discussElectricPropulsionDraft({
       connection, draft: initial, message: "Set the transfer inputs.", workspaceDir,
@@ -34,11 +34,11 @@ describe("electric-propulsion transfer mission draft", () => {
     const changes = draftToElectricPropulsionChanges(confirmed, values)
     assert.ok(changes.some(change => change.id.includes("DefaultSC_SMA") && change.value === "7191.938817629013"))
     assert.ok(changes.some(change => change.id.includes("ElectricTank1_FuelMass") && change.value === "756"))
-    const durationSlot = values.slots.find(slot => slot.context.startsWith("daysofpropagation ="))
+    const durationSlot = values.slots.find(slot => slot.context.startsWith("targetFinalAltitudeKm ="))
     const reportSlot = values.slots.find(slot => slot.context.startsWith("ElectricTransferReport.Add ="))
     assert.ok(durationSlot)
     assert.ok(reportSlot)
-    assert.ok(changes.some(change => change.id === durationSlot.id && change.value === "2"))
+    assert.ok(changes.some(change => change.id === durationSlot.id && change.value === "550"))
     assert.ok(!changes.some(change => change.id === reportSlot.id))
   })
 
@@ -48,7 +48,7 @@ describe("electric-propulsion transfer mission draft", () => {
     const updates = [
       ["initialOrbit.epoch", "21545"], ["initialOrbit.smaKm", 6500], ["initialOrbit.eccentricity", 0.01],
       ["initialOrbit.inclinationDeg", 12.85], ["initialOrbit.raanDeg", 306.6], ["initialOrbit.argPeriapsisDeg", 314.2], ["initialOrbit.trueAnomalyDeg", 99.9],
-      ["spacecraft.dryMassKg", 850], ["spacecraft.initialFuelMassKg", 756], ["transfer.burnDurationDays", 2],
+      ["spacecraft.dryMassKg", 850], ["spacecraft.initialFuelMassKg", 756], ["transfer.finalAltitudeKm", 550],
     ].map(([fieldPath, value]) => ({ path: fieldPath, value }))
     const blocked = await discussElectricPropulsionDraft({
       connection, draft: initial, message: "Set an unsafe state.", workspaceDir,
@@ -79,7 +79,7 @@ describe("electric-propulsion transfer mission draft", () => {
     const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
     const changes = draftToElectricPropulsionChanges({ ...updated, confirmed: true, status: "confirmed", values: {
       ...updated.values, "initialOrbit.smaKm": 7191.938817629013, "initialOrbit.eccentricity": 0, "initialOrbit.inclinationDeg": 0,
-      "spacecraft.dryMassKg": 850, "spacecraft.initialFuelMassKg": 756, "transfer.burnDurationDays": 30,
+      "spacecraft.dryMassKg": 850, "spacecraft.initialFuelMassKg": 756, "transfer.finalAltitudeKm": 550,
     } }, extractElectricPropulsionValues(template))
     const solarEpochChange = changes.find(change => change.id.includes("SolarPowerSystem1_InitialEpoch"))
     assert.equal(solarEpochChange?.value, "''01 Aug 2026 00:00:00.000''")
@@ -112,7 +112,7 @@ describe("electric-propulsion transfer mission draft", () => {
     const updates = [
       ["initialOrbit.epoch", "21545"], ["initialState.xKm", 7000], ["initialState.yKm", 0], ["initialState.zKm", 0],
       ["initialState.vxKmPerSec", 0], ["initialState.vyKmPerSec", 7.546053290107542], ["initialState.vzKmPerSec", 0],
-      ["spacecraft.dryMassKg", 850], ["spacecraft.initialFuelMassKg", 756], ["transfer.burnDurationDays", 2],
+      ["spacecraft.dryMassKg", 850], ["spacecraft.initialFuelMassKg", 756], ["transfer.finalAltitudeKm", 550],
     ].map(([fieldPath, value]) => ({ path: fieldPath, value }))
     const updated = await discussElectricPropulsionDraft({
       connection, draft: initial, message: "Use this Cartesian initial state.", workspaceDir,

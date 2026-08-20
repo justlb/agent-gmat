@@ -19,6 +19,11 @@ type OemPosition = {
   zKm: number
 }
 
+export type VtsTrajectory = {
+  frame: "EarthMJ2000Eq"
+  positions: OemPosition[]
+}
+
 function vtsHomeForHost() {
   const configured = process.env.VTS_HOME?.trim() || "D:\\STAGE\\APP\\Vts-WindowsNT-64bits-3.10.1"
   if (process.platform === "win32") return configured
@@ -59,6 +64,20 @@ function readOemPositions(source: string): OemPosition[] {
   return positions
 }
 
+/**
+ * Reads the GMAT OEM artifact without generating any secondary file.  VTS and
+ * the browser Cesium viewer both consume this exact same trajectory, so the
+ * displayed orbit always remains tied to the run's saved GMAT output.
+ */
+export async function loadVtsTrajectory(runDir: string): Promise<VtsTrajectory> {
+  const ephemerisPath = path.join(runDir, "EphemerisFile1.oem")
+  const oem = await fs.readFile(ephemerisPath, "utf8").catch(() => null)
+  if (!oem) throw new Error("GMAT OEM ephemeris is missing. Run GMAT successfully before visualising the orbit.")
+  const positions = readOemPositions(oem)
+  if (positions.length < 2) throw new Error("GMAT OEM ephemeris does not contain enough position samples to visualise the orbit.")
+  return { frame: "EarthMJ2000Eq", positions }
+}
+
 async function satelliteName(runDir: string) {
   const source = await fs.readFile(path.join(runDir, "satellite.json"), "utf8").catch(() => "{}")
   let document: { satellite?: { identity?: { name?: unknown } } } = {}
@@ -91,11 +110,7 @@ function createVtsProject(name: string, start: OemPosition, end: OemPosition) {
 }
 
 export async function prepareVtsProject(runDir: string) {
-  const ephemerisPath = path.join(runDir, "EphemerisFile1.oem")
-  const oem = await fs.readFile(ephemerisPath, "utf8").catch(() => null)
-  if (!oem) throw new Error("GMAT OEM ephemeris is missing. Run GMAT successfully before opening VTS.")
-  const positions = readOemPositions(oem)
-  if (positions.length < 2) throw new Error("GMAT OEM ephemeris does not contain enough position samples for VTS.")
+  const { positions } = await loadVtsTrajectory(runDir)
   const root = path.join(runDir, "vts")
   const dataDir = path.join(root, "Data")
   await fs.mkdir(dataDir, { recursive: true })
@@ -129,6 +144,19 @@ export async function prepareVtsProject(runDir: string) {
 }
 
 export async function vtsRoutes(fastify: FastifyInstance) {
+  fastify.post<{ Body: RunBody }>("/api/vts/trajectory", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    try {
+      const trajectory = await loadVtsTrajectory(runDir)
+      return reply.send({ ...trajectory, samples: trajectory.positions.length })
+    } catch (error) {
+      return reply.status(422).send({ error: getErrorMessage(error, "failed to load GMAT trajectory") })
+    }
+  })
+
   fastify.post<{ Body: RunBody }>("/api/vts/open-orbit", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null

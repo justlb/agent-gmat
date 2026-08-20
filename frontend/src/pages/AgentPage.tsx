@@ -763,8 +763,7 @@ export default function AgentPage() {
         'stationKeeping.fuelReserveKg': 'fuel reserve',
         'stationKeeping.minimumAltitudeKm': 'minimum reboost altitude',
         'stationKeeping.targetSmaKm': 'target semi-major axis',
-        'transfer.burnDurationDays': 'electric-thrust duration',
-        'transfer.finalAltitudeKm': 'final altitude',
+        'transfer.finalAltitudeKm': 'target final altitude',
         'transfer.finalInclinationDeg': 'final inclination',
         'propulsion.maximumUsablePowerKw': 'maximum usable power',
         'propulsion.minimumUsablePowerKw': 'minimum usable power',
@@ -881,7 +880,7 @@ export default function AgentPage() {
         setChatMode('general')
         setSelectedMissionTemplate(null)
         refreshWorkspaceViews()
-        showSpeechText(`New planning run ${planningRun.planningRunId} created. Describe the mission to select its GMAT template.`)
+        showSpeechText(`New planning run ${planningRun.planningRunId} created. Describe the mission to select its GMAT mission scenario.`)
       })
       .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft creation failed'))
       .finally(() => setGmatGenerating(false))

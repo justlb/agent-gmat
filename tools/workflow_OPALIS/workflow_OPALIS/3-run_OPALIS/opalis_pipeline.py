@@ -905,6 +905,29 @@ def main(argv: list[str] | None = None) -> int:
     case_output = results_dir / f"{args.name}.opalis"
     simulation.Save(str(case_output), simulation_type.FILE_TYPE_ALL)
     json_output = results_dir / f"{args.name}.json"
+    time_series_output = results_dir / f"{args.name}-timeseries.json"
+    if args.no_run:
+        time_series = {
+            "available_row_properties": [],
+            "samples": [],
+            "source_row_count": 0,
+            "warning": "OPALIS calculation was not executed; no result rows are available.",
+        }
+    else:
+        time_series = opalis.extract_result_series(simulation, float(final_step))
+    time_series.update(
+        {
+            "generated_from": str(case_output),
+            "metric_units": {
+                "battery_voltage_v": "V",
+                "depth_of_discharge_percent": "%",
+                "soc_percent": "%",
+                "solar_energy_wh": "Wh",
+                "time_seconds": "s",
+            },
+        }
+    )
+    write_json(time_series_output, time_series)
     summary.update(
         {
             "source": str(source),
@@ -937,6 +960,11 @@ def main(argv: list[str] | None = None) -> int:
             "applied_parameters": applied_parameters,
             "saved_to": str(case_output),
             "json": str(json_output),
+            "timeseries": {
+                "file": str(time_series_output),
+                "sample_count": len(time_series["samples"]),
+                "source_row_count": time_series["source_row_count"],
+            },
             "simulation_executed": not args.no_run,
         }
     )

@@ -76,17 +76,14 @@ function missionRunFileDownloadUrl(planningRun: PlanningDiscussion, file: string
 }
 
 function isPrimaryMissionFile(file: string) {
-  // These are the three artifacts an engineer needs immediately while the
-  // mission is being drafted or after a failed execution. Keep the remaining
-  // logs and result files under the technical-files disclosure.
-  return file === 'satellite.json' || file.endsWith('.values.yaml') || file.endsWith('.script')
+  // The digital thread and the consolidated analysis context are the only
+  // user-facing documents. All source scripts, YAML, tool reports and logs
+  // remain available, but are implementation artifacts.
+  return file === 'satellite.json' || file === 'run-analysis-context.json'
 }
 
 function isPrimaryRunFile(file: MissionFile) {
-  // The generated GMAT script is a primary engineering artifact. In
-  // particular, the Chemical 3D GEO transfer must expose its run-local
-  // script beside the ephemeris instead of hiding it in technical files.
-  return ['digital-thread', 'ephemeris', 'report', 'script'].includes(file.kind)
+  return file.fileName === 'satellite.json' || file.fileName === 'run-analysis-context.json'
 }
 
 function missionLabel(missionType: MissionFile['missionType']) {
@@ -216,7 +213,7 @@ export function AgentFilesView({
                 <section className="agent-gmat-saved-draft agent-gmat-planning-discussion">
                   <header>
                     <strong>Mission discussion · {draftTimestamp({ createdAt: planningDiscussion.createdAt, draftId: planningDiscussion.planningRunId } as OrbitKeepingDraft)}</strong>
-                    <small>Routing the GMAT template</small>
+                    <small>Routing the GMAT mission scenario</small>
                   </header>
                   {primaryMissionRunFiles.map(file => <a className="agent-gmat-draft-file" href={missionRunFileDownloadUrl(planningDiscussion, file)} key={file}><span>{file}</span><small>Download</small></a>)}
                   {missionRunFiles.some(file => !isPrimaryMissionFile(file)) ? (
@@ -266,10 +263,9 @@ export function AgentFilesView({
                     <span>Satellite digital thread</span>
                     <small>satellite.json · This discussion's source of truth · Download</small>
                   </a>
-                  {['electric-propulsion-transfer', 'orbit-keeping'].includes(draft.missionType) ? <a className="agent-gmat-draft-file" href={draftValuesDownloadUrl(draft, workspaceDir)}>
-                    <span>{draft.missionType === 'electric-propulsion-transfer' ? 'electric_propulsion_transfer.values.yaml' : 'orbit_keeping.values.yaml'}</span>
-                    <small>Download</small>
-                  </a> : null}
+                  {['electric-propulsion-transfer', 'orbit-keeping'].includes(draft.missionType) ? <details className="agent-gmat-technical-files"><summary>Technical files (1)</summary><a className="agent-gmat-draft-file" href={draftValuesDownloadUrl(draft, workspaceDir)}>
+                    <span>{draft.missionType === 'electric-propulsion-transfer' ? 'electric_propulsion_transfer.values.yaml' : 'orbit_keeping.values.yaml'}</span><small>Download</small>
+                  </a></details> : null}
                   <p>{draft.assistantMessage || 'Saved mission draft. Continue the discussion or launch GMAT when it is ready.'}</p>
                 </section>
               ))}

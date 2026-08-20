@@ -90,15 +90,38 @@ export async function cancelGmatCalculations(runPath?: string) {
 
 export type OpalisResultSummary = {
   alerts: Array<{ level: 'info' | 'warning'; message: string }>
+  completionPercent: number | null
   computedDurationSeconds: number | null
   finalSocPercent: number | null
+  initialBatteryVoltageV: number | null
   initialSocPercent: number | null
+  lowVoltageLimitV: number | null
   maxDepthOfDischargePercent: number | null
+  orbitCount: number | null
   resultRows: number | null
+  satelliteName: string | null
   simulationExecuted: boolean
   solarArrayEnergy: number | null
   solarSections: number | null
   stopCondition: string | null
+  timeStepSeconds: number | null
+  voltageControlMode: string | null
+}
+
+export type OpalisTimeSeriesSample = {
+  battery_voltage_v?: number
+  depth_of_discharge_percent?: number
+  index: number
+  soc_percent?: number
+  solar_energy_wh?: number
+  time_seconds?: number
+}
+
+export type OpalisTimeSeries = {
+  availableRowProperties: string[]
+  sampleIntervalRows: number | null
+  samples: OpalisTimeSeriesSample[]
+  sourceRowCount: number
 }
 
 export async function getOpalisResults(runPath: string) {
@@ -107,6 +130,14 @@ export async function getOpalisResults(runPath: string) {
   if (!response.ok) throw new Error(await responseError(response))
   const payload = await response.json() as { result: OpalisResultSummary }
   return payload.result
+}
+
+export async function getOpalisTimeSeries(runPath: string) {
+  const query = new URLSearchParams({ runPath }).toString()
+  const response = await fetch(`${joinApiPath(undefined, '/opalis/timeseries')}?${query}`, { cache: 'no-store' })
+  if (!response.ok) throw new Error(await responseError(response))
+  const payload = await response.json() as { result: OpalisTimeSeries }
+  return { ...payload.result, runPath }
 }
 
 export async function openPreparedOpalisScenario(runPath: string) {

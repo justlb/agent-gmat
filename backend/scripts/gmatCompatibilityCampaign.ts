@@ -85,7 +85,7 @@ async function seedReferenceMission(workspaceDir: string, template: GmatTemplate
   }
   const root = `analysis_requests.gmat.${template === "orbit-keeping" ? "orbit_keeping" : template.replace(/-/gu, "_")}`
   if (template === "orbit-keeping") values[`${root}.minimum_reboost_altitude_km`] = 180
-  if (template === "electric-propulsion-transfer") values[`${root}.burn_duration_days`] = 2
+  if (template === "electric-propulsion-transfer") values[`${root}.target_final_altitude_km`] = 550
   if (template === "chemical-hohmann-transfer") values[`${root}.target_orbit.radius_km`] = 7378.1363
   if (template === "chemical-3d-transfer") {
     const gmat = document.analysis_requests.gmat as Record<string, unknown>

@@ -43,15 +43,15 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteS
   const source = <div className="mission-setup-sources">
     <section className="mission-template-source">
       <div>
-        <span>GMAT MISSION TEMPLATE</span>
-        <strong>{missionTemplate ? missionTemplateDefinition(missionTemplate).label : 'Choose a template'}</strong>
-        <small>{templateLocked ? 'The template is locked for the current draft.' : 'Choose the mission model before entering mission parameters.'}</small>
+        <span>GMAT MISSION SCENARIO</span>
+        <strong>{missionTemplate ? missionTemplateDefinition(missionTemplate).label : 'Choose a mission scenario'}</strong>
+        <small>{templateLocked ? 'The mission scenario is locked for the current draft.' : 'Choose the mission scenario before entering mission parameters.'}</small>
       </div>
-      <select aria-label="GMAT mission template" disabled={templateLocked || (!canSelectForRun && !onStartMission)} value={missionTemplate ?? ''} onChange={event => {
+      <select aria-label="GMAT mission scenario" disabled={templateLocked || (!canSelectForRun && !onStartMission)} value={missionTemplate ?? ''} onChange={event => {
         const next = isGmatMissionTemplateId(event.target.value) ? event.target.value : null
         void ensureMissionRun().then(() => onMissionTemplateSelected?.(next)).catch(reason => setError(reason instanceof Error ? reason.message : 'Unable to start a mission run'))
       }}>
-        <option value="">Choose a template...</option>
+        <option value="">Choose a mission scenario...</option>
         {Object.values(GMAT_MISSION_TEMPLATE_DEFINITIONS).map(template => <option key={template.id} value={template.id}>{template.label}</option>)}
       </select>
     </section>

@@ -42,7 +42,7 @@ function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
   if (fileName === "consolidated-run-report.json") return "result"
   if (fileName === "run-analysis-context.json") return "result"
   if (fileName === "workflow-status.json") return "result"
-  if (fileName === "satellite.digital-thread.json" || fileName === "satellite.json") return "digital-thread"
+  if (fileName === "satellite.json") return "digital-thread"
   if (fileName === "orbit_timeseries.json") return "timeseries"
   if (fileName === "run_manifest.json") return "manifest"
   if (fileName === "ReboostReport.txt" || fileName === "OrbitAnalysisReport.txt") return "report"
@@ -50,7 +50,7 @@ function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
   if (fileName === "EphemerisFile1.oem") return "ephemeris"
   if (fileName === "gmat-orbit.vts" || fileName === "GMAT_OEM_POSITION.TXT") return "vts"
   if (fileName.endsWith(".scd")) return "opalis"
-  if (fileName === "prepared-opalis.opalis" || fileName === "prepared-opalis.json" || fileName === "calculated-opalis.opalis" || fileName === "calculated-opalis.json" || fileName === "opalis-parameters.json") return "opalis"
+  if (fileName === "prepared-opalis.opalis" || fileName === "prepared-opalis.json" || fileName === "calculated-opalis.opalis" || fileName === "calculated-opalis.json" || fileName === "calculated-opalis-timeseries.json" || fileName === "opalis-parameters.json") return "opalis"
   if (fileName === "rf-comlink-inputs.json" || fileName === "prepared-rf-comlink.rfcl" || fileName === "calculated-rf-comlink.rfcl" || fileName === "rf-comlink-results.json") return "rf-comlink"
   return null
 }
@@ -66,10 +66,8 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
       const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
       if (manifest.templateId !== "orbit-keeping") continue
       const entries = await fs.readdir(runDir, { withFileTypes: true }).catch(() => [])
-      const hasUserFacingSatellite = entries.some(entry => entry.isFile() && entry.name === "satellite.json")
       for (const entry of entries) {
         if (!entry.isFile()) continue
-        if (hasUserFacingSatellite && entry.name === "satellite.digital-thread.json") continue
         const kind = orbitKeepingFileKind(entry.name)
         if (!kind) continue
         const filePath = path.join(runDir, entry.name)
@@ -85,6 +83,7 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
         ["opalis", "03-opalis", "02-resultats", "prepared-opalis.json"],
         ["opalis", "03-opalis", "02-resultats", "calculated-opalis.opalis"],
         ["opalis", "03-opalis", "02-resultats", "calculated-opalis.json"],
+        ["opalis", "03-opalis", "02-resultats", "calculated-opalis-timeseries.json"],
       ]
       for (const parts of opalisFiles) {
         const filePath = path.join(runDir, ...parts)
@@ -162,9 +161,8 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
           }
           if (!outputEntry.isDirectory()) continue
           const runEntries = await fs.readdir(outputPath, { withFileTypes: true }).catch(() => [])
-          const hasUserFacingSatellite = runEntries.some(entry => entry.isFile() && entry.name === "satellite.json")
           for (const runEntry of runEntries) {
-            if (runEntry.isFile() && !(hasUserFacingSatellite && runEntry.name === "satellite.digital-thread.json")) await addOutputFile(path.join(outputPath, runEntry.name), runEntry.name)
+            if (runEntry.isFile()) await addOutputFile(path.join(outputPath, runEntry.name), runEntry.name)
           }
         }
         continue

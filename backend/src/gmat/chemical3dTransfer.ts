@@ -9,6 +9,7 @@ import { requestGmatModel } from "./modelRequest.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 import { gmatTemplateDefinition } from "./templateRegistry.js"
 import { assertGmatMissionGuardrails, validateGmatMissionGuardrails } from "./missionGuardrails.js"
+import { loadSatelliteYamlSnapshot } from "./satelliteYamlSnapshot.js"
 
 type Value = string | number | null
 type Run = { completedAt: string; result: { error?: string; status: string }; runId: string; runPath: string }
@@ -65,9 +66,10 @@ function validateEpoch(value: Value) {
 async function save(workspaceDir: string, draft: Chemical3dDraft) {
   const output = draftPath(workspaceDir, draft.draftId)
   await fs.mkdir(path.dirname(output), { recursive: true })
+  const satelliteInputs = await loadSatelliteYamlSnapshot(workspaceDir)
   await Promise.all([
     fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`),
-    fs.writeFile(path.join(path.dirname(output), "chemical_3d_transfer.values.yaml"), stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values })),
+    fs.writeFile(path.join(path.dirname(output), "chemical_3d_transfer.values.yaml"), stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values, ...(satelliteInputs ? { satellite_inputs: satelliteInputs } : {}) })),
   ])
   return draft
 }
@@ -225,7 +227,8 @@ export async function generateChemical3dMission({ draft, workspaceDir, execution
   const logPath = path.join(runDir, "gmat.log")
   const ephemerisPath = path.join(runDir, "EphemerisFile1.oem")
   const script = renderScript(await fs.readFile(path.join(definition.skillDirectory, definition.gmatReferenceScript), "utf8"), draft.values, ephemerisPath)
-  await Promise.all([fs.writeFile(scriptPath, script), fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values }))])
+  const satelliteInputs = await loadSatelliteYamlSnapshot(workspaceDir)
+  await Promise.all([fs.writeFile(scriptPath, script), fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values, ...(satelliteInputs ? { satellite_inputs: satelliteInputs } : {}) }))])
   let result: { error?: string; executionDurationMs?: number; status: "generated" | "completed" | "failed" | "timeout" } = { status: "generated" }
   if (execution) {
     const started = Date.now()

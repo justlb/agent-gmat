@@ -26,14 +26,14 @@ describe("digital thread to GMAT flow", () => {
     assert.equal(satelliteBaseline.values["spacecraft.dryMassKg"], 296)
     assert.equal(satelliteBaseline.values["spacecraft.initialFuelMassKg"], 10)
     assert.equal(satelliteBaseline.values["power.initialMaxPowerKw"], 4.2)
-    assert.equal(satelliteBaseline.values["power.busLoadKw"], 2.8, "electric-propulsion mission allocation takes precedence over nominal bus load")
+    assert.equal(satelliteBaseline.values["power.busLoadKw"], 1.5, "electric-propulsion mission allocation takes precedence over nominal bus load")
 
     await syncDigitalThreadFromGmatDraft(workspaceDir, {
       templateId: "electric-propulsion-transfer",
       values: {
         ...satelliteBaseline.values,
         "initialOrbit.smaKm": 7300,
-        "transfer.burnDurationDays": 7,
+        "transfer.finalAltitudeKm": 550,
       },
     })
 
@@ -41,11 +41,11 @@ describe("digital thread to GMAT flow", () => {
     assert.equal(afterMission.satellite.bus.physical.mass_kg.dry, 296, "a mission must not alter the selected satellite dry mass")
     assert.equal(afterMission.satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg, 10, "a mission must not alter satellite propellant capacity")
     assert.equal(afterMission.analysis_requests.gmat.electric_propulsion_transfer.initial_orbit.semi_major_axis_km, 7300)
-    assert.equal(afterMission.analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days, 7)
+    assert.equal(afterMission.analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km, 550)
 
     const missionValues = adaptDigitalThreadToGmat(afterMission, "electric-propulsion-transfer")
     assert.equal(missionValues.values["initialOrbit.smaKm"], 7300, "mission orbit takes precedence over the satellite reference orbit")
-    assert.equal(missionValues.values["transfer.burnDurationDays"], 7)
+    assert.equal(missionValues.values["transfer.finalAltitudeKm"], 550)
     assert.equal(missionValues.values["spacecraft.dryMassKg"], 296, "satellite mass is still used to build the GMAT YAML")
   })
 
@@ -56,16 +56,16 @@ describe("digital thread to GMAT flow", () => {
     const firstWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", "draft_first")
     const first = await initializeDraftDigitalThread(workspaceDir, "electric-propulsion-transfer", "draft_first")
     assert.equal(first.satellite.bus.physical.mass_kg.dry, 296)
-    assert.equal(first.analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days, null)
-    first.analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days = 7
+    assert.equal(first.analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km, null)
+    first.analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km = 550
     await saveDigitalThread(firstWorkspace, first)
 
     const secondWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", "draft_second")
     const second = await initializeDraftDigitalThread(workspaceDir, "electric-propulsion-transfer", "draft_second")
     assert.notEqual(first.digital_thread.thread_id, second.digital_thread.thread_id)
     assert.equal(second.satellite.bus.physical.mass_kg.dry, 296)
-    assert.equal(second.analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days, null)
-    assert.equal((await loadOrCreateDigitalThread(secondWorkspace)).analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days, null)
+    assert.equal(second.analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km, null)
+    assert.equal((await loadOrCreateDigitalThread(secondWorkspace)).analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km, null)
   })
 
   it("keeps satellite what-if changes inside the run digital thread and out of Satellite Library", async () => {

@@ -32,6 +32,7 @@ const CHEMICAL_HOHMANN_ARTIFACT_KINDS: Record<string, ChemicalHohmannFileKind> =
   "opalis/02-simu-cic/simucic.definition.json": "simu-cic",
   "opalis/03-opalis/02-resultats/calculated-opalis.opalis": "opalis",
   "opalis/03-opalis/02-resultats/calculated-opalis.json": "opalis",
+  "opalis/03-opalis/02-resultats/calculated-opalis-timeseries.json": "opalis",
   "rf-comlink/01-input/rf-comlink-inputs.json": "rf-comlink",
   "rf-comlink/02-scenario/prepared-rf-comlink.rfcl": "rf-comlink",
   "rf-comlink/03-results/calculated-rf-comlink.rfcl": "rf-comlink",
@@ -41,7 +42,6 @@ const CHEMICAL_HOHMANN_ARTIFACT_KINDS: Record<string, ChemicalHohmannFileKind> =
 function chemicalHohmannArtifactKind(relativeFile: string, historical = false) {
   if (CHEMICAL_HOHMANN_ARTIFACT_KINDS[relativeFile]) return CHEMICAL_HOHMANN_ARTIFACT_KINDS[relativeFile]
   if (!historical) return undefined
-  if (path.basename(relativeFile) === "satellite.digital-thread.json") return "digital-thread"
   return Object.entries(CHEMICAL_HOHMANN_ARTIFACT_KINDS).find(([known]) => path.basename(known) === path.basename(relativeFile))?.[1]
 }
 

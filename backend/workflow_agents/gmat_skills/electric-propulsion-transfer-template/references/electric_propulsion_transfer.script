@@ -11,19 +11,19 @@
 Create Spacecraft DefaultSC;
 
 DefaultSC.DateFormat = TAIModJulian;
-DefaultSC.Epoch = '31262.66709490726';
+DefaultSC.Epoch = '31212.50042824075';
 DefaultSC.CoordinateSystem = EarthMJ2000Eq;
 DefaultSC.DisplayStateType = Keplerian;
-DefaultSC.SMA = 7178.136300000001;
-DefaultSC.ECC = 1.279570234560536e-16;
-DefaultSC.INC = 0;
+DefaultSC.SMA = 6678.1363;
+DefaultSC.ECC = 0;
+DefaultSC.INC = 53.2;
 DefaultSC.RAAN = 0;
 DefaultSC.AOP = 0;
 DefaultSC.TA = 0;
-DefaultSC.DryMass = 850;
+DefaultSC.DryMass = 296;
 DefaultSC.Cd = 2.2;
 DefaultSC.Cr = 1.8;
-DefaultSC.DragArea = 15;
+DefaultSC.DragArea = 2;
 DefaultSC.SRPArea = 1;
 DefaultSC.SPADDragScaleFactor = 1;
 DefaultSC.SPADSRPScaleFactor = 1;
@@ -76,7 +76,7 @@ ElectricTank1.HWOriginInBCSY = 0;
 ElectricTank1.HWOriginInBCSZ = 0;
 
 ElectricTank1.AllowNegativeFuelMass = true;
-ElectricTank1.FuelMass = 756;
+ElectricTank1.FuelMass = 10;
 ElectricTank1.FuelCenterOfMassX = 0;
 ElectricTank1.FuelCenterOfMassY = 0;
 ElectricTank1.FuelCenterOfMassZ = 0;
@@ -104,9 +104,9 @@ ElectricThruster1.DecrementMass = true;
 ElectricThruster1.Tank = {ElectricTank1};
 ElectricThruster1.MixRatio = [ 1 ];
 ElectricThruster1.GravitationalAccel = 9.81;
-ElectricThruster1.ThrustModel = ThrustMassPolynomial;
-ElectricThruster1.MaximumUsablePower = 5;
-ElectricThruster1.MinimumUsablePower = 0.638;
+ElectricThruster1.ThrustModel = FixedEfficiency;
+ElectricThruster1.MaximumUsablePower = 4.2;
+ElectricThruster1.MinimumUsablePower = 1;
 ElectricThruster1.ThrustCoeff1 = -5.19082;
 ElectricThruster1.ThrustCoeff2 = 2.96519;
 ElectricThruster1.ThrustCoeff3 = -14.4789;
@@ -117,17 +117,17 @@ ElectricThruster1.MassFlowCoeff2 = 0.05717;
 ElectricThruster1.MassFlowCoeff3 = -0.09956;
 ElectricThruster1.MassFlowCoeff4 = 0.03211;
 ElectricThruster1.MassFlowCoeff5 = 2.13781;
-ElectricThruster1.FixedEfficiency = 0.7;
+ElectricThruster1.FixedEfficiency = 0.5;
 ElectricThruster1.Isp = 4200;
-ElectricThruster1.ConstantThrust = 5;
+ElectricThruster1.ConstantThrust = 0.15;
 
 Create SolarPowerSystem SolarPowerSystem1;
 
 SolarPowerSystem1.EpochFormat = 'UTCGregorian';
-SolarPowerSystem1.InitialEpoch = ''10 Aug 2026 03:59:59.999'';
-SolarPowerSystem1.InitialMaxPower = 15;
+SolarPowerSystem1.InitialEpoch = ''21 Jun 2026 00:00:00.000'';
+SolarPowerSystem1.InitialMaxPower = 4.2;
 SolarPowerSystem1.AnnualDecayRate = 5;
-SolarPowerSystem1.Margin = 15;
+SolarPowerSystem1.Margin = 20;
 SolarPowerSystem1.BusCoeff1 = 1.5;
 SolarPowerSystem1.BusCoeff2 = 0;
 SolarPowerSystem1.BusCoeff3 = 0;
@@ -167,10 +167,13 @@ Create Propagator DefaultProp;
 
 DefaultProp.FM = DefaultProp_ForceModel;
 DefaultProp.Type = RungeKutta89;
-DefaultProp.InitialStepSize = 60;
-DefaultProp.Accuracy = 9.999999999999999e-12;
+% The transfer is a long-duration engineering scenario.  These settings keep
+% the adaptive integrator and the mission loop from producing one sample per
+% few seconds, which would make the downstream OEM impractically large.
+DefaultProp.InitialStepSize = 360;
+DefaultProp.Accuracy = 1e-09;
 DefaultProp.MinStep = 0;
-DefaultProp.MaxStep = 2700;
+DefaultProp.MaxStep = 3600;
 DefaultProp.MaxStepAttempts = 50;
 DefaultProp.StopIfAccuracyIsViolated = true;
 
@@ -186,9 +189,9 @@ DefaultIB.Axes = VNB;
 DefaultIB.Element1 = 0;
 DefaultIB.Element2 = 0;
 DefaultIB.Element3 = 0;
-DefaultIB.DecrementMass = false;
+DefaultIB.DecrementMass = true;
 DefaultIB.Tank = {ElectricTank1};
-DefaultIB.Isp = 300;
+DefaultIB.Isp = 4200;
 DefaultIB.GravitationalAccel = 9.81;
 
 Create FiniteBurn FiniteBurn1;
@@ -341,8 +344,8 @@ EphemerisFile1.WriteEphemeris = true;
 %----------------------------------------
 %---------- Arrays, Variables, Strings
 %----------------------------------------
-Create Variable daysofpropagation;
-daysofpropagation = 3;
+Create Variable targetFinalAltitudeKm;
+targetFinalAltitudeKm = 500;
 
 
 %----------------------------------------
@@ -370,7 +373,10 @@ BeginMissionSequence;
 
 Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;
 BeginFiniteBurn 'Start the Maneuver' FiniteBurn1(DefaultSC);
-% Application substitution: the tutorial's 30 days is exposed as this validated slot.
-Propagate 'Propagate' DefaultProp(DefaultSC) {DefaultSC.ElapsedDays = daysofpropagation};
+% Application substitution: the target altitude is exposed as a validated slot.
+While 'Raise to target altitude' DefaultSC.Earth.Altitude < targetFinalAltitudeKm
+  Propagate 'Propagate one output step' DefaultProp(DefaultSC);
+  Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;
+EndWhile;
 EndFiniteBurn 'End the Maneuver' FiniteBurn1(DefaultSC);
 Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;

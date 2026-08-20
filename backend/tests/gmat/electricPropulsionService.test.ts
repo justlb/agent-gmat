@@ -14,14 +14,27 @@ describe("electric-propulsion transfer renderer", () => {
     const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
     const values = extractElectricPropulsionValues(template)
     assert.equal(renderElectricPropulsionValues(template, values), template)
-    assert.match(template, /DefaultSC\.ECC = 1\.279570234560536e-16;/u)
-    assert.match(template, /DefaultSC\.INC = 0;/u)
-    assert.match(template, /DefaultSC\.DryMass = 850;/u)
-    assert.match(template, /ElectricTank1\.FuelMass = 756;/u)
-    assert.match(template, /SolarPowerSystem1\.InitialMaxPower = 15;/u)
+    assert.match(template, /DefaultSC\.Epoch = '31212\.50042824075';/u)
+    assert.match(template, /DefaultSC\.ECC = 0;/u)
+    assert.match(template, /DefaultSC\.INC = 53\.2;/u)
+    assert.match(template, /DefaultSC\.DryMass = 296;/u)
+    assert.match(template, /DefaultSC\.DragArea = 2;/u)
+    assert.match(template, /ElectricTank1\.FuelMass = 10;/u)
+    assert.match(template, /ElectricThruster1\.ThrustModel = FixedEfficiency;/u)
+    assert.match(template, /ElectricThruster1\.FixedEfficiency = 0\.5;/u)
+    assert.match(template, /ElectricThruster1\.Isp = 4200;/u)
+    assert.match(template, /ElectricThruster1\.ConstantThrust = 0\.15;/u)
+    assert.match(template, /SolarPowerSystem1\.InitialEpoch = ''21 Jun 2026 00:00:00\.000'';/u)
+    assert.match(template, /SolarPowerSystem1\.InitialMaxPower = 4\.2;/u)
+    assert.match(template, /SolarPowerSystem1\.BusCoeff1 = 1\.5;/u)
     assert.match(template, /Create EphemerisFile EphemerisFile1;/u)
     assert.match(template, /EphemerisFile1\.FileFormat = CCSDS-OEM;/u)
     assert.match(template, /DefaultProp_ForceModel\.GravityField\.Earth\.StmLimit = 100;/u)
+    assert.match(template, /DefaultProp\.InitialStepSize = 360;/u)
+    assert.match(template, /DefaultProp\.Accuracy = 1e-09;/u)
+    assert.match(template, /DefaultProp\.MinStep = 0;/u)
+    assert.match(template, /DefaultProp\.MaxStep = 3600;/u)
+    assert.match(template, /targetFinalAltitudeKm = 500;/u)
   })
 
   it("parses the Keplerian report schema", () => {
@@ -51,20 +64,18 @@ describe("electric-propulsion transfer renderer", () => {
     const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
     const values = extractElectricPropulsionValues(template)
     const change = (context: string, value: string) => {
-      const slot = context === "daysofpropagation"
-        ? values.slots.find(candidate => candidate.context.startsWith("daysofpropagation ="))
-        : values.slots.find(candidate => candidate.context.startsWith(`${context} =`))
+      const slot = values.slots.find(candidate => candidate.context.startsWith(`${context} =`))
       assert.ok(slot, `missing ${context}`)
       return { id: slot.id, value }
     }
     const result = await generateElectricPropulsionMission({
       artifactId: "test-mission", request: "validated transfer", workspaceDir,
-      changes: [change("DefaultSC.Epoch", "'21545'"), change("DefaultSC.SMA", "7191.938817629013"), change("DefaultSC.ECC", "0.02454974900598137"), change("DefaultSC.INC", "12.85008005658097"), change("DefaultSC.DryMass", "850"), change("ElectricTank1.FuelMass", "756"), change("daysofpropagation", "2")],
+      changes: [change("DefaultSC.Epoch", "'21545'"), change("DefaultSC.SMA", "7191.938817629013"), change("DefaultSC.ECC", "0.02454974900598137"), change("DefaultSC.INC", "12.85008005658097"), change("DefaultSC.DryMass", "850"), change("ElectricTank1.FuelMass", "756"), change("targetFinalAltitudeKm", "550")],
     })
     const script = await fs.readFile(result.scriptPath, "utf8")
     assert.equal(result.result.status, "generated")
     assert.match(result.scriptPath, /gmat[\\/]electric-propulsion-transfer[\\/]test-mission[\\/]electric_propulsion_transfer\.script$/u)
-    assert.match(script, /daysofpropagation\s*= 2/u)
+    assert.match(script, /targetFinalAltitudeKm\s*= 550/u)
     assert.match(script, /DefaultSC\.DisplayStateType\s*= Keplerian/u)
     assert.match(script, /DefaultSC\.SMA\s*= 7191\.938817629013/u)
     assert.match(script, /DefaultSC\.RAAN\s*= 0;/u)
@@ -72,7 +83,8 @@ describe("electric-propulsion transfer renderer", () => {
     assert.match(script, /DefaultSC\.TA\s*= 0;/u)
     assert.match(script, /ElectricTransferReport\.Filename\s*= '.*ElectricTransferReport\.txt';/u)
     assert.match(script, /ElectricTransferReport\.Add\s*= \{DefaultSC\.ElapsedDays, DefaultSC\.SMA,/u)
-    assert.match(script, /While 'Sample electric transfer for OEM output'[\s\S]*?Propagate 'Propagate one output step'[\s\S]*?Report ElectricTransferReport DefaultSC\.ElapsedDays/u)
+    assert.match(script, /While 'Raise to target altitude' DefaultSC\.Earth\.Altitude < targetFinalAltitudeKm/u)
+    assert.match(script, /Propagate 'Propagate one output step' DefaultProp\(DefaultSC\);/u)
     assert.match(script, /EphemerisFile1\.Filename\s*= '.*[\\/]EphemerisFile1\.oem';/u)
     assert.match(result.ephemerisPath, /gmat[\\/]electric-propulsion-transfer[\\/]test-mission[\\/]EphemerisFile1\.oem$/u)
     assert.match(script, /DefaultSC\.SolarPowerSystem1\.ThrustPowerAvailable/u)
@@ -94,11 +106,11 @@ describe("electric-propulsion transfer renderer", () => {
     }), "utf8")
     const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
     const values = extractElectricPropulsionValues(template)
-    const duration = values.slots.find(slot => slot.context.startsWith("daysofpropagation ="))
-    assert.ok(duration)
+    const targetAltitude = values.slots.find(slot => slot.context.startsWith("targetFinalAltitudeKm ="))
+    assert.ok(targetAltitude)
     const result = await generateElectricPropulsionMission({
       artifactId: "calibrated", request: "calibrated transfer", workspaceDir,
-      changes: [{ id: duration.id, value: "21" }],
+      changes: [{ id: targetAltitude.id, value: "550" }],
     })
     const generatedScript = await fs.readFile(result.scriptPath, "utf8")
     const calibration = JSON.parse(await fs.readFile(path.join(result.runDir, "electric_propulsion_calibration.json"), "utf8")) as { dutyCycle: number; fixedEfficiency: number; ispSeconds: number; nominalPowerKw: number; nominalThrustNewtons: number }

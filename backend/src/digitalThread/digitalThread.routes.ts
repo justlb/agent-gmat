@@ -37,22 +37,16 @@ function response(document: Awaited<ReturnType<typeof loadOrCreateDigitalThread>
   }
 }
 
-// `digital-thread/satellite.json` is the one canonical document for a dated
-// mission. The root-level satellite.json and satellite.digital-thread.json
-// are tool-facing exports/snapshots only. Always prefer the canonical file in
-// the UI response: otherwise an older snapshot can display a previous ground
-// station or an empty satellite selection while the actual run configuration
-// is already correct.
+// `digital-thread/satellite.json` is the canonical document for a dated
+// mission. The root-level satellite.json is its immutable run export.
 async function loadDigitalThreadForView(workspaceDir: string) {
   // The workspace root is never mission state. Returning an unsaved empty
   // document prevents a previous run from becoming input to the next one.
   if (!isMissionRunWorkspace(workspaceDir)) return createEphemeralDigitalThread()
   const canonical = await fs.readFile(digitalThreadPath(workspaceDir), "utf8").catch(() => null)
   if (canonical) return JSON.parse(canonical) as Awaited<ReturnType<typeof loadOrCreateDigitalThread>>
-  for (const fileName of ["satellite.json", "satellite.digital-thread.json"]) {
-    const source = await fs.readFile(path.join(workspaceDir, fileName), "utf8").catch(() => null)
-    if (source) return JSON.parse(source) as Awaited<ReturnType<typeof loadOrCreateDigitalThread>>
-  }
+  const source = await fs.readFile(path.join(workspaceDir, "satellite.json"), "utf8").catch(() => null)
+  if (source) return JSON.parse(source) as Awaited<ReturnType<typeof loadOrCreateDigitalThread>>
   return loadOrCreateDigitalThread(workspaceDir)
 }
 
@@ -116,8 +110,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
   })
 
   // The live source of truth is useful before a GMAT execution. Each executed
-  // run additionally receives its own immutable satellite.digital-thread.json
-  // snapshot, referenced from that run manifest.
+  // run additionally receives its own immutable satellite.json export.
   fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/digital-thread/satellite/download", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
@@ -225,8 +218,8 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
       // A completed GMAT run has its immutable input at the run root, while
       // the Mission Studio editor writes under digital-thread/. Mirror this
       // downstream-only configuration immediately so Simu-CIC and RF-COMLINK
-      // never read the old nadir request from satellite.digital-thread.json.
-      const hasExecutedRunSnapshot = await fs.access(path.join(workspaceDir, "satellite.digital-thread.json")).then(() => true).catch(() => false)
+      // Never leave a completed run's root export with an old attitude request.
+      const hasExecutedRunSnapshot = await fs.access(path.join(workspaceDir, "gmat_result.json")).then(() => true).catch(() => false)
       if (hasExecutedRunSnapshot) {
         await syncSimuCicRequestToRunSnapshot(workspaceDir, document)
         await updateRunWorkflowLog(workspaceDir, "simu_cic", "not_started", "Simu-CIC configuration changed; rerun Simu-CIC.")

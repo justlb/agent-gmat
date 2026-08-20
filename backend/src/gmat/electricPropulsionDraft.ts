@@ -6,8 +6,9 @@ import { initializeDraftDigitalThread, isMissionRunWorkspace } from "../digitalT
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian, semiMajorAxisFromPeriapsisAltitude, type CartesianState, type KeplerianElements } from "./orbitCoordinates.js"
 import { requestGmatModel } from "./modelRequest.js"
-import type { ElectricPropulsionValueChange, ElectricPropulsionValues } from "./electricPropulsionValues.js"
+import { electricPropulsionSatelliteInputs, type ElectricPropulsionValueChange, type ElectricPropulsionValues } from "./electricPropulsionValues.js"
 import { writeDraftRunComparisonIndex } from "./draftRunComparison.js"
+import { loadSatelliteYamlSnapshot } from "./satelliteYamlSnapshot.js"
 
 type DraftValue = string | number | null
 type DraftValues = Record<string, DraftValue>
@@ -82,8 +83,10 @@ export const ELECTRIC_PROPULSION_TRANSFER_CONTRACT = {
     { context: "DefaultSC.AOP", label: "Initial argument of periapsis", max: 360, min: 0, path: "initialOrbit.argPeriapsisDeg", required: false, unit: "deg" },
     { context: "DefaultSC.TA", label: "Initial true anomaly", max: 360, min: 0, path: "initialOrbit.trueAnomalyDeg", required: false, unit: "deg" },
     { context: "DefaultSC.DryMass", label: "Dry mass", min: 0.001, path: "spacecraft.dryMassKg", required: false, unit: "kg" },
+    { context: "DefaultSC.Cd", label: "Drag coefficient", min: 0.0001, path: "spacecraft.dragCoefficient", required: false },
+    { context: "DefaultSC.DragArea", label: "Drag area", min: 0.0001, path: "spacecraft.dragAreaM2", required: false, unit: "m2" },
     { context: "ElectricTank1.FuelMass", label: "Initial electric propellant mass", min: 0.001, path: "spacecraft.initialFuelMassKg", required: false, unit: "kg" },
-    { context: "daysofpropagation", label: "Electric-thrust duration", max: 3650, min: 0.0001, path: "transfer.burnDurationDays", required: true, unit: "days" },
+    { context: "targetFinalAltitudeKm", label: "Target final altitude", max: 50_000, min: MINIMUM_SAFE_ALTITUDE_KM, path: "transfer.finalAltitudeKm", required: true, unit: "km" },
     // The fixed thrust and mass-flow polynomials are accepted only over their
     // documented calibration range; chat edits cannot extrapolate them.
     { context: "ElectricThruster1.MaximumUsablePower", label: "Maximum usable thruster power", max: THRUST_POLYNOMIAL_MAX_POWER_KW, min: 0.001, path: "propulsion.maximumUsablePowerKw", required: false, unit: "kW" },
@@ -97,7 +100,7 @@ export const ELECTRIC_PROPULSION_TRANSFER_CONTRACT = {
 const fields = ELECTRIC_PROPULSION_TRANSFER_CONTRACT.fields as readonly FieldDefinition[]
 const MISSION_FIELD_PATHS = new Set([
   "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg",
-  "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg", "transfer.burnDurationDays",
+  "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg", "transfer.finalAltitudeKm",
 ])
 const GMAT_TAI_MOD_JULIAN_MIN = 10_000
 const GMAT_TAI_MOD_JULIAN_MAX = 100_000
@@ -263,7 +266,21 @@ async function saveDraft(workspaceDir: string, draft: ElectricPropulsionDraft) {
   // This live draft YAML changes with every assistant turn. It is not the
   // immutable values file that is emitted later inside a completed GMAT run.
   const valuesPath = path.join(path.dirname(output), "electric_propulsion_transfer.values.yaml")
-  const valuesSource = stringify({ draft_id: draft.draftId, template_id: draft.templateId, updated_at: draft.updatedAt, values: draft.values })
+  // The live YAML mirrors the run YAML's satellite-input section so an
+  // engineer can inspect the complete satellite.json → YAML translation
+  // before launching GMAT.
+  const satelliteDocument = await fs.readFile(path.join(path.resolve(workspaceDir), "satellite.json"), "utf8")
+    .then(source => JSON.parse(source) as unknown)
+    .catch(() => null)
+  const satelliteSnapshot = await loadSatelliteYamlSnapshot(workspaceDir)
+  const valuesSource = stringify({
+    draft_id: draft.draftId,
+    template_id: draft.templateId,
+    updated_at: draft.updatedAt,
+    values: draft.values,
+    ...(satelliteDocument ? { electric_propulsion_inputs: electricPropulsionSatelliteInputs(satelliteDocument) } : {}),
+    ...(satelliteSnapshot ? { satellite_inputs: satelliteSnapshot } : {}),
+  })
   await Promise.all([
     fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`, "utf8"),
     fs.writeFile(valuesPath, valuesSource, "utf8"),
@@ -410,11 +427,7 @@ export function draftToElectricPropulsionChanges(draft: ElectricPropulsionDraft,
   const changes = fields.flatMap(field => {
     const value = draft.values[field.path]
     if (value === null) return field.required ? (() => { throw new Error(`missing required field ${field.path}`) })() : []
-    // The propagation duration is a dedicated variable. It is deliberately kept
-    // separate from the fixed ReportFile.Add list and the Propagate structure.
-    const slot = field.path === "transfer.burnDurationDays"
-      ? values.slots.find(candidate => candidate.context.startsWith(`${field.context} =`))
-      : values.slots.find(candidate => candidate.context.startsWith(`${field.context} =`))
+    const slot = values.slots.find(candidate => candidate.context.startsWith(`${field.context} =`))
     if (!slot) throw new Error(`template does not expose draft field ${field.path}`)
     return [{ id: slot.id, value: typeof value === "number" ? String(value) : `'${value.replace(/'/gu, "")}'` }]
   })

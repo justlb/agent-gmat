@@ -421,6 +421,117 @@ def result_summary(simulation: Any, source: Path, initial_soc: Any) -> dict[str,
     return summary
 
 
+def result_row_scalar_properties(row: Any) -> dict[str, Any]:
+    """Return the simple, public values exposed by one OPALIS result row.
+
+    OPALIS versions do not all expose exactly the same row class.  Reflection
+    avoids coupling the digital thread to a private version-specific .NET type
+    while retaining the fields needed for engineering plots.
+    """
+    values: dict[str, Any] = {}
+    try:
+        properties = row.GetType().GetProperties()
+    except Exception:
+        return values
+    for property_info in properties:
+        try:
+            if not property_info.CanRead or property_info.GetIndexParameters().Length:
+                continue
+            value = json_value(property_info.GetValue(row, None))
+        except Exception:
+            continue
+        if value is None or isinstance(value, (bool, int, float, str)):
+            values[str(property_info.Name)] = value
+    return values
+
+
+def result_number(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.replace(",", "."))
+        except ValueError:
+            return None
+    return None
+
+
+def normalised_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.lower())
+
+
+def first_numeric_property(values: dict[str, Any], aliases: tuple[str, ...]) -> float | None:
+    normalised = {normalised_key(name): value for name, value in values.items()}
+    for alias in aliases:
+        value = result_number(normalised.get(normalised_key(alias)))
+        if value is not None:
+            return value
+    return None
+
+
+def extract_result_series(
+    simulation: Any, time_step_seconds: float | None = None, max_samples: int = 5000
+) -> dict[str, Any]:
+    """Export a compact, version-tolerant OPALIS time series for the web UI.
+
+    The native GUI owns the exact result-row schema.  We capture its public
+    scalar properties and map known aliases to the common engineering metrics;
+    unknown fields are listed for traceability rather than silently guessed.
+    """
+    try:
+        rows = get_property(simulation, "SimulationResult.Rows")
+        row_count = int(rows.Count)
+    except Exception as exc:
+        return {"available_row_properties": [], "samples": [], "source_row_count": 0, "warning": str(exc)}
+
+    if row_count <= 0:
+        return {"available_row_properties": [], "samples": [], "source_row_count": 0}
+
+    stride = max(1, (row_count + max_samples - 1) // max_samples)
+    indices = list(range(0, row_count, stride))
+    if indices[-1] != row_count - 1:
+        indices.append(row_count - 1)
+
+    property_names: set[str] = set()
+    samples: list[dict[str, Any]] = []
+    for index in indices:
+        try:
+            row = get_indexed_item(rows, str(index))
+        except Exception:
+            continue
+        values = result_row_scalar_properties(row)
+        property_names.update(values)
+        sample: dict[str, Any] = {"index": index}
+        time_seconds = first_numeric_property(values, ("TimeSeconds", "Time", "Duration", "T"))
+        if time_seconds is None and time_step_seconds is not None:
+            time_seconds = index * time_step_seconds
+        if time_seconds is not None:
+            sample["time_seconds"] = time_seconds
+
+        soc = first_numeric_property(values, ("SocBattery", "SOCBattery", "StateOfCharge", "Soc"))
+        if soc is not None:
+            sample["soc_percent"] = soc * 100 if 0 <= soc <= 1 else soc
+        voltage = first_numeric_property(values, ("Vbatt", "VBatt", "BatteryVoltage", "VoltageBattery"))
+        if voltage is not None:
+            sample["battery_voltage_v"] = voltage
+        solar_energy = first_numeric_property(values, ("Esa", "SolarArrayEnergy", "SolarEnergy"))
+        if solar_energy is not None:
+            sample["solar_energy_wh"] = solar_energy
+        depth_of_discharge = first_numeric_property(values, ("Dod", "Dodcycle", "DepthOfDischarge"))
+        if depth_of_discharge is not None:
+            sample["depth_of_discharge_percent"] = depth_of_discharge
+        samples.append(sample)
+
+    return {
+        "available_row_properties": sorted(property_names),
+        "sample_interval_rows": stride,
+        "samples": samples,
+        "source_row_count": row_count,
+    }
+
+
 def write_json(data: Any, output: Path | None = None) -> None:
     content = json.dumps(data, ensure_ascii=False, indent=2)
     if output is None:

@@ -173,12 +173,17 @@
       },
       "electric_propulsion_transfer": {
         "initial_orbit": { "epoch_tai_mod_julian": null, "semi_major_axis_km": null, "eccentricity": null, "inclination_deg": null, "raan_deg": null, "arg_of_perigee_deg": null, "true_anomaly_deg": null },
-        "burn_duration_days": null
+        "target_final_altitude_km": null
       },
       "chemical_hohmann_transfer": {
         "initial_orbit": { "epoch_tai_mod_julian": null, "semi_major_axis_km": null, "eccentricity": null, "inclination_deg": null, "raan_deg": null, "arg_of_perigee_deg": null, "true_anomaly_deg": null },
         "target_orbit": { "radius_km": null, "eccentricity": 0.005 },
         "final_propagation_seconds": 86400
+      },
+      "chemical_3d_transfer": {
+        "initial_orbit": { "epoch_tai_mod_julian": null, "altitude_km": null, "eccentricity": null, "inclination_deg": null, "raan_deg": null, "arg_of_perigee_deg": null, "true_anomaly_deg": null },
+        "final_altitude_km": null,
+        "final_inclination_deg": null
       }
     },
     "simu_cic": {
