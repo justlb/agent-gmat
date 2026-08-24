@@ -135,6 +135,28 @@ export async function prepareRFComlinkInputs(root: string, runDir: string) {
   return { ...output, output: path.relative(root, outputPath), outputPath }
 }
 
+/** Build the audited RF-COMLINK package for one already completed Simu-CIC run. */
+export async function prepareRFComlinkScenario(root: string, runDir: string) {
+  const workflow = await loadRunWorkflowLog(runDir)
+  if (workflow.stages.simu_cic.status !== "completed") {
+    throw new Error("Run Simu-CIC first. RF-COMLINK requires CIC files generated with the current attitude configuration.")
+  }
+  await updateRunWorkflowLog(runDir, "rf_comlink", "running", "Preparing RF-COMLINK scenario from satellite.json and Simu-CIC CIC files")
+  const inputs = await prepareRFComlinkInputs(root, runDir)
+  if (inputs.validation.status !== "ready") {
+    await updateRunWorkflowLog(runDir, "rf_comlink", "failed", `Missing RF-COMLINK data: ${inputs.validation.missing.join(", ")}`)
+    throw Object.assign(new Error(rfInputProblem(inputs.validation.missing)), { inputs })
+  }
+  const templateOverride = process.env.RF_COMLINK_TEMPLATE?.trim()
+  const template = templateOverride || path.join(rfComlinkHomeForHost(), "example", "vide.rfcl")
+  const output = path.join(runDir, "rf-comlink", "02-scenario", "prepared-rf-comlink.rfcl")
+  await fs.access(template)
+  const script = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "02-prepare-scenario", "build_rf_comlink_scenario.py")
+  const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
+  await runProcess(python, [script, "--template", template, "--inputs", inputs.outputPath, "--output", output])
+  return { ...inputs, scenario: path.relative(root, output).split(path.sep).join("/"), scenarioPath: output }
+}
+
 export async function rfComlinkPreparationRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: RunBody }>("/api/rf-comlink/prepare-inputs", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
@@ -154,27 +176,9 @@ export async function rfComlinkPreparationRoutes(fastify: FastifyInstance) {
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
-      const workflow = await loadRunWorkflowLog(runDir)
-      if (workflow.stages.simu_cic.status !== "completed") return reply.status(422).send({ error: "Run Simu-CIC first. RF-COMLINK requires CIC files generated with the current attitude configuration." })
-      await updateRunWorkflowLog(runDir, "rf_comlink", "running", "Preparing RF-COMLINK scenario from satellite.json and Simu-CIC CIC files")
-      const inputs = await prepareRFComlinkInputs(path.resolve(root), runDir)
-      if (inputs.validation.status !== "ready") {
-        await updateRunWorkflowLog(runDir, "rf_comlink", "failed", `Missing RF-COMLINK data: ${inputs.validation.missing.join(", ")}`)
-        return reply.status(422).send({ error: rfInputProblem(inputs.validation.missing), ...inputs })
-      }
-      const templateOverride = process.env.RF_COMLINK_TEMPLATE?.trim()
-      // `vide.rfcl` is the vendor's empty scenario structure.  Satellite
-      // values are filled only from this run's digital thread, never copied
-      // from a Starlink or VLEO example scenario.
-      const templateName = "vide.rfcl"
-      const template = templateOverride || path.join(rfComlinkHomeForHost(), "example", templateName)
-      const output = path.join(runDir, "rf-comlink", "02-scenario", "prepared-rf-comlink.rfcl")
-      await fs.access(template)
-      const script = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "02-prepare-scenario", "build_rf_comlink_scenario.py")
-      const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
-      await runProcess(python, [script, "--template", template, "--inputs", inputs.outputPath, "--output", output])
-      await updateRunWorkflowLog(runDir, "rf_comlink", "completed", `Prepared ${path.basename(output)}`)
-      return reply.send({ ...inputs, scenario: path.relative(root, output).split(path.sep).join("/") })
+      const result = await prepareRFComlinkScenario(path.resolve(root), runDir)
+      await updateRunWorkflowLog(runDir, "rf_comlink", "completed", `Prepared ${path.basename(result.scenarioPath)}`)
+      return reply.send(result)
     } catch (error) {
       const message = getErrorMessage(error, "failed to prepare RF-COMLINK scenario")
       await updateRunWorkflowLog(runDir, "rf_comlink", "failed", message)

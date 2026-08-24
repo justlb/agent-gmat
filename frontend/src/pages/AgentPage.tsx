@@ -23,7 +23,7 @@ import { missionTemplateRuntime } from './agent/missionTemplateRuntime'
 import { routeMissionMessage } from './agent/missionRoutingApi'
 import { askMissionAssistant } from './agent/missionAssistantApi'
 import { cancelGmatCalculations, getRunWorkflowLog, openPreparedOpalisScenario, openSimuCicGui, runOpalisScenario, runSimuCic, type RunWorkflowLog } from './agent/simuCicApi'
-import { openRfComlinkGui, prepareRfComlinkScenario, saveRfComlinkResults, startRfComlinkCalculation } from './agent/rfComlinkApi'
+import { openRfComlinkGui, runRfComlinkCalculation } from './agent/rfComlinkApi'
 import { createPlanningRun, type PlanningRun } from './agent/planningRunApi'
 import { updateMissionValue } from './agent/missionValuesApi'
 import { chatModeForMissionTemplate, missionTemplateForChatMode, type GmatChatMode, type GmatMissionTemplateId } from './agent/gmatMissionTemplates'
@@ -62,7 +62,7 @@ const GMAT_WORKFLOW_LABELS: Record<'draft_llm' | 'run_gmat' | 'run_simucic' | 'p
   run_simucic: 'Run Simu-CIC simulation',
   prepare_opalis: 'Prepare OPALIS scenario',
   run_opalis: 'Run OPALIS calculation',
-  prepare_rf_comlink: 'Generate RF-COMLINK scenario',
+  prepare_rf_comlink: 'Run RF-COMLINK calculation',
 }
 
 function newGmatWorkflow(): WorkflowLoopProgressEntry[] {
@@ -153,7 +153,6 @@ export default function AgentPage() {
   const [opalisRunning, setOpalisRunning] = useState(false)
   const [rfComlinkPreparing, setRfComlinkPreparing] = useState(false)
   const [rfComlinkCalculationStarting, setRfComlinkCalculationStarting] = useState(false)
-  const [rfComlinkResultsSaving, setRfComlinkResultsSaving] = useState(false)
   // OPALIS preparation is now performed as part of the single Run OPALIS
   // action in Mission discussion. Keep this compatibility value false while
   // older progress-panel call sites are being phased out.
@@ -985,18 +984,16 @@ export default function AgentPage() {
     setProgressPanelOpen(true)
     setGmatWorkflowEntries(entries => startWorkflowBranch(entries, 'prepare_rf_comlink'))
     setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: `Preparing RF-COMLINK for GMAT run ${current.runId} from its selected ground station and Simu-CIC CIC files.`, askedAt: new Date().toISOString(), question: 'Run RF-COMLINK' }] } : current)
-    void prepareRfComlinkScenario(activeGmatRun.runPath)
-      .then(async () => {
+    void runRfComlinkCalculation(activeGmatRun.runPath)
+      .then(calculation => {
         setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'prepare_rf_comlink', 'completed') : entries)
-        setRfComlinkCalculationStarting(true)
-        const calculation = await startRfComlinkCalculation(activeGmatRun.runPath)
         const askedAt = new Date().toISOString()
         setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, {
-          answer: `RF-COMLINK calculation opened for satellite ${activeGmatRun.runId} using ${calculation.scenario}. Save the calculated scenario in RF-COMLINK; its results can then be imported into this discussion.`,
+          answer: `RF-COMLINK completed for run ${activeGmatRun.runId}. ${calculation.reportCount} report(s) were saved for analysis.`,
           askedAt,
           question: 'Run RF-COMLINK',
         }] } : current)
-        showSpeechText(`RF-COMLINK calculation opened for run ${activeGmatRun.runId}.`)
+        showSpeechText(`RF-COMLINK calculation completed for run ${activeGmatRun.runId}.`)
         refreshWorkspaceViews()
       })
       .catch(reason => {
@@ -1007,20 +1004,6 @@ export default function AgentPage() {
       })
       .finally(() => { setRfComlinkPreparing(false); setRfComlinkCalculationStarting(false) })
   }, [activeGmatRun, opalisRunning, refreshWorkspaceViews, rfComlinkPreparing, showSpeechText, simuCicCompleted, simuCicRunning])
-  const handleSaveRfComlinkResults = useCallback(() => {
-    if (!activeGmatRun || rfComlinkResultsSaving || rfComlinkCalculationStarting) return
-    setRfComlinkResultsSaving(true)
-    setManagedRunError('')
-    void saveRfComlinkResults(activeGmatRun.runPath)
-      .then(result => {
-        const askedAt = new Date().toISOString()
-        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: `RF-COMLINK results saved (${result.reportCount} reports). They are now available to the mission assistant.`, askedAt, question: 'Save RF-COMLINK results' }] } : current)
-        showSpeechText(`RF-COMLINK results saved for run ${activeGmatRun.runId}.`)
-        refreshWorkspaceViews()
-      })
-      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to save RF-COMLINK results'))
-      .finally(() => setRfComlinkResultsSaving(false))
-  }, [activeGmatRun, refreshWorkspaceViews, rfComlinkCalculationStarting, rfComlinkResultsSaving, showSpeechText])
   const handleOpenRfComlinkGui = useCallback(() => {
     if (!activeGmatRun || rfComlinkCalculationStarting) return
     setRfComlinkCalculationStarting(true)
@@ -1238,7 +1221,6 @@ export default function AgentPage() {
               refreshWorkspaceViews()
             },
             onRunOpalis: handleRunOpalis,
-            onSaveRfComlinkResults: handleSaveRfComlinkResults,
             onOpenRfComlinkGui: handleOpenRfComlinkGui,
             onPrepareRfComlink: handlePrepareRfComlink,
             onStopCalculations: handleStopCalculations,
@@ -1288,7 +1270,6 @@ export default function AgentPage() {
             rfComlinkPreparing,
             rfComlinkPrepared,
             rfComlinkCalculationStarting,
-            rfComlinkResultsSaving,
             // A historical run owns an immutable satellite.json snapshot.
             // Its displayed values (including Simu-CIC attitude) must never
             // be read from the currently open planning discussion.

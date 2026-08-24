@@ -203,7 +203,6 @@ export type GmatMissionChatProps = {
   onRunSimuCic?: () => void
   onSimuCicConfigurationChanged?: () => void
   onRunOpalis?: () => void
-  onSaveRfComlinkResults?: () => void
   onOpenRfComlinkGui?: () => void
   onPrepareRfComlink?: () => void
   onStopCalculations?: () => void
@@ -217,11 +216,10 @@ export type GmatMissionChatProps = {
   rfComlinkPreparing?: boolean
   rfComlinkPrepared?: boolean
   rfComlinkCalculationStarting?: boolean
-  rfComlinkResultsSaving?: boolean
   workspaceDir?: string | null
 }
 
-export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, conversation = [], draft, error, gmatRunFailed = false, onEnsureMissionRun, onExecute, onMissionValuesChangeRequested, onNewRun, onRunSimuCic, onRunOpalis, onPrepareRfComlink, onSaveRfComlinkResults, onOpenRfComlinkGui, onStopCalculations, onRetry, onSend, onUpdateMissionValue, onSimuCicConfigurationChanged, pending, simuCicConversation = [], simuCicCompleted = false, simuCicRefreshNonce = 0, simuCicRunning = false, rfComlinkPreparing = false, rfComlinkPrepared = false, rfComlinkCalculationStarting = false, rfComlinkResultsSaving = false, workspaceDir }: GmatMissionChatProps) {
+export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, conversation = [], draft, error, gmatRunFailed = false, onEnsureMissionRun, onExecute, onMissionValuesChangeRequested, onNewRun, onRunSimuCic, onRunOpalis, onPrepareRfComlink, onOpenRfComlinkGui, onStopCalculations, onRetry, onSend, onUpdateMissionValue, onSimuCicConfigurationChanged, pending, simuCicConversation = [], simuCicCompleted = false, simuCicRefreshNonce = 0, simuCicRunning = false, rfComlinkPreparing = false, rfComlinkPrepared = false, rfComlinkCalculationStarting = false, workspaceDir }: GmatMissionChatProps) {
   const [message, setMessage] = useState('')
   const [editingRunValues, setEditingRunValues] = useState(false)
   const [simuCic, setSimuCic] = useState<SimuCicConfiguration>({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
@@ -390,9 +388,8 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
             {activeRunId && gmatRunFailed ? <><p className="gmat-mission-run-blocker">GMAT failed. Edit the mission values, then run GMAT again before continuing to Simu-CIC or OPALIS.</p><button className="gmat-mission-run-button" disabled={busy || !draft} type="button" onClick={onExecute}>Retry unchanged values</button></> : null}
             {activeRunId && !gmatRunFailed && onRunSimuCic ? <button className="gmat-mission-run-button" disabled={simuCicRunning} type="button" onClick={onRunSimuCic}>{simuCicRunning ? 'Running Simu-CIC…' : 'Run Simu-CIC'}</button> : null}
             {activeRunId && !gmatRunFailed && onRunOpalis ? <button className="gmat-mission-run-button" disabled={!simuCicCompleted || simuCicRunning || busy} title={simuCicCompleted ? 'Run OPALIS from the CIC files already generated for this GMAT run.' : 'Run Simu-CIC first.'} type="button" onClick={onRunOpalis}>Run OPALIS</button> : null}
-            {activeRunId && !gmatRunFailed && onPrepareRfComlink ? <button className="gmat-mission-run-button" disabled={!simuCicCompleted || simuCicRunning || busy || rfComlinkPreparing || rfComlinkCalculationStarting} title={simuCicCompleted ? 'Prepare and open the run-local RF-COMLINK calculation.' : 'Run Simu-CIC first.'} type="button" onClick={onPrepareRfComlink}>{rfComlinkPreparing || rfComlinkCalculationStarting ? 'Starting RF-COMLINK…' : 'Run RF-COMLINK'}</button> : null}
+            {activeRunId && !gmatRunFailed && onPrepareRfComlink ? <button className="gmat-mission-run-button" disabled={!simuCicCompleted || simuCicRunning || busy || rfComlinkPreparing || rfComlinkCalculationStarting} title={simuCicCompleted ? 'Run, save, and extract RF-COMLINK results for this mission run.' : 'Run Simu-CIC first.'} type="button" onClick={onPrepareRfComlink}>{rfComlinkPreparing || rfComlinkCalculationStarting ? 'Running RF-COMLINK…' : 'Run RF-COMLINK'}</button> : null}
             {activeRunId && !gmatRunFailed && onOpenRfComlinkGui ? <button className="gmat-mission-run-button" disabled={!rfComlinkPrepared || rfComlinkCalculationStarting} title="Open the prepared or calculated scenario in RF-COMLINK." type="button" onClick={onOpenRfComlinkGui}>Open RF-COMLINK GUI</button> : null}
-            {activeRunId && !gmatRunFailed && onSaveRfComlinkResults ? <button className="gmat-mission-run-button" disabled={!rfComlinkPrepared || rfComlinkResultsSaving || rfComlinkCalculationStarting} title="After calculating and saving in RF-COMLINK, archive the reports for discussion." type="button" onClick={onSaveRfComlinkResults}>{rfComlinkResultsSaving ? 'Saving RF-COMLINK results…' : 'Save RF-COMLINK results'}</button> : null}
             {activeRunId ? <button type="button" onClick={onNewRun}>Start separate GMAT mission</button> : null}
           </aside>
           <section className="gmat-mission-chat-thread" aria-live="polite">

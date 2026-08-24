@@ -51,7 +51,7 @@ export type OrbitKeepingFile = {
   artifactId: string
   fileName: string
   historical?: boolean
-  kind: 'digital-thread' | 'ephemeris' | 'log' | 'manifest' | 'opalis' | 'report' | 'result' | 'script' | 'timeseries' | 'values'
+  kind: 'digital-thread' | 'ephemeris' | 'log' | 'manifest' | 'opalis' | 'report' | 'result' | 'rf-comlink' | 'script' | 'timeseries' | 'values'
   mtimeMs: number
   relativePath: string
   runPath?: string
