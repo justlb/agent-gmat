@@ -96,14 +96,19 @@ export function validateGmatMissionGuardrails(template: GmatMissionGuardrailTemp
   }
 
   if (template === "electric-propulsion-transfer") {
-    const duration = finiteNumber(values, "transfer.burnDurationDays")
+    const finalAltitude = finiteNumber(values, "transfer.finalAltitudeKm")
+    // Electric-transfer missions normally provide SMA rather than an explicit
+    // altitude. Derive it here so the guardrail still rejects a descent or a
+    // no-op transfer before GMAT is launched.
+    const electricInitialAltitude = initialAltitude ?? (semiMajorAxis !== null ? semiMajorAxis - EARTH_EQUATORIAL_RADIUS_KM : null)
     const propellant = finiteNumber(values, "spacecraft.initialFuelMassKg")
     const minPower = finiteNumber(values, "propulsion.minimumUsablePowerKw")
     const maxPower = finiteNumber(values, "propulsion.maximumUsablePowerKw")
     const solarPower = finiteNumber(values, "power.initialMaxPowerKw")
     const busLoad = finiteNumber(values, "power.busLoadKw")
     const margin = finiteNumber(values, "power.systemMarginPercent")
-    if (duration !== null && duration <= 0) guards.push(error("burn_duration", "Electric-thrust duration must be strictly positive.", "transfer.burnDurationDays"))
+    if (finalAltitude !== null && finalAltitude < MINIMUM_EARTH_ORBIT_ALTITUDE_KM) guards.push(error("electric_target_altitude", `Electric-transfer target altitude must be at least ${MINIMUM_EARTH_ORBIT_ALTITUDE_KM} km above Earth.`, "transfer.finalAltitudeKm"))
+    if (electricInitialAltitude !== null && finalAltitude !== null && finalAltitude <= electricInitialAltitude) guards.push(error("electric_altitude_order", "Electric-transfer target altitude must be greater than the initial altitude.", "transfer.finalAltitudeKm"))
     if (propellant !== null && propellant <= 0) guards.push(error("electric_propellant", "Electric propellant mass must be strictly positive.", "spacecraft.initialFuelMassKg"))
     if (minPower !== null && minPower <= 0) guards.push(error("minimum_thruster_power", "Minimum usable thruster power must be strictly positive.", "propulsion.minimumUsablePowerKw"))
     if (maxPower !== null && maxPower <= 0) guards.push(error("maximum_thruster_power", "Maximum usable thruster power must be strictly positive.", "propulsion.maximumUsablePowerKw"))

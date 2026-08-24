@@ -4,7 +4,7 @@ import type { WorkspaceFilePreview } from '../types'
 import { WorkspaceFilePreviewPanel } from '../WorkspaceFilePreviewPanel'
 import { joinApiPath } from '../../../app/apiBase'
 import { type OrbitKeepingDraft } from '../orbitKeepingApi'
-import { missionTemplateDefinition, missionTemplateForChatMode } from '../gmatMissionTemplates'
+import { missionTemplateForChatMode } from '../gmatMissionTemplates'
 import { listMissionTemplateFiles, missionTemplateRuntime, type MissionTemplateFile } from '../missionTemplateRuntime'
 import { GmatMissionChat, type GmatMissionChatProps } from './GmatMissionChat'
 
@@ -90,7 +90,7 @@ function isPrimaryRunFile(file: MissionFile) {
 }
 
 function missionLabel(missionType: MissionFile['missionType']) {
-  return missionTemplateDefinition(missionType).label
+  return missionType.replace(/-/gu, ' ')
 }
 
 function missionFileDownloadUrl(file: MissionFile, workspaceDir?: string | null) { return missionTemplateRuntime(file.missionType).downloadFile(file, workspaceDir) }

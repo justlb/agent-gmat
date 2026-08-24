@@ -12,7 +12,7 @@ describe("resolveMissionWorkspace", () => {
   })
 
   it("accepts a nested workspace and rejects an escape outside the user root", () => {
-    const runWorkspace = path.join(root, "missions", "mission-runs", "26-08-16_12-26")
+    const runWorkspace = path.join(root, "gmat", "mission-runs", "26-08-16_12-26")
     assert.equal(resolveMissionWorkspace(root, runWorkspace), runWorkspace)
     assert.throws(() => resolveMissionWorkspace(root, "/tmp/other-user"), /inside the current user workspace/)
   })
@@ -25,7 +25,7 @@ describe("resolveMissionWorkspace", () => {
   })
 
   it("requires a dated mission workspace when requested", () => {
-    const runWorkspace = path.join(root, "missions", "mission-runs", "26-08-16_12-26")
+    const runWorkspace = path.join(root, "gmat", "mission-runs", "26-08-16_12-26")
     assert.equal(resolveMissionWorkspace(root, runWorkspace, { requireExplicitWorkspace: true, requireMissionRun: true }), runWorkspace)
     assert.throws(() => resolveMissionWorkspace(root, undefined, { requireExplicitWorkspace: true }), /workspaceDir is required/)
     assert.throws(() => resolveMissionWorkspace(root, path.join(root, "planning"), { requireMissionRun: true }), /select a dated mission run workspace first/)

@@ -167,10 +167,13 @@ Create Propagator DefaultProp;
 
 DefaultProp.FM = DefaultProp_ForceModel;
 DefaultProp.Type = RungeKutta89;
-DefaultProp.InitialStepSize = 60;
-DefaultProp.Accuracy = 9.999999999999999e-12;
+% Validated long-transfer settings: six times fewer outer-loop samples than
+% the former 60 s setup, while RungeKutta89 adapts internally near eclipses
+% and perturbations.
+DefaultProp.InitialStepSize = 360;
+DefaultProp.Accuracy = 1e-09;
 DefaultProp.MinStep = 0;
-DefaultProp.MaxStep = 2700;
+DefaultProp.MaxStep = 3600;
 DefaultProp.MaxStepAttempts = 50;
 DefaultProp.StopIfAccuracyIsViolated = true;
 
@@ -341,8 +344,8 @@ EphemerisFile1.WriteEphemeris = true;
 %----------------------------------------
 %---------- Arrays, Variables, Strings
 %----------------------------------------
-Create Variable daysofpropagation;
-daysofpropagation = 3;
+Create Variable targetFinalAltitudeKm;
+targetFinalAltitudeKm = 500;
 
 
 %----------------------------------------
@@ -370,7 +373,10 @@ BeginMissionSequence;
 
 Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;
 BeginFiniteBurn 'Start the Maneuver' FiniteBurn1(DefaultSC);
-% Application substitution: the tutorial's 30 days is exposed as this validated slot.
-Propagate 'Propagate' DefaultProp(DefaultSC) {DefaultSC.ElapsedDays = daysofpropagation};
+% Application substitution: the requested final altitude is exposed as this validated slot.
+While 'Raise to target altitude' DefaultSC.Earth.Altitude < targetFinalAltitudeKm
+  Propagate 'Propagate one output step' DefaultProp(DefaultSC);
+  Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;
+EndWhile;
 EndFiniteBurn 'End the Maneuver' FiniteBurn1(DefaultSC);
 Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;

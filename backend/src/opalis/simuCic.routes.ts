@@ -7,24 +7,21 @@ import type { FastifyInstance } from "fastify"
 import type { AppConfig } from "../config.js"
 import { toGmatNativePath } from "../gmat/orbitKeepingRunner.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
-import { getErrorMessage, isPathInside } from "../shared/index.js"
+import { getErrorMessage } from "../shared/index.js"
 import { PREDEFINED_GROUND_STATIONS } from "./groundStationCatalog.js"
 import { loadRunDigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { writeSimuCicDefinition } from "./simuCicDefinition.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { cancelActiveCalculations, registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
-import { loadRunWorkflowLog, updateRunWorkflowLog } from "./workflowRunLog.js"
+import { loadRunWorkflowLog } from "./workflowRunLog.js"
+import { beginRunStage, completeRunStage, failRunStage } from "../runs/runLifecycle.js"
 import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
+import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
 
 type RunBody = { runPath?: unknown }
 
 function resolveGmatRunDir(userWorkspaceRoot: string, runPath: unknown) {
-  if (typeof runPath !== "string" || !runPath.trim()) return null
-  const root = path.resolve(userWorkspaceRoot)
-  const runDir = path.resolve(root, runPath)
-  const normalized = runDir.split(path.sep).join("/")
-  if (!isPathInside(root, runDir) || !/\/gmat\/(?:orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized)) return null
-  return runDir
+  return resolveMissionRun(userWorkspaceRoot, runPath)?.runDir ?? null
 }
 
 function requiredSimuCicConfig(config: AppConfig) {
@@ -209,7 +206,7 @@ export async function runSimuCicForRun(config: AppConfig, root: string, runDir: 
     throw new Error("GMAT failed for this run. Run GMAT successfully before starting Simu-CIC.")
   }
   await reconcileGmatStatusFromEphemeris(runDir, ephemeris)
-  await updateRunWorkflowLog(runDir, "simu_cic", "running", "Simu-CIC calculation is running.")
+  await beginRunStage(runDir, "simu_cic", "Simu-CIC calculation is running.")
   await appendRunConversation(runDir, { answer: "Simu-CIC calculation started.", askedAt: new Date().toISOString(), channel: "simu-cic", question: "Run Simu-CIC" })
   const inputScenario = await snapshotBaseScenario(settings, runDir)
   // Simu-CIC reads the satellite.json saved with this run. A later attitude
@@ -237,9 +234,9 @@ export async function runSimuCicForRun(config: AppConfig, root: string, runDir: 
   const result = {
     cicSatDir: path.relative(root, cicSatDir), conversionOutput: conversion.output,
     convertedEphemeris: path.relative(root, conversion.convertedEphemeris), sourceEphemeris: path.relative(root, conversion.sourceEphemeris),
-    output, inputScenario: path.relative(root, inputScenario), scenarioPath: await latestScenario(runDir), simuCicDefinition: path.relative(root, simuCicDefinition.output),
+    output, inputScenario: relativeToWorkspaceRoot(root, inputScenario), scenarioPath: await latestScenario(runDir), simuCicDefinition: relativeToWorkspaceRoot(root, simuCicDefinition.output),
   }
-  await updateRunWorkflowLog(runDir, "simu_cic", "completed", "Simu-CIC completed and generated CIC data.")
+  await completeRunStage(runDir, "simu_cic", "Simu-CIC completed and generated CIC data.")
   await appendRunConversation(runDir, { answer: `Simu-CIC completed. CIC data generated in ${result.cicSatDir}.`, askedAt: new Date().toISOString(), channel: "simu-cic", question: "Run Simu-CIC" })
   await writeRunAnalysisContext(runDir)
   return result
@@ -267,7 +264,7 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     if (runDir) {
       const workflow = await loadRunWorkflowLog(runDir)
       for (const stage of ["simu_cic", "opalis"] as const) {
-        if (workflow.stages[stage].status === "running") await updateRunWorkflowLog(runDir, stage, "failed", "Stopped by the user.")
+        if (workflow.stages[stage].status === "running") await failRunStage(runDir, stage, "Stopped by the user.")
       }
     }
     return reply.send({ cancelled })
@@ -298,7 +295,7 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     try {
       return reply.send(await runSimuCicForRun(config, root, runDir))
     } catch (error) {
-      await updateRunWorkflowLog(runDir, "simu_cic", "failed", getErrorMessage(error, "failed to run Simu-CIC")).catch(() => undefined)
+      await failRunStage(runDir, "simu_cic", getErrorMessage(error, "failed to run Simu-CIC")).catch(() => undefined)
       return reply.status(422).send({ error: getErrorMessage(error, "failed to run Simu-CIC") })
     }
   })

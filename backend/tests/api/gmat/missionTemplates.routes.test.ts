@@ -4,7 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import { describe, it } from "node:test"
 
-import { createPlanningRun } from "../../../src/digitalThread/digitalThreadStore.js"
+import { createPlanningRun } from "../../../src/runs/missionRunService.js"
 import { selectSatelliteDefinition } from "../../../src/digitalThread/satelliteLibrary.js"
 import { createTestServer } from "../../helpers/createTestServer.js"
 import { createTestConfig } from "../../helpers/testConfig.js"

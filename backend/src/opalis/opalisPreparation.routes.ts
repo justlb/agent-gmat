@@ -5,8 +5,9 @@ import type { FastifyInstance } from "fastify"
 
 import { loadRunDigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
-import { getErrorMessage, isPathInside } from "../shared/index.js"
+import { getErrorMessage } from "../shared/index.js"
 import { adaptDigitalThreadToOpalis } from "./opalisDigitalThreadAdapter.js"
+import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
 
 type RunBody = { runPath?: unknown }
 
@@ -14,13 +15,6 @@ const REQUIRED_CIC_FILES = [
   "Sat_SUN_ANGLE_SA_1.TXT", "Sat_SATELLITE_ECLIPSE.TXT", "Sat_EARTH_ANGLE_SA_1.TXT", "Sat_SATELLITE_ALTITUDE.TXT",
   "Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT", "Sat_GEOGRAPHICAL_COORDINATES.TXT",
 ] as const
-
-function resolveGmatRunDir(root: string, candidate: unknown) {
-  if (typeof candidate !== "string" || !candidate.trim()) return null
-  const runDir = path.resolve(root, candidate)
-  const normalized = runDir.split(path.sep).join("/")
-  return isPathInside(root, runDir) && /\/gmat\/(?:orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized) ? runDir : null
-}
 
 async function cicValidation(runDir: string) {
   const cicDirectory = path.join(runDir, "opalis", "02-simu-cic", "02-fichiers-cic", "Sat")
@@ -48,17 +42,17 @@ export async function prepareOpalisInputs(root: string, runDir: string) {
   const outputPath = path.join(runDir, "opalis", "02-opalis-input", "opalis-parameters.json")
   await fs.mkdir(path.dirname(outputPath), { recursive: true })
   await fs.writeFile(outputPath, `${JSON.stringify(output, null, 2)}\n`, "utf8")
-  return { ...output, output: path.relative(root, outputPath), outputPath, cicDirectory: cic.cicDirectory }
+  return { ...output, output: relativeToWorkspaceRoot(root, outputPath), outputPath, cicDirectory: cic.cicDirectory }
 }
 
 export async function opalisPreparationRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: RunBody }>("/api/opalis/prepare", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
-    const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
+    const run = root ? resolveMissionRun(root, req.body?.runPath) : null
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
-    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    if (!run) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
-      return reply.send(await prepareOpalisInputs(path.resolve(root), runDir))
+      return reply.send(await prepareOpalisInputs(run.root, run.runDir))
     } catch (error) {
       return reply.status(422).send({ error: getErrorMessage(error, "failed to prepare OPALIS inputs") })
     }

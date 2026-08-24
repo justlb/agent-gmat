@@ -23,6 +23,23 @@
   ],
   "propulsion_requirement": "chemical",
   "initial_state_representation": "Keplerian",
+  "ui": {
+    "objective": "Maintain a minimum orbital altitude while consuming the chemical propellant carried by the selected satellite.",
+    "summary": "Chemical-propulsion LEO station keeping with drag decay and reboost events.",
+    "outputs": ["GMAT script and values", "Orbit and reboost reports", "OEM ephemeris", "Run-local satellite.json"],
+    "satellite_requirements": ["Dry mass", "Chemical propellant capacity", "Specific impulse", "Drag area and coefficient"],
+    "mission_input_fields": [
+      { "label": "Epoch", "path": "initialOrbit.epoch" },
+      { "label": "Initial semi-major axis", "path": "initialOrbit.smaKm", "unit": "km" },
+      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km", "derived": "initialAltitude" },
+      { "label": "Eccentricity", "path": "initialOrbit.eccentricity" },
+      { "label": "Inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
+      { "label": "Drag area", "path": "spacecraft.dragAreaM2", "unit": "m2" },
+      { "label": "Drag coefficient", "path": "spacecraft.dragCoefficient" },
+      { "label": "Initial fuel mass", "path": "spacecraft.initialFuelMassKg", "unit": "kg" },
+      { "label": "Minimum reboost altitude", "path": "stationKeeping.minimumAltitudeKm", "unit": "km" }
+    ]
+  },
   "mission_inputs": {
     "required": ["initial_epoch", "initial_orbit", "minimum_reboost_altitude"],
     "defaults": {}

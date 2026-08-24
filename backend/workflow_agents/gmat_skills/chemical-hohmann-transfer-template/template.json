@@ -20,6 +20,21 @@
   "source": "GMAT Tut_SimpleOrbitTransfer.script",
   "propulsion_requirement": "chemical",
   "initial_state_representation": "Cartesian",
+  "ui": {
+    "objective": "Raise or lower an Earth orbit using a transfer-orbit burn followed by a circularisation burn at apoapsis.",
+    "summary": "Two-impulse chemical transfer solved by GMAT's differential corrector.",
+    "outputs": ["GMAT script and values", "GMAT execution log", "OEM ephemeris", "Run-local satellite.json"],
+    "satellite_requirements": ["Dry mass", "Chemical propulsion and Isp", "Drag area and coefficient"],
+    "mission_input_fields": [
+      { "label": "Initial epoch", "path": "initialOrbit.epoch" },
+      { "label": "Initial altitude", "path": "initialOrbit.smaKm", "unit": "km", "value_transform": "earth-radius" },
+      { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity" },
+      { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
+      { "label": "Target altitude", "path": "transfer.targetRadiusKm", "unit": "km", "value_transform": "earth-radius" },
+      { "label": "Target eccentricity", "path": "transfer.targetEccentricity" },
+      { "label": "Final propagation duration", "path": "transfer.finalPropagationSeconds", "unit": "s" }
+    ]
+  },
   "mission_inputs": {
     "required": [
       "initial_epoch",

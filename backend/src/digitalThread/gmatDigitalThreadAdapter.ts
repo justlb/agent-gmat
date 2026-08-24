@@ -177,7 +177,9 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   } else {
     requireNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg", "spacecraft.initialFuelMassKg", values, guards)
     if (!propulsionType || !/(electric|hall|ion)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: "The electric-transfer template requires an explicitly identified electric propulsion subsystem.", path: "satellite.bus.propulsion_subsystem.type" })
-    requireNumber(document, "analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days", "transfer.burnDurationDays", values, guards)
+    // The template terminates when the spacecraft reaches this altitude; it
+    // is not a duration-limited finite burn.
+    requireNumber(document, "analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km", "transfer.finalAltitudeKm", values, guards)
     requireNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.minimum_usable_power_kw", "propulsion.minimumUsablePowerKw", values, guards)
     requireNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.maximum_usable_power_kw", "propulsion.maximumUsablePowerKw", values, guards)
     // The satellite may declare a reduced payload load during orbit raising.
@@ -199,7 +201,7 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
       ? ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.targetRadiusKm"]
       : template === "chemical-3d-transfer"
         ? ["initialOrbit.epoch", "initialOrbit.altitudeKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.finalAltitudeKm", "transfer.finalInclinationDeg"]
-      : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.burnDurationDays"]
+      : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.finalAltitudeKm"]
   for (const fieldPath of requiredDraftPaths) {
     if ((values[fieldPath] === null || values[fieldPath] === undefined || values[fieldPath] === "") && !guards.some(guard => guard.path === fieldPath)) {
       guards.push({ code: "missing_adapter_input", message: `The GMAT adapter cannot produce required value ${fieldPath} from the digital thread.`, path: fieldPath })
@@ -236,7 +238,7 @@ function missionDraftPaths(templateId: string) {
       : templateId === "chemical-3d-transfer"
       ? { "initialOrbit.altitudeKm": `${root}.initial_orbit.altitude_km`, "transfer.finalAltitudeKm": `${root}.final_altitude_km`, "transfer.finalInclinationDeg": `${root}.final_inclination_deg` }
       : templateId === "electric-propulsion-transfer"
-      ? { "transfer.burnDurationDays": `${root}.burn_duration_days` }
+      ? { "transfer.finalAltitudeKm": `${root}.target_final_altitude_km` }
       : {
           "stationKeeping.minimumAltitudeKm": `${root}.minimum_reboost_altitude_km`,
           "stationKeeping.targetSmaKm": `${root}.target_semi_major_axis_km`,

@@ -7,7 +7,8 @@ import type { AppConfig } from "../config.js"
 import { createEphemeralDigitalThread, isMissionRunWorkspace, loadOrCreateDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "../digitalThread/digitalThreadStore.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
-import { getErrorMessage, isPathInside } from "../shared/index.js"
+import { getErrorMessage } from "../shared/index.js"
+import { resolveMissionRun } from "../runs/runWorkspace.js"
 import { analyzeElectricPropulsionRunWithLlm, loadElectricPropulsionRunConversation } from "./electricPropulsionAnalysis.js"
 import { discussElectricPropulsionDraft, loadElectricPropulsionDraft } from "./electricPropulsionDraft.js"
 import { analyzeChemicalHohmannRunWithLlm } from "./chemicalHohmannAnalysis.js"
@@ -32,10 +33,10 @@ function resolveWorkspaceDir(root: string, requested: unknown) {
 }
 
 async function resolveRunDir(root: string, requested: unknown) {
-  if (typeof requested !== "string" || !requested.trim()) return null
-  const runDir = path.resolve(root, requested)
+  const resolvedRun = resolveMissionRun(root, requested)
+  if (!resolvedRun) return null
+  const runDir = resolvedRun.runDir
   const normalized = runDir.split(path.sep).join("/")
-  if (!isPathInside(path.resolve(root), runDir) || !/\/gmat\/(orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized)) return null
   if (normalized.includes("/orbit-keeping/")) return { runDir, template: "orbit-keeping" as const }
   if (normalized.includes("/electric-propulsion-transfer/")) return { runDir, template: "electric-propulsion-transfer" as const }
   const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }

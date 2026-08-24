@@ -15,7 +15,8 @@ type ChartSeries = { color: string; label: string; samples: AnalysisSample[] }
 const METRICS: Record<Metric, { label: string; unit: string }> = {
   altitudeKm: { label: 'Altitude', unit: 'km' }, eccentricity: { label: 'Eccentricity', unit: '' }, fuelMassKg: { label: 'Fuel mass', unit: 'kg' }, massFlowRateKgPerSec: { label: 'Mass flow rate', unit: 'kg/s' }, powerAvailableKw: { label: 'Thrust power available', unit: 'kW' }, semiMajorAxisKm: { label: 'Semi-major axis', unit: 'km' },
 }
-const ELECTRIC_METRICS: Metric[] = ['semiMajorAxisKm', 'eccentricity', 'fuelMassKg', 'powerAvailableKw', 'massFlowRateKgPerSec']
+const EARTH_EQUATORIAL_RADIUS_KM = 6378.1363
+const ELECTRIC_METRICS: Metric[] = ['altitudeKm', 'eccentricity', 'fuelMassKg', 'powerAvailableKw', 'massFlowRateKgPerSec']
 const ORBIT_METRICS: Metric[] = ['altitudeKm', 'semiMajorAxisKm', 'fuelMassKg']
 
 function isPlottableTemplate(value: string): value is PlottableTemplate { return value === 'electric-propulsion-transfer' || value === 'orbit-keeping' }
@@ -42,7 +43,9 @@ function LineChart({ metric, series }: { metric: Metric; series: ChartSeries[] }
 }
 
 function orbitSamples(samples: OrbitKeepingTimeSeriesSample[]): AnalysisSample[] { const first = samples[0]?.epochA1ModJulian ?? 0; return samples.map(sample => ({ altitudeKm: sample.altitudeKm, eccentricity: sample.eccentricity, elapsedDays: sample.epochA1ModJulian - first, fuelMassKg: sample.fuelMassKg, semiMajorAxisKm: sample.semiMajorAxisKm })) }
-function electricSamples(samples: ElectricPropulsionTimeSeriesSample[]): AnalysisSample[] { return samples.map(sample => ({ eccentricity: sample.eccentricity, elapsedDays: sample.elapsedDays, fuelMassKg: sample.fuelMassKg, massFlowRateKgPerSec: sample.massFlowRateKgPerSec, powerAvailableKw: sample.powerAvailableKw, semiMajorAxisKm: sample.semiMajorAxisKm })) }
+/** GMAT reports SMA for electric transfers; the Results page presents the
+ * engineering-facing altitude derived from that immutable raw output. */
+function electricSamples(samples: ElectricPropulsionTimeSeriesSample[]): AnalysisSample[] { return samples.map(sample => ({ altitudeKm: sample.semiMajorAxisKm - EARTH_EQUATORIAL_RADIUS_KM, eccentricity: sample.eccentricity, elapsedDays: sample.elapsedDays, fuelMassKg: sample.fuelMassKg, massFlowRateKgPerSec: sample.massFlowRateKgPerSec, powerAvailableKw: sample.powerAvailableKw, semiMajorAxisKm: sample.semiMajorAxisKm })) }
 function metricRange(samples: AnalysisSample[], metric: Metric) { const values = samples.filter(sample => hasMetric(sample, metric)).map(sample => sample[metric]); return values.length ? { maximum: Math.max(...values), minimum: Math.min(...values) } : null }
 function finalMetric(samples: AnalysisSample[], metric: Metric) { const sample = [...samples].reverse().find(item => hasMetric(item, metric)); return sample?.[metric] ?? null }
 function metricValue(value: number | null, unit = '', digits = 1) { return value === null ? 'Unavailable' : `${value.toFixed(digits)}${unit ? ` ${unit}` : ''}` }

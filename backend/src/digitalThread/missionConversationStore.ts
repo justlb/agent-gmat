@@ -2,6 +2,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 
 import { updateJsonFile } from "../shared/atomicPersistence.js"
+import { isMissionRunWorkspacePath } from "../runs/runWorkspace.js"
 
 export type MissionConversationTurn = {
   answer: string
@@ -16,7 +17,7 @@ function conversationPath(workspaceDir: string) {
 
 function missionRunConversationPath(workspaceDir: string) {
   const resolved = path.resolve(workspaceDir)
-  return resolved.split(path.sep).includes("mission-runs") ? path.join(resolved, "conversation.json") : null
+  return isMissionRunWorkspacePath(resolved) ? path.join(resolved, "conversation.json") : null
 }
 
 function validTurn(value: unknown): value is MissionConversationTurn {

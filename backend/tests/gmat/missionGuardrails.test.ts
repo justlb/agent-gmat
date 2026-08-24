@@ -34,7 +34,7 @@ describe("GMAT mission guardrails", () => {
   it("rejects incoherent electric power combinations", () => {
     const guards = validateGmatMissionGuardrails("electric-propulsion-transfer", {
       ...earthOrbit,
-      "transfer.burnDurationDays": 3,
+      "transfer.finalAltitudeKm": 500,
       "spacecraft.initialFuelMassKg": 2,
       "propulsion.minimumUsablePowerKw": 2,
       "propulsion.maximumUsablePowerKw": 1,
@@ -44,6 +44,14 @@ describe("GMAT mission guardrails", () => {
     })
     assert.ok(guards.some(guard => guard.code === "thruster_power_range"))
     assert.ok(guards.some(guard => guard.code === "insufficient_initial_thrust_power"))
+  })
+
+  it("rejects an electric target altitude below the initial SMA-derived altitude", () => {
+    const guards = validateGmatMissionGuardrails("electric-propulsion-transfer", {
+      ...earthOrbit,
+      "transfer.finalAltitudeKm": 300,
+    })
+    assert.ok(guards.some(guard => guard.code === "electric_altitude_order"))
   })
 
   it("enforces the LEO-to-GEO envelope for the Chemical 3D template", () => {

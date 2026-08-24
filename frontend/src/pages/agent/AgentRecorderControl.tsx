@@ -78,7 +78,7 @@ const ELECTRIC_TRANSFER_MANDATORY_FIELDS: MandatoryGmatField[] = [
   { label: 'True anomaly', path: 'initialOrbit.trueAnomalyDeg', unit: 'deg' },
   { label: 'Dry mass', path: 'spacecraft.dryMassKg', unit: 'kg' },
   { label: 'Initial electric propellant mass', path: 'spacecraft.initialFuelMassKg', unit: 'kg' },
-  { label: 'Electric-thrust duration', path: 'transfer.burnDurationDays', unit: 'days' },
+  { label: 'Target final altitude', path: 'transfer.finalAltitudeKm', unit: 'km' },
   { label: 'Solar-array maximum power', path: 'power.initialMaxPowerKw', unit: 'kW' },
   { label: 'Spacecraft bus load', path: 'power.busLoadKw', unit: 'kW' },
   { label: 'Power-system margin', path: 'power.systemMarginPercent', unit: '%' },

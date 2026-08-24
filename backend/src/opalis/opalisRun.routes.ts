@@ -9,13 +9,15 @@ import type { AppConfig } from "../config.js"
 import { toGmatNativePath } from "../gmat/orbitKeepingRunner.js"
 import { snapshotRunArtifacts } from "../gmat/artifactHistory.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
-import { getErrorMessage, isPathInside } from "../shared/index.js"
+import { getErrorMessage } from "../shared/index.js"
 import { prepareOpalisInputs } from "./opalisPreparation.routes.js"
 import { loadOpalisResultSummary } from "./opalisResults.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { writeConsolidatedRunReport } from "./consolidatedRunReport.js"
-import { loadRunWorkflowLog, updateRunWorkflowLog } from "./workflowRunLog.js"
+import { loadRunWorkflowLog } from "./workflowRunLog.js"
+import { beginRunStage, completeRunStage, failRunStage } from "../runs/runLifecycle.js"
 import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
+import { resolveMissionRun } from "../runs/runWorkspace.js"
 
 type RunBody = { runPath?: unknown }
 
@@ -25,10 +27,7 @@ const PIPELINE = path.join(PROJECT_ROOT, "tools", "workflow_OPALIS", "workflow_O
 const EMPTY_TEMPLATE = path.join(path.dirname(PIPELINE), "templates", "empty.opalis")
 
 function resolveGmatRunDir(root: string, candidate: unknown) {
-  if (typeof candidate !== "string" || !candidate.trim()) return null
-  const runDir = path.resolve(root, candidate)
-  const normalized = runDir.split(path.sep).join("/")
-  return isPathInside(root, runDir) && /\/gmat\/(?:orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized) ? runDir : null
+  return resolveMissionRun(root, candidate)?.runDir ?? null
 }
 
 function nativePath(filePath: string) { return toGmatNativePath(filePath) }
@@ -171,7 +170,7 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       if (inputs.validation.status !== "ready") {
         throw new Error(`${opalisInputProblem("run", inputs)} Run Simu-CIC first to generate the required CIC files.`)
       }
-      await updateRunWorkflowLog(runDir, "opalis", "running", "OPALIS calculation is running using existing Simu-CIC CIC output.")
+      await beginRunStage(runDir, "opalis", "OPALIS calculation is running using existing Simu-CIC CIC output.")
       opalisStarted = true
       await appendRunConversation(runDir, { answer: "OPALIS calculation started using the existing Simu-CIC CIC output.", askedAt: new Date().toISOString(), channel: "opalis", question: "Run OPALIS calculation" })
       await fs.access(PIPELINE)
@@ -207,11 +206,11 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
         output,
       }
       const consolidated = await writeConsolidatedRunReport(runDir)
-      await updateRunWorkflowLog(runDir, "opalis", "completed", "OPALIS calculation completed.")
+      await completeRunStage(runDir, "opalis", "OPALIS calculation completed.")
       await appendRunConversation(runDir, { answer: `OPALIS calculation completed. Results saved to ${result.summary}.`, askedAt: new Date().toISOString(), channel: "opalis", question: "Run OPALIS calculation" })
       return reply.send({ ...result, consolidatedReport: path.relative(root, consolidated.output) })
     } catch (error) {
-      if (opalisStarted) await updateRunWorkflowLog(runDir, "opalis", "failed", getErrorMessage(error, "failed to run OPALIS scenario")).catch(() => undefined)
+      if (opalisStarted) await failRunStage(runDir, "opalis", getErrorMessage(error, "failed to run OPALIS scenario")).catch(() => undefined)
       return reply.status(422).send({ error: getErrorMessage(error, "failed to run OPALIS scenario") })
     }
   })

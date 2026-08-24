@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { PREDEFINED_GROUND_STATIONS, assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
 import { gmatTemplateDefinition, type GmatTemplateId } from "../gmat/templateRegistry.js"
+import { isMissionRunWorkspacePath, missionRunDirectory } from "../runs/runWorkspace.js"
+import { assertValidDigitalThreadDocument } from "./digitalThreadSchema.js"
+import { updateJsonFile, writeTextAtomically } from "../shared/atomicPersistence.js"
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 export type DigitalThreadDocument = { [key: string]: JsonValue } & {
@@ -20,12 +23,6 @@ const CURRENT_SCHEMA_VERSION = 1
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(SOURCE_DIR, "../../..")
 const TEMPLATE_PATH = path.join(PROJECT_ROOT, "data", "templates", "satellite.digital-thread.template.json")
-
-export type PlanningRun = {
-  createdAt: string
-  planningRunId: string
-  workspaceDir: string
-}
 
 /** Physical or electrical parameters that an engineer may vary for one
  * mission discussion.  They are deliberately written only to that run's
@@ -53,25 +50,19 @@ export const SATELLITE_RUN_OVERRIDE_PATHS = [
 ] as const
 
 export function digitalThreadPath(workspaceDir: string) {
-  return path.join(path.resolve(workspaceDir), "digital-thread", "satellite.json")
+  return path.join(path.resolve(workspaceDir), "satellite.json")
 }
 
 function satelliteRevisionPath(workspaceDir: string, revision: number) {
-  return path.join(path.resolve(workspaceDir), "digital-thread", "revisions", `satellite.r${String(revision).padStart(6, "0")}.json`)
+  return path.join(path.resolve(workspaceDir), ".digital-thread-revisions", `satellite.r${String(revision).padStart(6, "0")}.json`)
 }
 
 export function planningRunWorkspaceDir(workspaceDir: string, planningRunId: string) {
-  if (!/^\d{2}-\d{2}-\d{2}_\d{2}-\d{2}(?:_\d{2})?$/u.test(planningRunId)) throw new Error("invalid planning run id")
-  return path.join(path.resolve(workspaceDir), "gmat", "mission-runs", planningRunId)
-}
-
-function formatMissionRunId(date: Date) {
-  const pad = (value: number) => String(value).padStart(2, "0")
-  return `${pad(date.getFullYear() % 100)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}`
+  return missionRunDirectory(workspaceDir, planningRunId)
 }
 
 export function isMissionRunWorkspace(workspaceDir: string) {
-  return path.resolve(workspaceDir).split(path.sep).includes("mission-runs")
+  return isMissionRunWorkspacePath(workspaceDir)
 }
 
 /** A draft owns a private digital-thread workspace. GMAT artifacts remain in the
@@ -180,12 +171,7 @@ function isJsonValue(value: unknown): value is JsonValue {
   return Boolean(value) && typeof value === "object" && Object.values(value as Record<string, unknown>).every(isJsonValue)
 }
 
-function assertDocument(value: unknown): asserts value is DigitalThreadDocument {
-  const candidate = value as Partial<DigitalThreadDocument> | null
-  if (!candidate || typeof candidate !== "object" || candidate.schema_version !== CURRENT_SCHEMA_VERSION || !candidate.satellite || !candidate.analysis_requests || !candidate.digital_thread || !candidate.provenance) {
-    throw new Error(`unsupported satellite digital-thread schema; expected version ${CURRENT_SCHEMA_VERSION}`)
-  }
-}
+function assertDocument(value: unknown): asserts value is DigitalThreadDocument { assertValidDigitalThreadDocument(value) }
 
 async function readTemplate() {
   const parsed: unknown = JSON.parse(await fs.readFile(TEMPLATE_PATH, "utf8"))
@@ -200,30 +186,6 @@ export async function createEphemeralDigitalThread() {
   document.digital_thread.created_at = now
   document.digital_thread.updated_at = now
   return document
-}
-
-/** Creates a fresh, independent source-of-truth context at the beginning of
- * a user run. Satellite selection happens inside this dated run only. */
-export async function createPlanningRun(workspaceDir: string): Promise<PlanningRun> {
-  const root = path.resolve(workspaceDir)
-  let planningRunId = formatMissionRunId(new Date())
-  let planningWorkspaceDir = planningRunWorkspaceDir(root, planningRunId)
-  for (let suffix = 2; await fs.stat(planningWorkspaceDir).then(() => true).catch(() => false); suffix += 1) {
-    planningRunId = `${formatMissionRunId(new Date())}_${String(suffix).padStart(2, "0")}`
-    planningWorkspaceDir = planningRunWorkspaceDir(root, planningRunId)
-  }
-  const document = await loadOrCreateDigitalThread(planningWorkspaceDir)
-  const planningRun: PlanningRun = {
-    createdAt: new Date().toISOString(),
-    planningRunId,
-    workspaceDir: planningWorkspaceDir,
-  }
-  await Promise.all([
-    fs.writeFile(path.join(planningWorkspaceDir, "satellite.json"), `${JSON.stringify(document, null, 2)}\n`, "utf8"),
-    fs.writeFile(path.join(planningWorkspaceDir, "conversation.json"), "[]\n", "utf8"),
-    fs.writeFile(path.join(planningWorkspaceDir, "run_manifest.json"), `${JSON.stringify({ createdAt: planningRun.createdAt, runId: planningRunId, status: "drafting", tool: "GMAT" }, null, 2)}\n`, "utf8"),
-  ])
-  return planningRun
 }
 
 export async function loadOrCreateDigitalThread(workspaceDir: string) {
@@ -267,7 +229,7 @@ export async function initializeDraftDigitalThread(workspaceDir: string, templat
 
 /** Reads the immutable digital-thread snapshot belonging to an executed run. */
 export async function loadRunDigitalThreadSnapshot(runDir: string) {
-  const source = await fs.readFile(path.join(path.resolve(runDir), "satellite.digital-thread.json"), "utf8")
+  const source = await fs.readFile(path.join(path.resolve(runDir), "satellite.json"), "utf8")
   const document: unknown = JSON.parse(source)
   assertDocument(document)
   return document
@@ -278,7 +240,7 @@ export async function saveDigitalThread(workspaceDir: string, document: DigitalT
   const metadata = document.digital_thread
   metadata.revision = incrementRevision ? Number(metadata.revision ?? 0) + 1 : Number(metadata.revision ?? 0)
   metadata.updated_at = new Date().toISOString()
-  metadata.canonical_satellite_path = "digital-thread/satellite.json"
+  metadata.canonical_satellite_path = "satellite.json"
   const output = digitalThreadPath(workspaceDir)
   const source = `${JSON.stringify(document, null, 2)}\n`
   await fs.mkdir(path.dirname(output), { recursive: true })
@@ -288,12 +250,6 @@ export async function saveDigitalThread(workspaceDir: string, document: DigitalT
   const revision = satelliteRevisionPath(workspaceDir, Number(metadata.revision ?? 0))
   await fs.mkdir(path.dirname(revision), { recursive: true })
   await fs.writeFile(revision, source, "utf8")
-  if (isMissionRunWorkspace(workspaceDir)) {
-    // This root-level copy is a tool-facing export. The canonical document
-    // and every revision live under digital-thread/ and are read by backend
-    // adapters; consumers can verify the revision in the run manifest.
-    await fs.writeFile(path.join(path.resolve(workspaceDir), "satellite.json"), source, "utf8")
-  }
   return document
 }
 
@@ -312,16 +268,14 @@ export async function captureDigitalThreadSnapshot(workspaceDir: string): Promis
 export async function snapshotDigitalThreadForRun(workspaceDir: string, runDir: string, snapshot?: DigitalThreadSnapshot) {
   const captured = snapshot ?? await captureDigitalThreadSnapshot(workspaceDir)
   const { document, source } = captured
-  const fileName = "satellite.digital-thread.json"
-  await fs.writeFile(path.join(runDir, fileName), source, "utf8")
-  // `satellite.json` is the user-facing source of truth stored with every
-  // run. Keep the historic filename as a compatibility snapshot as well.
-  await fs.writeFile(path.join(runDir, "satellite.json"), source, "utf8")
+  const fileName = "satellite.json"
+  await writeTextAtomically(path.join(runDir, fileName), source)
   const sha256 = crypto.createHash("sha256").update(source).digest("hex")
   const manifestPath = path.join(runDir, "run_manifest.json")
-  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<string, unknown>
-  manifest.digitalThread = { file: "satellite.json", snapshot: fileName, revision: document.digital_thread.revision, schemaVersion: document.schema_version, sha256, threadId: document.digital_thread.thread_id }
-  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8")
+  await updateJsonFile<Record<string, unknown>>(manifestPath, {}, manifest => ({
+    ...manifest,
+    digitalThread: { file: fileName, revision: document.digital_thread.revision, schemaVersion: document.schema_version, sha256, threadId: document.digital_thread.thread_id },
+  }))
   return { fileName, sha256 }
 }
 
@@ -341,10 +295,7 @@ export async function syncSimuCicRequestToRunSnapshot(runDir: string, sourceDocu
   snapshot.provenance.values = provenance
   assertDocument(snapshot)
   const source = `${JSON.stringify(snapshot, null, 2)}\n`
-  await Promise.all([
-    fs.writeFile(path.join(outputDir, "satellite.digital-thread.json"), source, "utf8"),
-    fs.writeFile(path.join(outputDir, "satellite.json"), source, "utf8"),
-  ])
+  await writeTextAtomically(path.join(outputDir, "satellite.json"), source)
   return snapshot
 }
 

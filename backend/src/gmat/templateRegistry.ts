@@ -9,6 +9,22 @@ export const GMAT_TEMPLATE_IDS = ["orbit-keeping", "electric-propulsion-transfer
 export type GmatTemplateId = typeof GMAT_TEMPLATE_IDS[number]
 export type GmatAnalysisRequestKey = "orbit_keeping" | "electric_propulsion_transfer" | "chemical_hohmann_transfer" | "chemical_3d_transfer"
 
+export type GmatTemplateMissionInput = {
+  derived?: "initialAltitude"
+  label: string
+  path: string
+  unit?: string
+  valueTransform?: "earth-radius"
+}
+
+export type GmatTemplateUiDefinition = {
+  missionInputFields: GmatTemplateMissionInput[]
+  objective: string
+  outputs: string[]
+  satelliteRequirements: string[]
+  summary: string
+}
+
 export type GmatTemplateDefinition = {
   analysisRequestKey: GmatAnalysisRequestKey
   artifacts: Array<{ kind: string; path: string; primary: boolean }>
@@ -24,6 +40,7 @@ export type GmatTemplateDefinition = {
   propulsionRequirement: string
   satelliteInputs: string[]
   skillDirectory: string
+  ui: GmatTemplateUiDefinition
 }
 
 type TemplateManifest = {
@@ -40,6 +57,7 @@ type TemplateManifest = {
   name: string
   propulsion_requirement: string
   satellite_inputs: unknown
+  ui: unknown
 }
 
 function readStringList(value: unknown, property: string, manifestPath: string) {
@@ -57,6 +75,36 @@ function readArtifacts(value: unknown, manifestPath: string) {
     if (artifact.primary !== undefined && typeof artifact.primary !== "boolean") throw new Error(`invalid artifacts[${index}].primary in ${manifestPath}`)
     return { kind: artifact.kind.trim(), path: normalized, primary: artifact.primary === true }
   })
+}
+
+function readUi(value: unknown, manifestPath: string): GmatTemplateUiDefinition {
+  const ui = value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null
+  if (!ui) throw new Error(`missing ui in ${manifestPath}`)
+  for (const property of ["objective", "summary"] as const) {
+    if (typeof ui[property] !== "string" || !ui[property].trim()) throw new Error(`invalid ui.${property} in ${manifestPath}`)
+  }
+  const missionInputFields: GmatTemplateMissionInput[] | null = Array.isArray(ui.mission_input_fields) ? ui.mission_input_fields.map((item, index): GmatTemplateMissionInput => {
+    const field = item !== null && typeof item === "object" && !Array.isArray(item) ? item as Record<string, unknown> : null
+    if (!field || typeof field.label !== "string" || !field.label.trim() || typeof field.path !== "string" || !field.path.trim()) throw new Error(`invalid ui.mission_input_fields[${index}] in ${manifestPath}`)
+    if (field.unit !== undefined && typeof field.unit !== "string") throw new Error(`invalid ui.mission_input_fields[${index}].unit in ${manifestPath}`)
+    if (field.derived !== undefined && field.derived !== "initialAltitude") throw new Error(`invalid ui.mission_input_fields[${index}].derived in ${manifestPath}`)
+    if (field.value_transform !== undefined && field.value_transform !== "earth-radius") throw new Error(`invalid ui.mission_input_fields[${index}].value_transform in ${manifestPath}`)
+    return {
+      ...(field.derived === "initialAltitude" ? { derived: "initialAltitude" as const } : {}),
+      label: field.label.trim(),
+      path: field.path.trim(),
+      ...(typeof field.unit === "string" ? { unit: field.unit } : {}),
+      ...(field.value_transform === "earth-radius" ? { valueTransform: "earth-radius" as const } : {}),
+    }
+  }) : null
+  if (!missionInputFields?.length) throw new Error(`missing ui.mission_input_fields in ${manifestPath}`)
+  return {
+    missionInputFields,
+    objective: ui.objective as string,
+    outputs: readStringList(ui.outputs, "ui.outputs", manifestPath),
+    satelliteRequirements: readStringList(ui.satellite_requirements, "ui.satellite_requirements", manifestPath),
+    summary: ui.summary as string,
+  }
 }
 
 function readManifest(template: GmatTemplateId): GmatTemplateDefinition {
@@ -86,6 +134,7 @@ function readManifest(template: GmatTemplateId): GmatTemplateDefinition {
     propulsionRequirement: required.propulsion_requirement,
     satelliteInputs: readStringList(required.satellite_inputs, "satellite_inputs", manifestPath),
     skillDirectory,
+    ui: readUi(required.ui, manifestPath),
   }
 }
 

@@ -6,7 +6,8 @@ import { describe, it } from "node:test"
 import { parseDocument } from "yaml"
 
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../../src/digitalThread/gmatDigitalThreadAdapter.js"
-import { createPlanningRun, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
+import { draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
+import { createPlanningRun } from "../../src/runs/missionRunService.js"
 import { selectSatelliteDefinition } from "../../src/digitalThread/satelliteLibrary.js"
 import { createElectricPropulsionDraft, discussElectricPropulsionDraft, draftToElectricPropulsionChanges } from "../../src/gmat/electricPropulsionDraft.js"
 import { generateElectricPropulsionMission } from "../../src/gmat/electricPropulsion.service.js"
@@ -36,7 +37,7 @@ describe("digital thread mission consistency", () => {
     assert.equal(seed.values["power.busLoadKw"], 2.8)
 
     const initialDraft = await createElectricPropulsionDraft(planning.workspaceDir, seed.values, seed.requiredDraftPaths)
-    const userMessage = "I want an electric propulsion transfer from a 300 km circular Earth orbit. Use 2026-08-01T00:00:00Z, inc=0, for 3 days."
+    const userMessage = "I want an electric propulsion transfer from a 300 km circular Earth orbit to 500 km. Use 2026-08-01T00:00:00Z, inc=0."
     const draft = await discussElectricPropulsionDraft({
       connection,
       draft: initialDraft,
@@ -47,13 +48,13 @@ describe("digital thread mission consistency", () => {
         ["initialOrbit.altitudeKm", 300],
         ["initialOrbit.eccentricity", 0],
         ["initialOrbit.inclinationDeg", 0],
-        ["transfer.burnDurationDays", 3],
+        ["transfer.finalAltitudeKm", 500],
       ]),
     })
 
     // The deterministic adapter must derive SMA, while the LLM only supplied altitude.
     assert.equal(draft.values["initialOrbit.smaKm"], 6678.1363)
-    assert.equal(draft.values["transfer.burnDurationDays"], 3)
+    assert.equal(draft.values["transfer.finalAltitudeKm"], 500)
     assert.equal(draft.values["spacecraft.dryMassKg"], 296)
 
     const draftThreadDir = draftDigitalThreadWorkspaceDir(planning.workspaceDir, "electric-propulsion-transfer", draft.draftId)
@@ -68,14 +69,14 @@ describe("digital thread mission consistency", () => {
       assert.equal(document.satellite.orbit.keplerian_elements.semi_major_axis_km, 6678.1363)
       assert.equal(document.satellite.orbit.keplerian_elements.eccentricity, 0)
       assert.equal(document.satellite.orbit.keplerian_elements.inclination_deg, 0)
-      assert.equal(document.analysis_requests.gmat.electric_propulsion_transfer.burn_duration_days, 3)
+      assert.equal(document.analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km, 500)
     }
 
     const savedSatellite = JSON.parse(await fs.readFile(path.join(planning.workspaceDir, "satellite.json"), "utf8"))
     assert.equal(savedSatellite.satellite.orbit.keplerian_elements.semi_major_axis_km, 6678.1363)
     const savedDraftYaml = parseDocument(await fs.readFile(path.join(planning.workspaceDir, "electric_propulsion_transfer.values.yaml"), "utf8")).toJS() as { values: Record<string, unknown> }
     assert.equal(savedDraftYaml.values["initialOrbit.smaKm"], 6678.1363)
-    assert.equal(savedDraftYaml.values["transfer.burnDurationDays"], 3)
+    assert.equal(savedDraftYaml.values["transfer.finalAltitudeKm"], 500)
 
     // Rendering is tested independently of an actual GMAT executable.  The
     // selected Starlink reference is deliberately power-limited, so it may be
@@ -95,13 +96,13 @@ describe("digital thread mission consistency", () => {
     assert.match(script, /DefaultSC\.INC\s*= 0;/u)
     assert.match(script, /DefaultSC\.DryMass\s*= 296;/u)
     assert.match(script, /ElectricTank1\.FuelMass\s*= 10;/u)
-    assert.match(script, /daysofpropagation\s*= 3;/u)
+    assert.match(script, /targetFinalAltitudeKm\s*= 500;/u)
     assert.match(script, /ElectricThruster1\.ThrustModel = FixedEfficiency;/u)
-    assert.match(script, /ElectricThruster1\.Isp = 1600;/u)
-    assert.match(script, /ElectricThruster1\.DutyCycle = 0\.25;/u)
+    assert.match(script, /ElectricThruster1\.Isp = 1667;/u)
+    assert.match(script, /ElectricThruster1\.DutyCycle = 1;/u)
     const calibration = JSON.parse(await fs.readFile(path.join(generated.runDir, "electric_propulsion_calibration.json"), "utf8")) as { nominalThrustNewtons: number; dutyCycle: number }
-    assert.equal(calibration.nominalThrustNewtons, 0.01)
-    assert.equal(calibration.dutyCycle, 0.25)
+    assert.equal(calibration.nominalThrustNewtons, 0.0708)
+    assert.equal(calibration.dutyCycle, 1)
     assert.ok(renderedYaml.slots.some(slot => slot.context.startsWith("DefaultSC.SMA =") && slot.value === "6678.1363"))
     assert.equal(manifest.templateId, "electric-propulsion-transfer")
     assert.equal(manifest.inputs.script, "electric_propulsion_transfer.script")

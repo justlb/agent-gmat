@@ -46,25 +46,36 @@ describe("electric-propulsion transfer renderer", () => {
     assert.ok(result.warnings?.some(warning => /Fuel mass did not change/u.test(warning)))
   })
 
+  it("summarizes a long interrupted report without overflowing the Node call stack", () => {
+    const samples = Array.from({ length: 150_000 }, (_, index) => ({
+      elapsedDays: index / 10_000, semiMajorAxisKm: 7000, eccentricity: 0, inclinationDeg: 0,
+      raanDeg: 0, argPeriapsisDeg: 0, trueAnomalyDeg: 0, fuelMassKg: 5, totalMassKg: 15,
+      powerAvailableKw: index === 149_999 ? 0.37 : 0.2,
+    }))
+    const result = summarizeElectricPropulsionExecution({
+      completedAt: "2026-01-01T00:00:00.000Z", durationMs: 1, exitCode: null, logPath: "gmat.log", reportPath: "ElectricTransferReport.txt", status: "failed", samples,
+    }, 0.1)
+    assert.equal(result.maximumReportedThrustPowerKw, 0.37)
+    assert.equal(result.reportSampleCount, 150_000)
+  })
+
   it("writes only validated changes and binds the GMAT report to the immutable run directory", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-electric-service-"))
     const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
     const values = extractElectricPropulsionValues(template)
     const change = (context: string, value: string) => {
-      const slot = context === "daysofpropagation"
-        ? values.slots.find(candidate => candidate.context.startsWith("daysofpropagation ="))
-        : values.slots.find(candidate => candidate.context.startsWith(`${context} =`))
+      const slot = values.slots.find(candidate => candidate.context.startsWith(`${context} =`))
       assert.ok(slot, `missing ${context}`)
       return { id: slot.id, value }
     }
     const result = await generateElectricPropulsionMission({
       artifactId: "test-mission", request: "validated transfer", workspaceDir,
-      changes: [change("DefaultSC.Epoch", "'21545'"), change("DefaultSC.SMA", "7191.938817629013"), change("DefaultSC.ECC", "0.02454974900598137"), change("DefaultSC.INC", "12.85008005658097"), change("DefaultSC.DryMass", "850"), change("ElectricTank1.FuelMass", "756"), change("daysofpropagation", "2")],
+      changes: [change("DefaultSC.Epoch", "'21545'"), change("DefaultSC.SMA", "7191.938817629013"), change("DefaultSC.ECC", "0.02454974900598137"), change("DefaultSC.INC", "12.85008005658097"), change("DefaultSC.DryMass", "850"), change("ElectricTank1.FuelMass", "756"), change("targetFinalAltitudeKm", "1000")],
     })
     const script = await fs.readFile(result.scriptPath, "utf8")
     assert.equal(result.result.status, "generated")
     assert.match(result.scriptPath, /gmat[\\/]electric-propulsion-transfer[\\/]test-mission[\\/]electric_propulsion_transfer\.script$/u)
-    assert.match(script, /daysofpropagation\s*= 2/u)
+    assert.match(script, /targetFinalAltitudeKm\s*= 1000/u)
     assert.match(script, /DefaultSC\.DisplayStateType\s*= Keplerian/u)
     assert.match(script, /DefaultSC\.SMA\s*= 7191\.938817629013/u)
     assert.match(script, /DefaultSC\.RAAN\s*= 0;/u)
@@ -72,7 +83,7 @@ describe("electric-propulsion transfer renderer", () => {
     assert.match(script, /DefaultSC\.TA\s*= 0;/u)
     assert.match(script, /ElectricTransferReport\.Filename\s*= '.*ElectricTransferReport\.txt';/u)
     assert.match(script, /ElectricTransferReport\.Add\s*= \{DefaultSC\.ElapsedDays, DefaultSC\.SMA,/u)
-    assert.match(script, /While 'Sample electric transfer for OEM output'[\s\S]*?Propagate 'Propagate one output step'[\s\S]*?Report ElectricTransferReport DefaultSC\.ElapsedDays/u)
+    assert.match(script, /While 'Raise to target altitude' DefaultSC\.Earth\.Altitude < targetFinalAltitudeKm[\s\S]*?Propagate 'Propagate one output step'[\s\S]*?Report ElectricTransferReport DefaultSC\.ElapsedDays/u)
     assert.match(script, /EphemerisFile1\.Filename\s*= '.*[\\/]EphemerisFile1\.oem';/u)
     assert.match(result.ephemerisPath, /gmat[\\/]electric-propulsion-transfer[\\/]test-mission[\\/]EphemerisFile1\.oem$/u)
     assert.match(script, /DefaultSC\.SolarPowerSystem1\.ThrustPowerAvailable/u)
@@ -94,11 +105,11 @@ describe("electric-propulsion transfer renderer", () => {
     }), "utf8")
     const template = await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8")
     const values = extractElectricPropulsionValues(template)
-    const duration = values.slots.find(slot => slot.context.startsWith("daysofpropagation ="))
-    assert.ok(duration)
+    const targetAltitude = values.slots.find(slot => slot.context.startsWith("targetFinalAltitudeKm ="))
+    assert.ok(targetAltitude)
     const result = await generateElectricPropulsionMission({
       artifactId: "calibrated", request: "calibrated transfer", workspaceDir,
-      changes: [{ id: duration.id, value: "21" }],
+      changes: [{ id: targetAltitude.id, value: "900" }],
     })
     const generatedScript = await fs.readFile(result.scriptPath, "utf8")
     const calibration = JSON.parse(await fs.readFile(path.join(result.runDir, "electric_propulsion_calibration.json"), "utf8")) as { dutyCycle: number; fixedEfficiency: number; ispSeconds: number; nominalPowerKw: number; nominalThrustNewtons: number }

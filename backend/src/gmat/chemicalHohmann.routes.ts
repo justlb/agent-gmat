@@ -42,7 +42,6 @@ const CHEMICAL_HOHMANN_ARTIFACT_KINDS: Record<string, ChemicalHohmannFileKind> =
 function chemicalHohmannArtifactKind(relativeFile: string, historical = false) {
   if (CHEMICAL_HOHMANN_ARTIFACT_KINDS[relativeFile]) return CHEMICAL_HOHMANN_ARTIFACT_KINDS[relativeFile]
   if (!historical) return undefined
-  if (path.basename(relativeFile) === "satellite.digital-thread.json") return "digital-thread"
   return Object.entries(CHEMICAL_HOHMANN_ARTIFACT_KINDS).find(([known]) => path.basename(known) === path.basename(relativeFile))?.[1]
 }
 

@@ -5,7 +5,8 @@ import path from "node:path"
 import test from "node:test"
 
 import { confirmChemical3dDraft, createChemical3dDraft, discussChemical3dDraft, generateChemical3dMission, setChemical3dDraftValue } from "../../src/gmat/chemical3dTransfer.js"
-import { createPlanningRun, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
+import { draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
+import { createPlanningRun } from "../../src/runs/missionRunService.js"
 import { selectSatelliteDefinition } from "../../src/digitalThread/satelliteLibrary.js"
 
 test("chemical 3D draft inherits the selected run-local satellite", async () => {

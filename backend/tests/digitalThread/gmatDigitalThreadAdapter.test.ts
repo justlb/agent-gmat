@@ -17,7 +17,7 @@ function documentWithSolar(solarPanels: Record<string, number | string | null>):
         electrical_subsystem: { solar_panels: solarPanels, spacecraft_bus_load_kw: 0.3, system_margin_percent: 5 },
       },
     },
-    analysis_requests: { gmat: { electric_propulsion_transfer: { burn_duration_days: 20 }, orbit_keeping: {} } },
+    analysis_requests: { gmat: { electric_propulsion_transfer: { target_final_altitude_km: 800 }, orbit_keeping: {} } },
   }
 }
 

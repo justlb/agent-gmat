@@ -6,7 +6,8 @@ import type { FastifyInstance } from "fastify"
 
 import { toGmatNativePath } from "../gmat/orbitKeepingRunner.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
-import { getErrorMessage, isPathInside } from "../shared/index.js"
+import { getErrorMessage } from "../shared/index.js"
+import { resolveMissionRun } from "../runs/runWorkspace.js"
 
 type RunBody = { runPath?: unknown }
 
@@ -28,12 +29,7 @@ function vtsHomeForHost() {
 }
 
 function resolveGmatRunDir(root: string, candidate: unknown) {
-  if (typeof candidate !== "string" || !candidate.trim()) return null
-  const runDir = path.resolve(root, candidate)
-  const normalized = runDir.split(path.sep).join("/")
-  return isPathInside(root, runDir) && /\/gmat\/(?:orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized)
-    ? runDir
-    : null
+  return resolveMissionRun(root, candidate)?.runDir ?? null
 }
 
 function xml(value: string) {

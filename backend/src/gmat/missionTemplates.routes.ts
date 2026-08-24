@@ -12,6 +12,8 @@ import { appendMissionConversation } from "../digitalThread/missionConversationS
 import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage } from "../shared/index.js"
+import { artifactDefinitionForPath, contentTypeForArtifact, RUN_ARTIFACTS } from "../runs/artifactRegistry.js"
+import { missionRunsDirectory } from "../runs/runWorkspace.js"
 import { resolveMissionWorkspace } from "./missionWorkspace.js"
 import { missionTemplateRuntime, type MissionTemplateDraft } from "./missionTemplateRuntime.js"
 import { finalizeMissionRun } from "./missionRunLifecycle.js"
@@ -53,11 +55,28 @@ async function runDraftId(workspaceDir: string, template: GmatTemplateId) {
   return typeof document?.draft_id === "string" ? document.draft_id : undefined
 }
 
+type ListedArtifactDefinition = { contentType?: string; kind: string; path: string; primary?: boolean }
+
+/** Combines template-specific GMAT outputs with the shared downstream-tool
+ * registry. This prevents each template route from owning another copy of the
+ * OPALIS, Simu-CIC and RF-COMLINK file inventory. */
+function artifactsForTemplate(template: GmatTemplateId): ListedArtifactDefinition[] {
+  const artifacts = new Map<string, ListedArtifactDefinition>()
+  for (const artifact of RUN_ARTIFACTS) artifacts.set(artifact.relativePath, {
+    contentType: artifact.contentType,
+    kind: artifact.kind,
+    path: artifact.relativePath,
+    ...("primary" in artifact && artifact.primary ? { primary: true } : {}),
+  })
+  for (const artifact of gmatTemplateDefinition(template).artifacts) artifacts.set(artifact.path, artifact)
+  return [...artifacts.values()]
+}
+
 async function listTemplateArtifacts(root: string, workspaceDir: string, template: GmatTemplateId) {
   if (await runManifestTemplate(workspaceDir) !== template) return []
   const draftId = await runDraftId(workspaceDir, template)
   const runPath = path.relative(path.resolve(root), workspaceDir).split(path.sep).join("/")
-  const files = await Promise.all(gmatTemplateDefinition(template).artifacts.map(async artifact => {
+  const files = await Promise.all(artifactsForTemplate(template).map(async artifact => {
     const filePath = path.join(workspaceDir, ...artifact.path.split("/"))
     const stat = await fs.stat(filePath).catch(() => null)
     if (!stat?.isFile()) return null
@@ -73,7 +92,17 @@ async function listTemplateArtifacts(root: string, workspaceDir: string, templat
       size: stat.size,
     }
   }))
-  return files.filter((file): file is NonNullable<typeof file> => file !== null).sort((left, right) => right.mtimeMs - left.mtimeMs)
+  const generatedScenarioDir = path.join(workspaceDir, "opalis", "02-simu-cic", "01-execution-complete")
+  const generatedScenarios = await Promise.all((await fs.readdir(generatedScenarioDir, { withFileTypes: true }).catch(() => [])).flatMap(async entry => {
+    if (!entry.isFile()) return []
+    const relativePath = `opalis/02-simu-cic/01-execution-complete/${entry.name}`
+    const definition = artifactDefinitionForPath(relativePath)
+    if (!definition) return []
+    const filePath = path.join(generatedScenarioDir, entry.name)
+    const stat = await fs.stat(filePath)
+    return [{ artifactId: path.basename(workspaceDir), ...(draftId ? { draftId } : {}), fileName: entry.name, kind: definition.kind, mtimeMs: stat.mtimeMs, primary: definition.primary, relativePath: path.relative(path.resolve(root), filePath).split(path.sep).join("/"), runPath, size: stat.size }]
+  }))
+  return [...files.filter((file): file is NonNullable<typeof file> => file !== null), ...generatedScenarios.flat()].sort((left, right) => right.mtimeMs - left.mtimeMs)
 }
 
 /** Mission runs are stored in the user's canonical GMAT run directory.  Do not
@@ -81,7 +110,7 @@ async function listTemplateArtifacts(root: string, workspaceDir: string, templat
  * out as historic runs accumulate. */
 async function listTemplateHistory(root: string, template: GmatTemplateId) {
   const results: Array<Awaited<ReturnType<typeof listTemplateArtifacts>>[number] & { historical?: boolean }> = []
-  const runsDir = path.join(path.resolve(root), "gmat", "mission-runs")
+  const runsDir = missionRunsDirectory(root)
   const runs = await fs.readdir(runsDir, { withFileTypes: true }).catch(() => [])
   for (const run of runs.filter(candidate => candidate.isDirectory())) {
     const runDir = path.join(runsDir, run.name)
@@ -89,7 +118,7 @@ async function listTemplateHistory(root: string, template: GmatTemplateId) {
     for (const artifact of await listRunArtifactHistory(runDir)) {
       const versionDir = path.join(runDir, "artifact-history", artifact.stage, artifact.version)
       const relativeToRun = path.relative(versionDir, artifact.filePath).split(path.sep).join("/")
-      const declared = gmatTemplateDefinition(template).artifacts.find(candidate => candidate.path === relativeToRun)
+      const declared = artifactsForTemplate(template).find(candidate => candidate.path === relativeToRun) ?? artifactDefinitionForPath(relativeToRun)
       const stat = declared ? await fs.stat(artifact.filePath).catch(() => null) : null
       if (declared && stat?.isFile()) results.push({ artifactId: `${run.name} · ${artifact.version}`, fileName: path.basename(artifact.filePath), historical: true, kind: declared.kind, mtimeMs: stat.mtimeMs, primary: declared.primary, relativePath: path.relative(path.resolve(root), artifact.filePath).split(path.sep).join("/"), runPath: path.relative(path.resolve(root), versionDir).split(path.sep).join("/"), size: stat.size })
     }
@@ -122,10 +151,10 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
       if (await runManifestTemplate(workspaceDir) !== template) return reply.status(404).send({ error: "GMAT template artifact not found" })
       const candidate = typeof req.query.relativePath === "string" ? path.resolve(root, req.query.relativePath) : ""
       const relativeToWorkspace = candidate ? path.relative(workspaceDir, candidate).split(path.sep).join("/") : ""
-      const declared = gmatTemplateDefinition(template).artifacts.find(artifact => artifact.path === relativeToWorkspace)
+      const declared = artifactsForTemplate(template).find(artifact => artifact.path === relativeToWorkspace) ?? artifactDefinitionForPath(relativeToWorkspace)
       const stat = candidate && declared ? await fs.stat(candidate).catch(() => null) : null
       if (!declared || !stat?.isFile()) return reply.status(404).send({ error: "GMAT template artifact not found" })
-      const contentType = declared.kind === "values" ? "application/x-yaml; charset=utf-8" : ["digital-thread", "manifest", "result", "timeseries"].includes(declared.kind) ? "application/json; charset=utf-8" : "text/plain; charset=utf-8"
+      const contentType = declared.contentType ?? contentTypeForArtifact(declared.kind)
       return reply.header("Content-Type", contentType).header("Content-Disposition", `attachment; filename="${path.basename(candidate)}"`).header("Content-Length", String(stat.size)).send(createReadStream(candidate))
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download GMAT template artifact") }) }
   })

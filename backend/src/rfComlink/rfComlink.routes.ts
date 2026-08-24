@@ -9,11 +9,13 @@ import type { FastifyInstance } from "fastify"
 import { toGmatNativePath } from "../gmat/orbitKeepingRunner.js"
 import { snapshotRunArtifacts } from "../gmat/artifactHistory.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
-import { getErrorMessage, isPathInside } from "../shared/index.js"
+import { getErrorMessage } from "../shared/index.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
-import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { beginRunStage, completeRunStage, failRunStage } from "../runs/runLifecycle.js"
 import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 import { prepareRFComlinkScenario } from "./rfComlinkPreparation.routes.js"
+import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
+import { artifactDefinitionForPath } from "../runs/artifactRegistry.js"
 
 type RunBody = { runPath?: unknown }
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -31,15 +33,6 @@ function rfComlinkHomeForHost() {
   const normalized = configured.replace(/\\/gu, "/")
   const windowsPath = /^([a-z]):\/(.*)$/iu.exec(normalized)
   return windowsPath ? `/mnt/${windowsPath[1].toLowerCase()}/${windowsPath[2]}` : configured
-}
-
-function resolveGmatRunDir(root: string, candidate: unknown) {
-  if (typeof candidate !== "string" || !candidate.trim()) return null
-  const runDir = path.resolve(root, candidate)
-  const normalized = runDir.split(path.sep).join("/")
-  return isPathInside(root, runDir) && /\/gmat\/(?:orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized)
-    ? runDir
-    : null
 }
 
 async function resolveScenario(runDir: string) {
@@ -94,12 +87,12 @@ async function openScenario(executable: string, scenario: string) {
 export async function rfComlinkRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: RunBody }>("/api/rf-comlink/open-gui", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
-    const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
+    const run = root ? resolveMissionRun(root, req.body?.runPath) : null
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
-    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    if (!run) return reply.status(400).send({ error: "invalid GMAT run path" })
 
     try {
-      const scenario = await resolveScenario(runDir)
+      const scenario = await resolveScenario(run.runDir)
       if (!scenario) {
         throw new Error("Prepare the RF-COMLINK scenario first for this GMAT run")
       }
@@ -109,7 +102,7 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       // WSL starts the Windows executable through interop, but RF-COMLINK
       // itself requires the input path in native Windows notation.
       await openScenario(executable, scenario)
-      return reply.send({ ok: true, scenario: path.relative(root, scenario) })
+      return reply.send({ ok: true, scenario: relativeToWorkspaceRoot(root, scenario) })
     } catch (error) {
       return reply.status(422).send({ error: getErrorMessage(error, "failed to open RF-COMLINK GUI") })
     }
@@ -117,14 +110,14 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Body: RunBody }>("/api/rf-comlink/start-calculation", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
-    const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
+    const run = root ? resolveMissionRun(root, req.body?.runPath) : null
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
-    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    if (!run) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
-      const prepared = path.join(runDir, "rf-comlink", "02-scenario", "prepared-rf-comlink.rfcl")
+      const prepared = path.join(run.runDir, "rf-comlink", "02-scenario", "prepared-rf-comlink.rfcl")
       await fs.access(prepared)
-      const calculated = calculatedScenarioPath(runDir)
-      await snapshotRunArtifacts(runDir, "rf-comlink", [
+      const calculated = calculatedScenarioPath(run.runDir)
+      await snapshotRunArtifacts(run.runDir, "rf-comlink", [
         "rf-comlink/03-results/calculated-rf-comlink.rfcl",
         "rf-comlink/03-results/rf-comlink-results.json",
       ])
@@ -133,8 +126,8 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       const executable = path.join(rfComlinkHomeForHost(), "rf-comlink.exe")
       await fs.access(executable)
       await openScenario(executable, calculated)
-      await updateRunWorkflowLog(runDir, "rf_comlink", "running", "RF-COMLINK calculation opened. Calculate, then save the scenario before recording its results.")
-      return reply.send({ ok: true, scenario: path.relative(root, calculated).split(path.sep).join("/") })
+      await beginRunStage(run.runDir, "rf_comlink", "RF-COMLINK calculation opened. Calculate, then save the scenario before recording its results.")
+      return reply.send({ ok: true, scenario: relativeToWorkspaceRoot(root, calculated) })
     } catch (error) {
       return reply.status(422).send({ error: getErrorMessage(error, "failed to start RF-COMLINK calculation") })
     }
@@ -147,15 +140,15 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Body: RunBody }>("/api/rf-comlink/run", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
-    const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
+    const run = root ? resolveMissionRun(root, req.body?.runPath) : null
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
-    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    if (!run) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
-      const prepared = await prepareRFComlinkScenario(path.resolve(root), runDir)
-      const calculated = calculatedScenarioPath(runDir)
+      const prepared = await prepareRFComlinkScenario(run.root, run.runDir)
+      const calculated = calculatedScenarioPath(run.runDir)
       const resultDir = path.dirname(calculated)
       const logPath = path.join(resultDir, "rf-comlink-calculation.log")
-      await snapshotRunArtifacts(runDir, "rf-comlink", [
+      await snapshotRunArtifacts(run.runDir, "rf-comlink", [
         "rf-comlink/03-results/calculated-rf-comlink.rfcl",
         "rf-comlink/03-results/rf-comlink-results.json",
         "rf-comlink/03-results/rf-comlink-calculation.log",
@@ -166,7 +159,7 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       await fs.access(executable)
       const automation = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "04-run-calculation", "run_rfcomlink_calculation.ps1")
       const waitSeconds = Math.max(1, Number.parseInt(process.env.RF_COMLINK_WAIT_SECONDS ?? "5", 10) || 5)
-      await updateRunWorkflowLog(runDir, "rf_comlink", "running", "RF-COMLINK calculation is running for this mission run.")
+      await beginRunStage(run.runDir, "rf_comlink", "RF-COMLINK calculation is running for this mission run.")
       let output = ""
       try {
         output = await runProcess(powerShellExecutable(), ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", toGmatNativePath(automation), "-CasePath", toGmatNativePath(calculated), "-ApplicationPath", toGmatNativePath(executable), "-WaitSeconds", String(waitSeconds)])
@@ -181,37 +174,37 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       await runProcess(python, [extractScript, "--scenario", calculated, "--output", summaryPath])
       const summary = JSON.parse(await fs.readFile(summaryPath, "utf8")) as { reports?: unknown[] }
       const reportCount = Array.isArray(summary.reports) ? summary.reports.length : 0
-      await updateRunWorkflowLog(runDir, "rf_comlink", "completed", `RF-COMLINK completed with ${reportCount} report(s).`)
-      await appendRunConversation(runDir, { answer: `RF-COMLINK completed for this run. ${reportCount} report(s) were extracted and the raw calculated .rfcl package is saved in Technical files.`, askedAt: new Date().toISOString(), channel: "rf-comlink", question: "Run RF-COMLINK" })
-      await writeRunAnalysisContext(runDir)
-      return reply.send({ ok: true, reportCount, scenario: path.relative(root, calculated).split(path.sep).join("/"), summary: path.relative(root, summaryPath).split(path.sep).join("/") })
+      await completeRunStage(run.runDir, "rf_comlink", `RF-COMLINK completed with ${reportCount} report(s).`)
+      await appendRunConversation(run.runDir, { answer: `RF-COMLINK completed for this run. ${reportCount} report(s) were extracted and the raw calculated .rfcl package is saved in Technical files.`, askedAt: new Date().toISOString(), channel: "rf-comlink", question: "Run RF-COMLINK" })
+      await writeRunAnalysisContext(run.runDir)
+      return reply.send({ ok: true, reportCount, scenario: relativeToWorkspaceRoot(root, calculated), summary: relativeToWorkspaceRoot(root, summaryPath), artifacts: ["rf-comlink/03-results/calculated-rf-comlink.rfcl", "rf-comlink/03-results/rf-comlink-results.json", "rf-comlink/03-results/rf-comlink-calculation.log"].map(artifactDefinitionForPath).filter(Boolean) })
     } catch (error) {
       const message = getErrorMessage(error, "failed to run RF-COMLINK")
-      await updateRunWorkflowLog(runDir, "rf_comlink", "failed", message).catch(() => undefined)
+      await failRunStage(run.runDir, "rf_comlink", message).catch(() => undefined)
       return reply.status(422).send({ error: message })
     }
   })
 
   fastify.post<{ Body: RunBody }>("/api/rf-comlink/save-results", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
-    const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
+    const run = root ? resolveMissionRun(root, req.body?.runPath) : null
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
-    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    if (!run) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
-      const prepared = path.join(runDir, "rf-comlink", "02-scenario", "prepared-rf-comlink.rfcl")
-      const calculated = calculatedScenarioPath(runDir)
+      const prepared = path.join(run.runDir, "rf-comlink", "02-scenario", "prepared-rf-comlink.rfcl")
+      const calculated = calculatedScenarioPath(run.runDir)
       const [preparedHash, calculatedHash] = await Promise.all([sha256(prepared), sha256(calculated)])
       if (preparedHash === calculatedHash) throw new Error("RF-COMLINK results have not been saved yet. Run the calculation in RF-COMLINK and save the opened scenario first.")
-      const summaryPath = path.join(runDir, "rf-comlink", "03-results", "rf-comlink-results.json")
+      const summaryPath = path.join(run.runDir, "rf-comlink", "03-results", "rf-comlink-results.json")
       const script = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "03-save-results", "extract_rf_comlink_results.py")
       const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
       await runProcess(python, [script, "--scenario", calculated, "--output", summaryPath])
       const summary = JSON.parse(await fs.readFile(summaryPath, "utf8")) as { reports?: unknown[] }
       const reportCount = Array.isArray(summary.reports) ? summary.reports.length : 0
-      await updateRunWorkflowLog(runDir, "rf_comlink", "completed", `Saved RF-COMLINK calculation with ${reportCount} report(s).`)
-      await appendRunConversation(runDir, { answer: `RF-COMLINK results were saved with ${reportCount} report(s). You can now ask about link budget, availability, telemetry, or telecommand results.`, askedAt: new Date().toISOString(), channel: "rf-comlink", question: "Save RF-COMLINK results" })
-      await writeRunAnalysisContext(runDir)
-      return reply.send({ ok: true, reportCount, summary: path.relative(root, summaryPath).split(path.sep).join("/") })
+      await completeRunStage(run.runDir, "rf_comlink", `Saved RF-COMLINK calculation with ${reportCount} report(s).`)
+      await appendRunConversation(run.runDir, { answer: `RF-COMLINK results were saved with ${reportCount} report(s). You can now ask about link budget, availability, telemetry, or telecommand results.`, askedAt: new Date().toISOString(), channel: "rf-comlink", question: "Save RF-COMLINK results" })
+      await writeRunAnalysisContext(run.runDir)
+      return reply.send({ ok: true, reportCount, summary: relativeToWorkspaceRoot(root, summaryPath) })
     } catch (error) {
       const message = getErrorMessage(error, "failed to save RF-COMLINK results")
       return reply.status(422).send({ error: message })

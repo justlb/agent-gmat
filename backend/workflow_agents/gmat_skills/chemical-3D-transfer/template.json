@@ -19,6 +19,20 @@
   ],
   "propulsion_requirement": "chemical",
   "initial_state_representation": "Keplerian",
+  "ui": {
+    "objective": "Transfer an inclined Earth orbit to near GEO with apogee raising, plane change and circularisation burns.",
+    "summary": "Three-burn chemical transfer to a near-geosynchronous orbit with a plane change.",
+    "outputs": ["GMAT script and values", "GMAT execution log", "OEM ephemeris", "Run-local satellite.json"],
+    "satellite_requirements": ["Dry mass", "Chemical propulsion and Isp", "Drag area and coefficient"],
+    "mission_input_fields": [
+      { "label": "Epoch", "path": "initialOrbit.epoch" },
+      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km" },
+      { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity" },
+      { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
+      { "label": "Final altitude", "path": "transfer.finalAltitudeKm", "unit": "km" },
+      { "label": "Final inclination", "path": "transfer.finalInclinationDeg", "unit": "deg" }
+    ]
+  },
   "satellite_inputs": [
     "satellite.bus.physical.mass_kg.dry",
     "satellite.bus.physical.drag_area_m2",

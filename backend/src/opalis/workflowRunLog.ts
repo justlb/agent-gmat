@@ -3,7 +3,8 @@ import path from "node:path"
 
 import { updateJsonFile } from "../shared/atomicPersistence.js"
 
-export type WorkflowStage = "opalis" | "rf_comlink" | "simu_cic"
+/** A run status always includes GMAT and its downstream tools. */
+export type WorkflowStage = "gmat" | "opalis" | "rf_comlink" | "simu_cic"
 export type WorkflowStageStatus = "completed" | "failed" | "not_started" | "running"
 
 export type WorkflowRunLog = {
@@ -19,6 +20,7 @@ function emptyLog(): WorkflowRunLog {
     updated_at: new Date().toISOString(),
     version: 2,
     stages: {
+      gmat: { message: null, status: "not_started", updated_at: null },
       simu_cic: { message: null, status: "not_started", updated_at: null },
       opalis: { message: null, status: "not_started", updated_at: null },
       rf_comlink: { message: null, status: "not_started", updated_at: null },
@@ -34,6 +36,7 @@ export async function loadRunWorkflowLog(runDir: string): Promise<WorkflowRunLog
     ...fallback,
     ...parsed,
     stages: {
+      gmat: { ...fallback.stages.gmat, ...parsed?.stages?.gmat },
       simu_cic: { ...fallback.stages.simu_cic, ...parsed?.stages?.simu_cic },
       opalis: { ...fallback.stages.opalis, ...parsed?.stages?.opalis },
       rf_comlink: { ...fallback.stages.rf_comlink, ...parsed?.stages?.rf_comlink },
@@ -48,6 +51,7 @@ export async function updateRunWorkflowLog(runDir: string, stage: WorkflowStage,
     const normalized: WorkflowRunLog = {
       ...fallback, ...current,
       stages: {
+        gmat: { ...fallback.stages.gmat, ...current.stages?.gmat },
         simu_cic: { ...fallback.stages.simu_cic, ...current.stages?.simu_cic },
         opalis: { ...fallback.stages.opalis, ...current.stages?.opalis },
         rf_comlink: { ...fallback.stages.rf_comlink, ...current.stages?.rf_comlink },
@@ -56,4 +60,9 @@ export async function updateRunWorkflowLog(runDir: string, stage: WorkflowStage,
     const updatedAt = new Date().toISOString()
     return { ...normalized, updated_at: updatedAt, stages: { ...normalized.stages, [stage]: { message, status, updated_at: updatedAt } } }
   })
+}
+
+/** Materializes the initial lifecycle file when a dated run is created. */
+export function initializeRunWorkflowLog(runDir: string) {
+  return updateJsonFile<WorkflowRunLog>(path.join(runDir, fileName), emptyLog(), current => current)
 }

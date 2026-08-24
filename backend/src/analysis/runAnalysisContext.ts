@@ -53,7 +53,13 @@ function summarizeTimeSeries(value: unknown) {
   for (const key of numericKeys) {
     const samples = rows.map(row => finite(row[key])).filter((item): item is number => item !== null)
     if (!samples.length) continue
-    metrics[key] = { first: samples[0], last: samples.at(-1)!, minimum: Math.min(...samples), maximum: Math.max(...samples) }
+    // Run reports can be very long. Reducers remain safe where a variadic
+    // Math.min/Math.max call would overflow the JavaScript call stack.
+    const extrema = samples.reduce((result, sample) => ({
+      minimum: Math.min(result.minimum, sample),
+      maximum: Math.max(result.maximum, sample),
+    }), { minimum: Number.POSITIVE_INFINITY, maximum: Number.NEGATIVE_INFINITY })
+    metrics[key] = { first: samples[0], last: samples.at(-1)!, minimum: extrema.minimum, maximum: extrema.maximum }
   }
   return { sample_count: rows.length, metrics }
 }
@@ -68,9 +74,10 @@ function linesWithNumbers(text: string, source: string) {
 
 function requestedMission(satellite: unknown) {
   const root = isRecord(satellite) ? satellite : {}
-  const orbit = isRecord(root.orbit) ? root.orbit : {}
+  const satelliteRecord = isRecord(root.satellite) ? root.satellite : {}
+  const orbit = isRecord(satelliteRecord.orbit) ? satelliteRecord.orbit : {}
   const analysisRequests = isRecord(root.analysis_requests) ? root.analysis_requests : {}
-  const identity = isRecord(root.satellite) && isRecord(root.satellite.identity) ? root.satellite.identity : {}
+  const identity = isRecord(satelliteRecord.identity) ? satelliteRecord.identity : {}
   return {
     satellite: { id: root.satellite_definition_id ?? null, name: identity.name ?? null, version: root.satellite_definition_version ?? null },
     orbit: {
@@ -102,7 +109,7 @@ export async function writeRunAnalysisContext(runDir: string) {
   const [manifest, gmatResult, satellite, orbitSeries, electricSeries, simuCicDefinition, workflow, opalis, rf, cicOutputs] = await Promise.all([
     readJson(path.join(runDir, "run_manifest.json")),
     readJson(path.join(runDir, "gmat_result.json")),
-    readJson(path.join(runDir, "digital-thread", "satellite.json")),
+    readJson(path.join(runDir, "satellite.json")),
     readJson(path.join(runDir, "orbit_timeseries.json")),
     readJson(path.join(runDir, "electric_transfer_timeseries.json")),
     readJson(path.join(runDir, "opalis", "02-simu-cic", "simucic.definition.json")),
@@ -125,7 +132,7 @@ export async function writeRunAnalysisContext(runDir: string) {
   const context: RunAnalysisContext = {
     schema_version: 1,
     generated_at: new Date().toISOString(),
-    run: { id: typeof manifestRecord.runId === "string" ? manifestRecord.runId : null, template: typeof manifestRecord.templateId === "string" ? manifestRecord.templateId : null, source_of_truth: "digital-thread/satellite.json" },
+    run: { id: typeof manifestRecord.runId === "string" ? manifestRecord.runId : null, template: typeof manifestRecord.templateId === "string" ? manifestRecord.templateId : null, source_of_truth: "satellite.json" },
     configuration: requestedMission(satellite),
     workflow,
     results: {

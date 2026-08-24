@@ -7,7 +7,8 @@ import { applyElectricPropulsionValueChanges, extractElectricPropulsionValues, r
 import { runElectricPropulsionGmat, type ElectricPropulsionExecutionResult } from "./electricPropulsionRunner.js"
 import { defaultElectricPropulsionTemplatePath } from "./electricPropulsionTemplate.js"
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
-import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { beginRunStage, invalidateDownstreamFromGmat } from "../runs/runLifecycle.js"
+import { updateRunManifest } from "../runs/runManifest.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 
 export type ElectricPropulsionProgress = { key: "load_template" | "llm_patch" | "render_script" | "run_gmat" | "save_results"; percent: number; status: "running" | "completed" }
@@ -64,6 +65,14 @@ function positiveNumberAt(value: unknown, path: string) {
   return typeof result === "number" && Number.isFinite(result) && result > 0 ? result : null
 }
 
+function firstPositiveNumberAt(value: unknown, paths: string[]) {
+  for (const path of paths) {
+    const number = positiveNumberAt(value, path)
+    if (number !== null) return { path, value: number }
+  }
+  return null
+}
+
 async function loadSatelliteElectricPropulsionCalibration(workspaceDir: string): Promise<SatelliteElectricPropulsionCalibration | null> {
   const satellitePath = path.join(path.resolve(workspaceDir), "satellite.json")
   const document = await fs.readFile(satellitePath, "utf8").then(source => JSON.parse(source) as unknown).catch(() => null)
@@ -72,11 +81,17 @@ async function loadSatelliteElectricPropulsionCalibration(workspaceDir: string):
   const ispPath = "satellite.bus.propulsion_subsystem.specific_impulse_seconds"
   const powerPath = "satellite.bus.propulsion_subsystem.electric_thruster.nominal_thruster_power_kw"
   const dutyCyclePath = "satellite.bus.propulsion_subsystem.nominal_duty_cycle"
-  const nominalThrustNewtons = positiveNumberAt(document, thrustPath)
-  const ispSeconds = positiveNumberAt(document, ispPath)
-  const nominalPowerKw = positiveNumberAt(document, powerPath)
+  const nominalThrust = firstPositiveNumberAt(document, [thrustPath, "satellite.bus.propulsion_subsystem.main_engine_thrust_n"])
+  const isp = firstPositiveNumberAt(document, [ispPath])
+  // Older run snapshots stored only the maximum usable power. It is a valid
+  // nominal operating point for the existing proxy satellites and lets their
+  // immutable satellite.json snapshots calibrate GMAT too.
+  const nominalPower = firstPositiveNumberAt(document, [powerPath, "satellite.bus.propulsion_subsystem.electric_thruster.maximum_usable_power_kw"])
   const dutyCycle = positiveNumberAt(document, dutyCyclePath) ?? 1
-  if (nominalThrustNewtons === null || ispSeconds === null || nominalPowerKw === null || dutyCycle > 1) return null
+  if (!nominalThrust || !isp || !nominalPower || dutyCycle > 1) return null
+  const nominalThrustNewtons = nominalThrust.value
+  const ispSeconds = isp.value
+  const nominalPowerKw = nominalPower.value
   return {
     // FixedEfficiency keeps SolarPowerSystem1 in the propulsion calculation.
     // F = 2 * efficiency * P / (Isp * g0); calibrate it at the satellite's
@@ -86,7 +101,7 @@ async function loadSatelliteElectricPropulsionCalibration(workspaceDir: string):
     nominalPowerKw,
     nominalThrustNewtons,
     ispSeconds,
-    source: { isp: ispPath, thrust: thrustPath, power: powerPath, dutyCycle: dutyCyclePath },
+    source: { isp: isp.path, thrust: nominalThrust.path, power: nominalPower.path, dutyCycle: dutyCyclePath },
   }
 }
 
@@ -110,20 +125,12 @@ function enableEphemerisOutput(script: string) {
   }
   const marker = "BeginMissionSequence;"
   if (!script.includes(marker)) throw new Error("electric-propulsion template does not expose its mission sequence")
-  const propagation = "Propagate 'Propagate' DefaultProp(DefaultSC) {DefaultSC.ElapsedDays = daysofpropagation};"
-  if (!script.includes(propagation)) throw new Error("electric-propulsion template does not expose its propagation command")
+  const propagation = "While 'Raise to target altitude' DefaultSC.Earth.Altitude < targetFinalAltitudeKm"
+  if (!script.includes(propagation) || !script.includes("Propagate 'Propagate one output step' DefaultProp(DefaultSC);")) throw new Error("electric-propulsion template does not expose its altitude-targeted propagation loop")
   const withSubscriber = script.includes("Toggle EphemerisFile1 On;")
     ? script
     : script.replace(marker, `${marker}\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;`)
-  if (withSubscriber.includes("Sample electric transfer for OEM output")) return withSubscriber
-  const report = "Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;"
-  if (!withSubscriber.includes(report)) throw new Error("electric-propulsion template does not expose its transfer report command")
-  return withSubscriber.replace(propagation, [
-    "While 'Sample electric transfer for OEM output' DefaultSC.ElapsedDays < daysofpropagation",
-    "  Propagate 'Propagate one output step' DefaultProp(DefaultSC);",
-    "  " + report,
-    "EndWhile;",
-  ].join("\n"))
+  return withSubscriber
 }
 
 function runDirectoryName(date: Date) {
@@ -161,7 +168,12 @@ export function summarizeElectricPropulsionExecution(execution?: ElectricPropuls
     : undefined
   const hasValidFinalRadius = typeof finalRadiusKm === "number" && Number.isFinite(finalRadiusKm) && finalRadiusKm > 0
   const fuelUsedBetweenReportsKg = first && final ? first.fuelMassKg - final.fuelMassKg : undefined
-  const maximumReportedThrustPowerKw = execution.samples.length ? Math.max(...execution.samples.map(sample => sample.powerAvailableKw)) : undefined
+  // Do not spread a large report into Math.max: a target altitude that is not
+  // reached can produce many samples, and spreading them overflows Node's call
+  // stack while we are trying to report the real GMAT status.
+  const maximumReportedThrustPowerKw = execution.samples.length
+    ? execution.samples.reduce((maximum, sample) => Math.max(maximum, sample.powerAvailableKw), Number.NEGATIVE_INFINITY)
+    : undefined
   const powerEligibleSampleCount = minimumUsablePowerKw === undefined ? undefined : execution.samples.filter(sample => sample.powerAvailableKw >= minimumUsablePowerKw).length
   const warnings: string[] = []
   if (minimumUsablePowerKw !== undefined && maximumReportedThrustPowerKw !== undefined && maximumReportedThrustPowerKw < minimumUsablePowerKw) {
@@ -237,6 +249,7 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
     ...(calibration ? [fs.writeFile(calibrationPath, `${JSON.stringify({ schemaVersion: 1, model: "fixed-efficiency", ...calibration }, null, 2)}\n`, "utf8")] : []),
   ])
   onProgress?.({ key: "render_script", percent: 60, status: "completed" })
+  if (execution) await beginRunStage(runDir, "gmat", "GMAT simulation is running.")
   if (execution) onProgress?.({ key: "run_gmat", percent: 65, status: "running" })
   const executionResult = execution ? await runElectricPropulsionGmat({ ...execution, scriptPath }) : undefined
   if (execution) onProgress?.({ key: "run_gmat", percent: 90, status: "completed" })
@@ -251,9 +264,9 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   await Promise.all([
     fs.writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8"),
     fs.writeFile(timeSeriesPath, `${JSON.stringify(executionResult?.samples ?? [], null, 2)}\n`, "utf8"),
-    fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8"),
+    updateRunManifest(runDir, manifest),
   ])
-  await updateRunWorkflowLog(runDir, "simu_cic", "not_started", null)
+  await invalidateDownstreamFromGmat(runDir)
   onProgress?.({ key: "save_results", percent: 100, status: "completed" })
   return { changes, ...(calibration ? { calibrationPath } : {}), ephemerisPath, latencyMs: 0, manifestPath, result, resultPath, runDir, runId, scriptPath, timeSeriesPath, valuesPath }
 }

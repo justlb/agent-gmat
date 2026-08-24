@@ -19,6 +19,7 @@ import { resolveMissionWorkspace } from "./missionWorkspace.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 import { listRunArtifactHistory } from "./artifactHistory.js"
 import { finalizeMissionRun } from "./missionRunLifecycle.js"
+import { resolveMissionRun, resolveMissionRunArtifact } from "../runs/runWorkspace.js"
 
 type GenerateOrbitKeepingBody = { request?: unknown; workspaceDir?: unknown }
 type AnalyzeOrbitKeepingBody = { draftId?: unknown; question?: unknown; runPath?: unknown; workspaceDir?: unknown }
@@ -42,7 +43,7 @@ function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
   if (fileName === "consolidated-run-report.json") return "result"
   if (fileName === "run-analysis-context.json") return "result"
   if (fileName === "workflow-status.json") return "result"
-  if (fileName === "satellite.digital-thread.json" || fileName === "satellite.json") return "digital-thread"
+  if (fileName === "satellite.json") return "digital-thread"
   if (fileName === "orbit_timeseries.json") return "timeseries"
   if (fileName === "run_manifest.json") return "manifest"
   if (fileName === "ReboostReport.txt" || fileName === "OrbitAnalysisReport.txt") return "report"
@@ -66,10 +67,8 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
       const manifest = JSON.parse(await fs.readFile(path.join(runDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
       if (manifest.templateId !== "orbit-keeping") continue
       const entries = await fs.readdir(runDir, { withFileTypes: true }).catch(() => [])
-      const hasUserFacingSatellite = entries.some(entry => entry.isFile() && entry.name === "satellite.json")
       for (const entry of entries) {
         if (!entry.isFile()) continue
-        if (hasUserFacingSatellite && entry.name === "satellite.digital-thread.json") continue
         const kind = orbitKeepingFileKind(entry.name)
         if (!kind) continue
         const filePath = path.join(runDir, entry.name)
@@ -163,9 +162,8 @@ async function listOrbitKeepingFiles(userWorkspaceRoot: string) {
           }
           if (!outputEntry.isDirectory()) continue
           const runEntries = await fs.readdir(outputPath, { withFileTypes: true }).catch(() => [])
-          const hasUserFacingSatellite = runEntries.some(entry => entry.isFile() && entry.name === "satellite.json")
           for (const runEntry of runEntries) {
-            if (runEntry.isFile() && !(hasUserFacingSatellite && runEntry.name === "satellite.digital-thread.json")) await addOutputFile(path.join(outputPath, runEntry.name), runEntry.name)
+            if (runEntry.isFile()) await addOutputFile(path.join(outputPath, runEntry.name), runEntry.name)
           }
         }
         continue
@@ -181,22 +179,16 @@ function resolveListedOrbitKeepingFilePath(userWorkspaceRoot: string, relativePa
   if (typeof relativePath !== "string" || !relativePath.trim()) return null
   const root = path.resolve(userWorkspaceRoot)
   const filePath = path.resolve(root, relativePath)
-  const normalized = filePath.split(path.sep).join("/")
   const relativeSegments = path.relative(root, filePath).split(path.sep)
   const historyIndex = relativeSegments.indexOf("artifact-history")
   const historicalArtifact = historyIndex >= 0 && relativeSegments.length > historyIndex + 3 && /^[A-Za-z0-9_-]+$/u.test(relativeSegments[historyIndex + 1]) && /^[-A-Za-z0-9_]+$/u.test(relativeSegments[historyIndex + 2]) && Boolean(orbitKeepingFileKind(path.basename(filePath)))
-  const currentArtifact = /\/gmat\/(?:orbit-keeping|mission-runs)(?:\/[^/]+)?\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|run-analysis-context|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|orbit_timeseries\.json|run_manifest\.json|ReboostReport\.txt|OrbitAnalysisReport\.txt|EphemerisFile1\.oem|gmat\.log|vts\/(?:gmat-orbit\.vts|Data\/GMAT_OEM_POSITION\.TXT)|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/(?:calculated-rf-comlink\.rfcl|rf-comlink-results\.json|rf-comlink-calculation\.log)))$/u.test(normalized)
+  const currentArtifact = resolveMissionRunArtifact(root, relativePath)
   if (!isPathInside(root, filePath) || (!historicalArtifact && !currentArtifact)) return null
   return filePath
 }
 
 function resolveOrbitKeepingRunDir(userWorkspaceRoot: string, runPath: unknown) {
-  if (typeof runPath !== "string" || !runPath.trim()) return null
-  const root = path.resolve(userWorkspaceRoot)
-  const runDir = path.resolve(root, runPath)
-  const normalized = runDir.split(path.sep).join("/")
-  if (!isPathInside(root, runDir) || !/\/gmat\/(?:orbit-keeping|mission-runs)\/[^/]+$/u.test(normalized)) return null
-  return runDir
+  return resolveMissionRun(userWorkspaceRoot, runPath)?.runDir ?? null
 }
 
 function resolveOutputWorkspaceDir(userWorkspaceRoot: string, requestedWorkspaceDir: unknown) {

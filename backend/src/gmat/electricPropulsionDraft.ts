@@ -8,6 +8,7 @@ import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian,
 import { requestGmatModel } from "./modelRequest.js"
 import type { ElectricPropulsionValueChange, ElectricPropulsionValues } from "./electricPropulsionValues.js"
 import { writeDraftRunComparisonIndex } from "./draftRunComparison.js"
+import { resolveMissionRun } from "../runs/runWorkspace.js"
 
 type DraftValue = string | number | null
 type DraftValues = Record<string, DraftValue>
@@ -64,7 +65,7 @@ const TAI_UTC_LEAP_SECONDS: ReadonlyArray<readonly [string, number]> = [
   ["2009-01-01T00:00:00Z", 34], ["2012-07-01T00:00:00Z", 35], ["2015-07-01T00:00:00Z", 36], ["2017-01-01T00:00:00Z", 37],
 ]
 
-/** Contract for the fixed, non-targeted finite-burn electric-propulsion template. */
+/** Contract for the fixed electric-propulsion template, terminated at its target altitude. */
 export const ELECTRIC_PROPULSION_TRANSFER_CONTRACT = {
   id: "electric-propulsion-transfer",
   fixedAssumptions: {
@@ -83,7 +84,7 @@ export const ELECTRIC_PROPULSION_TRANSFER_CONTRACT = {
     { context: "DefaultSC.TA", label: "Initial true anomaly", max: 360, min: 0, path: "initialOrbit.trueAnomalyDeg", required: false, unit: "deg" },
     { context: "DefaultSC.DryMass", label: "Dry mass", min: 0.001, path: "spacecraft.dryMassKg", required: false, unit: "kg" },
     { context: "ElectricTank1.FuelMass", label: "Initial electric propellant mass", min: 0.001, path: "spacecraft.initialFuelMassKg", required: false, unit: "kg" },
-    { context: "daysofpropagation", label: "Electric-thrust duration", max: 3650, min: 0.0001, path: "transfer.burnDurationDays", required: true, unit: "days" },
+    { context: "targetFinalAltitudeKm", label: "Target final altitude", max: 50_000, min: MINIMUM_SAFE_ALTITUDE_KM, path: "transfer.finalAltitudeKm", required: true, unit: "km" },
     // The fixed thrust and mass-flow polynomials are accepted only over their
     // documented calibration range; chat edits cannot extrapolate them.
     { context: "ElectricThruster1.MaximumUsablePower", label: "Maximum usable thruster power", max: THRUST_POLYNOMIAL_MAX_POWER_KW, min: 0.001, path: "propulsion.maximumUsablePowerKw", required: false, unit: "kW" },
@@ -97,7 +98,7 @@ export const ELECTRIC_PROPULSION_TRANSFER_CONTRACT = {
 const fields = ELECTRIC_PROPULSION_TRANSFER_CONTRACT.fields as readonly FieldDefinition[]
 const MISSION_FIELD_PATHS = new Set([
   "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg",
-  "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg", "transfer.burnDurationDays",
+  "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg", "transfer.finalAltitudeKm",
 ])
 const GMAT_TAI_MOD_JULIAN_MIN = 10_000
 const GMAT_TAI_MOD_JULIAN_MAX = 100_000
@@ -214,6 +215,8 @@ function buildSafetyReview(values: DraftValues): ElectricPropulsionSafetyReview 
   if (typeof semiMajorAxis === "number" && typeof eccentricity === "number") {
     const periapsisAltitude = semiMajorAxis * (1 - eccentricity) - EARTH_EQUATORIAL_RADIUS_KM
     if (periapsisAltitude < MINIMUM_SAFE_ALTITUDE_KM) checks.push({ code: "initial_periapsis", message: `Initial Keplerian elements give a periapsis altitude of ${periapsisAltitude.toFixed(1)} km; it must be at least ${MINIMUM_SAFE_ALTITUDE_KM} km.`, severity: "error" })
+    const targetAltitude = values["transfer.finalAltitudeKm"]
+    if (typeof targetAltitude === "number" && targetAltitude <= periapsisAltitude) checks.push({ code: "target_altitude_order", message: `Target final altitude (${targetAltitude} km) must be greater than the initial periapsis altitude (${periapsisAltitude.toFixed(1)} km).`, severity: "error" })
   }
   const dryMass = values["spacecraft.dryMassKg"]
   const fuelMass = values["spacecraft.initialFuelMassKg"]
@@ -350,8 +353,8 @@ export async function discussElectricPropulsionDraft({ connection, draft, messag
 }) {
   const prompt = [
     "You are a conversational spacecraft mission-definition assistant for a fixed GMAT electric-propulsion transfer template.",
-    "This is a simple, non-targeted finite prograde burn in the local VNB frame. It propagates the supplied Keplerian initial orbit for the requested duration; do not promise a specified final orbit.",
-    "Collect only explicit engineering values, never silently invent them. On the first turn, briefly guide the engineer: confirm the selected electric-propulsion satellite, then collect epoch, initial altitude or SMA, eccentricity, inclination, and electric-thrust duration one at a time. Ask one useful next question when a mandatory input is absent.",
+    "This template performs a finite prograde VNB burn until GMAT reaches the requested final altitude. Do not claim that it reaches a specific inclination, RAAN, or eccentricity unless the GMAT results demonstrate it.",
+    "Collect only explicit engineering values, never silently invent them. On the first turn, briefly guide the engineer: confirm the selected electric-propulsion satellite, then collect epoch, initial altitude or SMA, eccentricity, inclination, and target final altitude one at a time. Ask one useful next question when a mandatory input is absent.",
     "Return YAML only: message: string; updates: [{ path: known path, value: string|number }]. Include updates: [] when no value is recorded. Never expose internal paths in the message.",
     "The GMAT epoch is TAIModJulian. For a calendar time with a timezone, emit initialOrbit.utcGregorian as a UTC ISO time; if timezone is absent, ask for it.",
     `Known fields: ${fields.map(field => `${field.path} (${field.label}${field.unit ? `, ${field.unit}` : ""}${field.required ? ", mandatory" : ", optional"})`).join("; ")}`,
@@ -399,7 +402,8 @@ export async function confirmElectricPropulsionDraft(workspaceDir: string, draft
 export async function recordElectricPropulsionDraftRun(workspaceDir: string, draftId: string, run: ElectricPropulsionDraftRun) {
   const draft = await loadElectricPropulsionDraft(workspaceDir, draftId)
   if (draft.status !== "confirmed") throw new Error("GMAT draft must be confirmed before recording a run")
-  if (!/^[-A-Za-z0-9_]+$/u.test(run.runId) || !/^gmat[\\/](?:electric-propulsion-transfer|mission-runs)[\\/][-A-Za-z0-9_]+$/u.test(run.runPath)) throw new Error("invalid GMAT electric-propulsion run reference")
+  const resolvedRun = resolveMissionRun(workspaceDir, run.runPath)
+  if (!resolvedRun || resolvedRun.runId !== run.runId) throw new Error("invalid GMAT electric-propulsion run reference")
   const runs = [...draft.runs.filter(existing => existing.runId !== run.runId), { ...run, missionValues: { ...draft.values } }]
   const saved = await saveDraft(workspaceDir, refreshDraft({ ...draft, runs }))
   await writeDraftRunComparisonIndex({ draftDirectory: path.dirname(draftPath(workspaceDir, draftId)), runs: saved.runs, templateId: saved.templateId })
@@ -410,11 +414,7 @@ export function draftToElectricPropulsionChanges(draft: ElectricPropulsionDraft,
   const changes = fields.flatMap(field => {
     const value = draft.values[field.path]
     if (value === null) return field.required ? (() => { throw new Error(`missing required field ${field.path}`) })() : []
-    // The propagation duration is a dedicated variable. It is deliberately kept
-    // separate from the fixed ReportFile.Add list and the Propagate structure.
-    const slot = field.path === "transfer.burnDurationDays"
-      ? values.slots.find(candidate => candidate.context.startsWith(`${field.context} =`))
-      : values.slots.find(candidate => candidate.context.startsWith(`${field.context} =`))
+    const slot = values.slots.find(candidate => candidate.context.startsWith(`${field.context} =`))
     if (!slot) throw new Error(`template does not expose draft field ${field.path}`)
     return [{ id: slot.id, value: typeof value === "number" ? String(value) : `'${value.replace(/'/gu, "")}'` }]
   })

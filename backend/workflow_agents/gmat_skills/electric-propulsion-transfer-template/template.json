@@ -14,7 +14,6 @@
     { "path": "run-analysis-context.json", "kind": "result" },
     { "path": "run_manifest.json", "kind": "manifest" },
     { "path": "satellite.json", "kind": "digital-thread", "primary": true },
-    { "path": "satellite.digital-thread.json", "kind": "digital-thread" },
     { "path": "EphemerisFile1.oem", "kind": "ephemeris", "primary": true },
     { "path": "ElectricTransferReport.txt", "kind": "report", "primary": true },
     { "path": "electric_transfer_timeseries.json", "kind": "timeseries" },
@@ -22,8 +21,22 @@
   ],
   "propulsion_requirement": "electric",
   "initial_state_representation": "Keplerian",
+  "ui": {
+    "objective": "Propagate an electric-thrust transfer using the spacecraft mass, propellant, thruster and solar-power constraints.",
+    "summary": "Low-thrust electric orbit transfer driven by the selected satellite electrical system.",
+    "outputs": ["GMAT script and values", "Electric-transfer report", "OEM ephemeris", "Run-local satellite.json"],
+    "satellite_requirements": ["Dry mass", "Electric propellant capacity", "Thruster power limits", "Solar-array power, bus load and margin"],
+    "mission_input_fields": [
+      { "label": "Initial epoch", "path": "initialOrbit.epoch" },
+      { "label": "Initial semi-major axis", "path": "initialOrbit.smaKm", "unit": "km" },
+      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km", "derived": "initialAltitude" },
+      { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity" },
+      { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
+      { "label": "Target final altitude", "path": "transfer.finalAltitudeKm", "unit": "km" }
+    ]
+  },
   "mission_inputs": {
-    "required": ["initial_epoch", "initial_orbit", "electric_thrust_duration"],
+    "required": ["initial_epoch", "initial_orbit", "target_final_altitude_km"],
     "defaults": {}
   },
   "satellite_inputs": [

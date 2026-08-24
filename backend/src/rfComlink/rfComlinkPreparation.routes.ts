@@ -7,9 +7,11 @@ import type { FastifyInstance } from "fastify"
 
 import { loadRunDigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
-import { getErrorMessage, isPathInside } from "../shared/index.js"
+import { getErrorMessage } from "../shared/index.js"
 import { adaptDigitalThreadToRFComlink } from "./rfComlinkDigitalThreadAdapter.js"
-import { loadRunWorkflowLog, updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { loadRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { failRunStage } from "../runs/runLifecycle.js"
+import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
 
 type RunBody = { runPath?: unknown }
 type JsonRecord = Record<string, unknown>
@@ -53,15 +55,6 @@ function rfInputProblem(missing: string[]) {
   const satelliteFields = missing.filter(item => item.startsWith("satellite.bus.rf_comlink"))
   if (satelliteFields.length) details.push(`Satellite RF data are incomplete: ${satelliteFields.join(", ")}.`)
   return details.length ? details.join(" ") : `RF-COMLINK inputs are incomplete: ${missing.join(", ")}`
-}
-
-function resolveGmatRunDir(root: string, candidate: unknown) {
-  if (typeof candidate !== "string" || !candidate.trim()) return null
-  const runDir = path.resolve(root, candidate)
-  const normalized = runDir.split(path.sep).join("/")
-  return isPathInside(root, runDir) && /\/gmat\/(?:orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized)
-    ? runDir
-    : null
 }
 
 /**
@@ -132,7 +125,7 @@ export async function prepareRFComlinkInputs(root: string, runDir: string) {
   const outputPath = path.join(runDir, "rf-comlink", "01-input", "rf-comlink-inputs.json")
   await fs.mkdir(path.dirname(outputPath), { recursive: true })
   await fs.writeFile(outputPath, `${JSON.stringify(output, null, 2)}\n`, "utf8")
-  return { ...output, output: path.relative(root, outputPath), outputPath }
+  return { ...output, output: relativeToWorkspaceRoot(root, outputPath), outputPath }
 }
 
 /** Build the audited RF-COMLINK package for one already completed Simu-CIC run. */
@@ -141,10 +134,8 @@ export async function prepareRFComlinkScenario(root: string, runDir: string) {
   if (workflow.stages.simu_cic.status !== "completed") {
     throw new Error("Run Simu-CIC first. RF-COMLINK requires CIC files generated with the current attitude configuration.")
   }
-  await updateRunWorkflowLog(runDir, "rf_comlink", "running", "Preparing RF-COMLINK scenario from satellite.json and Simu-CIC CIC files")
   const inputs = await prepareRFComlinkInputs(root, runDir)
   if (inputs.validation.status !== "ready") {
-    await updateRunWorkflowLog(runDir, "rf_comlink", "failed", `Missing RF-COMLINK data: ${inputs.validation.missing.join(", ")}`)
     throw Object.assign(new Error(rfInputProblem(inputs.validation.missing)), { inputs })
   }
   const templateOverride = process.env.RF_COMLINK_TEMPLATE?.trim()
@@ -154,17 +145,17 @@ export async function prepareRFComlinkScenario(root: string, runDir: string) {
   const script = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "02-prepare-scenario", "build_rf_comlink_scenario.py")
   const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
   await runProcess(python, [script, "--template", template, "--inputs", inputs.outputPath, "--output", output])
-  return { ...inputs, scenario: path.relative(root, output).split(path.sep).join("/"), scenarioPath: output }
+  return { ...inputs, scenario: relativeToWorkspaceRoot(root, output), scenarioPath: output }
 }
 
 export async function rfComlinkPreparationRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: RunBody }>("/api/rf-comlink/prepare-inputs", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
-    const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
+    const run = root ? resolveMissionRun(root, req.body?.runPath) : null
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
-    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    if (!run) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
-      return reply.send(await prepareRFComlinkInputs(path.resolve(root), runDir))
+      return reply.send(await prepareRFComlinkInputs(run.root, run.runDir))
     } catch (error) {
       return reply.status(422).send({ error: getErrorMessage(error, "failed to prepare RF-COMLINK inputs") })
     }
@@ -172,16 +163,14 @@ export async function rfComlinkPreparationRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Body: RunBody }>("/api/rf-comlink/prepare-scenario", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
-    const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
+    const run = root ? resolveMissionRun(root, req.body?.runPath) : null
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
-    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    if (!run) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
-      const result = await prepareRFComlinkScenario(path.resolve(root), runDir)
-      await updateRunWorkflowLog(runDir, "rf_comlink", "completed", `Prepared ${path.basename(result.scenarioPath)}`)
-      return reply.send(result)
+      return reply.send(await prepareRFComlinkScenario(run.root, run.runDir))
     } catch (error) {
       const message = getErrorMessage(error, "failed to prepare RF-COMLINK scenario")
-      await updateRunWorkflowLog(runDir, "rf_comlink", "failed", message)
+      await failRunStage(run.runDir, "rf_comlink", message)
       return reply.status(422).send({ error: message })
     }
   })

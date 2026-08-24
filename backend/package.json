@@ -14,6 +14,7 @@
     ,"campaign:gmat": "node --import tsx scripts/gmatCompatibilityCampaign.ts"
     ,"test:e2e:digital-thread": "node --import tsx --test tests/e2e/digitalThreadMissionConsistency.e2e.test.ts"
     ,"test:smoke:mission": "node --import tsx --test tests/e2e/digitalThreadMissionConsistency.e2e.test.ts tests/vts/vts.routes.test.ts"
+    ,"test:stability": "node --import tsx --test tests/runs/runWorkspace.test.ts tests/runs/missionRunService.test.ts tests/runs/runManifest.test.ts tests/runs/runLifecycle.test.ts tests/runs/runViewModel.test.ts tests/digitalThread/digitalThreadSchema.test.ts tests/unit/shared/atomicPersistence.test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
