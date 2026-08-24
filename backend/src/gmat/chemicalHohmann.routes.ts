@@ -37,6 +37,7 @@ const CHEMICAL_HOHMANN_ARTIFACT_KINDS: Record<string, ChemicalHohmannFileKind> =
   "rf-comlink/02-scenario/prepared-rf-comlink.rfcl": "rf-comlink",
   "rf-comlink/03-results/calculated-rf-comlink.rfcl": "rf-comlink",
   "rf-comlink/03-results/rf-comlink-results.json": "rf-comlink",
+  "rf-comlink/03-results/rf-comlink-calculation.log": "rf-comlink",
 }
 
 function chemicalHohmannArtifactKind(relativeFile: string, historical = false) {

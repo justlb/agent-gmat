@@ -13,6 +13,7 @@ import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
 import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
+import { prepareRFComlinkScenario } from "./rfComlinkPreparation.routes.js"
 
 type RunBody = { runPath?: unknown }
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -65,14 +66,21 @@ async function sha256(filePath: string) {
 }
 
 function runProcess(command: string, args: string[]) {
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] })
+    let stdout = ""
     let stderr = ""
+    child.stdout.setEncoding("utf8")
     child.stderr.setEncoding("utf8")
+    child.stdout.on("data", chunk => { stdout += chunk })
     child.stderr.on("data", chunk => { stderr += chunk })
     child.once("error", reject)
-    child.once("close", code => code === 0 ? resolve() : reject(new Error(stderr.trim() || `${command} exited with code ${code ?? "unknown"}`)))
+    child.once("close", code => code === 0 ? resolve(stdout) : reject(new Error(stderr.trim() || stdout.trim() || `${command} exited with code ${code ?? "unknown"}`)))
   })
+}
+
+function powerShellExecutable() {
+  return process.platform === "win32" ? "powershell.exe" : "powershell.exe"
 }
 
 async function openScenario(executable: string, scenario: string) {
@@ -129,6 +137,58 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       return reply.send({ ok: true, scenario: path.relative(root, calculated).split(path.sep).join("/") })
     } catch (error) {
       return reply.status(422).send({ error: getErrorMessage(error, "failed to start RF-COMLINK calculation") })
+    }
+  })
+
+  /**
+   * One deterministic RF-COMLINK action for the active run.  It deliberately
+   * creates a run-local working copy, saves the calculated package there, and
+   * immediately extracts the reports for the mission assistant.
+   */
+  fastify.post<{ Body: RunBody }>("/api/rf-comlink/run", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    try {
+      const prepared = await prepareRFComlinkScenario(path.resolve(root), runDir)
+      const calculated = calculatedScenarioPath(runDir)
+      const resultDir = path.dirname(calculated)
+      const logPath = path.join(resultDir, "rf-comlink-calculation.log")
+      await snapshotRunArtifacts(runDir, "rf-comlink", [
+        "rf-comlink/03-results/calculated-rf-comlink.rfcl",
+        "rf-comlink/03-results/rf-comlink-results.json",
+        "rf-comlink/03-results/rf-comlink-calculation.log",
+      ])
+      await fs.mkdir(resultDir, { recursive: true })
+      await fs.copyFile(prepared.scenarioPath, calculated)
+      const executable = path.join(rfComlinkHomeForHost(), "rf-comlink.exe")
+      await fs.access(executable)
+      const automation = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "04-run-calculation", "run_rfcomlink_calculation.ps1")
+      const waitSeconds = Math.max(1, Number.parseInt(process.env.RF_COMLINK_WAIT_SECONDS ?? "5", 10) || 5)
+      await updateRunWorkflowLog(runDir, "rf_comlink", "running", "RF-COMLINK calculation is running for this mission run.")
+      let output = ""
+      try {
+        output = await runProcess(powerShellExecutable(), ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", toGmatNativePath(automation), "-CasePath", toGmatNativePath(calculated), "-ApplicationPath", toGmatNativePath(executable), "-WaitSeconds", String(waitSeconds)])
+      } catch (error) {
+        await fs.writeFile(logPath, `RF-COMLINK automation failed.\n${getErrorMessage(error, "unknown error")}\n`, "utf8")
+        throw error
+      }
+      await fs.writeFile(logPath, output || "RF-COMLINK completed without console output.\n", "utf8")
+      const summaryPath = path.join(resultDir, "rf-comlink-results.json")
+      const extractScript = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "03-save-results", "extract_rf_comlink_results.py")
+      const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
+      await runProcess(python, [extractScript, "--scenario", calculated, "--output", summaryPath])
+      const summary = JSON.parse(await fs.readFile(summaryPath, "utf8")) as { reports?: unknown[] }
+      const reportCount = Array.isArray(summary.reports) ? summary.reports.length : 0
+      await updateRunWorkflowLog(runDir, "rf_comlink", "completed", `RF-COMLINK completed with ${reportCount} report(s).`)
+      await appendRunConversation(runDir, { answer: `RF-COMLINK completed for this run. ${reportCount} report(s) were extracted and the raw calculated .rfcl package is saved in Technical files.`, askedAt: new Date().toISOString(), channel: "rf-comlink", question: "Run RF-COMLINK" })
+      await writeRunAnalysisContext(runDir)
+      return reply.send({ ok: true, reportCount, scenario: path.relative(root, calculated).split(path.sep).join("/"), summary: path.relative(root, summaryPath).split(path.sep).join("/") })
+    } catch (error) {
+      const message = getErrorMessage(error, "failed to run RF-COMLINK")
+      await updateRunWorkflowLog(runDir, "rf_comlink", "failed", message).catch(() => undefined)
+      return reply.status(422).send({ error: message })
     }
   })
 

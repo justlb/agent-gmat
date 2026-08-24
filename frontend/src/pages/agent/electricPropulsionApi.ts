@@ -22,7 +22,7 @@ export type ElectricPropulsionFile = {
   artifactId: string
   fileName: string
   historical?: boolean
-  kind: 'calibration' | 'digital-thread' | 'ephemeris' | 'log' | 'manifest' | 'opalis' | 'report' | 'result' | 'script' | 'timeseries' | 'values'
+  kind: 'calibration' | 'digital-thread' | 'ephemeris' | 'log' | 'manifest' | 'opalis' | 'report' | 'result' | 'rf-comlink' | 'script' | 'timeseries' | 'values'
   mtimeMs: number
   relativePath: string
   runPath?: string
