@@ -1,6 +1,6 @@
 import fs from "node:fs/promises"
 import path from "node:path"
-import { stringify } from "yaml"
+import { parseDocument, stringify } from "yaml"
 
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
@@ -11,7 +11,6 @@ import type { ChemicalHohmannDraft } from "./chemicalHohmannDraft.js"
 import { defaultChemicalHohmannTemplatePath } from "./chemicalHohmannTemplate.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 import { assertGmatMissionGuardrails } from "./missionGuardrails.js"
-import { loadSatelliteYamlSnapshot } from "./satelliteYamlSnapshot.js"
 
 export type ChemicalHohmannRenderValues = {
   "initialOrbit.argPeriapsisDeg"?: number | null
@@ -69,6 +68,14 @@ function replaceSingle(script: string, matcher: RegExp, replacement: string, lab
   const matches = script.match(matcher)
   if (!matches || matches.length !== 1) throw new Error(`chemical Hohmann template does not expose exactly one ${label} slot`)
   return script.replace(matcher, replacement)
+}
+
+function chemicalHohmannValuesFromYaml(source: string): ChemicalHohmannRenderValues {
+  const document = parseDocument(source)
+  if (document.errors.length) throw new Error(`chemical Hohmann values YAML is invalid: ${document.errors[0].message}`)
+  const parsed = document.toJS() as { template_id?: unknown; values?: unknown }
+  if (!parsed || parsed.template_id !== "chemical-hohmann-transfer" || !parsed.values || typeof parsed.values !== "object" || Array.isArray(parsed.values)) throw new Error("chemical Hohmann values YAML has an unsupported schema or template id")
+  return parsed.values as ChemicalHohmannRenderValues
 }
 
 /**
@@ -152,9 +159,7 @@ export async function generateChemicalHohmannMission({ draft, workspaceDir, temp
   const runDir = path.resolve(workspaceDir)
   if (!isMissionRunWorkspace(runDir)) throw new Error("chemical Hohmann generation requires a dated mission run workspace")
   const [template] = await Promise.all([fs.readFile(templatePath, "utf8"), fs.mkdir(runDir, { recursive: true })])
-  const values = draft.values as ChemicalHohmannRenderValues
   const ephemerisPath = path.join(runDir, "EphemerisFile1.oem")
-  const script = addHohmannEphemerisWriter(renderChemicalHohmannScript(template, values), ephemerisPath)
   const scriptPath = path.join(runDir, "chemical_hohmann_transfer.script")
   const valuesPath = path.join(runDir, "chemical_hohmann_transfer.values.yaml")
   const resultPath = path.join(runDir, "gmat_result.json")
@@ -162,11 +167,9 @@ export async function generateChemicalHohmannMission({ draft, workspaceDir, temp
   const runId = path.basename(runDir)
   const createdAt = new Date().toISOString()
   const logPath = path.join(runDir, "gmat.log")
-  const satelliteInputs = await loadSatelliteYamlSnapshot(workspaceDir)
-  await Promise.all([
-    fs.writeFile(scriptPath, script, "utf8"),
-    fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values, ...(satelliteInputs ? { satellite_inputs: satelliteInputs } : {}) }), "utf8"),
-  ])
+  await fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values }), "utf8")
+  const script = addHohmannEphemerisWriter(renderChemicalHohmannScript(template, chemicalHohmannValuesFromYaml(await fs.readFile(valuesPath, "utf8"))), ephemerisPath)
+  await fs.writeFile(scriptPath, script, "utf8")
   let executionResult: { durationMs: number; error?: string; exitCode: number | null; status: "completed" | "failed" | "timeout" } | undefined
   if (execution) {
     const started = Date.now()

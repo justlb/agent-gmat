@@ -9,7 +9,6 @@ import { requestGmatModel } from "./modelRequest.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 import { gmatTemplateDefinition } from "./templateRegistry.js"
 import { assertGmatMissionGuardrails, validateGmatMissionGuardrails } from "./missionGuardrails.js"
-import { loadSatelliteYamlSnapshot } from "./satelliteYamlSnapshot.js"
 
 type Value = string | number | null
 type Run = { completedAt: string; result: { error?: string; status: string }; runId: string; runPath: string }
@@ -66,10 +65,9 @@ function validateEpoch(value: Value) {
 async function save(workspaceDir: string, draft: Chemical3dDraft) {
   const output = draftPath(workspaceDir, draft.draftId)
   await fs.mkdir(path.dirname(output), { recursive: true })
-  const satelliteInputs = await loadSatelliteYamlSnapshot(workspaceDir)
   await Promise.all([
     fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`),
-    fs.writeFile(path.join(path.dirname(output), "chemical_3d_transfer.values.yaml"), stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values, ...(satelliteInputs ? { satellite_inputs: satelliteInputs } : {}) })),
+    fs.writeFile(path.join(path.dirname(output), "chemical_3d_transfer.values.yaml"), stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values })),
   ])
   return draft
 }
@@ -189,6 +187,14 @@ function replace(script: string, property: string, value: string) {
   return script.replace(pattern, `$1${value};`)
 }
 
+function chemical3dValuesFromYaml(source: string): Record<string, Value> {
+  const document = parseDocument(source)
+  if (document.errors.length) throw new Error(`chemical 3D values YAML is invalid: ${document.errors[0].message}`)
+  const parsed = document.toJS() as { template_id?: unknown; values?: unknown }
+  if (!parsed || parsed.template_id !== "chemical-3d-transfer" || !parsed.values || typeof parsed.values !== "object" || Array.isArray(parsed.values)) throw new Error("chemical 3D values YAML has an unsupported schema or template id")
+  return parsed.values as Record<string, Value>
+}
+
 function renderScript(source: string, values: Record<string, Value>, ephemerisPath: string) {
   const initialSmaKm = EARTH_RADIUS_KM + requiredNumber(values, "initialOrbit.altitudeKm")
   const finalSmaKm = EARTH_RADIUS_KM + requiredNumber(values, "transfer.finalAltitudeKm")
@@ -226,9 +232,13 @@ export async function generateChemical3dMission({ draft, workspaceDir, execution
   const manifestPath = path.join(runDir, "run_manifest.json")
   const logPath = path.join(runDir, "gmat.log")
   const ephemerisPath = path.join(runDir, "EphemerisFile1.oem")
-  const script = renderScript(await fs.readFile(path.join(definition.skillDirectory, definition.gmatReferenceScript), "utf8"), draft.values, ephemerisPath)
-  const satelliteInputs = await loadSatelliteYamlSnapshot(workspaceDir)
-  await Promise.all([fs.writeFile(scriptPath, script), fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values, ...(satelliteInputs ? { satellite_inputs: satelliteInputs } : {}) }))])
+  await fs.writeFile(valuesPath, stringify({ draft_id: draft.draftId, template_id: draft.templateId, values: draft.values }))
+  const script = renderScript(
+    await fs.readFile(path.join(definition.skillDirectory, definition.gmatReferenceScript), "utf8"),
+    chemical3dValuesFromYaml(await fs.readFile(valuesPath, "utf8")),
+    ephemerisPath,
+  )
+  await fs.writeFile(scriptPath, script)
   let result: { error?: string; executionDurationMs?: number; status: "generated" | "completed" | "failed" | "timeout" } = { status: "generated" }
   if (execution) {
     const started = Date.now()

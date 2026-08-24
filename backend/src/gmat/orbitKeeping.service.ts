@@ -12,7 +12,6 @@ import { defaultOrbitKeepingTemplatePath } from "./orbitKeepingTemplate.js"
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
 import { applyOrbitKeepingValueChanges, parseOrbitKeepingValues, renderOrbitKeepingValues, type OrbitKeepingValueChange } from "./orbitKeepingValues.js"
-import { loadSatelliteYamlSnapshot } from "./satelliteYamlSnapshot.js"
 
 function enableEphemerisOutput(script: string) {
   if (!script.includes("Create EphemerisFile EphemerisFile1;")) {
@@ -190,12 +189,13 @@ export async function generateOrbitKeepingMission({
     id: ephemerisSlot.id,
     value: `'${ephemerisPath}'`,
   }])
-  const renderedScript = enableEphemerisOutput(renderOrbitKeepingValues(template, renderedValues))
-  const satelliteInputs = await loadSatelliteYamlSnapshot(workspaceDir)
-  await Promise.all([
-    fs.writeFile(outputValuesPath, stringify({ ...renderedValues, ...(satelliteInputs ? { satellite_inputs: satelliteInputs } : {}) }), "utf8"),
-    fs.writeFile(outputScriptPath, renderedScript, "utf8"),
-  ])
+  // The emitted YAML is the concrete GMAT input contract. Re-read it before
+  // rendering so the generated script is demonstrably YAML → TypeScript →
+  // GMAT, rather than two independent serializations of the same draft.
+  await fs.writeFile(outputValuesPath, stringify(renderedValues), "utf8")
+  const persistedValues = parseOrbitKeepingValues(await fs.readFile(outputValuesPath, "utf8"))
+  const renderedScript = enableEphemerisOutput(renderOrbitKeepingValues(template, persistedValues))
+  await fs.writeFile(outputScriptPath, renderedScript, "utf8")
   onProgress?.({ key: "render_script", percent: 60, status: "completed" })
 
   const startedAt = new Date().toISOString()

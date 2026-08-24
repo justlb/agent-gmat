@@ -1,7 +1,7 @@
 import fs from "node:fs/promises"
 import { createHash } from "node:crypto"
 import path from "node:path"
-import { stringify } from "yaml"
+import { parseDocument, stringify } from "yaml"
 
 import { applyElectricPropulsionValueChanges, electricPropulsionSatelliteInputs, extractElectricPropulsionValues, renderElectricPropulsionValues, type ElectricPropulsionSatelliteInputs, type ElectricPropulsionValueChange } from "./electricPropulsionValues.js"
 import { runElectricPropulsionGmat, type ElectricPropulsionExecutionResult } from "./electricPropulsionRunner.js"
@@ -9,7 +9,6 @@ import { defaultElectricPropulsionTemplatePath } from "./electricPropulsionTempl
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
-import { loadSatelliteYamlSnapshot } from "./satelliteYamlSnapshot.js"
 
 export type ElectricPropulsionProgress = { key: "load_template" | "llm_patch" | "render_script" | "run_gmat" | "save_results"; percent: number; status: "running" | "completed" }
 export type ElectricPropulsionRunResult = {
@@ -97,12 +96,30 @@ function calibrationFromSatelliteInputs(inputs: ElectricPropulsionSatelliteInput
     nominalThrustNewtons,
     ispSeconds,
     source: {
-      isp: "satellite_inputs.propulsion.specificImpulseSeconds",
-      thrust: "satellite_inputs.propulsion.nominalThrustNewtons",
-      power: "satellite_inputs.propulsion.nominalThrusterPowerKw",
-      dutyCycle: "satellite_inputs.propulsion.dutyCycle",
-      fixedEfficiency: "derived from satellite_inputs propulsion thrust, Isp, nominal power, and duty cycle",
+      isp: "script_calibration.ispSeconds",
+      thrust: "script_calibration.nominalThrustNewtons",
+      power: "script_calibration.nominalPowerKw",
+      dutyCycle: "script_calibration.dutyCycle",
+      fixedEfficiency: "script_calibration.fixedEfficiency, derived from satellite.json thrust, Isp, nominal power, and duty cycle",
     },
+  }
+}
+
+function parseElectricPropulsionRunYaml(source: string) {
+  const document = parseDocument(source)
+  if (document.errors.length) throw new Error(`electric-propulsion values YAML is invalid: ${document.errors[0].message}`)
+  const parsed = document.toJS() as { schemaVersion?: unknown; templateId?: unknown; slots?: unknown; script_calibration?: unknown }
+  if (!parsed || parsed.schemaVersion !== 1 || parsed.templateId !== "electric-propulsion-transfer" || !Array.isArray(parsed.slots)) {
+    throw new Error("electric-propulsion values YAML has an unsupported schema or template id")
+  }
+  const calibration = parsed.script_calibration
+  if (!calibration || typeof calibration !== "object" || Array.isArray(calibration)) return { calibration: null, values: { schemaVersion: 1 as const, templateId: "electric-propulsion-transfer" as const, slots: parsed.slots } }
+  const candidate = calibration as Partial<SatelliteElectricPropulsionCalibration>
+  const numericFields = [candidate.dutyCycle, candidate.fixedEfficiency, candidate.ispSeconds, candidate.nominalPowerKw, candidate.nominalThrustNewtons]
+  if (numericFields.some(value => typeof value !== "number" || !Number.isFinite(value))) throw new Error("electric-propulsion values YAML has an invalid script_calibration")
+  return {
+    calibration: candidate as SatelliteElectricPropulsionCalibration,
+    values: { schemaVersion: 1 as const, templateId: "electric-propulsion-transfer" as const, slots: parsed.slots },
   }
 }
 
@@ -239,21 +256,21 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   // re-read independently from satellite.json: the YAML is the auditable
   // input immediately preceding script rendering.
   const satelliteInputs = await loadSatelliteElectricPropulsionInputs(workspaceDir)
-  const satelliteSnapshot = await loadSatelliteYamlSnapshot(workspaceDir)
   const valuesWithSatelliteInputs = satelliteInputs ? { ...renderedValues, satelliteInputs } : renderedValues
+  const { satelliteInputs: _internalSatelliteInputs, ...yamlValues } = valuesWithSatelliteInputs
   const calibration = calibrationFromSatelliteInputs(valuesWithSatelliteInputs.satelliteInputs)
+  await fs.writeFile(valuesPath, stringify({
+    ...yamlValues,
+    ...(calibration ? { script_calibration: calibration } : {}),
+  }), "utf8")
+  const persisted = parseElectricPropulsionRunYaml(await fs.readFile(valuesPath, "utf8"))
   const renderedScript = applySatelliteElectricPropulsionCalibration(
-    enableEphemerisOutput(renderElectricPropulsionValues(template, valuesWithSatelliteInputs)),
-    calibration,
+    enableEphemerisOutput(renderElectricPropulsionValues(template, persisted.values)),
+    persisted.calibration,
   )
   await Promise.all([
     fs.writeFile(scriptPath, renderedScript, "utf8"),
-    fs.writeFile(valuesPath, stringify({
-      ...valuesWithSatelliteInputs,
-      ...(satelliteInputs ? { electric_propulsion_inputs: satelliteInputs } : {}),
-      ...(satelliteSnapshot ? { satellite_inputs: satelliteSnapshot } : {}),
-    }), "utf8"),
-    ...(calibration ? [fs.writeFile(calibrationPath, `${JSON.stringify({ schemaVersion: 1, model: "fixed-efficiency", ...calibration }, null, 2)}\n`, "utf8")] : []),
+    ...(persisted.calibration ? [fs.writeFile(calibrationPath, `${JSON.stringify({ schemaVersion: 1, model: "fixed-efficiency", ...persisted.calibration }, null, 2)}\n`, "utf8")] : []),
   ])
   onProgress?.({ key: "render_script", percent: 60, status: "completed" })
   if (execution) onProgress?.({ key: "run_gmat", percent: 65, status: "running" })

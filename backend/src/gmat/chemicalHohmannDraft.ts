@@ -7,7 +7,6 @@ import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { requestGmatModel } from "./modelRequest.js"
 import { writeDraftRunComparisonIndex } from "./draftRunComparison.js"
 import { assertGmatMissionGuardrails, validateGmatMissionGuardrails } from "./missionGuardrails.js"
-import { loadSatelliteYamlSnapshot } from "./satelliteYamlSnapshot.js"
 
 export type ChemicalHohmannDraftValue = string | number | null
 export type ChemicalHohmannDraft = {
@@ -100,8 +99,7 @@ function refresh(draft: Omit<ChemicalHohmannDraft, "missing" | "status" | "updat
 async function save(workspaceDir: string, draft: ChemicalHohmannDraft) {
   const output = draftPath(workspaceDir, draft.draftId)
   await fs.mkdir(path.dirname(output), { recursive: true })
-  const satelliteInputs = await loadSatelliteYamlSnapshot(workspaceDir)
-  const valuesSource = stringify({ draft_id: draft.draftId, template_id: draft.templateId, updated_at: draft.updatedAt, values: draft.values, ...(satelliteInputs ? { satellite_inputs: satelliteInputs } : {}) })
+  const valuesSource = stringify({ draft_id: draft.draftId, template_id: draft.templateId, updated_at: draft.updatedAt, values: draft.values })
   await Promise.all([
     fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`, "utf8"),
     fs.writeFile(path.join(path.dirname(output), "chemical_hohmann_transfer.values.yaml"), valuesSource, "utf8"),

@@ -6,9 +6,8 @@ import { initializeDraftDigitalThread, isMissionRunWorkspace } from "../digitalT
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian, semiMajorAxisFromPeriapsisAltitude, type CartesianState, type KeplerianElements } from "./orbitCoordinates.js"
 import { requestGmatModel } from "./modelRequest.js"
-import { electricPropulsionSatelliteInputs, type ElectricPropulsionValueChange, type ElectricPropulsionValues } from "./electricPropulsionValues.js"
+import type { ElectricPropulsionValueChange, ElectricPropulsionValues } from "./electricPropulsionValues.js"
 import { writeDraftRunComparisonIndex } from "./draftRunComparison.js"
-import { loadSatelliteYamlSnapshot } from "./satelliteYamlSnapshot.js"
 
 type DraftValue = string | number | null
 type DraftValues = Record<string, DraftValue>
@@ -269,17 +268,11 @@ async function saveDraft(workspaceDir: string, draft: ElectricPropulsionDraft) {
   // The live YAML mirrors the run YAML's satellite-input section so an
   // engineer can inspect the complete satellite.json → YAML translation
   // before launching GMAT.
-  const satelliteDocument = await fs.readFile(path.join(path.resolve(workspaceDir), "satellite.json"), "utf8")
-    .then(source => JSON.parse(source) as unknown)
-    .catch(() => null)
-  const satelliteSnapshot = await loadSatelliteYamlSnapshot(workspaceDir)
   const valuesSource = stringify({
     draft_id: draft.draftId,
     template_id: draft.templateId,
     updated_at: draft.updatedAt,
     values: draft.values,
-    ...(satelliteDocument ? { electric_propulsion_inputs: electricPropulsionSatelliteInputs(satelliteDocument) } : {}),
-    ...(satelliteSnapshot ? { satellite_inputs: satelliteSnapshot } : {}),
   })
   await Promise.all([
     fs.writeFile(output, `${JSON.stringify(draft, null, 2)}\n`, "utf8"),

@@ -79,16 +79,9 @@ describe("digital thread mission consistency", () => {
     assert.equal(savedSatellite.satellite.orbit.keplerian_elements.semi_major_axis_km, 6678.1363)
     const savedDraftYaml = parseDocument(await fs.readFile(path.join(planning.workspaceDir, "electric_propulsion_transfer.values.yaml"), "utf8")).toJS() as {
       values: Record<string, unknown>
-      satellite_inputs: { propulsion: { nominalThrustNewtons: number; specificImpulseSeconds: number }; electrical: { solarArray: { totalPowerGeneratedWatts: number }; busLoadKw: number; battery: { capacityAh: number; energyWh: number } } }
     }
     assert.equal(savedDraftYaml.values["initialOrbit.smaKm"], 6678.1363)
     assert.equal(savedDraftYaml.values["transfer.finalAltitudeKm"], 550)
-    assert.equal(savedDraftYaml.satellite_inputs.propulsion.nominalThrustNewtons, 0.15)
-    assert.equal(savedDraftYaml.satellite_inputs.propulsion.specificImpulseSeconds, 4200)
-    assert.equal(savedDraftYaml.satellite_inputs.electrical.solarArray.totalPowerGeneratedWatts, 4200)
-    assert.equal(savedDraftYaml.satellite_inputs.electrical.busLoadKw, 1.5)
-    assert.equal(savedDraftYaml.satellite_inputs.electrical.battery.capacityAh, 100)
-    assert.equal(savedDraftYaml.satellite_inputs.electrical.battery.energyWh, 12000)
 
     // Rendering is tested independently of an actual GMAT executable.  The
     // selected Starlink reference is deliberately power-limited, so it may be
@@ -102,7 +95,7 @@ describe("digital thread mission consistency", () => {
     const script = await fs.readFile(generated.scriptPath, "utf8")
     const renderedYaml = parseDocument(await fs.readFile(generated.valuesPath, "utf8")).toJS() as {
       slots: Array<{ context: string; value: string }>
-      satelliteInputs: { propulsion: { nominalThrustNewtons: number; specificImpulseSeconds: number }; electrical: { solarArray: { totalPowerGeneratedWatts: number }; busLoadKw: number; battery: { capacityAh: number; energyWh: number } } }
+      script_calibration: { fixedEfficiency: number; ispSeconds: number; nominalThrustNewtons: number }
     }
     const manifest = JSON.parse(await fs.readFile(generated.manifestPath, "utf8")) as { inputs: { script: string; values: string }; templateId: string }
 
@@ -124,12 +117,9 @@ describe("digital thread mission consistency", () => {
     assert.equal(calibration.fixedEfficiency, 0.73549875)
     assert.equal(calibration.declaredFixedEfficiency, 0.73549875)
     assert.ok(renderedYaml.slots.some(slot => slot.context.startsWith("DefaultSC.SMA =") && slot.value === "6678.1363"))
-    assert.equal(renderedYaml.satelliteInputs.propulsion.nominalThrustNewtons, 0.15)
-    assert.equal(renderedYaml.satelliteInputs.propulsion.specificImpulseSeconds, 4200)
-    assert.equal(renderedYaml.satelliteInputs.electrical.solarArray.totalPowerGeneratedWatts, 4200)
-    assert.equal(renderedYaml.satelliteInputs.electrical.busLoadKw, 1.5)
-    assert.equal(renderedYaml.satelliteInputs.electrical.battery.capacityAh, 100)
-    assert.equal(renderedYaml.satelliteInputs.electrical.battery.energyWh, 12000)
+    assert.equal(renderedYaml.script_calibration.nominalThrustNewtons, 0.15)
+    assert.equal(renderedYaml.script_calibration.ispSeconds, 4200)
+    assert.equal(renderedYaml.script_calibration.fixedEfficiency, 0.73549875)
     assert.equal(manifest.templateId, "electric-propulsion-transfer")
     assert.equal(manifest.inputs.script, "electric_propulsion_transfer.script")
     assert.equal(manifest.inputs.values, "electric_propulsion_transfer.values.yaml")
