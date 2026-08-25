@@ -10,7 +10,9 @@
     "test:gmat:baseline": "node --import tsx --test tests/gmat/gmatTemplateBaseline.test.ts tests/gmat/orbitKeepingValues.test.ts tests/gmat/electricPropulsionService.test.ts tests/digitalThread/digitalThreadGmatFlow.test.ts",
     "test:e2e:thermal": "node --import tsx --test tests/e2e/thermalModelBackends.e2e.test.ts",
     "test:gmat:electric": "node --import tsx --test tests/gmat/electricPropulsionDraft.test.ts tests/gmat/electricPropulsionRunner.test.ts tests/gmat/electricPropulsionService.test.ts",
-    "test:e2e:gmat:electric": "node --import tsx --test tests/e2e/electricPropulsionGmat.e2e.test.ts"
+    "test:e2e:gmat:electric": "node --import tsx --test tests/e2e/electricPropulsionGmat.e2e.test.ts",
+    "scenario:create": "node scripts/createMissionScenario.mjs",
+    "test:scenario-kit": "node --import tsx --test tests/gmat/missionScenarioKit.test.ts"
     ,"campaign:gmat": "node --import tsx scripts/gmatCompatibilityCampaign.ts"
     ,"test:e2e:digital-thread": "node --import tsx --test tests/e2e/digitalThreadMissionConsistency.e2e.test.ts"
     ,"test:smoke:mission": "node --import tsx --test tests/e2e/digitalThreadMissionConsistency.e2e.test.ts tests/vts/vts.routes.test.ts"

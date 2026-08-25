@@ -3,10 +3,22 @@ import path from "node:path"
 
 import { getBackendRoot } from "../config.js"
 
-/** IDs are a compile-time guard for the template adapters. The definition of
- * each template itself comes only from its versioned template.json manifest. */
-export const GMAT_TEMPLATE_IDS = ["orbit-keeping", "electric-propulsion-transfer", "chemical-hohmann-transfer", "chemical-3d-transfer"] as const
-export type GmatTemplateId = typeof GMAT_TEMPLATE_IDS[number]
+/**
+ * Role: Registers the deterministic GMAT mission scenarios available to the
+ * application.
+ * Exports: scenario IDs, validated scenario definitions and compatibility
+ * aliases retained for older routes.
+ * Dependencies: backend path configuration and versioned scenario manifests.
+ *
+ * New scenarios use `<id>-scenario/scenario.json`. Existing `template.json`
+ * manifests are deliberately supported during the non-breaking migration.
+ */
+export const GMAT_MISSION_SCENARIO_IDS = ["orbit-keeping", "electric-propulsion-transfer", "chemical-hohmann-transfer", "chemical-3d-transfer"] as const
+export type GmatMissionScenarioId = typeof GMAT_MISSION_SCENARIO_IDS[number]
+/** @deprecated Use GMAT_MISSION_SCENARIO_IDS. */
+export const GMAT_TEMPLATE_IDS = GMAT_MISSION_SCENARIO_IDS
+/** @deprecated Use GmatMissionScenarioId. */
+export type GmatTemplateId = GmatMissionScenarioId
 export type GmatAnalysisRequestKey = "orbit_keeping" | "electric_propulsion_transfer" | "chemical_hohmann_transfer" | "chemical_3d_transfer"
 
 export type GmatTemplateMissionInput = {
@@ -25,7 +37,7 @@ export type GmatTemplateUiDefinition = {
   summary: string
 }
 
-export type GmatTemplateDefinition = {
+export type GmatMissionScenarioDefinition = {
   analysisRequestKey: GmatAnalysisRequestKey
   artifacts: Array<{ kind: string; path: string; primary: boolean }>
   chatMode: string
@@ -34,7 +46,7 @@ export type GmatTemplateDefinition = {
   draftDirectory: string[]
   gmatReferenceScript: string
   gmatReferenceValues?: string
-  id: GmatTemplateId
+  id: GmatMissionScenarioId
   initialStateRepresentation: string
   name: string
   propulsionRequirement: string
@@ -42,6 +54,8 @@ export type GmatTemplateDefinition = {
   skillDirectory: string
   ui: GmatTemplateUiDefinition
 }
+/** @deprecated Use GmatMissionScenarioDefinition. */
+export type GmatTemplateDefinition = GmatMissionScenarioDefinition
 
 type TemplateManifest = {
   analysis_request_key: string
@@ -107,11 +121,25 @@ function readUi(value: unknown, manifestPath: string): GmatTemplateUiDefinition 
   }
 }
 
-function readManifest(template: GmatTemplateId): GmatTemplateDefinition {
-  const skillDirectory = path.join(getBackendRoot(), "workflow_agents", "gmat_skills", template === "chemical-3d-transfer" ? template : `${template}-template`)
-  const manifestPath = path.join(skillDirectory, "template.json")
+function scenarioManifestLocation(scenario: GmatMissionScenarioId) {
+  const root = path.join(getBackendRoot(), "workflow_agents", "gmat_skills")
+  const directories = [
+    path.join(root, `${scenario}-scenario`),
+    path.join(root, scenario === "chemical-3d-transfer" ? scenario : `${scenario}-template`),
+  ]
+  for (const skillDirectory of directories) {
+    for (const fileName of ["scenario.json", "template.json"]) {
+      const manifestPath = path.join(skillDirectory, fileName)
+      if (fs.existsSync(manifestPath)) return { manifestPath, skillDirectory }
+    }
+  }
+  throw new Error(`mission scenario manifest is missing for ${scenario}`)
+}
+
+function readManifest(scenario: GmatMissionScenarioId): GmatMissionScenarioDefinition {
+  const { manifestPath, skillDirectory } = scenarioManifestLocation(scenario)
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as Partial<TemplateManifest>
-  if (manifest.id !== template) throw new Error(`template manifest id must be ${template}: ${manifestPath}`)
+  if (manifest.id !== scenario) throw new Error(`mission scenario manifest id must be ${scenario}: ${manifestPath}`)
   for (const property of ["analysis_request_key", "chat_mode", "description", "gmat_reference_script", "initial_state_representation", "name", "propulsion_requirement"] as const) {
     if (typeof manifest[property] !== "string" || !manifest[property].trim()) throw new Error(`missing ${property} in ${manifestPath}`)
   }
@@ -128,7 +156,7 @@ function readManifest(template: GmatTemplateId): GmatTemplateDefinition {
     draftDirectory,
     gmatReferenceScript: required.gmat_reference_script,
     gmatReferenceValues: required.gmat_reference_values,
-    id: template,
+    id: scenario,
     initialStateRepresentation: required.initial_state_representation,
     name: required.name,
     propulsionRequirement: required.propulsion_requirement,
@@ -138,8 +166,15 @@ function readManifest(template: GmatTemplateId): GmatTemplateDefinition {
   }
 }
 
-const definitions = Object.fromEntries(GMAT_TEMPLATE_IDS.map(template => [template, readManifest(template)])) as Record<GmatTemplateId, GmatTemplateDefinition>
+const definitions = Object.fromEntries(GMAT_MISSION_SCENARIO_IDS.map(scenario => [scenario, readManifest(scenario)])) as Record<GmatMissionScenarioId, GmatMissionScenarioDefinition>
 
+export function gmatMissionScenarioDefinition(scenario: GmatMissionScenarioId): GmatMissionScenarioDefinition { return definitions[scenario] }
+export function allGmatMissionScenarioDefinitions() { return GMAT_MISSION_SCENARIO_IDS.map(scenario => gmatMissionScenarioDefinition(scenario)) }
+export function isGmatMissionScenarioId(value: string): value is GmatMissionScenarioId { return (GMAT_MISSION_SCENARIO_IDS as readonly string[]).includes(value) }
+
+/** @deprecated Use gmatMissionScenarioDefinition. */
 export function gmatTemplateDefinition(template: GmatTemplateId): GmatTemplateDefinition { return definitions[template] }
+/** @deprecated Use allGmatMissionScenarioDefinitions. */
 export function allGmatTemplateDefinitions() { return GMAT_TEMPLATE_IDS.map(template => gmatTemplateDefinition(template)) }
+/** @deprecated Use isGmatMissionScenarioId. */
 export function isGmatTemplateId(value: string): value is GmatTemplateId { return (GMAT_TEMPLATE_IDS as readonly string[]).includes(value) }
