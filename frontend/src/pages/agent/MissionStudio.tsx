@@ -1,7 +1,8 @@
 import { useEffect, useState, type ComponentProps } from 'react'
 
 import { AgentFilesView } from './files/AgentFilesView'
-import { GMAT_MISSION_TEMPLATE_DEFINITIONS, isGmatMissionTemplateId, missionTemplateDefinition, type GmatMissionTemplateId } from './gmatMissionTemplates'
+import { isGmatMissionTemplateId, type GmatMissionTemplateId } from './gmatMissionTemplates'
+import { listMissionTemplateDefinitions, type MissionTemplateDefinition } from './missionTemplateCatalogApi'
 import { getSelectedSatellite, listSatelliteDefinitions, selectSatelliteDefinition, type SatelliteDefinition } from './satelliteLibraryApi'
 
 type Props = ComponentProps<typeof AgentFilesView> & {
@@ -15,6 +16,7 @@ type Props = ComponentProps<typeof AgentFilesView> & {
 
 export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteSelected, missionTemplate = null, onMissionTemplateSelected, onStartMission, ...files }: Props) {
   const [definitions, setDefinitions] = useState<SatelliteDefinition[]>([])
+  const [templates, setTemplates] = useState<MissionTemplateDefinition[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [error, setError] = useState('')
   const canSelectForRun = /[\\/]gmat[\\/]mission-runs[\\/][^\\/]+$/u.test(workspaceDir ?? '')
@@ -28,10 +30,11 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteS
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([listSatelliteDefinitions(), getSelectedSatellite(workspaceDir)])
-      .then(([items, thread]) => {
+    void Promise.all([listSatelliteDefinitions(), getSelectedSatellite(workspaceDir), listMissionTemplateDefinitions()])
+      .then(([items, thread, availableTemplates]) => {
         if (cancelled) return
         setDefinitions(items)
+        setTemplates(availableTemplates)
         setSelectedId(String(thread.document.digital_thread?.satellite_definition?.id ?? ''))
         setError('')
       })
@@ -40,11 +43,12 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteS
   }, [workspaceDir, refreshSatellite])
 
   const selected = definitions.find(item => item.id === selectedId)
+  const selectedTemplate = templates.find(item => item.id === missionTemplate)
   const source = <div className="mission-setup-sources">
     <section className="mission-template-source">
       <div>
         <span>GMAT MISSION SCENARIO</span>
-        <strong>{missionTemplate ? missionTemplateDefinition(missionTemplate).label : 'Choose a mission scenario'}</strong>
+        <strong>{selectedTemplate?.name ?? 'Choose a mission scenario'}</strong>
         <small>{templateLocked ? 'The mission scenario is locked for the current draft.' : 'Choose the mission scenario before entering mission parameters.'}</small>
       </div>
       <select aria-label="GMAT mission scenario" disabled={templateLocked || (!canSelectForRun && !onStartMission)} value={missionTemplate ?? ''} onChange={event => {
@@ -52,7 +56,7 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteS
         void ensureMissionRun().then(() => onMissionTemplateSelected?.(next)).catch(reason => setError(reason instanceof Error ? reason.message : 'Unable to start a mission run'))
       }}>
         <option value="">Choose a mission scenario...</option>
-        {Object.values(GMAT_MISSION_TEMPLATE_DEFINITIONS).map(template => <option key={template.id} value={template.id}>{template.label}</option>)}
+        {templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}
       </select>
     </section>
     <section className="mission-satellite-source">

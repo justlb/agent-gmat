@@ -24,5 +24,7 @@ test("every GMAT template manifest declares a usable and distinct workflow contr
     assert.ok(template.satelliteInputs.length > 0, `${template.id} declares satellite inputs`)
     assert.ok(template.downstreamAnalyses.includes("simu-cic"), `${template.id} supports Simu-CIC`)
     assert.ok(fs.existsSync(path.join(template.skillDirectory, template.gmatReferenceScript)), `${template.id} reference script exists`)
+    assert.ok(template.ui.missionInputFields.length > 0, `${template.id} declares Mission Studio input fields`)
+    assert.ok(template.ui.satelliteRequirements.length > 0, `${template.id} declares Mission Studio satellite requirements`)
   }
 })

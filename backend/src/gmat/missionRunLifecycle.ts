@@ -3,6 +3,9 @@ import path from "node:path"
 import { snapshotDigitalThreadForRun, type DigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { appendRunConversation, snapshotMissionConversationForRun } from "../digitalThread/missionConversationStore.js"
 import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
+import { completeRunStage, deferRunStage, failRunStage } from "../runs/runLifecycle.js"
+import { getErrorMessage } from "../shared/index.js"
+import { updateRunManifest } from "../runs/runManifest.js"
 
 type MissionRunResult = { error?: string; status: string; warnings?: string[] }
 type DraftConversationTurn = { assistant: string; user: string }
@@ -24,14 +27,29 @@ export async function finalizeMissionRun({
   runDir: string
   workspaceDir: string
 }) {
-  await snapshotMissionConversationForRun(workspaceDir, runDir, draftConversation)
-  const answer = result.status === "failed" || result.status === "timeout"
+  const gmatCompleted = result.status === "completed"
+  const gmatGenerated = result.status === "generated"
+  const gmatMessage = result.error ?? (result.warnings?.join(" ") || null)
+  const answer = gmatGenerated
+    ? "GMAT script generated successfully, but the simulation has not been executed yet."
+    : result.status === "failed" || result.status === "timeout"
     ? `GMAT ${result.status}: ${result.error || "GMAT did not produce a usable result. Review the generated log file for details."}`
     : result.warnings?.length
       ? `GMAT completed with safety warnings: ${result.warnings.join(" ")}`
       : "GMAT completed successfully. You can now ask questions about the saved results or request a revised run."
-  await appendRunConversation(runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: "GMAT execution" })
-  await snapshotDigitalThreadForRun(workspaceDir, runDir, digitalThreadSnapshot)
-  await writeRunAnalysisContext(runDir)
+  try {
+    await snapshotMissionConversationForRun(workspaceDir, runDir, draftConversation)
+    await appendRunConversation(runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: "GMAT execution" })
+    await snapshotDigitalThreadForRun(workspaceDir, runDir, digitalThreadSnapshot)
+    await writeRunAnalysisContext(runDir)
+    await updateRunManifest(runDir, { status: result.status })
+    if (gmatCompleted) await completeRunStage(runDir, "gmat", gmatMessage)
+    else if (gmatGenerated) await deferRunStage(runDir, "gmat", "GMAT script generated; simulation not executed.")
+    else await failRunStage(runDir, "gmat", gmatMessage ?? `GMAT ended with status ${result.status}.`)
+  } catch (error) {
+    await updateRunManifest(runDir, { status: "failed", finalizationError: getErrorMessage(error, "unknown persistence error") }).catch(() => undefined)
+    await failRunStage(runDir, "gmat", `Run finalization failed: ${getErrorMessage(error, "unknown persistence error")}`).catch(() => undefined)
+    throw error
+  }
   return path.relative(path.resolve(root), runDir)
 }

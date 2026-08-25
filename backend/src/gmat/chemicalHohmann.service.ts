@@ -3,7 +3,8 @@ import path from "node:path"
 import { parseDocument, stringify } from "yaml"
 
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
-import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { beginRunStage, invalidateDownstreamFromGmat } from "../runs/runLifecycle.js"
+import { updateRunManifest } from "../runs/runManifest.js"
 import { runManagedProcess } from "./externalProcess.js"
 import { snapshotRunArtifacts } from "./artifactHistory.js"
 import { keplerianToCartesian } from "./orbitCoordinates.js"
@@ -172,6 +173,7 @@ export async function generateChemicalHohmannMission({ draft, workspaceDir, temp
   await fs.writeFile(scriptPath, script, "utf8")
   let executionResult: { durationMs: number; error?: string; exitCode: number | null; status: "completed" | "failed" | "timeout" } | undefined
   if (execution) {
+    await beginRunStage(runDir, "gmat", "GMAT simulation is running.")
     const started = Date.now()
     const { exitCode, output, timedOut } = await runManagedProcess({ args: ["--run", toGmatNativePath(scriptPath)], command: execution.bin, cwd: runDir, timeoutMs: execution.timeoutMs })
     await fs.writeFile(logPath, output)
@@ -183,8 +185,8 @@ export async function generateChemicalHohmannMission({ draft, workspaceDir, temp
   const manifest = { schemaVersion: 1, runId, tool: "GMAT", templateId: "chemical-hohmann-transfer", status: result.status, request: "Deterministic chemical Hohmann transfer", createdAt, completedAt: executionResult ? new Date().toISOString() : null, inputs: { script: path.basename(scriptPath), values: path.basename(valuesPath) }, outputs: { result: path.basename(resultPath), report: null, ephemeris: executionResult?.status === "completed" ? path.basename(ephemerisPath) : null, log: executionResult ? path.basename(logPath) : null } }
   await Promise.all([
     fs.writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8"),
-    fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8"),
+    updateRunManifest(runDir, manifest),
   ])
-  await updateRunWorkflowLog(runDir, "simu_cic", "not_started", null)
+  await invalidateDownstreamFromGmat(runDir)
   return { manifestPath, result, resultPath, runDir, runId, scriptPath, valuesPath }
 }

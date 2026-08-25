@@ -7,11 +7,13 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { adaptDigitalThreadToGmat } from "./gmatDigitalThreadAdapter.js"
-import { createEphemeralDigitalThread, createPlanningRun, digitalThreadPath, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, syncSimuCicRequestToRunSnapshot, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
+import { createEphemeralDigitalThread, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
 import { getSatelliteDefinition, listSatelliteDefinitions, selectSatelliteDefinition } from "./satelliteLibrary.js"
 import { assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
 import { appendMissionConversation, loadMissionConversation } from "./missionConversationStore.js"
-import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { invalidateDownstreamFromSimuCic, invalidateRunFrom } from "../runs/runLifecycle.js"
+import { createMissionRun } from "../runs/missionRunService.js"
+import { resolveMissionRun } from "../runs/runWorkspace.js"
 import { resolveMissionWorkspace } from "../gmat/missionWorkspace.js"
 
 function resolveWorkspaceDir(root: string, requested: unknown) {
@@ -21,7 +23,7 @@ function resolveWorkspaceDir(root: string, requested: unknown) {
 function resolveMissionRunArtifact(root: string, workspaceDir: string, fileName: string) {
   const allowedFiles = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
   const resolvedWorkspace = path.resolve(workspaceDir)
-  if (!isPathInside(path.resolve(root), resolvedWorkspace) || !resolvedWorkspace.split(path.sep).includes("mission-runs") || !allowedFiles.test(fileName)) return null
+  if (!resolveMissionRun(root, resolvedWorkspace) || !allowedFiles.test(fileName)) return null
   return path.join(resolvedWorkspace, fileName)
 }
 
@@ -37,16 +39,12 @@ function response(document: Awaited<ReturnType<typeof loadOrCreateDigitalThread>
   }
 }
 
-// `digital-thread/satellite.json` is the canonical document for a dated
-// mission. The root-level satellite.json is its immutable run export.
+// A dated mission owns exactly one root-level satellite.json. The UI and all
+// tool adapters therefore read the same document, with no stale export.
 async function loadDigitalThreadForView(workspaceDir: string) {
   // The workspace root is never mission state. Returning an unsaved empty
   // document prevents a previous run from becoming input to the next one.
   if (!isMissionRunWorkspace(workspaceDir)) return createEphemeralDigitalThread()
-  const canonical = await fs.readFile(digitalThreadPath(workspaceDir), "utf8").catch(() => null)
-  if (canonical) return JSON.parse(canonical) as Awaited<ReturnType<typeof loadOrCreateDigitalThread>>
-  const source = await fs.readFile(path.join(workspaceDir, "satellite.json"), "utf8").catch(() => null)
-  if (source) return JSON.parse(source) as Awaited<ReturnType<typeof loadOrCreateDigitalThread>>
   return loadOrCreateDigitalThread(workspaceDir)
 }
 
@@ -70,7 +68,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     try {
-      const planningRun = await createPlanningRun(resolveWorkspaceDir(root, req.body?.workspaceDir))
+      const planningRun = await createMissionRun(resolveWorkspaceDir(root, req.body?.workspaceDir))
       return reply.status(201).send({ planningRun })
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to start a planning run") }) }
   })
@@ -87,11 +85,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
       // A satellite replacement changes the propagated object. Existing GMAT,
       // Simu-CIC, OPALIS and RF-COMLINK outputs remain archived artifacts, but
       // must never be presented as valid inputs for the new satellite.
-      await Promise.all([
-        updateRunWorkflowLog(workspaceDir, "simu_cic", "not_started", "Satellite changed. Run GMAT and Simu-CIC again for the selected satellite."),
-        updateRunWorkflowLog(workspaceDir, "opalis", "not_started", "Satellite changed. Run GMAT and Simu-CIC again before OPALIS."),
-        updateRunWorkflowLog(workspaceDir, "rf_comlink", "not_started", "Satellite changed. Run GMAT and Simu-CIC again before RF-COMLINK."),
-      ])
+      await invalidateRunFrom(workspaceDir, "gmat", "Satellite changed. Run GMAT and downstream analyses again for the selected satellite.")
       await appendMissionConversation(workspaceDir, {
         answer: `Satellite changed to ${result.definition.name} v${result.definition.version}. Previous trajectory-dependent calculations are invalidated; create and run a new GMAT mission before continuing.`,
         askedAt: new Date().toISOString(),
@@ -110,7 +104,8 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
   })
 
   // The live source of truth is useful before a GMAT execution. Each executed
-  // run additionally receives its own immutable satellite.json export.
+  // run additionally receives its own immutable satellite.json snapshot,
+  // referenced from that run manifest.
   fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/digital-thread/satellite/download", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
@@ -159,7 +154,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     try {
       const workspaceDir = resolveWorkspaceDir(root, req.query.workspaceDir)
-      if (!workspaceDir.split(path.sep).includes("mission-runs")) return reply.status(400).send({ error: "workspaceDir is not a mission run" })
+      if (!resolveMissionRun(root, workspaceDir)) return reply.status(400).send({ error: "workspaceDir is not a mission run" })
       const allowed = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
       const entries = await fs.readdir(workspaceDir, { withFileTypes: true })
       const files = await Promise.all(entries.filter(entry => entry.isFile() && allowed.test(entry.name)).map(async entry => ({ fileName: entry.name, mtimeMs: (await fs.stat(path.join(workspaceDir, entry.name))).mtimeMs })))
@@ -215,16 +210,11 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
       values["analysis_requests.rf_comlink.selected_ground_station_id"] = { source: "simu_cic_configuration", recorded_at: new Date().toISOString() }
       document.provenance.values = values
       await saveDigitalThread(workspaceDir, document)
-      // A completed GMAT run has its immutable input at the run root, while
-      // the Mission Studio editor writes under digital-thread/. Mirror this
-      // downstream-only configuration immediately so Simu-CIC and RF-COMLINK
-      // Never leave a completed run's root export with an old attitude request.
-      const hasExecutedRunSnapshot = await fs.access(path.join(workspaceDir, "gmat_result.json")).then(() => true).catch(() => false)
-      if (hasExecutedRunSnapshot) {
-        await syncSimuCicRequestToRunSnapshot(workspaceDir, document)
-        await updateRunWorkflowLog(workspaceDir, "simu_cic", "not_started", "Simu-CIC configuration changed; rerun Simu-CIC.")
-        await updateRunWorkflowLog(workspaceDir, "opalis", "not_started", "Waiting for Simu-CIC after an attitude configuration change.")
-        await updateRunWorkflowLog(workspaceDir, "rf_comlink", "not_started", "Waiting for Simu-CIC after an attitude configuration change.")
+      // A post-GMAT change already updates this run's one satellite.json.
+      // Invalidate only downstream calculations when GMAT output exists.
+      const hasExecutedGmat = await fs.access(path.join(workspaceDir, "gmat_result.json")).then(() => true).catch(() => false)
+      if (hasExecutedGmat) {
+        await invalidateDownstreamFromSimuCic(workspaceDir)
       }
       return reply.send(response(document))
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to save Simu-CIC configuration") }) }

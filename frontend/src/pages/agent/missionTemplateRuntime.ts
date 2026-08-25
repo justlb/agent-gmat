@@ -1,6 +1,6 @@
 import { buildApiUrl, requestApiJson } from '../../app/apiClient'
 import { type OrbitKeepingDraft, type OrbitKeepingGenerateResult, type OrbitKeepingProgressEvent } from './orbitKeepingApi'
-import { GMAT_MISSION_TEMPLATE_DEFINITIONS, type GmatMissionTemplateId } from './gmatMissionTemplates'
+import { GMAT_MISSION_TEMPLATES, type GmatMissionTemplateId } from './gmatMissionTemplates'
 
 export type MissionTemplateExecutionOptions = {
   onProgress: (event: OrbitKeepingProgressEvent) => void
@@ -85,7 +85,7 @@ function genericRuntime(template: GmatMissionTemplateId): MissionTemplateFronten
 }
 
 const runtimes = Object.fromEntries(
-  Object.keys(GMAT_MISSION_TEMPLATE_DEFINITIONS).map(template => [template, genericRuntime(template as GmatMissionTemplateId)]),
+  Object.values(GMAT_MISSION_TEMPLATES).map(template => [template, genericRuntime(template)]),
 ) as Record<GmatMissionTemplateId, MissionTemplateFrontendRuntime>
 
 /** Template-specific API differences are isolated here. Mission Studio only

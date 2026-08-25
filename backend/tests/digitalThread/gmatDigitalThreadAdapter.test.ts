@@ -12,12 +12,12 @@ function documentWithSolar(solarPanels: Record<string, number | string | null>):
     satellite: {
       orbit: { reference_epoch_utc: "2026-08-15T00:00:00Z", reference_epoch_tai_mod_julian: null, keplerian_elements: { semi_major_axis_km: 6878, eccentricity: 0.0012, inclination_deg: 98.2, raan_deg: 45.7, arg_of_perigee_deg: 90, true_anomaly_deg: 123.4 } },
       bus: {
-        physical: { mass_kg: { dry: 1250, propellant: 430 }, drag_area_m2: 2, drag_coefficient: 2.2 },
+        physical: { mass_kg: { dry: 1250, propellant: 430 } },
         propulsion_subsystem: { type: "Hall-effect electric propulsion", electric_thruster: { propellant_mass_kg: 430, minimum_usable_power_kw: 0.638, maximum_usable_power_kw: 7.266 } },
         electrical_subsystem: { solar_panels: solarPanels, spacecraft_bus_load_kw: 0.3, system_margin_percent: 5 },
       },
     },
-    analysis_requests: { gmat: { electric_propulsion_transfer: { target_final_altitude_km: 550 }, orbit_keeping: {} } },
+    analysis_requests: { gmat: { electric_propulsion_transfer: { target_final_altitude_km: 800 }, orbit_keeping: {} } },
   }
 }
 
@@ -28,8 +28,6 @@ describe("GMAT digital-thread adapter", () => {
     assert.equal(result.values["power.initialMaxPowerKw"], 8.5)
     assert.equal(result.values["power.busLoadKw"], 0.3)
     assert.equal(result.values["power.systemMarginPercent"], 5)
-    assert.equal(result.values["spacecraft.dragAreaM2"], 2)
-    assert.equal(result.values["spacecraft.dragCoefficient"], 2.2)
     assert.ok(result.derivations.some(item => item.output === "power.initialMaxPowerKw"))
   })
 

@@ -12,6 +12,7 @@ import { PREDEFINED_GROUND_STATIONS } from "../opalis/groundStationCatalog.js"
 import { appendMissionConversation, appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { appendMissionTemplateDraftConversation, missionTemplateRuntime } from "./missionTemplateRuntime.js"
 import { allGmatTemplateDefinitions, gmatTemplateDefinition, isGmatTemplateId, type GmatTemplateId } from "./templateRegistry.js"
+import { resolveMissionRun } from "../runs/runWorkspace.js"
 
 type RoutingDecision = { target: "clarify" | "general" | GmatTemplateId; message: string }
 
@@ -35,10 +36,7 @@ function isSatelliteRunOverrideRequest(message: string) {
 }
 
 function resolveActiveGmatRunDir(root: string, requested: unknown) {
-  if (typeof requested !== "string" || !requested.trim()) return null
-  const runDir = path.resolve(root, requested)
-  const normalized = runDir.split(path.sep).join("/")
-  return isPathInside(path.resolve(root), runDir) && /\/gmat\/(?:orbit-keeping|electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized) ? runDir : null
+  return resolveMissionRun(root, requested)?.runDir ?? null
 }
 
 async function appendRequestedDraftTurn(workspaceDir: string, draftId: string, template: unknown, assistant: string, user: string) {

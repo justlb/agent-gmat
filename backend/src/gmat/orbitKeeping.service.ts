@@ -10,7 +10,8 @@ import { editOrbitKeepingValuesWithLlm, type OrbitKeepingLlmEditResult } from ".
 import { runOrbitKeepingGmat, toGmatNativePath, type OrbitKeepingExecutionResult } from "./orbitKeepingRunner.js"
 import { defaultOrbitKeepingTemplatePath } from "./orbitKeepingTemplate.js"
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
-import { updateRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { beginRunStage, invalidateDownstreamFromGmat } from "../runs/runLifecycle.js"
+import { updateRunManifest } from "../runs/runManifest.js"
 import { applyOrbitKeepingValueChanges, parseOrbitKeepingValues, renderOrbitKeepingValues, type OrbitKeepingValueChange } from "./orbitKeepingValues.js"
 
 function enableEphemerisOutput(script: string) {
@@ -189,16 +190,15 @@ export async function generateOrbitKeepingMission({
     id: ephemerisSlot.id,
     value: `'${ephemerisPath}'`,
   }])
-  // The emitted YAML is the concrete GMAT input contract. Re-read it before
-  // rendering so the generated script is demonstrably YAML → TypeScript →
-  // GMAT, rather than two independent serializations of the same draft.
-  await fs.writeFile(outputValuesPath, stringify(renderedValues), "utf8")
-  const persistedValues = parseOrbitKeepingValues(await fs.readFile(outputValuesPath, "utf8"))
-  const renderedScript = enableEphemerisOutput(renderOrbitKeepingValues(template, persistedValues))
-  await fs.writeFile(outputScriptPath, renderedScript, "utf8")
+  const renderedScript = enableEphemerisOutput(renderOrbitKeepingValues(template, renderedValues))
+  await Promise.all([
+    fs.writeFile(outputValuesPath, stringify(renderedValues), "utf8"),
+    fs.writeFile(outputScriptPath, renderedScript, "utf8"),
+  ])
   onProgress?.({ key: "render_script", percent: 60, status: "completed" })
 
   const startedAt = new Date().toISOString()
+  if (execution) await beginRunStage(outputDir, "gmat", "GMAT simulation is running.")
   if (execution) onProgress?.({ key: "run_gmat", percent: 65, status: "running" })
   const executionResult = execution
     ? await runOrbitKeepingGmat({ ...execution, scriptPath: outputScriptPath })
@@ -231,9 +231,9 @@ export async function generateOrbitKeepingMission({
   await Promise.all([
     fs.writeFile(outputResultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8"),
     fs.writeFile(outputTimeSeriesPath, `${JSON.stringify(executionResult?.timeSeriesSamples ?? [], null, 2)}\n`, "utf8"),
-    fs.writeFile(outputManifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8"),
+    updateRunManifest(outputDir, manifest),
   ])
-  await updateRunWorkflowLog(outputDir, "simu_cic", "not_started", null)
+  await invalidateDownstreamFromGmat(outputDir)
   onProgress?.({ key: "save_results", percent: 100, status: "completed" })
 
   return {

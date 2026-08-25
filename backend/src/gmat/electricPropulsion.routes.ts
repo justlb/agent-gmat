@@ -20,6 +20,7 @@ import { resolveMissionWorkspace } from "./missionWorkspace.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
 import { listRunArtifactHistory } from "./artifactHistory.js"
 import { finalizeMissionRun } from "./missionRunLifecycle.js"
+import { resolveMissionRun, resolveMissionRunArtifact } from "../runs/runWorkspace.js"
 
 type DraftMessageBody = { message?: unknown; workspaceDir?: unknown }
 type DraftWorkspaceBody = { workspaceDir?: unknown }
@@ -47,7 +48,7 @@ function electricPropulsionFileKind(fileName: string): ElectricPropulsionFileKin
   if (fileName === "EphemerisFile1.oem") return "ephemeris"
   if (fileName === "gmat-orbit.vts" || fileName === "GMAT_OEM_POSITION.TXT") return "vts"
   if (fileName.endsWith(".scd")) return "opalis"
-  if (fileName === "prepared-opalis.opalis" || fileName === "prepared-opalis.json" || fileName === "calculated-opalis.opalis" || fileName === "calculated-opalis.json" || fileName === "calculated-opalis-timeseries.json" || fileName === "opalis-parameters.json") return "opalis"
+  if (fileName === "prepared-opalis.opalis" || fileName === "prepared-opalis.json" || fileName === "calculated-opalis.opalis" || fileName === "calculated-opalis.json" || fileName === "opalis-parameters.json") return "opalis"
   if (fileName === "rf-comlink-inputs.json" || fileName === "prepared-rf-comlink.rfcl" || fileName === "calculated-rf-comlink.rfcl" || fileName === "rf-comlink-results.json" || fileName === "rf-comlink-calculation.log") return "rf-comlink"
   return null
 }
@@ -80,7 +81,6 @@ async function listElectricPropulsionFiles(userWorkspaceRoot: string) {
         ["opalis", "03-opalis", "02-resultats", "prepared-opalis.json"],
         ["opalis", "03-opalis", "02-resultats", "calculated-opalis.opalis"],
         ["opalis", "03-opalis", "02-resultats", "calculated-opalis.json"],
-        ["opalis", "03-opalis", "02-resultats", "calculated-opalis-timeseries.json"],
       ]
       for (const parts of opalisFiles) {
         const filePath = path.join(runDir, ...parts)
@@ -160,11 +160,10 @@ function resolveListedElectricPropulsionFilePath(userWorkspaceRoot: string, rela
   if (typeof relativePath !== "string" || !relativePath.trim()) return null
   const root = path.resolve(userWorkspaceRoot)
   const filePath = path.resolve(root, relativePath)
-  const normalized = filePath.split(path.sep).join("/")
   const segments = path.relative(root, filePath).split(path.sep)
   const historyIndex = segments.indexOf("artifact-history")
   const historicalArtifact = historyIndex >= 0 && segments.length > historyIndex + 3 && /^[A-Za-z0-9_-]+$/u.test(segments[historyIndex + 1]) && /^[-A-Za-z0-9_]+$/u.test(segments[historyIndex + 2]) && Boolean(electricPropulsionFileKind(path.basename(filePath)))
-  if (!isPathInside(root, filePath) || (!historicalArtifact && !/\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+\/(?:[^/]+\.script|[^/]+\.values\.yaml|(?:gmat_result|consolidated-run-report|run-analysis-context|workflow-status)\.json|satellite(?:\.digital-thread)?\.json|electric_transfer_timeseries\.json|electric_propulsion_calibration\.json|run_manifest\.json|ElectricTransferReport\.txt|EphemerisFile1\.oem|gmat\.log|vts\/(?:gmat-orbit\.vts|Data\/GMAT_OEM_POSITION\.TXT)|opalis\/02-simu-cic\/(?:00-scenario-input\/simucic-input\.scd|01-execution-complete\/[^/]+\.scd)|opalis\/02-opalis-input\/opalis-parameters\.json|opalis\/03-opalis\/02-resultats\/(?:prepared|calculated)-opalis\.(?:opalis|json)|rf-comlink\/(?:01-input\/rf-comlink-inputs\.json|02-scenario\/prepared-rf-comlink\.rfcl|03-results\/(?:calculated-rf-comlink\.rfcl|rf-comlink-results\.json|rf-comlink-calculation\.log)))$/u.test(normalized))) return null
+  if (!isPathInside(root, filePath) || (!historicalArtifact && !resolveMissionRunArtifact(root, relativePath))) return null
   return filePath
 }
 
@@ -172,11 +171,7 @@ function resolveOutputWorkspaceDir(userWorkspaceRoot: string, requestedWorkspace
   return resolveMissionWorkspace(userWorkspaceRoot, requestedWorkspaceDir)
 }
 function resolveRunDir(userWorkspaceRoot: string, runPath: unknown) {
-  if (typeof runPath !== "string" || !runPath.trim()) return null
-  const root = path.resolve(userWorkspaceRoot)
-  const runDir = path.resolve(root, runPath)
-  const normalized = runDir.split(path.sep).join("/")
-  return isPathInside(root, runDir) && /\/gmat\/(?:electric-propulsion-transfer|mission-runs)\/[^/]+$/u.test(normalized) ? runDir : null
+  return resolveMissionRun(userWorkspaceRoot, runPath)?.runDir ?? null
 }
 
 async function openGmatGui(guiBin: string | null, runDir: string) {

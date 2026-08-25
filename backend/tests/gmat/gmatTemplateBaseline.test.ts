@@ -23,7 +23,9 @@ const REFERENCE_TEMPLATES = [
   {
     id: "electric-propulsion-transfer",
     path: defaultElectricPropulsionTemplatePath,
-    sha256: "83dd351fbf5081dc5d5bc72caad7cb55facf30643c1773533350387d942f6e15",
+    // Approved electric-transfer reference after the calibrated propulsion
+    // parameters were updated and validated manually in GMAT.
+    sha256: "06291cf6b3ab56415257fcecba353786c85b5ffa08c1b3d0ac0933ac6326b2b6",
     render: (template: string) => renderElectricPropulsionValues(template, extractElectricPropulsionValues(template)),
   },
 ] as const

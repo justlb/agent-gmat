@@ -62,6 +62,7 @@ export type RunWorkflowStatus = 'not_started' | 'running' | 'completed' | 'faile
 export type RunWorkflowLog = {
   updated_at: string
   stages: {
+    gmat: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }
     simu_cic: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }
     opalis: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }
     rf_comlink: { message: string | null; status: RunWorkflowStatus; updated_at: string | null }

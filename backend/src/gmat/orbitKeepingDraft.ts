@@ -8,6 +8,7 @@ import { EARTH_EQUATORIAL_RADIUS_KM, cartesianToKeplerian, keplerianToCartesian,
 import { requestGmatModel } from "./modelRequest.js"
 import type { OrbitKeepingValueChange, OrbitKeepingValues } from "./orbitKeepingValues.js"
 import { writeDraftRunComparisonIndex } from "./draftRunComparison.js"
+import { resolveMissionRun } from "../runs/runWorkspace.js"
 
 type DraftValue = string | number | null
 type DraftValues = Record<string, DraftValue>
@@ -596,7 +597,8 @@ export async function confirmOrbitKeepingDraft(workspaceDir: string, draftId: st
 export async function recordOrbitKeepingDraftRun(workspaceDir: string, draftId: string, run: OrbitKeepingDraftRun) {
   const draft = await loadOrbitKeepingDraft(workspaceDir, draftId)
   if (draft.status !== "confirmed") throw new Error("GMAT draft must be confirmed before recording a run")
-  if (!/^[-A-Za-z0-9_]+$/u.test(run.runId) || !/^gmat[\\/](?:orbit-keeping|mission-runs)[\\/][-A-Za-z0-9_]+$/u.test(run.runPath)) {
+  const resolvedRun = resolveMissionRun(workspaceDir, run.runPath)
+  if (!resolvedRun || resolvedRun.runId !== run.runId) {
     throw new Error("invalid GMAT run reference")
   }
   const runs = [...draft.runs.filter(existing => existing.runId !== run.runId), { ...run, missionValues: { ...draft.values } }]

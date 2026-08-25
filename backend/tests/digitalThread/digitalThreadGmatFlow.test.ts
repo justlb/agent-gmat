@@ -5,7 +5,8 @@ import path from "node:path"
 import { describe, it } from "node:test"
 
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../../src/digitalThread/gmatDigitalThreadAdapter.js"
-import { createPlanningRun, draftDigitalThreadWorkspaceDir, initializeDraftDigitalThread, loadOrCreateDigitalThread, saveDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
+import { draftDigitalThreadWorkspaceDir, initializeDraftDigitalThread, loadOrCreateDigitalThread, saveDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
+import { createPlanningRun } from "../../src/runs/missionRunService.js"
 import { getSatelliteDefinition, selectSatelliteDefinition } from "../../src/digitalThread/satelliteLibrary.js"
 
 describe("digital thread to GMAT flow", () => {
@@ -26,14 +27,14 @@ describe("digital thread to GMAT flow", () => {
     assert.equal(satelliteBaseline.values["spacecraft.dryMassKg"], 296)
     assert.equal(satelliteBaseline.values["spacecraft.initialFuelMassKg"], 10)
     assert.equal(satelliteBaseline.values["power.initialMaxPowerKw"], 4.2)
-    assert.equal(satelliteBaseline.values["power.busLoadKw"], 1.5, "electric-propulsion mission allocation takes precedence over nominal bus load")
+    assert.equal(satelliteBaseline.values["power.busLoadKw"], 2.8, "electric-propulsion mission allocation takes precedence over nominal bus load")
 
     await syncDigitalThreadFromGmatDraft(workspaceDir, {
       templateId: "electric-propulsion-transfer",
       values: {
         ...satelliteBaseline.values,
         "initialOrbit.smaKm": 7300,
-        "transfer.finalAltitudeKm": 550,
+        "transfer.finalAltitudeKm": 800,
       },
     })
 
@@ -41,11 +42,11 @@ describe("digital thread to GMAT flow", () => {
     assert.equal(afterMission.satellite.bus.physical.mass_kg.dry, 296, "a mission must not alter the selected satellite dry mass")
     assert.equal(afterMission.satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg, 10, "a mission must not alter satellite propellant capacity")
     assert.equal(afterMission.analysis_requests.gmat.electric_propulsion_transfer.initial_orbit.semi_major_axis_km, 7300)
-    assert.equal(afterMission.analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km, 550)
+    assert.equal(afterMission.analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km, 800)
 
     const missionValues = adaptDigitalThreadToGmat(afterMission, "electric-propulsion-transfer")
     assert.equal(missionValues.values["initialOrbit.smaKm"], 7300, "mission orbit takes precedence over the satellite reference orbit")
-    assert.equal(missionValues.values["transfer.finalAltitudeKm"], 550)
+    assert.equal(missionValues.values["transfer.finalAltitudeKm"], 800)
     assert.equal(missionValues.values["spacecraft.dryMassKg"], 296, "satellite mass is still used to build the GMAT YAML")
   })
 
@@ -57,7 +58,7 @@ describe("digital thread to GMAT flow", () => {
     const first = await initializeDraftDigitalThread(workspaceDir, "electric-propulsion-transfer", "draft_first")
     assert.equal(first.satellite.bus.physical.mass_kg.dry, 296)
     assert.equal(first.analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km, null)
-    first.analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km = 550
+    first.analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km = 800
     await saveDigitalThread(firstWorkspace, first)
 
     const secondWorkspace = draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", "draft_second")
@@ -126,11 +127,9 @@ describe("digital thread to GMAT flow", () => {
     assert.equal(document.satellite.bus.physical.mass_kg.dry, null)
     assert.equal(document.digital_thread.satellite_definition, undefined)
     await fs.access(path.join(planningRun.workspaceDir, "satellite.json"))
-    await fs.access(path.join(planningRun.workspaceDir, "digital-thread", "satellite.json"))
-    await fs.access(path.join(planningRun.workspaceDir, "digital-thread", "revisions", "satellite.r000000.json"))
-    document.digital_thread.updated_at = "2026-08-16T00:00:00.000Z"
-    await saveDigitalThread(planningRun.workspaceDir, document)
-    await fs.access(path.join(planningRun.workspaceDir, "digital-thread", "revisions", "satellite.r000001.json"))
+    await fs.access(path.join(planningRun.workspaceDir, "conversation.json"))
+    await fs.access(path.join(planningRun.workspaceDir, "run_manifest.json"))
+    await fs.access(path.join(planningRun.workspaceDir, "workflow-status.json"))
   })
 
   it("never carries a satellite or Simu-CIC configuration from an earlier planning run", async () => {

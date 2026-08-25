@@ -59,14 +59,22 @@ if (-not $shell.AppActivate($process.Id)) { throw 'RF-COMLINK is no longer activ
 $shell.SendKeys('^s')
 Start-Sleep -Seconds 2
 
-# F5 can open a results window, hence two closes.  There should be no save
-# prompt because Ctrl+S above committed the run-local calculated scenario.
-$shell.SendKeys('%{F4}')
-Start-Sleep -Seconds 1
-$shell.SendKeys('%{F4}')
-Start-Sleep -Seconds 1
-$shell.SendKeys('n')
-if (-not $process.WaitForExit(5000)) {
+# Never use Alt+F4 here: once RF-COMLINK closes a result window, a second
+# global keystroke can reach the browser that launched this workflow. Close
+# only windows owned by the RF-COMLINK PID, then terminate that PID as a
+# bounded fallback. The calculated case was already saved above.
+$process.Refresh()
+if (-not $process.HasExited) {
+    [void]$process.CloseMainWindow()
+    Start-Sleep -Seconds 1
+    $process.Refresh()
+}
+if (-not $process.HasExited -and $process.MainWindowHandle -ne 0) {
+    [void]$process.CloseMainWindow()
+    Start-Sleep -Seconds 1
+    $process.Refresh()
+}
+if (-not $process.HasExited) {
     Stop-Process -Id $process.Id -Force
     if (-not $process.WaitForExit(5000)) { throw "RF-COMLINK (PID $($process.Id)) did not close." }
 }

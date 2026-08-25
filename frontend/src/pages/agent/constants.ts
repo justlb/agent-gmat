@@ -10,7 +10,7 @@ export type AgentNavItem = {
 
 export const NAV_ITEMS: AgentNavItem[] = [
   { label: 'Satellites', href: '#satellites', meta: 'Library' },
-  { label: 'Mission Scenarios', href: '#templates', meta: 'GMAT models' },
+  { label: 'Mission scenarios', href: '#templates', meta: 'GMAT models' },
   { label: 'Results', href: '#tools', meta: 'GMAT Analysis' },
   { label: 'Mission Studio', href: '#mission', meta: 'Missions' },
 ]

@@ -25,10 +25,11 @@
         "type": "Hall electric propulsion",
         "propellant": "Ammonia / hydrogen",
         "specific_impulse_seconds": 1300,
-        "main_engine_thrust_n": 0.013,
+        "nominal_thrust_newtons": 0.013,
+        "nominal_duty_cycle": 1,
         "electric_thruster": {
           "nominal_thrust_range_mn": [4, 13],
-          "maximum_operating_power_kw": 0.4,
+          "nominal_thruster_power_kw": 0.4,
           "minimum_usable_power_kw": 0.3,
           "maximum_usable_power_kw": 0.4,
           "propellant_mass_kg": 4.6,

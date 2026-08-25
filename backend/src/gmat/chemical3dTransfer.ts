@@ -4,6 +4,8 @@ import { parseDocument, stringify } from "yaml"
 
 import { initializeDraftDigitalThread, isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
+import { beginRunStage, invalidateDownstreamFromGmat } from "../runs/runLifecycle.js"
+import { updateRunManifest } from "../runs/runManifest.js"
 import { runManagedProcess } from "./externalProcess.js"
 import { requestGmatModel } from "./modelRequest.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
@@ -241,6 +243,7 @@ export async function generateChemical3dMission({ draft, workspaceDir, execution
   await fs.writeFile(scriptPath, script)
   let result: { error?: string; executionDurationMs?: number; status: "generated" | "completed" | "failed" | "timeout" } = { status: "generated" }
   if (execution) {
+    await beginRunStage(runDir, "gmat", "GMAT simulation is running.")
     const started = Date.now()
     const run = await runManagedProcess({ args: ["--run", toGmatNativePath(scriptPath)], command: execution.bin, cwd: runDir, timeoutMs: execution.timeoutMs })
     await fs.writeFile(logPath, run.output)
@@ -250,8 +253,9 @@ export async function generateChemical3dMission({ draft, workspaceDir, execution
   }
   await Promise.all([
     fs.writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`),
-    fs.writeFile(manifestPath, `${JSON.stringify({ schemaVersion: 1, templateId: draft.templateId, runId: path.basename(runDir), status: result.status, outputs: { ephemeris: result.status === "completed" ? path.basename(ephemerisPath) : null } }, null, 2)}\n`),
+    updateRunManifest(runDir, { templateId: draft.templateId, status: result.status, outputs: { ephemeris: result.status === "completed" ? path.basename(ephemerisPath) : null } }),
   ])
+  await invalidateDownstreamFromGmat(runDir)
   return { changes: [], result, runDir, runId: path.basename(runDir), scriptPath, valuesPath, resultPath, manifestPath }
 }
 

@@ -2,7 +2,7 @@
   "id": "ref-starlink-v1-5-public-rf",
   "version": "1.0.0",
   "name": "Starlink V1.5 Electric Reference",
-  "description": "Physical Starlink V1.5-class proxy for an electric-propulsion transfer. Mission orbit and run-specific values are intentionally excluded.",
+  "description": "Starlink V1.5-class electric-propulsion proxy. Its krypton Hall-thruster performance is inferred from SpaceX's published V2 Mini comparison (170 mN, 2500 s, stated as 2.4× thrust and 1.5× Isp of first generation); mission orbit and run-specific values are intentionally excluded.",
   "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
   "mission_templates": ["electric-propulsion-transfer"],
   "satellite": {
@@ -24,14 +24,12 @@
       "propulsion_subsystem": {
         "type": "Electric propulsion (Krypton Hall-effect thruster)",
         "propellant": "Krypton",
-        "specific_impulse_seconds": 4200,
-        "nominal_thrust_newtons": 0.15,
+        "specific_impulse_seconds": 1667,
+        "nominal_thrust_newtons": 0.0708,
         "nominal_duty_cycle": 1,
         "electric_thruster": {
-          "propellant_mass_kg": 10,
           "nominal_thruster_power_kw": 4.2,
-          "fixed_efficiency": 0.73549875,
-          "constant_thrust_newtons": 0.15,
+          "propellant_mass_kg": 10,
           "minimum_usable_power_kw": 1,
           "maximum_usable_power_kw": 4.2
         }
@@ -52,7 +50,7 @@
         "bus_voltage_v": 120,
         "spacecraft_bus_load_kw": 3.5,
         "electric_propulsion_mode": {
-          "bus_load_kw": 1.5
+          "bus_load_kw": 2.8
         },
         "system_margin_percent": 20
       },
@@ -84,8 +82,8 @@
         },
         "power_distribution": {
           "consumption_mode": "Constant",
-          "constant_load_w": 1500,
-          "margin_w": 840,
+          "constant_load_w": 3500,
+          "margin_w": 700,
           "rated_power_w": 4200
         },
         "environment": {
