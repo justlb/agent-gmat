@@ -13,13 +13,13 @@ import { getBackendRoot } from "../config.js"
  * New scenarios use `<id>-scenario/scenario.json`. Existing `template.json`
  * manifests are deliberately supported during the non-breaking migration.
  */
-export const GMAT_MISSION_SCENARIO_IDS = ["orbit-keeping", "electric-propulsion-transfer", "chemical-hohmann-transfer", "chemical-3d-transfer"] as const
+export const GMAT_MISSION_SCENARIO_IDS = ["orbit-keeping", "geo-gso-orbit-keeping", "geo-gso-electric-station-keeping", "geo-electric-end-of-life", "electric-propulsion-transfer", "chemical-hohmann-transfer", "chemical-3d-transfer"] as const
 export type GmatMissionScenarioId = typeof GMAT_MISSION_SCENARIO_IDS[number]
 /** @deprecated Use GMAT_MISSION_SCENARIO_IDS. */
 export const GMAT_TEMPLATE_IDS = GMAT_MISSION_SCENARIO_IDS
 /** @deprecated Use GmatMissionScenarioId. */
 export type GmatTemplateId = GmatMissionScenarioId
-export type GmatAnalysisRequestKey = "orbit_keeping" | "electric_propulsion_transfer" | "chemical_hohmann_transfer" | "chemical_3d_transfer"
+export type GmatAnalysisRequestKey = "orbit_keeping" | "geo_gso_orbit_keeping" | "geo_electric_station_keeping" | "geo_electric_end_of_life" | "electric_propulsion_transfer" | "chemical_hohmann_transfer" | "chemical_3d_transfer"
 
 export type GmatTemplateMissionInput = {
   derived?: "initialAltitude"

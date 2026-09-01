@@ -16,6 +16,9 @@ import { defaultOrbitKeepingValuesPath, generateOrbitKeepingMission } from "./or
 import { parseOrbitKeepingValues } from "./orbitKeepingValues.js"
 import type { GmatTemplateId } from "./templateRegistry.js"
 import { appendChemical3dDraftConversation, confirmChemical3dDraft, createChemical3dDraft, discussChemical3dDraft, generateChemical3dMission, loadChemical3dDraft, recordChemical3dDraftRun, setChemical3dDraftValue } from "./chemical3dTransfer.js"
+import { appendGeoElectricEndOfLifeDraftConversation, confirmGeoElectricEndOfLifeDraft, createGeoElectricEndOfLifeDraft, discussGeoElectricEndOfLifeDraft, generateGeoElectricEndOfLifeMission, loadGeoElectricEndOfLifeDraft, recordGeoElectricEndOfLifeDraftRun, setGeoElectricEndOfLifeDraftValue } from "./geoElectricEndOfLife.js"
+import { appendGeoGsoElectricStationKeepingDraftConversation, confirmGeoGsoElectricStationKeepingDraft, createGeoGsoElectricStationKeepingDraft, discussGeoGsoElectricStationKeepingDraft, generateGeoGsoElectricStationKeepingMission, loadGeoGsoElectricStationKeepingDraft, recordGeoGsoElectricStationKeepingDraftRun, setGeoGsoElectricStationKeepingDraftValue } from "./geoGsoElectricStationKeeping.js"
+import { appendGeoGsoOrbitKeepingDraftConversation, confirmGeoGsoOrbitKeepingDraft, createGeoGsoOrbitKeepingDraft, discussGeoGsoOrbitKeepingDraft, generateGeoGsoOrbitKeepingMission, loadGeoGsoOrbitKeepingDraft, recordGeoGsoOrbitKeepingDraftRun, setGeoGsoOrbitKeepingDraftValue } from "./geoGsoOrbitKeeping.js"
 
 export type MissionDraftValue = string | number | null
 
@@ -53,6 +56,26 @@ type MissionTemplateRuntime = {
  * Its GMAT generator remains template-specific, while shared HTTP/UI workflow
  * operations use this uniform contract. */
 const runtimes: Record<GmatTemplateId, MissionTemplateRuntime> = {
+  "geo-electric-end-of-life": { appendConversation: appendGeoElectricEndOfLifeDraftConversation, confirm: async (w,d,a) => confirmGeoElectricEndOfLifeDraft(w,d,a), create: async (w,v,p) => createGeoElectricEndOfLifeDraft(w,v,p), discuss: async ({ draft, message, workspaceDir }) => discussGeoElectricEndOfLifeDraft({ draft: draft as Awaited<ReturnType<typeof loadGeoElectricEndOfLifeDraft>>, message, workspaceDir }), execute: async ({ draft, execution, workspaceDir }) => generateGeoElectricEndOfLifeMission({ draft: draft as Awaited<ReturnType<typeof loadGeoElectricEndOfLifeDraft>>, execution, workspaceDir }), load: loadGeoElectricEndOfLifeDraft, recordRun: async ({ draft, execution, runPath, workspaceDir }) => recordGeoElectricEndOfLifeDraftRun({ draft: draft as Awaited<ReturnType<typeof loadGeoElectricEndOfLifeDraft>>, execution: execution as Awaited<ReturnType<typeof generateGeoElectricEndOfLifeMission>>, runPath, workspaceDir }), setValue: async (w,d,f,v) => setGeoElectricEndOfLifeDraftValue(w,d as Awaited<ReturnType<typeof loadGeoElectricEndOfLifeDraft>>,f,v) },
+  "geo-gso-electric-station-keeping": {
+    appendConversation: appendGeoGsoElectricStationKeepingDraftConversation,
+    confirm: async (workspaceDir, draftId, authoritative) => confirmGeoGsoElectricStationKeepingDraft(workspaceDir, draftId, authoritative),
+    create: async (workspaceDir, initialValues, requiredPaths) => createGeoGsoElectricStationKeepingDraft(workspaceDir, initialValues, requiredPaths),
+    discuss: async ({ draft, message, workspaceDir }) => discussGeoGsoElectricStationKeepingDraft({ draft: draft as Awaited<ReturnType<typeof loadGeoGsoElectricStationKeepingDraft>>, message, workspaceDir }),
+    execute: async ({ draft, execution, workspaceDir }) => generateGeoGsoElectricStationKeepingMission({ draft: draft as Awaited<ReturnType<typeof loadGeoGsoElectricStationKeepingDraft>>, execution, workspaceDir }),
+    load: loadGeoGsoElectricStationKeepingDraft,
+    recordRun: async ({ draft, execution, runPath, workspaceDir }) => recordGeoGsoElectricStationKeepingDraftRun({ draft: draft as Awaited<ReturnType<typeof loadGeoGsoElectricStationKeepingDraft>>, execution: execution as Awaited<ReturnType<typeof generateGeoGsoElectricStationKeepingMission>>, runPath, workspaceDir }),
+    setValue: async (workspaceDir, draft, field, value) => setGeoGsoElectricStationKeepingDraftValue(workspaceDir, draft as Awaited<ReturnType<typeof loadGeoGsoElectricStationKeepingDraft>>, field, value),
+  },  "geo-gso-orbit-keeping": {
+    appendConversation: appendGeoGsoOrbitKeepingDraftConversation,
+    confirm: async (workspaceDir, draftId, authoritative) => confirmGeoGsoOrbitKeepingDraft(workspaceDir, draftId, authoritative),
+    create: async (workspaceDir, initialValues, requiredPaths) => createGeoGsoOrbitKeepingDraft(workspaceDir, initialValues, requiredPaths),
+    discuss: async ({ draft, message, workspaceDir }) => discussGeoGsoOrbitKeepingDraft({ draft: draft as Awaited<ReturnType<typeof loadGeoGsoOrbitKeepingDraft>>, message, workspaceDir }),
+    execute: async ({ draft, execution, workspaceDir }) => generateGeoGsoOrbitKeepingMission({ draft: draft as Awaited<ReturnType<typeof loadGeoGsoOrbitKeepingDraft>>, execution, workspaceDir }),
+    load: loadGeoGsoOrbitKeepingDraft,
+    recordRun: async ({ draft, execution, runPath, workspaceDir }) => recordGeoGsoOrbitKeepingDraftRun({ draft: draft as Awaited<ReturnType<typeof loadGeoGsoOrbitKeepingDraft>>, execution: execution as Awaited<ReturnType<typeof generateGeoGsoOrbitKeepingMission>>, runPath, workspaceDir }),
+    setValue: async (workspaceDir, draft, field, value) => setGeoGsoOrbitKeepingDraftValue(workspaceDir, draft as Awaited<ReturnType<typeof loadGeoGsoOrbitKeepingDraft>>, field, value),
+  },
   "chemical-3d-transfer": {
     appendConversation: appendChemical3dDraftConversation,
     confirm: confirmChemical3dDraft,

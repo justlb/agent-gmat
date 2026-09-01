@@ -338,7 +338,29 @@ def get_time_range(data):
     return to_iso(data[0]), to_iso(data[-1])
 
 
-def convert_ephemeris(input_filename, output_filename):
+def downsample_records(data, max_records):
+    """Keep a deterministic, evenly distributed subset of an ephemeris.
+
+    GMAT can write tens of thousands of state records for long LEO runs.  That
+    is useful as a raw OEM archive, but can make the Simu-CIC GUI unstable or
+    impractically slow.  Simu-CIC receives a bounded copy while the original
+    OEM remains untouched in the mission run directory.
+    """
+    if not max_records or len(data) <= max_records:
+        return data, 1
+    if max_records < 2:
+        raise ValueError("max_records must be at least 2")
+
+    # Use index positions rather than a floating time accumulator: input
+    # records can have adaptive GMAT propagation steps and this always keeps
+    # the exact first and final state.
+    indexes = [round(index * (len(data) - 1) / (max_records - 1)) for index in range(max_records)]
+    selected = [data[index] for index in indexes]
+    stride = int(math.ceil(float(len(data)) / float(max_records)))
+    return selected, stride
+
+
+def convert_ephemeris(input_filename, output_filename, max_records=None):
     """Convert one supported ephemeris deterministically, without UI prompts.
 
     This is the API used by the application workflow.  It intentionally keeps
@@ -363,6 +385,8 @@ def convert_ephemeris(input_filename, output_filename):
 
     if not data:
         raise ValueError("No convertible records found in: {0}".format(input_filename))
+    source_records = len(data)
+    data, sample_stride = downsample_records(data, max_records)
     parent = os.path.dirname(os.path.abspath(output_filename))
     if parent and not os.path.isdir(parent):
         os.makedirs(parent)
@@ -373,6 +397,8 @@ def convert_ephemeris(input_filename, output_filename):
         "input": os.path.abspath(input_filename),
         "output": os.path.abspath(output_filename),
         "records": len(data),
+        "source_records": source_records,
+        "sample_stride": sample_stride,
         "type": file_type,
     }
 
@@ -383,12 +409,18 @@ if __name__ == "__main__":
     parser.add_argument("input", nargs="?", help="source ephemeris (.oem, .eph or .txt)")
     parser.add_argument("--output", "-o", help="destination CIC-OEM file")
     parser.add_argument("--json", action="store_true", help="print conversion metadata as JSON")
+    parser.add_argument(
+        "--max-records",
+        type=int,
+        default=None,
+        help="maximum number of CIC records to write (raw GMAT input is not modified)",
+    )
     arguments = parser.parse_args()
     if arguments.input:
         source = os.path.abspath(arguments.input)
         destination = os.path.abspath(arguments.output or (os.path.splitext(source)[0] + "_SIMU.txt"))
         try:
-            result = convert_ephemeris(source, destination)
+            result = convert_ephemeris(source, destination, arguments.max_records)
         except Exception as error:
             parser.error(str(error))
         if arguments.json:

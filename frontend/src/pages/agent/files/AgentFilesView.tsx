@@ -4,7 +4,7 @@ import type { WorkspaceFilePreview } from '../types'
 import { WorkspaceFilePreviewPanel } from '../WorkspaceFilePreviewPanel'
 import { joinApiPath } from '../../../app/apiBase'
 import { type OrbitKeepingDraft } from '../orbitKeepingApi'
-import { missionTemplateForChatMode } from '../gmatMissionTemplates'
+import { GMAT_MISSION_TEMPLATES, missionTemplateForChatMode } from '../gmatMissionTemplates'
 import { listMissionTemplateFiles, missionTemplateRuntime, type MissionTemplateFile } from '../missionTemplateRuntime'
 import { GmatMissionChat, type GmatMissionChatProps } from './GmatMissionChat'
 
@@ -70,8 +70,8 @@ function draftValuesDownloadUrl(draft: GmatSavedDraft, workspaceDir?: string | n
   return `${joinApiPath(undefined, `${base}/${encodeURIComponent(draft.draftId)}/download`)}?${query}`
 }
 
-function missionRunFileDownloadUrl(planningRun: PlanningDiscussion, file: string) {
-  const query = new URLSearchParams({ file, workspaceDir: planningRun.workspaceDir }).toString()
+function missionRunFileDownloadUrl(workspaceDir: string, file: string) {
+  const query = new URLSearchParams({ file, workspaceDir }).toString()
   return `${joinApiPath(undefined, '/digital-thread/mission-run/download')}?${query}`
 }
 
@@ -92,8 +92,8 @@ function missionLabel(missionType: MissionFile['missionType']) {
 
 function missionFileDownloadUrl(file: MissionFile, workspaceDir?: string | null) { return missionTemplateRuntime(file.missionType).downloadFile(file, workspaceDir) }
 
-async function listMissionRunFiles(planningRun: PlanningDiscussion) {
-  const query = new URLSearchParams({ workspaceDir: planningRun.workspaceDir }).toString()
+async function listMissionRunFiles(workspaceDir: string) {
+  const query = new URLSearchParams({ workspaceDir }).toString()
   const response = await fetch(`${joinApiPath(undefined, '/digital-thread/mission-run/files')}?${query}`, { cache: 'no-store' })
   if (!response.ok) throw new Error('Unable to load mission-run files')
   const payload = await response.json() as { files?: Array<{ fileName: string }> }
@@ -145,20 +145,12 @@ export function AgentFilesView({
     let cancelled = false
     void Promise.all([
       listMissionTemplateFiles(workspaceDir).catch(() => []),
-      missionTemplateRuntime('orbit-keeping').list(workspaceDir).catch(() => []),
-      missionTemplateRuntime('electric-propulsion-transfer').list(workspaceDir).catch(() => []),
-      missionTemplateRuntime('chemical-hohmann-transfer').list(workspaceDir).catch(() => []),
-      missionTemplateRuntime('chemical-3d-transfer').list(workspaceDir).catch(() => []),
+      ...Object.values(GMAT_MISSION_TEMPLATES).map(template => missionTemplateRuntime(template).list(workspaceDir).then(drafts => ({ drafts, template })).catch(() => ({ drafts: [], template }))),
     ])
-      .then(([files, orbitKeepingDrafts, electricPropulsionDrafts, chemicalHohmannDrafts, chemical3dDrafts]) => {
+      .then(([files, ...draftGroups]) => {
         if (!cancelled) {
           setGmatFiles(files)
-          setGmatDrafts([
-            ...orbitKeepingDrafts.map(draft => ({ ...draft, missionType: 'orbit-keeping' as const })),
-            ...electricPropulsionDrafts.map(draft => ({ ...draft, missionType: 'electric-propulsion-transfer' as const })),
-            ...chemicalHohmannDrafts.map(draft => ({ ...draft, missionType: 'chemical-hohmann-transfer' as const })),
-            ...chemical3dDrafts.map(draft => ({ ...draft, missionType: 'chemical-3d-transfer' as const })),
-          ].sort((left, right) => draftUpdatedAt(right) - draftUpdatedAt(left)))
+          setGmatDrafts(draftGroups.flatMap(group => group.drafts.map(draft => ({ ...draft, missionType: group.template }))).sort((left, right) => draftUpdatedAt(right) - draftUpdatedAt(left)))
           setGmatFilesError('')
         }
       })
@@ -167,10 +159,11 @@ export function AgentFilesView({
   }, [gmatMissionChat.draft, workspaceDir, workspaceRefreshNonce])
   useEffect(() => {
     let cancelled = false
-    if (!planningDiscussion) { setMissionRunFiles([]); return () => { cancelled = true } }
-    void listMissionRunFiles(planningDiscussion).then(files => { if (!cancelled) setMissionRunFiles(files) }).catch(() => { if (!cancelled) setMissionRunFiles([]) })
+    const runWorkspaceDir = activeGmatRunPath ?? planningDiscussion?.workspaceDir
+    if (!runWorkspaceDir) { setMissionRunFiles([]); return () => { cancelled = true } }
+    void listMissionRunFiles(runWorkspaceDir).then(files => { if (!cancelled) setMissionRunFiles(files) }).catch(() => { if (!cancelled) setMissionRunFiles([]) })
     return () => { cancelled = true }
-  }, [gmatMissionChat.draft, planningDiscussion, workspaceRefreshNonce])
+  }, [activeGmatRunPath, gmatMissionChat.draft, planningDiscussion?.workspaceDir, workspaceRefreshNonce])
   // The API list is asynchronous. Merge the active draft so a freshly opened
   // conversation is visible in the Mission Files panel in the same render.
   const activeDraft = gmatMissionChat.draft?.draftId
@@ -215,11 +208,11 @@ export function AgentFilesView({
                     <strong>Mission discussion · {draftTimestamp({ createdAt: planningDiscussion.createdAt, draftId: planningDiscussion.planningRunId } as OrbitKeepingDraft)}</strong>
                     <small>Routing the GMAT mission scenario</small>
                   </header>
-                  {primaryMissionRunFiles.map(file => <a className="agent-gmat-draft-file" href={missionRunFileDownloadUrl(planningDiscussion, file)} key={file}><span>{file}</span><small>Download</small></a>)}
+                  {primaryMissionRunFiles.map(file => <a className="agent-gmat-draft-file" href={missionRunFileDownloadUrl(activeGmatRunPath ?? planningDiscussion.workspaceDir, file)} key={file}><span>{file}</span><small>Download</small></a>)}
                   {missionRunFiles.some(file => !isPrimaryMissionFile(file)) ? (
                     <details className="agent-gmat-technical-files">
                       <summary>Technical files ({missionRunFiles.filter(file => !isPrimaryMissionFile(file)).length})</summary>
-                      {missionRunFiles.filter(file => !isPrimaryMissionFile(file)).map(file => <a className="agent-gmat-draft-file" href={missionRunFileDownloadUrl(planningDiscussion, file)} key={file}><span>{file}</span><small>Download</small></a>)}
+                      {missionRunFiles.filter(file => !isPrimaryMissionFile(file)).map(file => <a className="agent-gmat-draft-file" href={missionRunFileDownloadUrl(activeGmatRunPath ?? planningDiscussion.workspaceDir, file)} key={file}><span>{file}</span><small>Download</small></a>)}
                     </details>
                   ) : null}
                 </section>

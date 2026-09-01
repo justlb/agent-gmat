@@ -1,0 +1,21 @@
+{
+  "name": "EPH_0206-integration-test-5",
+  "status": "running",
+  "started_at": "2026-07-16T06:57:15+00:00",
+  "input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\1-conversion_vers_SIMU-CIC\\EPH_0206.txt",
+  "simulation_source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+  "simulation_working_copy": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-integration-test-5\\input\\cas A.opalis",
+  "run_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-integration-test-5",
+  "steps": {
+    "conversion": {
+      "type": "ephemeris",
+      "records": 202,
+      "output": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-integration-test-5\\conversion\\EPH_0206-SIMU.txt"
+    },
+    "simu_cic": {
+      "ephemeris": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-integration-test-5\\conversion\\EPH_0206-SIMU.txt",
+      "cic_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-integration-test-5\\CIC\\Sat",
+      "files": 39
+    }
+  }
+}

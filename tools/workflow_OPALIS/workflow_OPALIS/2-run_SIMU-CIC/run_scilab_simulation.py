@@ -262,7 +262,9 @@ def explain_process_failure(return_code):
                 "The installed Simu-CIC binaries are not compatible with this "
                 "Scilab version; use the Scilab version validated for Simu-CIC."
             )
-        return "Scilab crashed (Windows exit code 0x{0:08X}).".format(windows_code)
+        # Simu-CIC can itself return non-POSIX values such as 10000.  Do not
+        # label every value above 255 as a native Scilab crash.
+        return "Scilab/Simu-CIC returned Windows exit code 0x{0:08X} ({1}).".format(windows_code, windows_code)
     return "Scilab exited with code {0}.".format(return_code)
 
 
@@ -410,6 +412,10 @@ def parse_args():
             "En mode --gui, le profil Scilab utilisateur est conserve."
         ).format(DEFAULT_SCIHOME),
     )
+    parser.add_argument(
+        "--diagnostics-dir",
+        help="Optional run-local directory retaining generated launcher and error markers.",
+    )
     return parser.parse_args()
 
 
@@ -444,14 +450,20 @@ def main():
     args.save_root = normalize_path(args.save_root)
     if args.cic_output:
         args.cic_output = normalize_path(args.cic_output)
+    if args.diagnostics_dir:
+        args.diagnostics_dir = normalize_path(args.diagnostics_dir)
+        if not os.path.isdir(args.diagnostics_dir):
+            os.makedirs(args.diagnostics_dir)
 
     try:
         scilab = find_scilab(args.scilab, prefer_gui=args.gui)
+        temporary_directory = args.diagnostics_dir or None
         marker_handle = tempfile.NamedTemporaryFile(
             mode="w",
             suffix=".txt",
             prefix="simucic_result_",
             delete=False,
+            dir=temporary_directory,
         )
         marker_file = marker_handle.name
         marker_handle.close()
@@ -460,10 +472,13 @@ def main():
             suffix=".txt",
             prefix="simucic_error_",
             delete=False,
+            dir=temporary_directory,
         )
         error_marker_file = error_marker_handle.name
         error_marker_handle.close()
         launcher = write_launcher(target_script, args, marker_file, error_marker_file)
+        if args.diagnostics_dir:
+            shutil.copyfile(launcher, os.path.join(args.diagnostics_dir, "simucic_launcher.sce"))
     except IOError as exc:
         print("Erreur: {0}".format(exc), file=sys.stderr)
         return 1
@@ -553,7 +568,7 @@ def main():
                 os.unlink(launcher)
             except OSError:
                 pass
-        if not args.keep_open:
+        if not args.keep_open and not args.diagnostics_dir:
             try:
                 os.unlink(marker_file)
             except OSError:

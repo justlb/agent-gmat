@@ -1,4 +1,5 @@
 import fs from "node:fs/promises"
+import crypto from "node:crypto"
 import path from "node:path"
 
 import { updateJsonFile } from "../shared/atomicPersistence.js"
@@ -9,8 +10,8 @@ export type WorkflowStageStatus = "completed" | "failed" | "not_started" | "runn
 
 export type WorkflowRunLog = {
   updated_at: string
-  version: 2
-  stages: Record<WorkflowStage, { message: string | null; status: WorkflowStageStatus; updated_at: string | null }>
+  version: 3
+  stages: Record<WorkflowStage, { artifact_paths: string[]; input_revision: number | null; input_sha256: string | null; message: string | null; status: WorkflowStageStatus; updated_at: string | null }>
 }
 
 const fileName = "workflow-status.json"
@@ -18,12 +19,12 @@ const fileName = "workflow-status.json"
 function emptyLog(): WorkflowRunLog {
   return {
     updated_at: new Date().toISOString(),
-    version: 2,
+    version: 3,
     stages: {
-      gmat: { message: null, status: "not_started", updated_at: null },
-      simu_cic: { message: null, status: "not_started", updated_at: null },
-      opalis: { message: null, status: "not_started", updated_at: null },
-      rf_comlink: { message: null, status: "not_started", updated_at: null },
+      gmat: { artifact_paths: [], input_revision: null, input_sha256: null, message: null, status: "not_started", updated_at: null },
+      simu_cic: { artifact_paths: [], input_revision: null, input_sha256: null, message: null, status: "not_started", updated_at: null },
+      opalis: { artifact_paths: [], input_revision: null, input_sha256: null, message: null, status: "not_started", updated_at: null },
+      rf_comlink: { artifact_paths: [], input_revision: null, input_sha256: null, message: null, status: "not_started", updated_at: null },
     },
   }
 }
@@ -46,6 +47,15 @@ export async function loadRunWorkflowLog(runDir: string): Promise<WorkflowRunLog
 
 export async function updateRunWorkflowLog(runDir: string, stage: WorkflowStage, status: WorkflowStageStatus, message: string | null) {
   const output = path.join(runDir, fileName)
+  const satelliteSource = await fs.readFile(path.join(runDir, "satellite.json"), "utf8").catch(() => null)
+  const input_sha256 = satelliteSource ? crypto.createHash("sha256").update(satelliteSource).digest("hex") : null
+  let input_revision: number | null = null
+  if (satelliteSource) {
+    try {
+      const parsed = JSON.parse(satelliteSource) as { digital_thread?: { revision?: unknown } }
+      input_revision = typeof parsed.digital_thread?.revision === "number" ? parsed.digital_thread.revision : null
+    } catch { /* A malformed run input is represented by a missing revision. */ }
+  }
   return updateJsonFile<WorkflowRunLog>(output, emptyLog(), current => {
     const fallback = emptyLog()
     const normalized: WorkflowRunLog = {
@@ -58,7 +68,16 @@ export async function updateRunWorkflowLog(runDir: string, stage: WorkflowStage,
       },
     }
     const updatedAt = new Date().toISOString()
-    return { ...normalized, updated_at: updatedAt, stages: { ...normalized.stages, [stage]: { message, status, updated_at: updatedAt } } }
+    const existing = normalized.stages[stage]
+    return {
+      ...normalized,
+      version: 3,
+      updated_at: updatedAt,
+      stages: {
+        ...normalized.stages,
+        [stage]: { ...existing, input_revision, input_sha256, message, status, updated_at: updatedAt },
+      },
+    }
   })
 }
 

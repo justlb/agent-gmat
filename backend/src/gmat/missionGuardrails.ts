@@ -7,6 +7,9 @@
  */
 export type GmatMissionGuardrailTemplate =
   | "orbit-keeping"
+  | "geo-gso-orbit-keeping"
+  | "geo-gso-electric-station-keeping"
+  | "geo-electric-end-of-life"
   | "electric-propulsion-transfer"
   | "chemical-hohmann-transfer"
   | "chemical-3d-transfer"
@@ -79,6 +82,34 @@ export function validateGmatMissionGuardrails(template: GmatMissionGuardrailTemp
     if (fuelMass !== null && fuelReserve !== null && fuelReserve >= fuelMass) guards.push(error("fuel_reserve", "Fuel reserve must be lower than initial fuel mass.", "stationKeeping.fuelReserveKg"))
   }
 
+  if (template === "geo-gso-orbit-keeping" || template === "geo-gso-electric-station-keeping") {
+    if (semiMajorAxis !== null && (semiMajorAxis < 40_000 || semiMajorAxis > 45_000)) guards.push(error("geo_gso_sma", "GEO/GSO orbit keeping requires an initial semi-major axis between 40,000 and 45,000 km.", "initialOrbit.smaKm"))
+    for (const [path, label] of template === "geo-gso-electric-station-keeping" ? [["spacecraft.initialFuelMassKg", "Initial fuel mass"], ["stationKeeping.northSouthToleranceDeg", "North/South tolerance"], ["stationKeeping.eastWestToleranceDeg", "East/West tolerance"], ["stationKeeping.eastWestBurnDurationSec", "East/West burn duration"], ["stationKeeping.northSouthBurnDurationSec", "North/South burn duration"], ["stationKeeping.missionDurationDays", "Mission duration"], ["power.initialMaxPowerKw", "Initial solar power"]] : [["spacecraft.initialFuelMassKg", "Initial fuel mass"], ["stationKeeping.northSouthToleranceDeg", "North/South tolerance"], ["stationKeeping.eastWestToleranceDeg", "East/West tolerance"], ["stationKeeping.eccentricityTolerance", "Eccentricity tolerance"], ["stationKeeping.daysOfOk", "Days of station keeping"]] as const) {
+      const value = finiteNumber(values, path)
+      if (value !== null && value <= 0) guards.push(error("geo_gso_positive", `${label} must be strictly positive.`, path))
+    }
+  }
+
+  if (template === "geo-gso-orbit-keeping" || template === "geo-gso-electric-station-keeping") {
+    const eastWestTolerance = finiteNumber(values, "stationKeeping.eastWestToleranceDeg")
+    const northSouthTolerance = finiteNumber(values, "stationKeeping.northSouthToleranceDeg")
+    if (eastWestTolerance !== null && (eastWestTolerance <= 0 || eastWestTolerance > 1)) guards.push(error("geo_gso_east_west_tolerance", "East/West tolerance must be within (0, 1] degrees.", "stationKeeping.eastWestToleranceDeg"))
+    if (northSouthTolerance !== null && (northSouthTolerance <= 0 || northSouthTolerance > 1)) guards.push(error("geo_gso_north_south_tolerance", "North/South tolerance must be within (0, 1] degrees.", "stationKeeping.northSouthToleranceDeg"))
+    if (template === "geo-gso-orbit-keeping") {
+      const duration = finiteNumber(values, "stationKeeping.daysOfOk")
+      if (eastWestTolerance !== null && eastWestTolerance <= 0.02) guards.push(error("geo_gso_east_west_guardband", "East/West tolerance must exceed the 0.02 degree controller guardband.", "stationKeeping.eastWestToleranceDeg"))
+      if (duration !== null && duration > 60) guards.push(error("geo_gso_duration_limit", "GEO/GSO station keeping is limited to 60 days because this model is not validated beyond that duration.", "stationKeeping.daysOfOk"))
+    } else {
+      const duration = finiteNumber(values, "stationKeeping.missionDurationDays")
+      const eastWestBurn = finiteNumber(values, "stationKeeping.eastWestBurnDurationSec")
+      const northSouthBurn = finiteNumber(values, "stationKeeping.northSouthBurnDurationSec")
+      const solarPower = finiteNumber(values, "power.initialMaxPowerKw")
+      if (duration !== null && duration > 60) guards.push(error("geo_gso_electric_duration_limit", "GEO/GSO electric station keeping is limited to 60 days because this model is not validated beyond that duration.", "stationKeeping.missionDurationDays"))
+      if (eastWestBurn !== null && (eastWestBurn < 1 || eastWestBurn > 86_400)) guards.push(error("geo_gso_electric_east_west_burn", "East/West burn duration must be between 1 and 86,400 seconds.", "stationKeeping.eastWestBurnDurationSec"))
+      if (northSouthBurn !== null && (northSouthBurn < 1 || northSouthBurn > 86_400)) guards.push(error("geo_gso_electric_north_south_burn", "North/South burn duration must be between 1 and 86,400 seconds.", "stationKeeping.northSouthBurnDurationSec"))
+      if (solarPower !== null && solarPower > 50) guards.push(error("geo_gso_electric_solar_power", "Initial solar-array power must not exceed 50 kW for this model.", "power.initialMaxPowerKw"))
+    }
+  }
   if (template === "chemical-hohmann-transfer") {
     const targetRadius = finiteNumber(values, "transfer.targetRadiusKm")
     if (targetRadius !== null && targetRadius - EARTH_EQUATORIAL_RADIUS_KM < MINIMUM_EARTH_ORBIT_ALTITUDE_KM) {

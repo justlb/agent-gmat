@@ -1,4 +1,4 @@
-import type { ChildProcess } from "node:child_process"
+import { spawn, type ChildProcess } from "node:child_process"
 import path from "node:path"
 
 const activeCalculations = new Map<string, Set<ChildProcess>>()
@@ -25,7 +25,18 @@ export function cancelActiveCalculations(root: string, runDir?: string | null) {
     if (key !== scope && !key.startsWith(scope + path.sep)) continue
     for (const child of children) {
       if (child.exitCode !== null || child.killed) continue
-      child.kill("SIGKILL")
+      // Tool launchers (PowerShell, Python, Scilab) often create descendants.
+      // On Windows terminate the complete process tree; falling back to kill
+      // keeps cancellation usable in WSL and test environments.
+      if (child.pid && (process.platform === "win32" || Boolean(process.env.WSL_DISTRO_NAME))) {
+        void new Promise<void>(resolve => {
+          const taskkill = spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true })
+          taskkill.once("close", () => resolve())
+          taskkill.once("error", () => { child.kill("SIGKILL"); resolve() })
+        })
+      } else {
+        child.kill("SIGKILL")
+      }
       cancelled += 1
     }
   }

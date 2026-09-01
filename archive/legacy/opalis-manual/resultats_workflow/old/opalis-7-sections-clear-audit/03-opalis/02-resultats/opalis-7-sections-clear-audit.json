@@ -1,0 +1,262 @@
+{
+  "source": "C:\\JUSTINE\\APP\\OPALIS\\Opalis-2.3.0\\Example\\cas A.opalis",
+  "satellite": "SAT-TEST-A",
+  "power_margin": null,
+  "soc_battery": 0.951717927382189,
+  "simulation_duration": "106642.841377258",
+  "time_step": 592.460229873657,
+  "orbit_duration": "5770",
+  "solar_sections": 7,
+  "working_source": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\00-cas-reference\\cas A.opalis",
+  "ephemeris_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat",
+  "generated_fluxes": [
+    {
+      "section_index": 0,
+      "section_number": 1,
+      "flux_file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-1.TXT",
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": false
+    },
+    {
+      "section_index": 1,
+      "section_number": 2,
+      "flux_file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-2.TXT",
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    },
+    {
+      "section_index": 2,
+      "section_number": 3,
+      "flux_file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-3.TXT",
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    },
+    {
+      "section_index": 3,
+      "section_number": 4,
+      "flux_file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-4.TXT",
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    },
+    {
+      "section_index": 4,
+      "section_number": 5,
+      "flux_file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-5.TXT",
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    },
+    {
+      "section_index": 5,
+      "section_number": 6,
+      "flux_file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-6.TXT",
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    },
+    {
+      "section_index": 6,
+      "section_number": 7,
+      "flux_file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-7.TXT",
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    }
+  ],
+  "ephemeris_mapping": {
+    "0": {
+      "sun_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_ANGLE_SA_1.TXT",
+      "earth_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_ANGLE_SA_1.TXT",
+      "eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE.TXT",
+      "moon_eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE_MOON.TXT",
+      "altitude": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ALTITUDE.TXT",
+      "earth_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT",
+      "coordinates": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_GEOGRAPHICAL_COORDINATES.TXT",
+      "sun_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT",
+      "target_section": 1,
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": false
+    },
+    "1": {
+      "sun_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_ANGLE_SA_1.TXT",
+      "earth_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_ANGLE_SA_1.TXT",
+      "eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE.TXT",
+      "moon_eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE_MOON.TXT",
+      "altitude": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ALTITUDE.TXT",
+      "earth_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT",
+      "coordinates": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_GEOGRAPHICAL_COORDINATES.TXT",
+      "sun_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT",
+      "target_section": 2,
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    },
+    "2": {
+      "sun_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_ANGLE_SA_1.TXT",
+      "earth_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_ANGLE_SA_1.TXT",
+      "eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE.TXT",
+      "moon_eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE_MOON.TXT",
+      "altitude": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ALTITUDE.TXT",
+      "earth_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT",
+      "coordinates": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_GEOGRAPHICAL_COORDINATES.TXT",
+      "sun_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT",
+      "target_section": 3,
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    },
+    "3": {
+      "sun_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_ANGLE_SA_1.TXT",
+      "earth_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_ANGLE_SA_1.TXT",
+      "eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE.TXT",
+      "moon_eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE_MOON.TXT",
+      "altitude": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ALTITUDE.TXT",
+      "earth_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT",
+      "coordinates": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_GEOGRAPHICAL_COORDINATES.TXT",
+      "sun_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT",
+      "target_section": 4,
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    },
+    "4": {
+      "sun_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_ANGLE_SA_1.TXT",
+      "earth_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_ANGLE_SA_1.TXT",
+      "eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE.TXT",
+      "moon_eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE_MOON.TXT",
+      "altitude": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ALTITUDE.TXT",
+      "earth_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT",
+      "coordinates": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_GEOGRAPHICAL_COORDINATES.TXT",
+      "sun_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT",
+      "target_section": 5,
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    },
+    "5": {
+      "sun_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_ANGLE_SA_1.TXT",
+      "earth_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_ANGLE_SA_1.TXT",
+      "eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE.TXT",
+      "moon_eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE_MOON.TXT",
+      "altitude": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ALTITUDE.TXT",
+      "earth_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT",
+      "coordinates": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_GEOGRAPHICAL_COORDINATES.TXT",
+      "sun_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT",
+      "target_section": 6,
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    },
+    "6": {
+      "sun_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_ANGLE_SA_1.TXT",
+      "earth_angle": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_ANGLE_SA_1.TXT",
+      "eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE.TXT",
+      "moon_eclipse": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ECLIPSE_MOON.TXT",
+      "altitude": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SATELLITE_ALTITUDE.TXT",
+      "earth_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT",
+      "coordinates": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_GEOGRAPHICAL_COORDINATES.TXT",
+      "sun_direction": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-audit\\02-simu-cic\\02-fichiers-cic\\Sat\\Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT",
+      "target_section": 7,
+      "angle_source_section": 1,
+      "reused_sa_1_geometry": true
+    }
+  },
+  "raw_ephemeris_replacement": {
+    "previous_rows_removed": 8756,
+    "new_rows": 181,
+    "sections_loaded": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "automatic_timing": {
+    "time_step_seconds": 592.4602298736572,
+    "duration_seconds": 106642.8413772583,
+    "common_start": 5242449600.0,
+    "common_stop": 5242556242.84152,
+    "files": [
+      {
+        "file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-1.TXT",
+        "samples": 181,
+        "start": 5242449600.0,
+        "stop": 5242556242.84152,
+        "duration_seconds": 106642.84152030945,
+        "step_seconds": 592.4602298736572,
+        "minimum_step_seconds": 592.4602298736572,
+        "maximum_step_seconds": 592.4602403640747
+      },
+      {
+        "file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-2.TXT",
+        "samples": 181,
+        "start": 5242449600.0,
+        "stop": 5242556242.84152,
+        "duration_seconds": 106642.84152030945,
+        "step_seconds": 592.4602298736572,
+        "minimum_step_seconds": 592.4602298736572,
+        "maximum_step_seconds": 592.4602403640747
+      },
+      {
+        "file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-3.TXT",
+        "samples": 181,
+        "start": 5242449600.0,
+        "stop": 5242556242.84152,
+        "duration_seconds": 106642.84152030945,
+        "step_seconds": 592.4602298736572,
+        "minimum_step_seconds": 592.4602298736572,
+        "maximum_step_seconds": 592.4602403640747
+      },
+      {
+        "file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-4.TXT",
+        "samples": 181,
+        "start": 5242449600.0,
+        "stop": 5242556242.84152,
+        "duration_seconds": 106642.84152030945,
+        "step_seconds": 592.4602298736572,
+        "minimum_step_seconds": 592.4602298736572,
+        "maximum_step_seconds": 592.4602403640747
+      },
+      {
+        "file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-5.TXT",
+        "samples": 181,
+        "start": 5242449600.0,
+        "stop": 5242556242.84152,
+        "duration_seconds": 106642.84152030945,
+        "step_seconds": 592.4602298736572,
+        "minimum_step_seconds": 592.4602298736572,
+        "maximum_step_seconds": 592.4602403640747
+      },
+      {
+        "file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-6.TXT",
+        "samples": 181,
+        "start": 5242449600.0,
+        "stop": 5242556242.84152,
+        "duration_seconds": 106642.84152030945,
+        "step_seconds": 592.4602298736572,
+        "minimum_step_seconds": 592.4602298736572,
+        "maximum_step_seconds": 592.4602403640747
+      },
+      {
+        "file": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\01-flux-dynamiques\\FLOWS-SA-7.TXT",
+        "samples": 181,
+        "start": 5242449600.0,
+        "stop": 5242556242.84152,
+        "duration_seconds": 106642.84152030945,
+        "step_seconds": 592.4602298736572,
+        "minimum_step_seconds": 592.4602298736572,
+        "maximum_step_seconds": 592.4602403640747
+      }
+    ]
+  },
+  "applied_parameters": [
+    {
+      "path": "SimulationModel.SimulationTiming.Timestep",
+      "value": 592.460229873657,
+      "source": "ephemerides"
+    },
+    {
+      "path": "SimulationModel.SimulationTiming.Simultime",
+      "value": "106642.841377258",
+      "source": "ephemerides"
+    }
+  ],
+  "saved_to": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\02-resultats\\opalis-7-sections-clear-audit.opalis",
+  "json": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\opalis-7-sections-clear-audit\\03-opalis\\02-resultats\\opalis-7-sections-clear-audit.json",
+  "simulation_executed": false
+}

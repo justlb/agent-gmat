@@ -17,17 +17,17 @@ Electric3DSC.CoordinateSystem = EarthMJ2000Eq;
 Electric3DSC.DisplayStateType = Keplerian;
 Electric3DSC.SMA = 6678.1363;
 Electric3DSC.ECC = 0.001;
-Electric3DSC.INC = 28.5;
-Electric3DSC.RAAN = 67;
-Electric3DSC.AOP = 355;
-Electric3DSC.TA = 250;
+Electric3DSC.INC = 15;
+Electric3DSC.RAAN = 0;
+Electric3DSC.AOP = 0;
+Electric3DSC.TA = 0;
 Electric3DSC.DryMass = 850;
 Electric3DSC.Cd = 2.2;
 Electric3DSC.Cr = 1.8;
 Electric3DSC.DragArea = 15;
 Electric3DSC.SRPArea = 1;
 Electric3DSC.Tanks = {ElectricTank3D};
-Electric3DSC.Thrusters = {ElectricTangentialThruster, ElectricNormalThruster};
+Electric3DSC.Thrusters = {ElectricTangentialThruster, ElectricNormalMinusThruster, ElectricNormalPlusThruster};
 Electric3DSC.PowerSystem = SolarPowerSystem3D;
 Electric3DSC.Attitude = CoordinateSystemFixed;
 Electric3DSC.AttitudeCoordinateSystem = EarthMJ2000Eq;
@@ -37,6 +37,14 @@ Electric3DSC.AttitudeCoordinateSystem = EarthMJ2000Eq;
 %----------------------------------------
 
 Create ElectricTank ElectricTank3D;
+% Define a valid, orthonormal hardware frame.  Leaving these vectors at their
+% defaults makes GMAT initialise a degenerate tank/thruster geometry.
+ElectricTank3D.DirectionX = 1;
+ElectricTank3D.DirectionY = 0;
+ElectricTank3D.DirectionZ = 0;
+ElectricTank3D.SecondDirectionX = 0;
+ElectricTank3D.SecondDirectionY = 1;
+ElectricTank3D.SecondDirectionZ = 0;
 ElectricTank3D.AllowNegativeFuelMass = false;
 ElectricTank3D.FuelMass = 756;
 
@@ -53,52 +61,52 @@ ElectricTangentialThruster.DecrementMass = true;
 ElectricTangentialThruster.Tank = {ElectricTank3D};
 ElectricTangentialThruster.MixRatio = [ 1 ];
 ElectricTangentialThruster.GravitationalAccel = 9.81;
-ElectricTangentialThruster.ThrustModel = ThrustMassPolynomial;
+% At 5 kW, use a power/Isp-consistent model.  The copied polynomial produced
+% an unphysical initial xenon flow of about 1.3 kg/s.
+ElectricTangentialThruster.ThrustModel = FixedEfficiency;
 ElectricTangentialThruster.MaximumUsablePower = 5;
 ElectricTangentialThruster.MinimumUsablePower = 0.638;
-ElectricTangentialThruster.ThrustCoeff1 = -5.19082;
-ElectricTangentialThruster.ThrustCoeff2 = 2.96519;
-ElectricTangentialThruster.ThrustCoeff3 = -14.4789;
-ElectricTangentialThruster.ThrustCoeff4 = 54.05382;
-ElectricTangentialThruster.ThrustCoeff5 = -0.00100092;
-ElectricTangentialThruster.MassFlowCoeff1 = -0.004776;
-ElectricTangentialThruster.MassFlowCoeff2 = 0.05717;
-ElectricTangentialThruster.MassFlowCoeff3 = -0.09956;
-ElectricTangentialThruster.MassFlowCoeff4 = 0.03211;
-ElectricTangentialThruster.MassFlowCoeff5 = 2.13781;
 ElectricTangentialThruster.FixedEfficiency = 0.7;
 ElectricTangentialThruster.Isp = 4200;
 ElectricTangentialThruster.ConstantThrust = 5;
 
-Create ElectricThruster ElectricNormalThruster;
-ElectricNormalThruster.CoordinateSystem = Local;
-ElectricNormalThruster.Origin = Earth;
-ElectricNormalThruster.Axes = VNB;
-ElectricNormalThruster.ThrustDirection1 = 0;
-ElectricNormalThruster.ThrustDirection2 = -1;
-ElectricNormalThruster.ThrustDirection3 = 0;
-ElectricNormalThruster.DutyCycle = 1;
-ElectricNormalThruster.ThrustScaleFactor = 1;
-ElectricNormalThruster.DecrementMass = true;
-ElectricNormalThruster.Tank = {ElectricTank3D};
-ElectricNormalThruster.MixRatio = [ 1 ];
-ElectricNormalThruster.GravitationalAccel = 9.81;
-ElectricNormalThruster.ThrustModel = ThrustMassPolynomial;
-ElectricNormalThruster.MaximumUsablePower = 5;
-ElectricNormalThruster.MinimumUsablePower = 0.638;
-ElectricNormalThruster.ThrustCoeff1 = -5.19082;
-ElectricNormalThruster.ThrustCoeff2 = 2.96519;
-ElectricNormalThruster.ThrustCoeff3 = -14.4789;
-ElectricNormalThruster.ThrustCoeff4 = 54.05382;
-ElectricNormalThruster.ThrustCoeff5 = -0.00100092;
-ElectricNormalThruster.MassFlowCoeff1 = -0.004776;
-ElectricNormalThruster.MassFlowCoeff2 = 0.05717;
-ElectricNormalThruster.MassFlowCoeff3 = -0.09956;
-ElectricNormalThruster.MassFlowCoeff4 = 0.03211;
-ElectricNormalThruster.MassFlowCoeff5 = 2.13781;
-ElectricNormalThruster.FixedEfficiency = 0.7;
-ElectricNormalThruster.Isp = 4200;
-ElectricNormalThruster.ConstantThrust = 5;
+Create ElectricThruster ElectricNormalMinusThruster;
+ElectricNormalMinusThruster.CoordinateSystem = Local;
+ElectricNormalMinusThruster.Origin = Earth;
+ElectricNormalMinusThruster.Axes = VNB;
+ElectricNormalMinusThruster.ThrustDirection1 = 0;
+ElectricNormalMinusThruster.ThrustDirection2 = -1;
+ElectricNormalMinusThruster.ThrustDirection3 = 0;
+ElectricNormalMinusThruster.DutyCycle = 1;
+ElectricNormalMinusThruster.ThrustScaleFactor = 1;
+ElectricNormalMinusThruster.DecrementMass = true;
+ElectricNormalMinusThruster.Tank = {ElectricTank3D};
+ElectricNormalMinusThruster.MixRatio = [ 1 ];
+ElectricNormalMinusThruster.GravitationalAccel = 9.81;
+ElectricNormalMinusThruster.ThrustModel = FixedEfficiency;
+ElectricNormalMinusThruster.MaximumUsablePower = 5;
+ElectricNormalMinusThruster.MinimumUsablePower = 0.638;
+ElectricNormalMinusThruster.FixedEfficiency = 0.7;
+ElectricNormalMinusThruster.Isp = 4200;
+
+Create ElectricThruster ElectricNormalPlusThruster;
+ElectricNormalPlusThruster.CoordinateSystem = Local;
+ElectricNormalPlusThruster.Origin = Earth;
+ElectricNormalPlusThruster.Axes = VNB;
+ElectricNormalPlusThruster.ThrustDirection1 = 0;
+ElectricNormalPlusThruster.ThrustDirection2 = 1;
+ElectricNormalPlusThruster.ThrustDirection3 = 0;
+ElectricNormalPlusThruster.DutyCycle = 1;
+ElectricNormalPlusThruster.ThrustScaleFactor = 1;
+ElectricNormalPlusThruster.DecrementMass = true;
+ElectricNormalPlusThruster.Tank = {ElectricTank3D};
+ElectricNormalPlusThruster.MixRatio = [ 1 ];
+ElectricNormalPlusThruster.GravitationalAccel = 9.81;
+ElectricNormalPlusThruster.ThrustModel = FixedEfficiency;
+ElectricNormalPlusThruster.MaximumUsablePower = 5;
+ElectricNormalPlusThruster.MinimumUsablePower = 0.638;
+ElectricNormalPlusThruster.FixedEfficiency = 0.7;
+ElectricNormalPlusThruster.Isp = 4200;
 
 Create SolarPowerSystem SolarPowerSystem3D;
 SolarPowerSystem3D.EpochFormat = UTCGregorian;
@@ -121,9 +129,12 @@ Create FiniteBurn TangentialBurn3D;
 TangentialBurn3D.Thrusters = {ElectricTangentialThruster};
 TangentialBurn3D.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
 
-Create FiniteBurn NormalBurn3D;
-NormalBurn3D.Thrusters = {ElectricNormalThruster};
-NormalBurn3D.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
+Create FiniteBurn NormalMinusBurn3D;
+NormalMinusBurn3D.Thrusters = {ElectricNormalMinusThruster};
+NormalMinusBurn3D.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
+Create FiniteBurn NormalPlusBurn3D;
+NormalPlusBurn3D.Thrusters = {ElectricNormalPlusThruster};
+NormalPlusBurn3D.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
 
 %----------------------------------------
 %---------- Force model and propagator
@@ -144,10 +155,12 @@ Electric3DForceModel.GravityField.Earth.TideModel = 'None';
 Create Propagator Electric3DProp;
 Electric3DProp.FM = Electric3DForceModel;
 Electric3DProp.Type = RungeKutta89;
-Electric3DProp.InitialStepSize = 360;
-Electric3DProp.Accuracy = 1e-09;
-Electric3DProp.MinStep = 0;
-Electric3DProp.MaxStep = 3600;
+% Rapid approximate-study settings.  These only relax numerical integration,
+% not spacecraft or propulsion parameters; they are not for final validation.
+Electric3DProp.InitialStepSize = 3600;
+Electric3DProp.Accuracy = 1e-06;
+Electric3DProp.MinStep = 60;
+Electric3DProp.MaxStep = 86400;
 Electric3DProp.MaxStepAttempts = 50;
 Electric3DProp.StopIfAccuracyIsViolated = true;
 
@@ -178,15 +191,64 @@ Electric3DEphemeris.OutputFormat = LittleEndian;
 Electric3DEphemeris.IncludeCovariance = None;
 Electric3DEphemeris.WriteEphemeris = true;
 
+% Interactive transfer diagnostics (available in the GMAT GUI).
+Create OpenFramesInterface Electric3DTrajectoryView;
+Electric3DTrajectoryView.Add = {Electric3DSC, Earth};
+Electric3DTrajectoryView.View = {Electric3DTrajectoryCamera};
+Electric3DTrajectoryView.CoordinateSystem = EarthMJ2000Eq;
+Electric3DTrajectoryView.DrawObject = [ true true ];
+Electric3DTrajectoryView.DrawTrajectory = [ true true ];
+Electric3DTrajectoryView.DrawLabel = [ true true ];
+Electric3DTrajectoryView.Axes = On;
+Electric3DTrajectoryView.XYPlane = On;
+Electric3DTrajectoryView.ShowPlot = true;
+
+Create OpenFramesView Electric3DTrajectoryCamera;
+Electric3DTrajectoryCamera.ViewFrame = CoordinateSystem;
+Electric3DTrajectoryCamera.SetDefaultLocation = On;
+Electric3DTrajectoryCamera.DefaultEye = [ 70000 -70000 40000 ];
+Electric3DTrajectoryCamera.DefaultCenter = [ 0 0 0 ];
+Electric3DTrajectoryCamera.DefaultUp = [ 0 0 1 ];
+
+Create XYPlot Electric3DOrbitPlot;
+Electric3DOrbitPlot.XVariable = Electric3DSC.ElapsedDays;
+Electric3DOrbitPlot.YVariables = {Electric3DSC.Earth.SMA, Electric3DSC.Earth.Altitude};
+Electric3DOrbitPlot.ShowGrid = true;
+Electric3DOrbitPlot.ShowPlot = true;
+
+Create XYPlot Electric3DInclinationPlot;
+Electric3DInclinationPlot.XVariable = Electric3DSC.ElapsedDays;
+Electric3DInclinationPlot.YVariables = {Electric3DSC.EarthMJ2000Eq.INC};
+Electric3DInclinationPlot.ShowGrid = true;
+Electric3DInclinationPlot.ShowPlot = true;
+
+Create XYPlot Electric3DXenonPlot;
+Electric3DXenonPlot.XVariable = Electric3DSC.ElapsedDays;
+Electric3DXenonPlot.YVariables = {Electric3DSC.ElectricTank3D.FuelMass};
+Electric3DXenonPlot.ShowGrid = true;
+Electric3DXenonPlot.ShowPlot = true;
+
 %----------------------------------------
 %---------- Transfer inputs
 %----------------------------------------
 
 Create Variable targetFinalAltitudeKm targetFinalSmaKm targetFinalInclinationDeg maxTransferDays;
+Create Variable fuelReserveKg burnStepDays nodeBurnDays stepEndElapsedDays lastSafeElapsedDays outputEndElapsedDays spiralActive planeChangeActive;
 targetFinalAltitudeKm = 35786;
 targetFinalSmaKm = 0;
-targetFinalInclinationDeg = 0.1;
+% Numerical target for the requested equatorial GEO.  Exactly 0 deg is a
+% singular Keplerian element, so 0.01 deg is used as the acceptance threshold.
+targetFinalInclinationDeg = 0.01;
 maxTransferDays = 8000;
+% Do not integrate past the usable propellant.  The original bare Propagate
+% command could consume more than the tank content in a single command.
+fuelReserveKg = 1.0;
+% Explicit one-hour control interval expressed as a mission-absolute epoch.
+% This avoids reusing an ElapsedSecs stop condition as if it were relative.
+burnStepDays = 0.04166666666666667;
+% Symmetric finite burns at the ascending/descending nodes reduce inclination
+% without the cancellation caused by a continuous fixed-normal thrust.
+nodeBurnDays = 0.05;
 
 %----------------------------------------
 %---------- Mission sequence
@@ -195,24 +257,69 @@ maxTransferDays = 8000;
 BeginMissionSequence;
 
 targetFinalSmaKm = 6378.1363 + targetFinalAltitudeKm;
+lastSafeElapsedDays = maxTransferDays - burnStepDays;
+% Do not feed discarded/short control segments to the OEM interpolator.
+Toggle Electric3DEphemeris Off;
 
 Report Electric3DTransferReport Electric3DSC.ElapsedDays Electric3DSC.Earth.SMA Electric3DSC.Earth.Altitude Electric3DSC.EarthMJ2000Eq.INC Electric3DSC.ElectricTank3D.FuelMass Electric3DSC.TotalMass;
 
 % Tangential thrust raises the orbit energy and semi-major axis.
 BeginFiniteBurn 'Spiral raise' TangentialBurn3D(Electric3DSC);
-While Electric3DSC.Earth.SMA < targetFinalSmaKm & Electric3DSC.ElectricTank3D.FuelMass > 0 & Electric3DSC.ElapsedDays < maxTransferDays
-   Propagate 'Raise orbit step' Electric3DProp(Electric3DSC);
-   Report Electric3DTransferReport Electric3DSC.ElapsedDays Electric3DSC.Earth.SMA Electric3DSC.Earth.Altitude Electric3DSC.EarthMJ2000Eq.INC Electric3DSC.ElectricTank3D.FuelMass Electric3DSC.TotalMass;
+spiralActive = 1;
+While spiralActive > 0.5
+   If Electric3DSC.Earth.SMA >= targetFinalSmaKm
+      spiralActive = 0;
+   Else
+      If Electric3DSC.ElectricTank3D.FuelMass <= fuelReserveKg
+         spiralActive = 0;
+      Else
+         If Electric3DSC.ElapsedDays >= lastSafeElapsedDays
+            spiralActive = 0;
+         Else
+            stepEndElapsedDays = Electric3DSC.ElapsedDays + burnStepDays;
+            Propagate 'Raise orbit step' Electric3DProp(Electric3DSC) {Electric3DSC.ElapsedDays = stepEndElapsedDays, Electric3DSC.ElapsedDays = maxTransferDays, Electric3DSC.ElectricTank3D.FuelMass = fuelReserveKg};
+            Report Electric3DTransferReport Electric3DSC.ElapsedDays Electric3DSC.Earth.SMA Electric3DSC.Earth.Altitude Electric3DSC.EarthMJ2000Eq.INC Electric3DSC.ElectricTank3D.FuelMass Electric3DSC.TotalMass;
+         EndIf;
+      EndIf;
+   EndIf;
 EndWhile;
 EndFiniteBurn 'End spiral raise' TangentialBurn3D(Electric3DSC);
 
-% Negative normal thrust reduces a prograde initial inclination.
-BeginFiniteBurn 'Inclination reduction' NormalBurn3D(Electric3DSC);
-While Electric3DSC.EarthMJ2000Eq.INC > targetFinalInclinationDeg & Electric3DSC.ElectricTank3D.FuelMass > 0 & Electric3DSC.ElapsedDays < maxTransferDays
-   Propagate 'Plane change step' Electric3DProp(Electric3DSC);
-   Report Electric3DTransferReport Electric3DSC.ElapsedDays Electric3DSC.Earth.SMA Electric3DSC.Earth.Altitude Electric3DSC.EarthMJ2000Eq.INC Electric3DSC.ElectricTank3D.FuelMass Electric3DSC.TotalMass;
+% Plane change at alternating nodes.  In VNB, the normal direction must flip
+% between ascending and descending nodes to monotonically reduce inclination.
+planeChangeActive = 1;
+While planeChangeActive > 0.5
+   If Electric3DSC.EarthMJ2000Eq.INC <= targetFinalInclinationDeg
+      planeChangeActive = 0;
+   Else
+      If Electric3DSC.ElectricTank3D.FuelMass <= fuelReserveKg
+         planeChangeActive = 0;
+      Else
+         If Electric3DSC.ElapsedDays >= lastSafeElapsedDays
+            planeChangeActive = 0;
+         Else
+            Propagate 'Coast to a node' Electric3DProp(Electric3DSC) {Electric3DSC.Earth.Latitude = 0, Electric3DSC.ElapsedDays = maxTransferDays};
+            stepEndElapsedDays = Electric3DSC.ElapsedDays + nodeBurnDays;
+            If Electric3DSC.VZ > 0
+               BeginFiniteBurn 'Decrease INC at ascending node' NormalMinusBurn3D(Electric3DSC);
+               Propagate 'Node burn' Electric3DProp(Electric3DSC) {Electric3DSC.ElapsedDays = stepEndElapsedDays, Electric3DSC.ElapsedDays = maxTransferDays, Electric3DSC.ElectricTank3D.FuelMass = fuelReserveKg};
+               EndFiniteBurn 'End ascending-node burn' NormalMinusBurn3D(Electric3DSC);
+            Else
+               BeginFiniteBurn 'Decrease INC at descending node' NormalPlusBurn3D(Electric3DSC);
+               Propagate 'Node burn' Electric3DProp(Electric3DSC) {Electric3DSC.ElapsedDays = stepEndElapsedDays, Electric3DSC.ElapsedDays = maxTransferDays, Electric3DSC.ElectricTank3D.FuelMass = fuelReserveKg};
+               EndFiniteBurn 'End descending-node burn' NormalPlusBurn3D(Electric3DSC);
+            EndIf;
+            Report Electric3DTransferReport Electric3DSC.ElapsedDays Electric3DSC.Earth.SMA Electric3DSC.Earth.Altitude Electric3DSC.EarthMJ2000Eq.INC Electric3DSC.ElectricTank3D.FuelMass Electric3DSC.TotalMass;
+         EndIf;
+      EndIf;
+   EndIf;
 EndWhile;
-EndFiniteBurn 'End inclination reduction' NormalBurn3D(Electric3DSC);
 
 Report Electric3DTransferReport Electric3DSC.ElapsedDays Electric3DSC.Earth.SMA Electric3DSC.Earth.Altitude Electric3DSC.EarthMJ2000Eq.INC Electric3DSC.ElectricTank3D.FuelMass Electric3DSC.TotalMass;
-Stop;
+
+% A Lagrange interpolator of order 7 needs at least eight output points.
+% Generate the OEM from a continuous nine-hour coast after the transfer.
+outputEndElapsedDays = Electric3DSC.ElapsedDays + 0.375;
+Toggle Electric3DEphemeris On;
+Propagate 'Write final OEM coast' Electric3DProp(Electric3DSC) {Electric3DSC.ElapsedDays = outputEndElapsedDays};
+Toggle Electric3DEphemeris Off;

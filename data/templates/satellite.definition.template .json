@@ -1,0 +1,246 @@
+{
+  "id": "replace-with-unique-satellite-id",
+  "version": "1.0.0",
+  "name": "Satellite multi-propulsion template",
+  "description": "Complete reusable spacecraft-definition skeleton. Replace every null value, keep only applicable options, and record sources in provenance.",
+  "capabilities": [
+    "GMAT", 
+    "Simu-CIC", 
+    "OPALIS", 
+    "RF-COMLINK"
+  ],
+  "mission_templates": [
+    "orbit-keeping",
+    "geo-gso-orbit-keeping",
+    "electric-propulsion-transfer",
+    "chemical-hohmann-transfer",
+    "chemical-3d-transfer"
+  ],
+
+  "satellite": {
+    "identity": {
+      "name": null,
+      "operator": null,
+      "mission_type": null
+    },
+    "bus": {
+      "physical": {
+        "mass_kg": {
+          "dry": null,
+          "wet_at_launch": null,
+          "propellant": null
+        },
+        "drag_area_m2": null,
+        "drag_coefficient": null
+      },
+
+      "propulsion_subsystem_elec": {
+        "type": "Hall electric propulsion",
+        "propellant": null,
+        "specific_impulse_seconds": null,
+        "nominal_thrust_newtons": null,
+        "nominal_duty_cycle":null,
+        "electric_thruster": {
+          "nominal_thrust_range_mn": [
+           null
+          ],
+          "nominal_thruster_power_kw": null,
+          "minimum_usable_power_kw": null,
+          "maximum_usable_power_kw": null,
+          "propellant_mass_kg": null,
+          "maximum_propellant_loading_kg": null,
+          "design_lifetime_hours": null
+        }
+      },
+      "propulsion_subsystem_chemical": {
+        "type": "Bipropellant chemical propulsion",
+        "propellant": "Chemical bipropellant",
+        "specific_impulse_seconds": null,
+        "main_engine_thrust_n": null
+      },
+
+      "electrical_subsystem": {
+        "solar_panels": {
+          "type": null,
+          "efficiency_percent": null,
+          "total_area_m2": null,
+          "total_power_generated_watts": null,
+          "array_orientation": null
+        },
+        "batteries": {
+          "chemistry": null,
+          "capacity_ah": null,
+          "energy_wh": null
+        },
+        "bus_voltage_v": null,
+        "spacecraft_bus_load_kw": null,
+        "electric_propulsion_mode": { 
+          "bus_load_kw": null
+         },
+        "system_margin_percent": null
+      },
+      "opalis": {
+        "model": { 
+          "template_id": "empty.opalis",  
+          "simulation_mode": "Simple", 
+          "power_supply": null, 
+          "regulation_type": null, 
+          "distribution_resistance_ohm": null 
+        },
+        "simulation": { 
+          "reference_time_step_s": null, 
+          "reference_duration_s": null, 
+          "satellite_temperature_c": null, 
+          "regulated_mode": null, 
+          "current_limit_mode": null, 
+          "voltage_limit_mode": null, 
+          "thermal_model": null 
+        },
+        "battery": { 
+          "initial_voltage_v": null, 
+          "initial_state_of_charge": null, 
+          "energy_wh": null, 
+          "cells_parallel": null, 
+          "cells_series": null,  
+          "cable_resistance_ohm": null, 
+          "low_voltage_limit_v": null 
+        },
+        "power_distribution": { 
+          "constant_load_w": null, 
+          "margin_w": null, 
+          "rated_power_w": null, 
+          "consumption_mode": null 
+        },
+        "environment": { 
+          "solar_constant_w_m2": null, 
+          "albedo_w_m2": null, 
+          "earth_radiation_w_m2": null 
+        },
+        "solar_generator": { 
+          "cell_model": null, 
+          "cell_area_m2": null, 
+          "sections": [
+            {
+              "type": null,
+              "area_m2": null,
+              "anchor_type": null,
+              "filling_factor":null,
+              "cells_parallel": null,
+              "cells_series": null,
+              "rated_power_w":null
+            }
+
+          ] 
+        }
+      },
+      "rf_comlink": {
+        "schema_version": 1,
+        "data_handling": { 
+          "initial_memory_usage_bits": null,
+           "memory_capacity_bits": null, 
+           "payload_binary_rate": { 
+            "mode": null, 
+            "rate_bps": null, 
+            "active_duration_s": null, 
+            "repeat_period_s": null 
+            } 
+          },
+        "links": [
+          {
+            "id": "telecommand",
+            "name": "TT&C telecommand",
+            "direction": "EarthSpace",
+            "requires_ground_station_tracking": true,
+            "system": { 
+              "frequency_band": null, 
+              "frequency_range_mhz": [null, null],
+               "frequency_mhz": null, 
+               "data_rate_bps": null, 
+               "bit_error_rate": null, 
+               "modulation": null, 
+               "coding": null, 
+               "receiver_sensitivity_dbm": -108
+              },
+            "spacecraft_antenna": { 
+              "role": "receiver", 
+              "antenna_type": null, 
+               "boresight_body_axes": [
+                null,
+                null
+              ],
+              "polarization": null,
+              "gain_db": null,
+              "figure_of_merit_db_per_k": null,
+              "gain_valid_within_deg": null
+            }
+
+          },
+          {
+            "id": "telemetry",
+            "name": "TT&C telemetry",
+            "direction": "SpaceEarth",
+            "requires_ground_station_tracking": true,
+            "system": { 
+              "frequency_band": null, 
+            "frequency_range_mhz": [null, null], 
+            "frequency_mhz": null, 
+            "data_rate_bps": null, 
+            "bit_error_rate": null, 
+            "modulation": null, 
+            "transmit_power_dbm": null
+          },
+            "spacecraft_antenna": { 
+              "role": "transmitter", 
+              "antenna_type": null, 
+              "boresight_body_axes": [
+                "+Z",
+                "-Z"
+              ],
+              "polarization": "LHCP",
+              "gain_db": 0,
+              "gain_valid_within_deg": 65
+            }
+          },
+          {
+            "id": "payload-downlink",
+            "name": "Payload downlink",
+            "direction": "SpaceEarth",
+            "requires_ground_station_tracking": true,
+            "system": { 
+              "frequency_band": null, 
+              "frequency_range_mhz": [null, null], 
+              "frequency_mhz": null, 
+              "data_rate_bps": null, 
+              "data_rate_range_bps": [
+                null,
+                null
+              ],
+              "bit_error_rate":null,
+              "modulation": null,
+              "transmit_power_dbm": null
+            },
+            "spacecraft_antenna": {
+              "role": "transmitter",
+              "antenna_type": "high-speed data phased array",
+              "boresight_body_axes": [
+                "-Z"
+              ],
+              "gain_db": 2,
+              "eirp_dbw": 9,
+              "pointing_loss_db": 0,
+              "note": null
+            }
+          }
+        ]
+      }
+    }
+
+  },
+  "provenance": {
+    "values": {},
+    "derivations": [],
+    "sources": [
+      { "id": "source-1", "title": null, "url": null, "publication_date": null, "accessed_at": null, "notes": null }
+    ]
+  }
+}

@@ -18,6 +18,7 @@ import { loadRunWorkflowLog } from "./workflowRunLog.js"
 import { beginRunStage, completeRunStage, failRunStage } from "../runs/runLifecycle.js"
 import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
 import { resolveMissionRun } from "../runs/runWorkspace.js"
+import { runStageExclusively } from "../runs/runExecutionRegistry.js"
 
 type RunBody = { runPath?: unknown }
 
@@ -177,6 +178,7 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     let opalisStarted = false
     try {
+      return reply.send(await runStageExclusively(runDir, "opalis", async () => {
       const workflow = await loadRunWorkflowLog(runDir)
       if (workflow.stages.simu_cic.status !== "completed") throw new Error("Run Simu-CIC first. OPALIS requires CIC files generated with the current attitude configuration.")
       const settings = requiredOpalisConfig(config)
@@ -223,7 +225,8 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       const consolidated = await writeConsolidatedRunReport(runDir)
       await completeRunStage(runDir, "opalis", "OPALIS calculation completed.")
       await appendRunConversation(runDir, { answer: `OPALIS calculation completed. Results saved to ${result.summary}.`, askedAt: new Date().toISOString(), channel: "opalis", question: "Run OPALIS calculation" })
-      return reply.send({ ...result, consolidatedReport: path.relative(root, consolidated.output) })
+      return { ...result, consolidatedReport: path.relative(root, consolidated.output) }
+      }))
     } catch (error) {
       if (opalisStarted) await failRunStage(runDir, "opalis", getErrorMessage(error, "failed to run OPALIS scenario")).catch(() => undefined)
       return reply.status(422).send({ error: getErrorMessage(error, "failed to run OPALIS scenario") })

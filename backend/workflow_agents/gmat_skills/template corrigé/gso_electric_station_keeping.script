@@ -1,0 +1,352 @@
+%=============================================================================
+% Electric station keeping for an inclined/eccentric geosynchronous orbit.
+%
+% The reference spacecraft defines the REQUIRED GSO ground track.  Therefore
+% latitude is not driven to zero: a GSO's daily north/south motion is nominal.
+% This is an engineering analysis template, not an operational flight design.
+%=============================================================================
+
+% -------------------- INITIAL GSO TO EDIT --------------------
+% The two spacecraft must start with the same Keplerian elements.
+% A GEO is obtained with ECC = 0 and INC = 0.
+Create Spacecraft GSO_EP;
+GSO_EP.DateFormat       = TAIModJulian;
+GSO_EP.Epoch            = '21545';
+GSO_EP.CoordinateSystem = EarthMJ2000Eq;
+GSO_EP.DisplayStateType = Keplerian;
+GSO_EP.SMA              = 42164.17;
+GSO_EP.ECC              = 0.0001;
+GSO_EP.INC              = 0.05;
+GSO_EP.RAAN             = 0.0;
+GSO_EP.AOP              = 0.0;
+GSO_EP.TA               = 0.0;
+GSO_EP.DryMass          = 1800;
+GSO_EP.Cd               = 2.2;
+GSO_EP.DragArea         = 20;
+GSO_EP.Cr               = 1.4;
+GSO_EP.SRPArea          = 35;
+GSO_EP.Tanks            = {ElectricPropellantTank};
+GSO_EP.Thrusters        = {EW_East, EW_West, NormalPlus, NormalMinus};
+GSO_EP.PowerSystem      = GSO_SolarArray;
+
+Create ElectricTank ElectricPropellantTank;
+% Valid orthonormal hardware frame for GMAT initialization.
+ElectricPropellantTank.DirectionX = 1;
+ElectricPropellantTank.DirectionY = 0;
+ElectricPropellantTank.DirectionZ = 0;
+ElectricPropellantTank.SecondDirectionX = 0;
+ElectricPropellantTank.SecondDirectionY = 1;
+ElectricPropellantTank.SecondDirectionZ = 0;
+ElectricPropellantTank.AllowNegativeFuelMass = false;
+ElectricPropellantTank.FuelMass              = 200;
+
+Create SolarPowerSystem GSO_SolarArray;
+GSO_SolarArray.DirectionX = 1;
+GSO_SolarArray.DirectionY = 0;
+GSO_SolarArray.DirectionZ = 0;
+GSO_SolarArray.SecondDirectionX = 0;
+GSO_SolarArray.SecondDirectionY = 1;
+GSO_SolarArray.SecondDirectionZ = 0;
+GSO_SolarArray.EpochFormat     = UTCGregorian;
+GSO_SolarArray.InitialEpoch    = '01 Jan 2000 11:59:28.000';
+GSO_SolarArray.InitialMaxPower = 6.0;
+GSO_SolarArray.AnnualDecayRate = 0.5;
+GSO_SolarArray.Margin          = 0.2;
+GSO_SolarArray.BusCoeff1       = 0.5;
+GSO_SolarArray.BusCoeff2       = 0;
+GSO_SolarArray.BusCoeff3       = 0;
+GSO_SolarArray.ShadowModel     = DualCone;
+GSO_SolarArray.ShadowBodies    = {Earth, Luna};
+
+Create ElectricThruster EW_East;
+EW_East.DirectionX = 1;
+EW_East.DirectionY = 0;
+EW_East.DirectionZ = 0;
+EW_East.SecondDirectionX = 0;
+EW_East.SecondDirectionY = 1;
+EW_East.SecondDirectionZ = 0;
+EW_East.CoordinateSystem   = Local;
+EW_East.Origin             = Earth;
+EW_East.Axes               = VNB;
+EW_East.ThrustDirection1   = 1;
+EW_East.ThrustDirection2   = 0;
+EW_East.ThrustDirection3   = 0;
+EW_East.DutyCycle          = 1;
+EW_East.ThrustScaleFactor  = 1;
+EW_East.DecrementMass      = true;
+EW_East.Tank               = {ElectricPropellantTank};
+EW_East.MixRatio           = [1];
+EW_East.GravitationalAccel = 9.80665;
+EW_East.ThrustModel        = ConstantThrustAndIsp;
+EW_East.MaximumUsablePower = 5.0;
+EW_East.MinimumUsablePower = 0.01;
+EW_East.Isp                = 1800;
+EW_East.ConstantThrust     = 0.25;
+
+Create ElectricThruster EW_West;
+EW_West.DirectionX = 1;
+EW_West.DirectionY = 0;
+EW_West.DirectionZ = 0;
+EW_West.SecondDirectionX = 0;
+EW_West.SecondDirectionY = 1;
+EW_West.SecondDirectionZ = 0;
+EW_West.CoordinateSystem   = Local;
+EW_West.Origin             = Earth;
+EW_West.Axes               = VNB;
+EW_West.ThrustDirection1   = -1;
+EW_West.ThrustDirection2   = 0;
+EW_West.ThrustDirection3   = 0;
+EW_West.DutyCycle          = 1;
+EW_West.ThrustScaleFactor  = 1;
+EW_West.DecrementMass      = true;
+EW_West.Tank               = {ElectricPropellantTank};
+EW_West.MixRatio           = [1];
+EW_West.GravitationalAccel = 9.80665;
+EW_West.ThrustModel        = ConstantThrustAndIsp;
+EW_West.MaximumUsablePower = 5.0;
+EW_West.MinimumUsablePower = 0.01;
+EW_West.Isp                = 1800;
+EW_West.ConstantThrust     = 0.25;
+
+Create ElectricThruster NormalPlus;
+NormalPlus.DirectionX = 1;
+NormalPlus.DirectionY = 0;
+NormalPlus.DirectionZ = 0;
+NormalPlus.SecondDirectionX = 1;
+NormalPlus.SecondDirectionY = 0;
+NormalPlus.SecondDirectionZ = 0;
+NormalPlus.CoordinateSystem   = Local;
+NormalPlus.Origin             = Earth;
+NormalPlus.Axes               = VNB;
+% VNB = velocity, orbit normal, binormal: component 2 is the plane normal.
+NormalPlus.ThrustDirection1   = 0;
+NormalPlus.ThrustDirection2   = 1;
+NormalPlus.ThrustDirection3   = 0;
+NormalPlus.DutyCycle          = 1;
+NormalPlus.ThrustScaleFactor  = 1;
+NormalPlus.DecrementMass      = true;
+NormalPlus.Tank               = {ElectricPropellantTank};
+NormalPlus.MixRatio           = [1];
+NormalPlus.GravitationalAccel = 9.80665;
+NormalPlus.ThrustModel        = ConstantThrustAndIsp;
+NormalPlus.MaximumUsablePower = 5.0;
+NormalPlus.MinimumUsablePower = 0.01;
+NormalPlus.Isp                = 1800;
+NormalPlus.ConstantThrust     = 0.25;
+
+Create ElectricThruster NormalMinus;
+NormalMinus.DirectionX = 1;
+NormalMinus.DirectionY = 0;
+NormalMinus.DirectionZ = 0;
+NormalMinus.SecondDirectionX = 1;
+NormalMinus.SecondDirectionY = 0;
+NormalMinus.SecondDirectionZ = 0;
+NormalMinus.CoordinateSystem   = Local;
+NormalMinus.Origin             = Earth;
+NormalMinus.Axes               = VNB;
+NormalMinus.ThrustDirection1   = 0;
+NormalMinus.ThrustDirection2   = -1;
+NormalMinus.ThrustDirection3   = 0;
+NormalMinus.DutyCycle          = 1;
+NormalMinus.ThrustScaleFactor  = 1;
+NormalMinus.DecrementMass      = true;
+NormalMinus.Tank               = {ElectricPropellantTank};
+NormalMinus.MixRatio           = [1];
+NormalMinus.GravitationalAccel = 9.80665;
+NormalMinus.ThrustModel        = ConstantThrustAndIsp;
+NormalMinus.MaximumUsablePower = 5.0;
+NormalMinus.MinimumUsablePower = 0.01;
+NormalMinus.Isp                = 1800;
+NormalMinus.ConstantThrust     = 0.25;
+
+Create FiniteBurn EW_East_Burn;
+EW_East_Burn.Thrusters = {EW_East};
+Create FiniteBurn EW_West_Burn;
+EW_West_Burn.Thrusters = {EW_West};
+Create FiniteBurn NormalPlus_Burn;
+NormalPlus_Burn.Thrusters = {NormalPlus};
+Create FiniteBurn NormalMinus_Burn;
+NormalMinus_Burn.Thrusters = {NormalMinus};
+
+% Perturbed spacecraft model: use this for the real satellite.
+Create ForceModel GSO_OperationalFM;
+GSO_OperationalFM.CentralBody                      = Earth;
+GSO_OperationalFM.PrimaryBodies                    = {Earth};
+GSO_OperationalFM.PointMasses                      = {Sun, Luna};
+GSO_OperationalFM.Drag                             = None;
+GSO_OperationalFM.SRP                              = On;
+GSO_OperationalFM.RelativisticCorrection           = Off;
+GSO_OperationalFM.ErrorControl                     = RSSStep;
+GSO_OperationalFM.GravityField.Earth.Degree        = 8;
+GSO_OperationalFM.GravityField.Earth.Order         = 8;
+GSO_OperationalFM.GravityField.Earth.PotentialFile = 'JGM2.cof';
+GSO_OperationalFM.GravityField.Earth.TideModel     = 'SolidAndPole';
+GSO_OperationalFM.SRP.Flux                         = 1367;
+GSO_OperationalFM.SRP.SRPModel                     = Spherical;
+GSO_OperationalFM.SRP.Nominal_Sun                  = 149597870.691;
+
+Create Propagator GSO_OperationalProp;
+GSO_OperationalProp.FM                       = GSO_OperationalFM;
+GSO_OperationalProp.Type                     = RungeKutta89;
+GSO_OperationalProp.InitialStepSize          = 60;
+GSO_OperationalProp.Accuracy                 = 1e-11;
+GSO_OperationalProp.MinStep                  = 0.1;
+GSO_OperationalProp.MaxStep                  = 900;
+GSO_OperationalProp.MaxStepAttempts          = 50;
+GSO_OperationalProp.StopIfAccuracyIsViolated = true;
+
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.Spacecraft = GSO_EP;
+EphemerisFile1.Filename = 'GSO_Electric_Ephemeris.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.WriteEphemeris = true;
+Create ReportFile GSO_Report;
+GSO_Report.Filename     = 'GSO_StationKeeping_Electric_Report.txt';
+GSO_Report.Precision    = 12;
+GSO_Report.ColumnWidth  = 20;
+GSO_Report.WriteHeaders = true;
+GSO_Report.WriteReport  = true;
+GSO_Report.Add = {GSO_EP.UTCGregorian, GSO_EP.ElapsedDays, GSO_EP.Earth.SMA, GSO_EP.Earth.ECC, GSO_EP.EarthMJ2000Eq.INC, GSO_EP.TotalMass, GSO_EP.ElectricPropellantTank.FuelMass, missionCompleted};
+
+Create Variable MissionDuration ControlIntervalSecs FuelReserveKg missionCompleted;
+Create Variable targetSMA targetECC targetINC toleranceSMA toleranceECC toleranceINC smaLower smaUpper smaToleranceLower smaToleranceUpper eccLower eccUpper incLower incUpper eccTrigger incTrigger eccError absEccError incError absIncError;
+Create Variable SmaBurnDuration EccBurnDuration NSBurnDuration;
+
+Create XYPlot XYPlot4;
+XYPlot4.SolverIterations = Current;
+XYPlot4.UpperLeft = [ 0.01576263328697265 0.0153015301530153 ];
+XYPlot4.Size = [ 0.9049605934167826 0.2709270927092709 ];
+XYPlot4.RelativeZOrder = 1179;
+XYPlot4.Maximized = false;
+XYPlot4.XVariable = GSO_EP.ElapsedDays;
+XYPlot4.YVariables = {GSO_EP.Earth.SMA, smaToleranceLower, smaToleranceUpper, targetSMA};
+XYPlot4.ShowGrid = true;
+XYPlot4.ShowPlot = true;
+
+Create XYPlot XYPlot3;
+XYPlot3.SolverIterations = Current;
+XYPlot3.UpperLeft = [ 0.01576263328697265 0.3020000000000000 ];
+XYPlot3.Size = [ 0.9049605934167826 0.2709270927092709 ];
+XYPlot3.RelativeZOrder = 1180;
+XYPlot3.Maximized = false;
+XYPlot3.XVariable = GSO_EP.ElapsedDays;
+XYPlot3.YVariables = {GSO_EP.Earth.ECC, eccLower, eccUpper, targetECC};
+XYPlot3.ShowGrid = true;
+XYPlot3.ShowPlot = true;
+
+Create XYPlot XYPlot2;
+XYPlot2.SolverIterations = Current;
+XYPlot2.UpperLeft = [ 0.01576263328697265 0.5886984698469847 ];
+XYPlot2.Size = [ 0.9049605934167826 0.2709270927092709 ];
+XYPlot2.RelativeZOrder = 1181;
+XYPlot2.Maximized = false;
+XYPlot2.XVariable = GSO_EP.ElapsedDays;
+XYPlot2.YVariables = {GSO_EP.EarthMJ2000Eq.INC, incLower, incUpper, targetINC};
+XYPlot2.ShowGrid = true;
+XYPlot2.ShowPlot = true;
+BeginMissionSequence;
+
+% Capture the requested GSO elements once.  They never move during the run.
+targetSMA = GSO_EP.Earth.SMA;
+targetECC = GSO_EP.Earth.ECC;
+targetINC = GSO_EP.EarthMJ2000Eq.INC;
+
+% Tunable GSO element bands.  Larger bands reduce maneuver frequency and fuel use.
+MissionDuration = 30;
+toleranceSMA = 5;
+toleranceECC = 0.0002;
+toleranceINC = 0.05;
+SmaBurnDuration = 600;
+EccBurnDuration = 300;
+NSBurnDuration  = 1200;
+ControlIntervalSecs = 21600;
+FuelReserveKg = 5;
+smaLower = targetSMA - 0.5 * toleranceSMA;
+smaUpper = targetSMA + 0.5 * toleranceSMA;
+smaToleranceLower = targetSMA - toleranceSMA;
+smaToleranceUpper = targetSMA + toleranceSMA;
+eccLower = targetECC - toleranceECC;
+eccUpper = targetECC + toleranceECC;
+incLower = targetINC - toleranceINC;
+incUpper = targetINC + toleranceINC;
+eccTrigger = 0.5 * toleranceECC;
+incTrigger = 0.5 * toleranceINC;
+missionCompleted = 0;
+
+Toggle EphemerisFile1 On;
+Report GSO_Report GSO_EP.UTCGregorian GSO_EP.ElapsedDays GSO_EP.Earth.SMA GSO_EP.Earth.ECC GSO_EP.EarthMJ2000Eq.INC GSO_EP.TotalMass GSO_EP.ElectricPropellantTank.FuelMass missionCompleted;
+
+While 'GSO element station keeping' GSO_EP.ElapsedDays < MissionDuration & GSO_EP.ElectricPropellantTank.FuelMass > FuelReserveKg
+   eccError = GSO_EP.Earth.ECC - targetECC;
+   absEccError = Abs(eccError);
+   incError = GSO_EP.EarthMJ2000Eq.INC - targetINC;
+   absIncError = Abs(incError);
+   % Semi-major axis controls the mean motion and hence longitude drift.
+   If 'SMA below band' GSO_EP.Earth.SMA < smaLower
+      BeginFiniteBurn EW_East_Burn(GSO_EP);
+      Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.ElapsedSecs = SmaBurnDuration};
+      EndFiniteBurn EW_East_Burn(GSO_EP);
+   Else
+      If 'SMA above band' GSO_EP.Earth.SMA > smaUpper
+         BeginFiniteBurn EW_West_Burn(GSO_EP);
+         Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.ElapsedSecs = SmaBurnDuration};
+         EndFiniteBurn EW_West_Burn(GSO_EP);
+      EndIf;
+   EndIf;
+
+   % At periapsis a tangential burn is an efficient first-order eccentricity correction.
+   If 'Eccentricity outside guardband' absEccError > eccTrigger
+      Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.Earth.Periapsis};
+      If 'Eccentricity too large' GSO_EP.Earth.ECC > targetECC
+         BeginFiniteBurn EW_West_Burn(GSO_EP);
+         Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.ElapsedSecs = EccBurnDuration};
+         EndFiniteBurn EW_West_Burn(GSO_EP);
+      Else
+         BeginFiniteBurn EW_East_Burn(GSO_EP);
+         Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.ElapsedSecs = EccBurnDuration};
+         EndFiniteBurn EW_East_Burn(GSO_EP);
+      EndIf;
+   EndIf;
+
+   % Inclination correction is applied with VNB-N at the next node.
+   If 'Inclination outside guardband' absIncError > incTrigger
+      Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.Earth.Latitude = 0};
+      If 'Inclination above target' GSO_EP.EarthMJ2000Eq.INC > targetINC
+         If 'Ascending node' GSO_EP.VZ > 0
+            BeginFiniteBurn NormalMinus_Burn(GSO_EP);
+            Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.ElapsedSecs = NSBurnDuration};
+            EndFiniteBurn NormalMinus_Burn(GSO_EP);
+         Else
+            BeginFiniteBurn NormalPlus_Burn(GSO_EP);
+            Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.ElapsedSecs = NSBurnDuration};
+            EndFiniteBurn NormalPlus_Burn(GSO_EP);
+         EndIf;
+      Else
+         If 'Ascending node' GSO_EP.VZ > 0
+            BeginFiniteBurn NormalPlus_Burn(GSO_EP);
+            Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.ElapsedSecs = NSBurnDuration};
+            EndFiniteBurn NormalPlus_Burn(GSO_EP);
+         Else
+            BeginFiniteBurn NormalMinus_Burn(GSO_EP);
+            Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.ElapsedSecs = NSBurnDuration};
+            EndFiniteBurn NormalMinus_Burn(GSO_EP);
+         EndIf;
+      EndIf;
+   EndIf;
+
+   Propagate GSO_OperationalProp(GSO_EP) {GSO_EP.ElapsedSecs = ControlIntervalSecs};
+   Report GSO_Report GSO_EP.UTCGregorian GSO_EP.ElapsedDays GSO_EP.Earth.SMA GSO_EP.Earth.ECC GSO_EP.EarthMJ2000Eq.INC GSO_EP.TotalMass GSO_EP.ElectricPropellantTank.FuelMass missionCompleted;
+EndWhile;
+
+If 'Requested duration completed' GSO_EP.ElapsedDays >= MissionDuration
+   missionCompleted = 1;
+EndIf;
+Report GSO_Report GSO_EP.UTCGregorian GSO_EP.ElapsedDays GSO_EP.Earth.SMA GSO_EP.Earth.ECC GSO_EP.EarthMJ2000Eq.INC GSO_EP.TotalMass GSO_EP.ElectricPropellantTank.FuelMass missionCompleted;
+Toggle EphemerisFile1 Off;

@@ -215,7 +215,9 @@ ReboostReport.Size = [ 0 0 ];
 ReboostReport.RelativeZOrder = 0;
 ReboostReport.Maximized = false;
 
-ReboostReport.Filename = 'D:/STAGE/agent-gmat-main/data/user/default/gmat/orbit-keeping/26-08-06_16-45/ReboostReport.txt';
+% Use relative paths so a generated scenario can run from any GMAT workspace.
+% GMAT resolves these outputs in its active run directory.
+ReboostReport.Filename = 'ReboostReport.txt';
 ReboostReport.Precision = 16;
 ReboostReport.WriteHeaders = true;
 ReboostReport.LeftJustify = On;
@@ -233,7 +235,7 @@ OrbitAnalysisReport.UpperLeft = [ 0 0 ];
 OrbitAnalysisReport.Size = [ 0 0 ];
 OrbitAnalysisReport.RelativeZOrder = 0;
 OrbitAnalysisReport.Maximized = false;
-OrbitAnalysisReport.Filename = 'D:/STAGE/agent-gmat-main/data/user/default/gmat/orbit-keeping/26-08-06_16-45/OrbitAnalysisReport.txt';
+OrbitAnalysisReport.Filename = 'OrbitAnalysisReport.txt';
 OrbitAnalysisReport.Precision = 16;
 OrbitAnalysisReport.WriteHeaders = true;
 OrbitAnalysisReport.LeftJustify = On;
@@ -311,10 +313,12 @@ EphemerisFile1.WriteEphemeris = true;
 %----------------------------------------
 %---------- Arrays, Variables, Strings
 %----------------------------------------
-Create Variable minAltitude finalAltitude fuelReserve targetSMA;
+Create Variable minAltitude finalAltitude fuelReserve reboostFuelMargin minimumReboostFuel targetSMA;
 minAltitude = 250;
 finalAltitude = 150;
 fuelReserve = 1;
+% Preserve this amount after the final reboost; do not spend it on a burn.
+reboostFuelMargin = 0.5;
 targetSMA = 6631.1363;
 
 
@@ -345,11 +349,13 @@ OrbitView1_View.FOVy = 45;
 %----------------------------------------
 
 BeginMissionSequence;
+minimumReboostFuel = fuelReserve + reboostFuelMargin;
 
 % Do not issue a new "propagate to minAltitude" command after a reboost
 % sequence has left the spacecraft below that altitude.  In that case the
 % decaying orbit cannot cross minAltitude again and would propagate to entry.
-While DefaultSC.ChemicalTank1.FuelMass > fuelReserve & DefaultSC.Earth.Altitude > minAltitude
+% The margin prevents the two finite reboost impulses from consuming reserve fuel.
+While DefaultSC.ChemicalTank1.FuelMass > minimumReboostFuel & DefaultSC.Earth.Altitude > minAltitude
 
    Propagate 'Propagate to Reboost Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = minAltitude};
 

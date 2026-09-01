@@ -5,10 +5,10 @@ import { fileURLToPath } from "node:url"
 
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { PREDEFINED_GROUND_STATIONS, assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
-import { gmatTemplateDefinition, type GmatTemplateId } from "../gmat/templateRegistry.js"
+import { GMAT_MISSION_SCENARIO_IDS, gmatTemplateDefinition, type GmatTemplateId } from "../gmat/templateRegistry.js"
 import { isMissionRunWorkspacePath, missionRunDirectory } from "../runs/runWorkspace.js"
 import { assertValidDigitalThreadDocument } from "./digitalThreadSchema.js"
-import { updateJsonFile, writeTextAtomically } from "../shared/atomicPersistence.js"
+import { updateJsonFile, withFileWriteLock, writeTextAtomically } from "../shared/atomicPersistence.js"
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 export type DigitalThreadDocument = { [key: string]: JsonValue } & {
@@ -101,7 +101,8 @@ function ensureMissionRequestShape(document: DigitalThreadDocument) {
   }
   const analysis = document.analysis_requests
   const gmat = asObject(analysis.gmat) ?? (analysis.gmat = {}, analysis.gmat as { [key: string]: JsonValue })
-  for (const template of ["orbit_keeping", "electric_propulsion_transfer", "chemical_hohmann_transfer", "chemical_3d_transfer"]) {
+  for (const scenario of GMAT_MISSION_SCENARIO_IDS) {
+    const template = gmatTemplateDefinition(scenario).analysisRequestKey
     const request = asObject(gmat[template]) ?? (gmat[template] = {}, gmat[template] as { [key: string]: JsonValue })
     const orbit = asObject(request.initial_orbit) ?? (request.initial_orbit = {}, request.initial_orbit as { [key: string]: JsonValue })
     for (const field of ["epoch_tai_mod_julian", "semi_major_axis_km", "eccentricity", "inclination_deg", "raan_deg", "arg_of_perigee_deg", "true_anomaly_deg"]) {
@@ -188,24 +189,31 @@ export async function createEphemeralDigitalThread() {
   return document
 }
 
-export async function loadOrCreateDigitalThread(workspaceDir: string) {
+async function loadOrCreateDigitalThreadUnlocked(workspaceDir: string) {
   const output = digitalThreadPath(workspaceDir)
   const existing = await fs.readFile(output, "utf8").catch(() => null)
   if (existing !== null) {
     const parsed: unknown = JSON.parse(existing)
     assertDocument(parsed)
-    if (ensureMissionRequestShape(parsed)) await saveDigitalThread(workspaceDir, parsed)
+    if (ensureMissionRequestShape(parsed)) await saveDigitalThreadUnlocked(workspaceDir, parsed)
     return parsed
   }
   const document = await createEphemeralDigitalThread()
   ensureMissionRequestShape(document)
-  await saveDigitalThread(workspaceDir, document, false)
+  await saveDigitalThreadUnlocked(workspaceDir, document, false)
   return document
+}
+
+/** Reads or creates one run-local source of truth under the same lock used for
+ * updates. A migration can therefore never overwrite a concurrent user edit. */
+export async function loadOrCreateDigitalThread(workspaceDir: string) {
+  const output = digitalThreadPath(workspaceDir)
+  return withFileWriteLock(output, () => loadOrCreateDigitalThreadUnlocked(workspaceDir))
 }
 
 /** Starts a clean, per-draft digital thread from the selected satellite only.
  * Earlier mission values deliberately do not leak into a new draft. */
-export async function initializeDraftDigitalThread(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer" | "chemical-3d-transfer", draftId: string) {
+export async function initializeDraftDigitalThread(workspaceDir: string, template: GmatTemplateId, draftId: string) {
   const draftWorkspaceDir = draftDigitalThreadWorkspaceDir(workspaceDir, template, draftId)
   const output = digitalThreadPath(draftWorkspaceDir)
   const existing = await fs.readFile(output, "utf8").catch(() => null)
@@ -235,7 +243,7 @@ export async function loadRunDigitalThreadSnapshot(runDir: string) {
   return document
 }
 
-export async function saveDigitalThread(workspaceDir: string, document: DigitalThreadDocument, incrementRevision = true) {
+async function saveDigitalThreadUnlocked(workspaceDir: string, document: DigitalThreadDocument, incrementRevision = true) {
   assertDocument(document)
   const metadata = document.digital_thread
   metadata.revision = incrementRevision ? Number(metadata.revision ?? 0) + 1 : Number(metadata.revision ?? 0)
@@ -244,13 +252,35 @@ export async function saveDigitalThread(workspaceDir: string, document: DigitalT
   const output = digitalThreadPath(workspaceDir)
   const source = `${JSON.stringify(document, null, 2)}\n`
   await fs.mkdir(path.dirname(output), { recursive: true })
-  const temporary = `${output}.${crypto.randomUUID()}.tmp`
-  await fs.writeFile(temporary, source, "utf8")
-  await fs.rename(temporary, output)
+  await writeTextAtomically(output, source)
   const revision = satelliteRevisionPath(workspaceDir, Number(metadata.revision ?? 0))
   await fs.mkdir(path.dirname(revision), { recursive: true })
   await fs.writeFile(revision, source, "utf8")
   return document
+}
+
+/** Persists a complete document safely. Prefer updateDigitalThread for any
+ * read-modify-write operation so concurrent requests cannot lose fields. */
+export async function saveDigitalThread(workspaceDir: string, document: DigitalThreadDocument, incrementRevision = true) {
+  return withFileWriteLock(digitalThreadPath(workspaceDir), () => saveDigitalThreadUnlocked(workspaceDir, document, incrementRevision))
+}
+
+/** Atomically applies an update to the latest run-local satellite.json.
+ * This is the only supported mutation primitive for HTTP handlers and adapters. */
+export async function updateDigitalThread(
+  workspaceDir: string,
+  update: (document: DigitalThreadDocument) => DigitalThreadDocument | void | Promise<DigitalThreadDocument | void>,
+  incrementRevision = true,
+) {
+  const output = digitalThreadPath(workspaceDir)
+  return withFileWriteLock(output, async () => {
+    const document = await loadOrCreateDigitalThreadUnlocked(workspaceDir)
+    const result = await update(document)
+    const next = result ?? document
+    assertDocument(next)
+    ensureMissionRequestShape(next)
+    return saveDigitalThreadUnlocked(workspaceDir, next, incrementRevision)
+  })
 }
 
 export type DigitalThreadSnapshot = {
@@ -329,14 +359,14 @@ function explicitSimuCicConfiguration(message: string) {
 export async function applyExplicitSimuCicConfiguration(workspaceDir: string, message: string) {
   const request = explicitSimuCicConfiguration(message)
   if (!request) return null
-  const document = await loadOrCreateDigitalThread(workspaceDir)
-  document.analysis_requests.simu_cic = request
-  synchronizeRfGroundStationChoice(document)
-  const provenance = asObject(document.provenance.values) ?? {}
-  provenance["analysis_requests.simu_cic"] = { source: "engineer_message", recorded_at: new Date().toISOString() }
-  document.provenance.values = provenance
   assertValidSimuCicRequest(request)
-  await saveDigitalThread(workspaceDir, document)
+  const document = await updateDigitalThread(workspaceDir, document => {
+    document.analysis_requests.simu_cic = request
+    synchronizeRfGroundStationChoice(document)
+    const provenance = asObject(document.provenance.values) ?? {}
+    provenance["analysis_requests.simu_cic"] = { source: "engineer_message", recorded_at: new Date().toISOString() }
+    document.provenance.values = provenance
+  })
   const behavior = request.attitude_mode === "nadir_pointing"
     ? "nadir pointing"
     : `ground-station tracking for ${request.ground_station_ids.join(", ")} (nadir fallback when no station is visible)`
@@ -396,24 +426,33 @@ export async function updateDigitalThreadWithLlm({ connection, message, workspac
   const source = extractResponseText(payload).replace(/^```(?:json)?\s*/iu, "").replace(/\s*```$/u, "")
   const patch = JSON.parse(source) as { message?: unknown; updates?: unknown }
   if (!Array.isArray(patch.updates)) throw new Error("digital-thread LLM response has no updates array")
+  const validatedUpdates: Array<{ path: string; value: JsonValue }> = []
   const provenance = asObject(document.provenance.values) ?? {}
   document.provenance.values = provenance
   for (const item of patch.updates) {
     const update = item && typeof item === "object" ? item as { path?: unknown; value?: unknown } : null
     if (!update || typeof update.path !== "string" || !allowedPaths.includes(update.path)) throw new Error("digital-thread LLM response references an unknown path")
     if (!isJsonValue(update.value)) throw new Error(`invalid digital-thread value for ${update.path}`)
+    validatedUpdates.push({ path: update.path, value: update.value })
     setAtPath(document, update.path, update.value)
     provenance[update.path] = { source: "engineer_message", recorded_at: new Date().toISOString() }
   }
   // A station/attitude request is safety-critical for the downstream
   // simulation. Do not rely solely on a probabilistic LLM patch for simple,
   // explicit commands supported by the UI.
-  const simuCicRequest = asObject(document.analysis_requests.simu_cic)
-  if (!simuCicRequest) throw new Error("Simu-CIC request is missing from the digital thread")
-  assertValidSimuCicRequest(simuCicRequest)
-  synchronizeRfGroundStationChoice(document)
-  await saveDigitalThread(workspaceDir, document)
-  return { document, message: typeof patch.message === "string" ? patch.message.trim() : "Digital thread updated." }
+  const savedDocument = await updateDigitalThread(workspaceDir, latest => {
+    const latestProvenance = asObject(latest.provenance.values) ?? {}
+    latest.provenance.values = latestProvenance
+    for (const update of validatedUpdates) {
+      setAtPath(latest, update.path, update.value)
+      latestProvenance[update.path] = { source: "engineer_message", recorded_at: new Date().toISOString() }
+    }
+    const simuCicRequest = asObject(latest.analysis_requests.simu_cic)
+    if (!simuCicRequest) throw new Error("Simu-CIC request is missing from the digital thread")
+    assertValidSimuCicRequest(simuCicRequest)
+    synchronizeRfGroundStationChoice(latest)
+  })
+  return { document: savedDocument, message: typeof patch.message === "string" ? patch.message.trim() : "Digital thread updated." }
 }
 
 export { getAtPath, setAtPath }

@@ -1,0 +1,17 @@
+{
+  "id": "geo-electric-end-of-life",
+  "name": "GEO Electric End-of-Life",
+  "description": "Parameterized electric-propulsion GEO disposal analysis to a graveyard orbit or Earth escape energy.",
+  "analysis_request_key": "geo_electric_end_of_life",
+  "draft_directory": ["gmat", "geo-electric-end-of-life", "drafts"],
+  "chat_mode": "gmat-geo-electric-end-of-life",
+  "gmat_reference_script": "references/geo_electric_end_of_life.script",
+  "gmat_reference_values": "references/geo_electric_end_of_life.values.yaml",
+  "artifacts": [{ "path": "geo_electric_end_of_life.script", "kind": "script", "primary": true }, { "path": "geo_electric_end_of_life.values.yaml", "kind": "values" }, { "path": "GEO_Electric_EndOfLife_Report.txt", "kind": "report", "primary": true }, { "path": "EphemerisFile1.oem", "kind": "ephemeris", "primary": true }, { "path": "satellite.json", "kind": "digital-thread", "primary": true }, { "path": "run_manifest.json", "kind": "manifest" }, { "path": "gmat.log", "kind": "log" }],
+  "propulsion_requirement": "electric",
+  "initial_state_representation": "Keplerian",
+  "ui": { "objective": "Assess electric GEO end-of-life disposal to an IADC-style graveyard orbit or positive Earth-relative C3.", "summary": "Electric GEO graveyard-orbit raise or Earth-escape analysis.", "outputs": ["GMAT script and values", "End-of-life report", "OEM ephemeris", "Run-local satellite.json"], "satellite_requirements": ["Dry mass", "Electric propellant and Isp", "Solar-array power"], "mission_input_fields": [{ "label": "Initial epoch", "path": "initialOrbit.epoch" }, { "label": "Eccentricity", "path": "initialOrbit.eccentricity" }, { "label": "Inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" }, { "label": "Initial electric propellant", "path": "spacecraft.initialFuelMassKg", "unit": "kg" }, { "label": "Disposal mode (0 graveyard, 1 escape)", "path": "endOfLife.missionMode" }, { "label": "Escape C3", "path": "endOfLife.escapeC3Km2PerSec2", "unit": "km²/s²" }, { "label": "Maximum graveyard duration", "path": "endOfLife.maxCemeteryDays", "unit": "days" }, { "label": "Maximum escape duration", "path": "endOfLife.maxEscapeDays", "unit": "days" } ] },
+  "mission_inputs": { "required": ["initial_keplerian_orbit", "electric_propellant", "disposal_mode"], "defaults": { "mission_mode": 0, "escape_c3_km2_per_sec2": 0.01, "max_cemetery_days": 20, "max_escape_days": 300 } },
+  "satellite_inputs": ["satellite.bus.physical.mass_kg.dry", "satellite.bus.propulsion_subsystem.electric_thruster", "satellite.bus.electrical_subsystem"],
+  "downstream_analyses": ["simu-cic", "opalis", "rf-comlink"]
+}

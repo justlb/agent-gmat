@@ -1,0 +1,4026 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-08-27T07:35:45.8691705Z",
+  "purpose": "Complete CDP4 parameter trace for the satellite iteration.",
+  "reference_chain": [
+    "ElementDefinition or ElementUsage → parameter IID",
+    "Parameter → parameterType IID (resolved in the CSV where available)",
+    "Parameter → valueSet IID",
+    "ParameterValueSet → manual, published, computed, reference values"
+  ],
+  "value_policy": "The manual field is retained and considered usable on request; all other value fields are preserved separately.",
+  "sources": {
+    "iteration_json": "C:\\Users\\justl\\Documents\\xwechat_files\\wxid_6mmbdg6y39pd12_092c\\msg\\file\\2026-08\\SpringSchool\\EngineeringModels\\99c64085-43fb-4c7a-b3c9-9b1347242b5e\\Iterations\\1faa121e-8b77-4346-93d2-59261474e013.json",
+    "parameter_types_csv": "C:\\Users\\justl\\Documents\\xwechat_files\\wxid_6mmbdg6y39pd12_092c\\msg\\file\\2026-08\\parameter_types_local_test_model.csv"
+  },
+  "summary": {
+    "parameters": 174,
+    "parameter_value_sets": 178,
+    "parameter_types_matched_to_csv": 132,
+    "parameter_types_not_in_csv": 42
+  },
+  "parameters": [
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2dddb54b-486e-4077-812e-9d37c1fbc546",
+          "element_name": "H100 GPU",
+          "element_short_name": "GPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "01a5b584-7887-43f6-95fc-890c0b094b64",
+      "parameter_type_iid": "a215c9d0-b100-419f-a04c-57d4a5cd0e76",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "170169c3-e79b-45bc-9c78-3bb90331724d",
+      "value_switch": "MANUAL",
+      "manual_value": 3.34,
+      "published_value": 3.34,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "57c14652-5033-4e62-b60b-ed82739b799b",
+          "element_name": "IMU",
+          "element_short_name": "IMU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "0487396b-d114-4aa1-9207-e4230a4b1da6",
+      "parameter_type_iid": "651e1875-9236-4bd2-b3a7-fd89797ebdd8",
+      "parameter_type_name": "power",
+      "parameter_type_short_name": "P",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "4275510b-f514-4a3f-aa49-1dacf2ffeaec",
+      "value_switch": "MANUAL",
+      "manual_value": 20.0,
+      "published_value": 20.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f23ce7a9-f8b0-48e2-8aae-865a7bc5a14f",
+          "element_name": "NVMe SSD",
+          "element_short_name": "STRG",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "04f4a5a7-3dfa-401b-b136-b6135c8c10bf",
+      "parameter_type_iid": "47b1d239-cf51-4f75-81fc-47fa38458f96",
+      "parameter_type_name": "active power",
+      "parameter_type_short_name": "ap",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "fa74577f-3225-49a8-b9b1-d2149b89e5d3",
+      "value_switch": "MANUAL",
+      "manual_value": 10.2,
+      "published_value": 10.2,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "fde9a39a-465d-4952-a804-8c6f474fdaa7",
+          "element_name": "Ground  Segment",
+          "element_short_name": "GroundSegment",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "07a47706-250c-45ef-9d5d-499731f547e5",
+      "parameter_type_iid": "07ab1592-55d1-4dca-b53b-a1bf4c464129",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "a2676772-8f7b-4b65-b493-5c0ea6c62561",
+      "value_set_iid": "ab9231a7-bd64-459f-9f72-734394348e27",
+      "value_switch": "MANUAL",
+      "manual_value": 53.6,
+      "published_value": 53.6,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "7a93adb8-f520-43a4-a9d9-efdb2285d291",
+          "element_name": "Thermal Control Subsystem",
+          "element_short_name": "TMS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "07d0c9e1-0624-4fe7-b34f-4a1377f0195f",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "0120be96-cd3a-414d-aadc-854b841c878c",
+      "value_switch": "MANUAL",
+      "manual_value": 4.0,
+      "published_value": 4.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f5c94e87-a840-41f5-956c-8ad7155ce765",
+          "element_name": "Assembly Integration and Test",
+          "element_short_name": "AIT",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "084b7ac8-3643-4c8d-8fd9-eac9dcebb6f7",
+      "parameter_type_iid": "d704409e-17ad-4d3d-a4ec-0e92a7dfb31f",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "291f098b-fc9b-448c-91db-fd01814f6e38",
+      "value_set_iid": "c0ec5f94-c151-4533-a848-3a6a52ca031f",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "0a17aad3-b0d1-46b4-8663-b82f2af3be2e",
+      "parameter_type_iid": "a409e96a-5dfe-4966-849b-b15c28878c6e",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "296a9fa4-a156-4b4e-ba88-01769cab323c",
+      "value_switch": "MANUAL",
+      "manual_value": 0.85,
+      "published_value": 0.85,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "bf95120a-d420-46f7-a64e-5dc6a1096e36",
+          "element_name": "Launch Vehicle",
+          "element_short_name": "LaunchVehicle",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "0baf86d8-3a80-4d76-ba44-ac327ffe3082",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "2564e25b-a987-4162-a7c9-c9847f616f96",
+      "value_switch": "MANUAL",
+      "manual_value": 80000.0,
+      "published_value": 80000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4a7ab4dd-7b75-4917-917a-fafe1a742b9a",
+          "element_name": "AMD EPYC 9654",
+          "element_short_name": "CPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "0de49b09-4394-4582-8b35-9ee0fd0d2f58",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "2c01c4fd-0c9a-4643-b3b7-da42efd22d86",
+      "value_switch": "MANUAL",
+      "manual_value": 0.06,
+      "published_value": 0.06,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "129e5c54-56c4-4ebe-9b8c-987995d2bf5d",
+      "parameter_type_iid": "9ae07597-4c56-4d5c-9892-15a97b590b53",
+      "parameter_type_name": "wet mass",
+      "parameter_type_short_name": "mass_wet",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "a909d23c-0d16-413b-a97c-0f853bb2c049",
+      "value_switch": "COMPUTED",
+      "manual_value": 153.0,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "efe14f1e-e500-49c3-bd6e-ac18e63243b2",
+          "element_name": "Ground Station Communication",
+          "element_short_name": "GroundStationCommunication",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "15880f86-5f1c-451a-a85d-224239eb9dad",
+      "parameter_type_iid": "b91f8f1d-8bb3-47b4-8341-bf42856587b5",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "6bb9648f-2faa-46a0-bbb4-b6cf1e3b2bdf",
+      "value_set_iid": "0feb7d85-4724-4469-809f-11370e725b7c",
+      "value_switch": "MANUAL",
+      "manual_value": 200000000000.0,
+      "published_value": 200000000000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "16952495-942a-4e7f-baec-1a1f7e8d092f",
+      "parameter_type_iid": "07dc2054-b452-4baf-984c-5d9346fa6b51",
+      "parameter_type_name": "impulse",
+      "parameter_type_short_name": "Imp",
+      "unit_full_name": "newton second",
+      "unit_short_name": "N·s",
+      "scale_iid": "850127ea-72b1-4c13-8493-ed842882c88d",
+      "value_set_iid": "dad689f2-8f2b-4563-ac14-6c9956400832",
+      "value_switch": "MANUAL",
+      "manual_value": 2380000.0,
+      "published_value": 2380000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b416453-db85-48a5-ab01-e7c4fede02c2",
+          "element_name": "OS Storage",
+          "element_short_name": "OSStor",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "16f293f5-996a-4414-857b-b15b43734981",
+      "parameter_type_iid": "1109cb46-ceba-4d2d-9357-5096a85dba0f",
+      "parameter_type_name": "width",
+      "parameter_type_short_name": "wid",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "0e0473c7-efa4-462c-aac5-b8b23894f853",
+      "value_switch": "MANUAL",
+      "manual_value": 22.0,
+      "published_value": 22.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f5c94e87-a840-41f5-956c-8ad7155ce765",
+          "element_name": "Assembly Integration and Test",
+          "element_short_name": "AIT",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "189a88d8-c3b0-407f-abbd-a119da553a8a",
+      "parameter_type_iid": "e98d7d65-7a1a-45cf-93ea-e8c37f21a522",
+      "parameter_type_name": "time",
+      "parameter_type_short_name": "t",
+      "unit_full_name": "second",
+      "unit_short_name": "s",
+      "scale_iid": "a7c5199e-f72b-4e7e-81b3-2d42730f8c66",
+      "value_set_iid": "d6b5b2fc-00be-4dce-a60b-b8954641c38b",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "aecf264d-6623-4fe0-b909-39b0a2254955",
+          "element_name": "Attitude Orbit Control",
+          "element_short_name": "AOC",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "18c1d4f6-2aa4-4a00-afdc-601b0c9ccaf9",
+      "parameter_type_iid": "651e1875-9236-4bd2-b3a7-fd89797ebdd8",
+      "parameter_type_name": "power",
+      "parameter_type_short_name": "P",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "91dd6348-1465-4401-a8aa-aafc857f66b9",
+      "value_switch": "MANUAL",
+      "manual_value": 301.6,
+      "published_value": 301.6,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "a49450f8-ffd5-406b-ad84-52d49d14d789",
+          "element_name": "Magnetorquer",
+          "element_short_name": "MGT",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "1f32ce9a-4153-4e17-9321-cbbd1f8929fa",
+      "parameter_type_iid": "651e1875-9236-4bd2-b3a7-fd89797ebdd8",
+      "parameter_type_name": "power",
+      "parameter_type_short_name": "P",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "e511285d-1752-4ce7-85c6-27416c05b8c8",
+      "value_switch": "MANUAL",
+      "manual_value": 36.0,
+      "published_value": 36.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2dddb54b-486e-4077-812e-9d37c1fbc546",
+          "element_name": "H100 GPU",
+          "element_short_name": "GPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "2096a7c2-818f-4bca-acd4-b8f780cbdcd2",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "70c00292-da50-4dd2-819c-b42d7fafe14f",
+      "value_switch": "MANUAL",
+      "manual_value": 88.0,
+      "published_value": 88.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "2114cc14-a2c3-4ac0-ab36-dbb6326869e2",
+      "parameter_type_iid": "498846d8-0023-4086-b557-f2ef616904a1",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "5898b306-7a23-4e94-a96b-7a4afa42b4a5",
+      "value_switch": "MANUAL",
+      "manual_value": 100000.0,
+      "published_value": 100000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "d2343b96-e07b-4dea-b416-ecffe51d1540",
+          "element_name": "S Band Antenna",
+          "element_short_name": "SBAndAntenna",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "2152791a-f01f-4b96-87a9-44d0af985fc6",
+      "parameter_type_iid": "8914874c-3b7a-49ed-9f46-fa279f27051d",
+      "parameter_type_name": "frequency",
+      "parameter_type_short_name": "f",
+      "unit_full_name": "hertz",
+      "unit_short_name": "Hz",
+      "scale_iid": "7bc71b9d-716d-406e-bc95-e9b7678db996",
+      "value_set_iid": "832661b5-2657-4948-ac67-addd237d52a8",
+      "value_switch": "MANUAL",
+      "manual_value": 3000000000.0,
+      "published_value": 3000000000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "6656d0e9-d489-42ca-8f3c-2c9a31b63383",
+          "element_name": "Inter Plane",
+          "element_short_name": "InterPlane",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "222cfbce-9c9b-431b-b512-ef9fc5e21884",
+      "parameter_type_iid": "c077c61e-4e96-481c-8604-c6cd3e5d1c3f",
+      "parameter_type_name": "wavelength",
+      "parameter_type_short_name": "λ",
+      "unit_full_name": "nanometre",
+      "unit_short_name": "nm",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a55494688a",
+      "value_set_iid": "376dce70-9d54-44af-86ef-b73c8c593c58",
+      "value_switch": "MANUAL",
+      "manual_value": 1550.0,
+      "published_value": 1550.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8a8742c8-04aa-4f63-8ec9-616ed1dba318",
+          "element_name": "GNSS Receiver",
+          "element_short_name": "GNSS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "271f6283-f5dd-4989-a2c6-a4c8fb712683",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "0099b51e-e120-416e-8209-0b9d2e23e312",
+      "value_switch": "MANUAL",
+      "manual_value": 2.0,
+      "published_value": 2.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2dddb54b-486e-4077-812e-9d37c1fbc546",
+          "element_name": "H100 GPU",
+          "element_short_name": "GPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "27213bbd-5a03-471f-b73d-ad7d6420dbb4",
+      "parameter_type_iid": "66766f44-0a0b-4e0a-9bc7-8ae027c2da5c",
+      "parameter_type_name": "length",
+      "parameter_type_short_name": "l",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "dc01a50e-35e4-42a9-b382-029e57966e91",
+      "value_switch": "MANUAL",
+      "manual_value": 267.0,
+      "published_value": 267.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4a7ab4dd-7b75-4917-917a-fafe1a742b9a",
+          "element_name": "AMD EPYC 9654",
+          "element_short_name": "CPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "273f2347-d771-4eda-ab47-5e48dd208e80",
+      "parameter_type_iid": "66766f44-0a0b-4e0a-9bc7-8ae027c2da5c",
+      "parameter_type_name": "length",
+      "parameter_type_short_name": "l",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "67bdaf4c-aa56-415e-bded-36ed11855d4b",
+      "value_switch": "MANUAL",
+      "manual_value": 304.0,
+      "published_value": 304.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "5b707890-9b50-4287-bfcc-3729618b2a03",
+          "element_name": "KA Band Antenna",
+          "element_short_name": "KABandAntenna",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "27453afb-3505-44f3-8dfb-93362b1927bb",
+      "parameter_type_iid": "bad53f69-ab4c-4f49-990d-ca8d7c8d432c",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "7f14ed52-4971-4ed7-83ac-ed6973ba7276",
+      "value_switch": "MANUAL",
+      "manual_value": 3.0,
+      "published_value": 3.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "7b83f7dd-da4c-4283-a576-727ba9373e68",
+          "element_name": "Star Tracker",
+          "element_short_name": "STTCK",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "27fec845-a7f9-485f-9d38-e944522c9622",
+      "parameter_type_iid": "651e1875-9236-4bd2-b3a7-fd89797ebdd8",
+      "parameter_type_name": "power",
+      "parameter_type_short_name": "P",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "66ac2158-9a21-4bea-89db-586aeaee0317",
+      "value_switch": "MANUAL",
+      "manual_value": 18.0,
+      "published_value": 18.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4c5e54a1-1238-496c-bdcc-613197754cca",
+          "element_name": "Launchment Service",
+          "element_short_name": "LaunchmentService",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "29d8c06a-ef0d-483a-8ef8-7c41255b4576",
+      "parameter_type_iid": "e98d7d65-7a1a-45cf-93ea-e8c37f21a522",
+      "parameter_type_name": "time",
+      "parameter_type_short_name": "t",
+      "unit_full_name": "second",
+      "unit_short_name": "s",
+      "scale_iid": "a7c5199e-f72b-4e7e-81b3-2d42730f8c66",
+      "value_set_iid": "59d2592c-32ce-441b-9569-8b1204173cab",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "fde9a39a-465d-4952-a804-8c6f474fdaa7",
+          "element_name": "Ground  Segment",
+          "element_short_name": "GroundSegment",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "2f5d0249-6f2e-4845-aa17-34dc754b715a",
+      "parameter_type_iid": "9246a59d-12ae-461d-911b-4b1f4346d2c5",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "7bc71b9d-716d-406e-bc95-e9b7678db996",
+      "value_set_iid": "4e9a59ce-b516-40d1-a734-c3bc68f93637",
+      "value_switch": "MANUAL",
+      "manual_value": 3000000000.0,
+      "published_value": 3000000000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8a8742c8-04aa-4f63-8ec9-616ed1dba318",
+          "element_name": "GNSS Receiver",
+          "element_short_name": "GNSS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "31e1c245-2753-42a9-b2cb-b2708fc1e56c",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "d81dca9c-8c26-4844-b158-f0058a6e5671",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "fde9a39a-465d-4952-a804-8c6f474fdaa7",
+          "element_name": "Ground  Segment",
+          "element_short_name": "GroundSegment",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "32bfffd5-47ec-463f-be46-0aa79446d969",
+      "parameter_type_iid": "9b28d73f-5ca7-4423-ae41-dbc1812d0947",
+      "parameter_type_name": "antenna gain",
+      "parameter_type_short_name": "gain_ant",
+      "unit_full_name": "decibel",
+      "unit_short_name": "dB",
+      "scale_iid": "a2676772-8f7b-4b65-b493-5c0ea6c62561",
+      "value_set_iid": "308354a4-76c1-4ff9-81ca-9db8ea309cad",
+      "value_switch": "MANUAL",
+      "manual_value": 42.7,
+      "published_value": 42.7,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2dddb54b-486e-4077-812e-9d37c1fbc546",
+          "element_name": "H100 GPU",
+          "element_short_name": "GPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "32edad16-c754-4cc0-b3b9-efa94e9b4359",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "51bd981f-daa3-4454-b20d-8ab5f4f050f9",
+      "value_switch": "MANUAL",
+      "manual_value": 42.0,
+      "published_value": 42.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "6129fdaa-c783-413c-9fd7-2c90d3cfa682",
+          "element_name": "Orbit",
+          "element_short_name": "Orbit",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "33478c51-c213-4392-b207-8444f7718f7d",
+      "parameter_type_iid": "0a022644-be72-4d09-9ddd-ad7b147228c1",
+      "parameter_type_name": "altitude",
+      "parameter_type_short_name": "alt",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "1d5293f0-6209-4a7c-bd07-b15910be6476",
+      "value_switch": "MANUAL",
+      "manual_value": 900.0,
+      "published_value": 900.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "bf95120a-d420-46f7-a64e-5dc6a1096e36",
+          "element_name": "Launch Vehicle",
+          "element_short_name": "LaunchVehicle",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "33498223-c41c-4ab7-a841-a4209280a56c",
+      "parameter_type_iid": "eff75bfd-f203-419d-bd34-c36a56d7c3f9",
+      "parameter_type_name": "volume",
+      "parameter_type_short_name": "V",
+      "unit_full_name": "cubic metre",
+      "unit_short_name": "m³",
+      "scale_iid": "c9b39c7d-24d3-4e1a-b7be-5643be714dac",
+      "value_set_iid": "976ae382-769d-4397-befb-43499f53a1ad",
+      "value_switch": "MANUAL",
+      "manual_value": 855.0,
+      "published_value": 855.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2a57cfb8-28a9-490f-8abd-89f02b8e57f3",
+          "element_name": "Honeycomb",
+          "element_short_name": "Honeycomb",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "340f53ae-2620-4ad2-a47c-dafbbc75162c",
+      "parameter_type_iid": "c469a26a-b841-4fc8-b5cc-8746464c9843",
+      "parameter_type_name": "thickness",
+      "parameter_type_short_name": "δ",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "2fc4623a-bc9e-493f-82a2-833e073aaa95",
+      "value_switch": "MANUAL",
+      "manual_value": 0.032,
+      "published_value": 0.032,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "fed10dd0-0097-47d2-88a7-7d821db893b5",
+          "element_name": "Satellite to Ground Segment Communications",
+          "element_short_name": "SatToGSComm",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "347407bc-c6e0-409f-a72d-de84f9248f2b",
+      "parameter_type_iid": "498846d8-0023-4086-b557-f2ef616904a1",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "27886798-8df8-4d16-b8a9-6f9d9d2e979e",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f23ce7a9-f8b0-48e2-8aae-865a7bc5a14f",
+          "element_name": "NVMe SSD",
+          "element_short_name": "STRG",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "3609d2b8-009f-4ab5-85f6-5b26eaa6e5da",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "b5300f29-c53a-4e56-baa7-c9517f5efa41",
+      "value_switch": "MANUAL",
+      "manual_value": 0.01,
+      "published_value": 0.01,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "0768af82-781f-470d-b50f-db4a879a85e1",
+          "element_name": "Datacenter Module",
+          "element_short_name": "Datacmod",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "361212ec-5a1f-47d7-a8dd-1fe49df68c5a",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "5e31c614-81c5-400b-b8d0-70687a891551",
+      "value_switch": "MANUAL",
+      "manual_value": 355.5,
+      "published_value": 355.5,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "bf95120a-d420-46f7-a64e-5dc6a1096e36",
+          "element_name": "Launch Vehicle",
+          "element_short_name": "LaunchVehicle",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "36fd3336-4e37-4a15-8ef5-458bf89e2755",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "b2f89577-0b79-4f0c-85ec-b9666835fdbc",
+      "value_switch": "MANUAL",
+      "manual_value": 17.0,
+      "published_value": 17.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "1191229d-2295-4cfb-80d3-c54db1e97992",
+          "element_name": "BeamStructure",
+          "element_short_name": "BeamStructure",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "37653272-2483-4faa-aa27-3ac86d8f8b70",
+      "parameter_type_iid": "66766f44-0a0b-4e0a-9bc7-8ae027c2da5c",
+      "parameter_type_name": "length",
+      "parameter_type_short_name": "l",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "fdd815b9-739b-4584-b6a5-0e1c9f7dcf25",
+      "value_switch": "MANUAL",
+      "manual_value": 3.2,
+      "published_value": 3.2,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "fde9a39a-465d-4952-a804-8c6f474fdaa7",
+          "element_name": "Ground  Segment",
+          "element_short_name": "GroundSegment",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "3e08e143-b355-400e-8629-6cfd5099e3ce",
+      "parameter_type_iid": "4a4aa38e-a3a5-46b4-bc3d-586c8f00f098",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "a2676772-8f7b-4b65-b493-5c0ea6c62561",
+      "value_set_iid": "f7f36a6e-ec88-4221-a90a-7f0d15cb416b",
+      "value_switch": "MANUAL",
+      "manual_value": 38.0,
+      "published_value": 38.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2353a155-fe40-4af7-b3d7-b8b3919beacf",
+          "element_name": "Ground Station",
+          "element_short_name": "GS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "3e23dc26-c613-4acc-956e-93ecadd8ae41",
+      "parameter_type_iid": "d704409e-17ad-4d3d-a4ec-0e92a7dfb31f",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "291f098b-fc9b-448c-91db-fd01814f6e38",
+      "value_set_iid": "873742dc-c1d1-4607-9ce5-93f411d500d9",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "6129fdaa-c783-413c-9fd7-2c90d3cfa682",
+          "element_name": "Orbit",
+          "element_short_name": "Orbit",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "3f705cfd-3513-4cbb-9c8d-0bc2010d2965",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "a2717620-726b-4784-ad5a-35720b11c6b3",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "40434af7-f2c8-4268-b23f-065016f62ff6",
+      "parameter_type_iid": "e8ef30d8-ebc7-412a-a5f7-62ca045982cb",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "8ae853cd-7805-4611-8a52-328759a18a53",
+      "value_switch": "MANUAL",
+      "manual_value": 10050.0,
+      "published_value": 10050.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "5b707890-9b50-4287-bfcc-3729618b2a03",
+          "element_name": "KA Band Antenna",
+          "element_short_name": "KABandAntenna",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "40b401f2-d933-439e-b00a-bb511bd9db60",
+      "parameter_type_iid": "8914874c-3b7a-49ed-9f46-fa279f27051d",
+      "parameter_type_name": "frequency",
+      "parameter_type_short_name": "f",
+      "unit_full_name": "hertz",
+      "unit_short_name": "Hz",
+      "scale_iid": "7bc71b9d-716d-406e-bc95-e9b7678db996",
+      "value_set_iid": "1f381552-0960-4ccc-a6a4-2374cd0386cb",
+      "value_switch": "MANUAL",
+      "manual_value": 33000000000.0,
+      "published_value": 33000000000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8a8742c8-04aa-4f63-8ec9-616ed1dba318",
+          "element_name": "GNSS Receiver",
+          "element_short_name": "GNSS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "40cb738a-2ced-4320-aadc-3f56071a591f",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "8fdc4962-e31a-44e3-a8e1-16ffa1023d89",
+      "value_switch": "MANUAL",
+      "manual_value": 1.2,
+      "published_value": 1.2,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8da58eef-a87a-474e-bccb-44328aa00fb7",
+          "element_name": "Thruster",
+          "element_short_name": "Thruster",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "41033264-8712-4305-8a1d-0eb5b79b057a",
+      "parameter_type_iid": "30e2ee4d-95d1-48f0-b632-652e316446b0",
+      "parameter_type_name": "power in standby",
+      "parameter_type_short_name": "P_stby",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "8cabe849-0e56-419c-9af2-fea7271a6c7b",
+      "value_switch": "MANUAL",
+      "manual_value": 100.0,
+      "published_value": 100.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4a7ab4dd-7b75-4917-917a-fafe1a742b9a",
+          "element_name": "AMD EPYC 9654",
+          "element_short_name": "CPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "42ea420b-ebfc-4c97-b57f-e990978fc6fc",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "3bd41fce-8288-46b5-bc2f-f3e8a2b2fb19",
+      "value_switch": "MANUAL",
+      "manual_value": 5.0,
+      "published_value": 5.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "45627dd3-4d52-485b-b1da-47ba2062de03",
+      "parameter_type_iid": "3cee0311-9bc0-4e4d-997c-1d5b975a67f9",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "608126f2-1453-4e4f-8260-49512607fbf9",
+      "value_set_iid": "c3ae2da4-8b91-4037-b9aa-f758c8edbcd9",
+      "value_switch": "MANUAL",
+      "manual_value": 1.12,
+      "published_value": 1.12,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "0768af82-781f-470d-b50f-db4a879a85e1",
+          "element_name": "Datacenter Module",
+          "element_short_name": "Datacmod",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "45791996-bb24-4ba5-891c-966be46ea2aa",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "69bc3d5b-df0c-4899-8718-3ba7e1b2dcf4",
+      "value_switch": "MANUAL",
+      "manual_value": 1017.7,
+      "published_value": 1017.7,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "aecf264d-6623-4fe0-b909-39b0a2254955",
+          "element_name": "Attitude Orbit Control",
+          "element_short_name": "AOC",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "461c400f-7e17-4e40-a346-18bbde9d4d22",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "0758fa2a-1df1-4acb-83ce-3bb54ceab1f8",
+      "value_switch": "MANUAL",
+      "manual_value": 128.3,
+      "published_value": 128.3,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "651b9b07-e858-491f-bd80-3fbb92e42945",
+          "element_name": "Magnetometer",
+          "element_short_name": "Magnetometer",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "48e1ee42-e0e5-4203-ac45-6e487eaf2981",
+      "parameter_type_iid": "651e1875-9236-4bd2-b3a7-fd89797ebdd8",
+      "parameter_type_name": "power",
+      "parameter_type_short_name": "P",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "63e87724-956a-4ae5-877d-2971fd77a2a2",
+      "value_switch": "MANUAL",
+      "manual_value": 1.0,
+      "published_value": 1.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "85764718-7dc9-47bc-8e1e-e6de6b61ec6c",
+          "element_name": "Radiation Shielding",
+          "element_short_name": "RAD",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "4b9903a8-afd3-46da-a0a1-d0eda1f69335",
+      "parameter_type_iid": "c469a26a-b841-4fc8-b5cc-8746464c9843",
+      "parameter_type_name": "thickness",
+      "parameter_type_short_name": "δ",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "c5ad1950-b80c-4660-9ac7-ed0741126a1e",
+      "value_switch": "MANUAL",
+      "manual_value": 1.0,
+      "published_value": 1.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "4c95872d-77ca-45a4-be43-a81a0574ab17",
+      "parameter_type_iid": "a2bef193-f509-49f6-93de-d32dd69b0cf1",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "a387d7fc-2776-4bd6-af5a-5c175b2ecf77",
+      "value_set_iid": "aa09e20b-7e56-451b-8295-875a365f502f",
+      "value_switch": "MANUAL",
+      "manual_value": 350.0,
+      "published_value": 350.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "57c14652-5033-4e62-b60b-ed82739b799b",
+          "element_name": "IMU",
+          "element_short_name": "IMU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "4ce69c64-9d85-4a1f-a167-4f08b45662fb",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "f5d026cd-f633-487f-81e8-393d8a8477eb",
+      "value_switch": "MANUAL",
+      "manual_value": 3.0,
+      "published_value": 3.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "0768af82-781f-470d-b50f-db4a879a85e1",
+          "element_name": "Datacenter Module",
+          "element_short_name": "Datacmod",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "4e0120ee-79ba-48dc-8cf9-403a0d3492e9",
+      "parameter_type_iid": "eff75bfd-f203-419d-bd34-c36a56d7c3f9",
+      "parameter_type_name": "volume",
+      "parameter_type_short_name": "V",
+      "unit_full_name": "cubic metre",
+      "unit_short_name": "m³",
+      "scale_iid": "c9b39c7d-24d3-4e1a-b7be-5643be714dac",
+      "value_set_iid": "7727184e-1a5c-4c94-a847-bc1821343200",
+      "value_switch": "MANUAL",
+      "manual_value": 0.1826,
+      "published_value": 0.1826,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f23ce7a9-f8b0-48e2-8aae-865a7bc5a14f",
+          "element_name": "NVMe SSD",
+          "element_short_name": "STRG",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "4ef4ab73-4e67-4cc8-9405-b006946d2cab",
+      "parameter_type_iid": "66766f44-0a0b-4e0a-9bc7-8ae027c2da5c",
+      "parameter_type_name": "length",
+      "parameter_type_short_name": "l",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "e59d8ab9-83c8-473e-bc91-bee01340d7a8",
+      "value_switch": "MANUAL",
+      "manual_value": 80.0,
+      "published_value": 80.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f23ce7a9-f8b0-48e2-8aae-865a7bc5a14f",
+          "element_name": "NVMe SSD",
+          "element_short_name": "STRG",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "4f5689c8-f7aa-424e-8ad0-a4021b303b2f",
+      "parameter_type_iid": "1109cb46-ceba-4d2d-9357-5096a85dba0f",
+      "parameter_type_name": "width",
+      "parameter_type_short_name": "wid",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "7136f85f-6b08-4236-ba99-bc00e824c7f1",
+      "value_switch": "MANUAL",
+      "manual_value": 22.0,
+      "published_value": 22.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "1191229d-2295-4cfb-80d3-c54db1e97992",
+          "element_name": "BeamStructure",
+          "element_short_name": "BeamStructure",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "5189f2d2-8c93-4539-b30f-d0ae83a5e954",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "33b5c1e3-b6dd-43de-a861-29db27dab693",
+      "value_switch": "MANUAL",
+      "manual_value": 3.2,
+      "published_value": 3.2,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f27b1597-0469-4755-a5b4-fea5c121b3f3",
+          "element_name": "Reaction Wheel",
+          "element_short_name": "RW",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "5225cdfa-822f-41f4-98c3-10863507d3f4",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "d6f46371-12d3-47ca-98dd-9335e3dc7929",
+      "value_switch": "MANUAL",
+      "manual_value": 4.0,
+      "published_value": 4.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4a7ab4dd-7b75-4917-917a-fafe1a742b9a",
+          "element_name": "AMD EPYC 9654",
+          "element_short_name": "CPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "552b66f3-ba51-4f4c-86e7-9a68d0d73f3d",
+      "parameter_type_iid": "47b1d239-cf51-4f75-81fc-47fa38458f96",
+      "parameter_type_name": "active power",
+      "parameter_type_short_name": "ap",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "70727691-3413-4aba-9471-6a7ad57217b2",
+      "value_switch": "MANUAL",
+      "manual_value": 320.0,
+      "published_value": 320.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2a57cfb8-28a9-490f-8abd-89f02b8e57f3",
+          "element_name": "Honeycomb",
+          "element_short_name": "Honeycomb",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "567c15aa-f2d7-4b91-9be3-99d505f90447",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "d8649208-dcbc-4f66-aac7-29b33bd11455",
+      "value_switch": "MANUAL",
+      "manual_value": 3.2,
+      "published_value": 3.2,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4a7ab4dd-7b75-4917-917a-fafe1a742b9a",
+          "element_name": "AMD EPYC 9654",
+          "element_short_name": "CPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "56b50ecd-6237-42b9-8c42-a211ab6908e4",
+      "parameter_type_iid": "7b9e6eea-158a-45bc-a4f4-b8d41b5ebd17",
+      "parameter_type_name": "breadth",
+      "parameter_type_short_name": "b",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "4ebe3a8a-a9a3-4200-b60d-df91ba18392f",
+      "value_switch": "MANUAL",
+      "manual_value": 244.0,
+      "published_value": 244.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "56ee5c0c-d936-4d66-8360-8ddadf3d712b",
+      "parameter_type_iid": "4bdc7081-0065-40a5-aae0-49863ddd7930",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "a1fab9a4-fb9d-4395-acbb-dc95f521caff",
+      "value_switch": "MANUAL",
+      "manual_value": 257.0,
+      "published_value": 257.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "601d9bb3-41d7-4c57-906e-1095645c140d",
+          "element_name": "Laser Gimbal",
+          "element_short_name": "Laser_Gimbal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "58c98c86-cf17-446a-95da-1a38363a964e",
+      "parameter_type_iid": "651e1875-9236-4bd2-b3a7-fd89797ebdd8",
+      "parameter_type_name": "power",
+      "parameter_type_short_name": "P",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "509e0c0f-5910-45f7-87d5-08b9fc0ea1e0",
+      "value_switch": "MANUAL",
+      "manual_value": 72.0,
+      "published_value": 72.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "efe14f1e-e500-49c3-bd6e-ac18e63243b2",
+          "element_name": "Ground Station Communication",
+          "element_short_name": "GroundStationCommunication",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "5915a295-0a1f-4c02-a4ef-470a71e0bd96",
+      "parameter_type_iid": "ac88e988-06f4-4d8e-aa82-57608ae21141",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "6bb9648f-2faa-46a0-bbb4-b6cf1e3b2bdf",
+      "value_set_iid": "8d600fb6-506d-4973-a486-0642661ca4c8",
+      "value_switch": "MANUAL",
+      "manual_value": 1000000000000.0,
+      "published_value": 1000000000000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "5b9e02b9-68ed-4814-8194-141ed56f37ba",
+          "element_name": "Communication Subsystem",
+          "element_short_name": "CommunicationSubsystem",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "5957b1ed-78b1-4948-85f1-e817c0e014e5",
+      "parameter_type_iid": "3eb04ded-d64e-4c32-8605-98564a49544d",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "0dcfaffd-f80c-4a46-bfea-8fda5c9bf482",
+      "value_switch": "MANUAL",
+      "manual_value": 50.0,
+      "published_value": 50.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2353a155-fe40-4af7-b3d7-b8b3919beacf",
+          "element_name": "Ground Station",
+          "element_short_name": "GS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "598024e4-b6b0-41f7-ba16-fcd79c3d416f",
+      "parameter_type_iid": "e98d7d65-7a1a-45cf-93ea-e8c37f21a522",
+      "parameter_type_name": "time",
+      "parameter_type_short_name": "t",
+      "unit_full_name": "second",
+      "unit_short_name": "s",
+      "scale_iid": "a7c5199e-f72b-4e7e-81b3-2d42730f8c66",
+      "value_set_iid": "8bc98a09-5c9e-4c4c-b17f-77d6f9090f65",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "16d5ca72-29d3-4aa6-8968-b26b8fc1b4d7",
+          "element_name": "KU Band Antenna",
+          "element_short_name": "KUBandAntenna",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "5abc122a-a3cb-4263-953d-91142bb13024",
+      "parameter_type_iid": "1109cb46-ceba-4d2d-9357-5096a85dba0f",
+      "parameter_type_name": "width",
+      "parameter_type_short_name": "wid",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "a04400d8-b9eb-493a-a2ff-19d775b96d8b",
+      "value_switch": "MANUAL",
+      "manual_value": 0.8,
+      "published_value": 0.8,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4a7ab4dd-7b75-4917-917a-fafe1a742b9a",
+          "element_name": "AMD EPYC 9654",
+          "element_short_name": "CPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "5db2ab3b-b792-42ba-8d33-c3e073149bc1",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "443676d5-f1ef-471a-8eca-544cb70517ee",
+      "value_switch": "MANUAL",
+      "manual_value": 22.0,
+      "published_value": 22.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "cbc98f5d-b406-4eba-9e49-5f9b8dd18bfb",
+          "element_name": "Hardness&Power Distribution Unit",
+          "element_short_name": "HPDU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "5eb8de05-1bfd-4405-bbda-496016811626",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "35f31758-2856-40df-b435-4f67bdd11959",
+      "value_switch": "MANUAL",
+      "manual_value": 47.81,
+      "published_value": 47.81,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "16d5ca72-29d3-4aa6-8968-b26b8fc1b4d7",
+          "element_name": "KU Band Antenna",
+          "element_short_name": "KUBandAntenna",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "603b0211-97bc-4076-b80c-0ce030d708d2",
+      "parameter_type_iid": "8914874c-3b7a-49ed-9f46-fa279f27051d",
+      "parameter_type_name": "frequency",
+      "parameter_type_short_name": "f",
+      "unit_full_name": "hertz",
+      "unit_short_name": "Hz",
+      "scale_iid": "7bc71b9d-716d-406e-bc95-e9b7678db996",
+      "value_set_iid": "7a9482ab-f697-45b3-be4b-4f5118ae8da9",
+      "value_switch": "MANUAL",
+      "manual_value": 15000000000.0,
+      "published_value": 15000000000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "fde9a39a-465d-4952-a804-8c6f474fdaa7",
+          "element_name": "Ground  Segment",
+          "element_short_name": "GroundSegment",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "60b0fa0d-b45e-4c26-949a-73ab5cc07a36",
+      "parameter_type_iid": "f65cca54-d49f-4fd7-a18e-640a1ced4d19",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "d16026db-35c6-4ba5-b220-ff5648138e36",
+      "value_set_iid": "c259315f-3001-4958-8075-c81030debedc",
+      "value_switch": "MANUAL",
+      "manual_value": 200000.0,
+      "published_value": 200000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "b75b23c9-637f-4a1e-ab25-cf23b0f21381",
+          "element_name": "Inter Satellite Communication",
+          "element_short_name": "InterSatelliteCommunication",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "613b820e-52e5-4507-9002-7480970d3749",
+      "parameter_type_iid": "05499c0e-6a12-4281-8ce2-5c31a8eb34d5",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "1df9bc2b-9e42-41ed-a6c5-d51f3ffb9bf7",
+      "value_switch": "MANUAL",
+      "manual_value": 4.0,
+      "published_value": 4.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f27b1597-0469-4755-a5b4-fea5c121b3f3",
+          "element_name": "Reaction Wheel",
+          "element_short_name": "RW",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "61644ade-a670-4936-9ce6-36fd1e25899e",
+      "parameter_type_iid": "651e1875-9236-4bd2-b3a7-fd89797ebdd8",
+      "parameter_type_name": "power",
+      "parameter_type_short_name": "P",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "fb8c63c1-b586-4a54-a832-934623a79066",
+      "value_switch": "MANUAL",
+      "manual_value": 140.0,
+      "published_value": 140.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "6288820a-a21c-442e-94e7-67174c398e50",
+      "parameter_type_iid": "e7bebb37-dfad-451b-bcf6-ba3668657255",
+      "parameter_type_name": "delta-v",
+      "parameter_type_short_name": "delta_v",
+      "unit_full_name": "metre per second",
+      "unit_short_name": "m/s",
+      "scale_iid": "7406c60b-9f22-44a4-9fe5-bedfa0a83b93",
+      "value_set_iid": "e09011d3-fbf4-44bb-ac94-9124dfe19f6a",
+      "value_switch": "MANUAL",
+      "manual_value": 17.5,
+      "published_value": 17.5,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "6569e1dd-48b8-444d-a558-73a70a3f4869",
+      "parameter_type_iid": "1c53f8f4-024b-4f42-987a-439901a4bcb2",
+      "parameter_type_name": "acceleration",
+      "parameter_type_short_name": "a",
+      "unit_full_name": "metre per second squared",
+      "unit_short_name": "m/s²",
+      "scale_iid": "16ba218f-1382-4dde-b93e-ed37ee6fa903",
+      "value_set_iid": "e102e335-8804-489c-9b0a-829e5fead1bb",
+      "value_switch": "MANUAL",
+      "manual_value": 7.24E-05,
+      "published_value": 7.24E-05,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "b75b23c9-637f-4a1e-ab25-cf23b0f21381",
+          "element_name": "Inter Satellite Communication",
+          "element_short_name": "InterSatelliteCommunication",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "67b0a43e-be80-4cf9-9140-a414a2a1fb5c",
+      "parameter_type_iid": "6f4cad0f-1680-4cf1-b4b3-c850d5d06dc4",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "5f6e23ce-ab7f-4df2-8410-fa2ebfdb6b5f",
+      "value_switch": "MANUAL",
+      "manual_value": 20000.0,
+      "published_value": 20000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "13e69827-9c01-4fbc-91bc-48ec22221473",
+          "element_name": "Intra Plane",
+          "element_short_name": "IntraPlane",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "67bc0bb2-9269-4118-a2dc-47cd6c3ae17d",
+      "parameter_type_iid": "c077c61e-4e96-481c-8604-c6cd3e5d1c3f",
+      "parameter_type_name": "wavelength",
+      "parameter_type_short_name": "λ",
+      "unit_full_name": "nanometre",
+      "unit_short_name": "nm",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a55494688a",
+      "value_set_iid": "18d4b919-c2cc-4b46-a35c-ab74ba7cefc4",
+      "value_switch": "MANUAL",
+      "manual_value": 1550.0,
+      "published_value": 1550.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f23ce7a9-f8b0-48e2-8aae-865a7bc5a14f",
+          "element_name": "NVMe SSD",
+          "element_short_name": "STRG",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "699b6dfc-1cbe-4cf5-91d7-d40b34796daf",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "52e73263-b5cf-4343-9859-10dd50fa2f50",
+      "value_switch": "MANUAL",
+      "manual_value": 3.9,
+      "published_value": 3.9,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "3846464a-a33d-453e-8128-e145385a8348",
+          "element_name": "DDR5 1.5TB",
+          "element_short_name": "RAM",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "6d3e67f7-f187-4b00-93cd-a4a8a4d0465e",
+      "parameter_type_iid": "66766f44-0a0b-4e0a-9bc7-8ae027c2da5c",
+      "parameter_type_name": "length",
+      "parameter_type_short_name": "l",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "bca47480-2f68-4080-8895-56b57a118a0a",
+      "value_switch": "MANUAL",
+      "manual_value": 133.3,
+      "published_value": 133.3,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2dddb54b-486e-4077-812e-9d37c1fbc546",
+          "element_name": "H100 GPU",
+          "element_short_name": "GPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "6ee2fac3-ca08-4804-9d07-ec1bd649b382",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "8963d959-6b40-4282-8996-87a73bc2497a",
+      "value_switch": "MANUAL",
+      "manual_value": 1.28,
+      "published_value": 1.28,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "c8c862e7-8e1b-4db8-a5be-144b7b32176e",
+          "element_name": "Propellant",
+          "element_short_name": "Propellant",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "7000f293-970c-4c5b-85a8-66ad0dc48bd3",
+      "parameter_type_iid": "04a85164-f571-45da-883d-ecb3e8a8a43b",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "862ea052-7990-4a98-b27b-a6f8d359e841",
+      "value_switch": "MANUAL",
+      "manual_value": "Xenon",
+      "published_value": "Xenon",
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4fadfcdd-85ca-4300-83db-91f2256033a1",
+          "element_name": "Structure",
+          "element_short_name": "Structure",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "7005127a-6823-4f8a-a78b-9ea300515d88",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "03e49f50-37f0-4fce-8831-de1c74ded1a2",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "0768af82-781f-470d-b50f-db4a879a85e1",
+          "element_name": "Datacenter Module",
+          "element_short_name": "Datacmod",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "71dab605-7c84-485c-96be-1d2b7aed2bc6",
+      "parameter_type_iid": "1109cb46-ceba-4d2d-9357-5096a85dba0f",
+      "parameter_type_name": "width",
+      "parameter_type_short_name": "wid",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "c6221f81-2a1a-4e11-b82e-e29eccb62f65",
+      "value_switch": "MANUAL",
+      "manual_value": 336.0,
+      "published_value": 336.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "07971c54-608d-4cd0-a00f-e3aa74caaabd",
+          "element_name": "Satellite",
+          "element_short_name": "Sat",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "7303df27-8f52-4c14-94ae-c8139de5951d",
+      "parameter_type_iid": "e98d7d65-7a1a-45cf-93ea-e8c37f21a522",
+      "parameter_type_name": "time",
+      "parameter_type_short_name": "t",
+      "unit_full_name": "second",
+      "unit_short_name": "s",
+      "scale_iid": "e8e6b3bb-ed70-4bc9-9e2c-6a2c04bc41ee",
+      "value_set_iid": "e29ede3a-8e5a-42d7-9e91-6988f30db69a",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "3a5eee65-2caf-471f-a2f4-b4858f64201e",
+          "element_name": "Deployable Mechanism Drive&Control Unit",
+          "element_short_name": "DMDCU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "733bd7d9-c9b7-4e87-9258-929bd4870d95",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "67ea9e71-2b96-42a2-9814-db0fcbbf8d02",
+      "value_switch": "MANUAL",
+      "manual_value": 22.0,
+      "published_value": 22.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "739c554e-2a9e-4043-b1ae-5e845aed0ae7",
+      "parameter_type_iid": "2c9d7ea5-8e98-4460-a995-8a2e898eaa83",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "a8da349e-79ce-47fd-8782-b4972adae4e4",
+      "value_switch": "MANUAL",
+      "manual_value": 89950.0,
+      "published_value": 89950.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "a49450f8-ffd5-406b-ad84-52d49d14d789",
+          "element_name": "Magnetorquer",
+          "element_short_name": "MGT",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "75458e3d-cfe9-4186-bfa5-3dc387dd47c2",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "5f02bd1d-fb0d-480e-ab1b-b09855b508bc",
+      "value_switch": "MANUAL",
+      "manual_value": 3.0,
+      "published_value": 3.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2a57cfb8-28a9-490f-8abd-89f02b8e57f3",
+          "element_name": "Honeycomb",
+          "element_short_name": "Honeycomb",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "77dc32d6-4cbf-42a9-a0d2-3d3c408ade70",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "ae125ea3-acad-4ac3-8214-e4e252203a8b",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "0768af82-781f-470d-b50f-db4a879a85e1",
+          "element_name": "Datacenter Module",
+          "element_short_name": "Datacmod",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "7963cd08-4553-4466-aee9-ab708f1fc35e",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "3d6c03dc-7250-4c69-bf21-432037ffd405",
+      "value_switch": "MANUAL",
+      "manual_value": 4.0,
+      "published_value": 4.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "7a9cf0b6-9c2d-4636-88cd-7dc2f57d7836",
+      "parameter_type_iid": "07b3e3b6-f4b8-4248-990c-f522f8863094",
+      "parameter_type_name": "thrust",
+      "parameter_type_short_name": "Th",
+      "unit_full_name": "newton",
+      "unit_short_name": "N",
+      "scale_iid": "3c31b9a3-fed0-46b6-bb95-51d34244bfb1",
+      "value_set_iid": "fdd2eef0-b7c4-4470-bb48-9a92ee99c909",
+      "value_switch": "MANUAL",
+      "manual_value": 0.275,
+      "published_value": 0.275,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "c8c862e7-8e1b-4db8-a5be-144b7b32176e",
+          "element_name": "Propellant",
+          "element_short_name": "Propellant",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "7e7b3aa0-f126-4049-9de6-18d49187b699",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "b2b54c0a-6a60-4406-bc8e-1403739b4fa2",
+      "value_switch": "MANUAL",
+      "manual_value": 79.0,
+      "published_value": 79.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "7b83f7dd-da4c-4283-a576-727ba9373e68",
+          "element_name": "Star Tracker",
+          "element_short_name": "STTCK",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "7f0e4e49-00f0-4d5a-84c7-1a11a3ee9fc2",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "0d1b425a-805a-481f-8260-2bc476fd6244",
+      "value_switch": "MANUAL",
+      "manual_value": 3.6,
+      "published_value": 3.6,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "3e935198-ee29-4a96-be14-28784ff67936",
+          "element_name": "Solar Cell Array",
+          "element_short_name": "SCA",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "7fb75253-2aaa-4f35-aff9-066e757d2fa4",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "77c12377-62b2-4c2c-b7ab-e172026dc7d3",
+      "value_switch": "MANUAL",
+      "manual_value": 459.05,
+      "published_value": 459.05,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "bf95120a-d420-46f7-a64e-5dc6a1096e36",
+          "element_name": "Launch Vehicle",
+          "element_short_name": "LaunchVehicle",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "8008ce84-502a-40e5-aec7-70090f0a8def",
+      "parameter_type_iid": "9d5f949b-510d-42cd-a6ee-34bc2ee5bc0e",
+      "parameter_type_name": "diameter",
+      "parameter_type_short_name": "d",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "36cc135f-5955-4507-ac43-8dad2fae4aba",
+      "value_switch": "MANUAL",
+      "manual_value": 8.0,
+      "published_value": 8.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "3846464a-a33d-453e-8128-e145385a8348",
+          "element_name": "DDR5 1.5TB",
+          "element_short_name": "RAM",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "81b1127d-c12c-47c0-98b5-e4fb0c1f794e",
+      "parameter_type_iid": "47b1d239-cf51-4f75-81fc-47fa38458f96",
+      "parameter_type_name": "active power",
+      "parameter_type_short_name": "ap",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "3f8d462a-4acd-4aac-ab70-dd367fe6cd1e",
+      "value_switch": "MANUAL",
+      "manual_value": 240.0,
+      "published_value": 240.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "13e69827-9c01-4fbc-91bc-48ec22221473",
+          "element_name": "Intra Plane",
+          "element_short_name": "IntraPlane",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "83282997-32fb-4f01-8e61-ee77e1ca7fb4",
+      "parameter_type_iid": "eece49c8-acbf-4e48-824e-ab5074891d8c",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "1d09e30c-d458-4028-8a5c-f1da97cb36fa",
+      "value_switch": "MANUAL",
+      "manual_value": 2.0,
+      "published_value": 2.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f23ce7a9-f8b0-48e2-8aae-865a7bc5a14f",
+          "element_name": "NVMe SSD",
+          "element_short_name": "STRG",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "859daf2f-96c0-4461-93f9-bbdd20cb222b",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "56c223db-24a4-45a6-92e2-3583905213d2",
+      "value_switch": "MANUAL",
+      "manual_value": 2.0,
+      "published_value": 2.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b416453-db85-48a5-ab01-e7c4fede02c2",
+          "element_name": "OS Storage",
+          "element_short_name": "OSStor",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "86a589cb-d818-4763-a3e9-a8f05b4c04f8",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "a4442ed6-9d33-4d8a-b89a-361825cde3af",
+      "value_switch": "MANUAL",
+      "manual_value": 3.8,
+      "published_value": 3.8,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "43347fca-f345-462c-853e-4918a77cada9",
+          "element_name": "Ground Station Location",
+          "element_short_name": "GroundStationLocation",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "86d7e315-4c00-41bd-8f67-c31847c78827",
+      "parameter_type_iid": "063f0c50-4d39-429d-bcde-0f847a77fb66",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "ae14f626-c852-43a2-b212-c61c452bb31a",
+      "value_switch": "MANUAL",
+      "manual_value": 31.17,
+      "published_value": 31.17,
+      "computed_value": "-",
+      "reference_value": "-"
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b416453-db85-48a5-ab01-e7c4fede02c2",
+          "element_name": "OS Storage",
+          "element_short_name": "OSStor",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "88cf86f4-87fb-490f-951f-638c791c572a",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "5c7f08f1-d84e-4f50-b183-2b3db7a3f797",
+      "value_switch": "MANUAL",
+      "manual_value": 8.0,
+      "published_value": 8.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "8981fa63-f0af-48c0-a5f9-0d5746077412",
+      "parameter_type_iid": "c918b64f-c31b-4af4-8ac3-c95f6121c65f",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "275914d1-1791-4019-b7b7-1d48bfc8fcf5",
+      "value_set_iid": "7b716958-3a3e-4a9d-9bfe-2374425f359b",
+      "value_switch": "MANUAL",
+      "manual_value": 162.0,
+      "published_value": 162.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "d2343b96-e07b-4dea-b416-ecffe51d1540",
+          "element_name": "S Band Antenna",
+          "element_short_name": "SBAndAntenna",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "8aabc351-c945-4005-b879-b79844b87da0",
+      "parameter_type_iid": "bad53f69-ab4c-4f49-990d-ca8d7c8d432c",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "61a7e0b9-bd98-44d2-ba3d-5f1378251e8e",
+      "value_switch": "MANUAL",
+      "manual_value": 1.0,
+      "published_value": 1.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "6d96b200-674d-470a-8be8-9b67f2508a10",
+          "element_name": "Propulsion Processing Unit",
+          "element_short_name": "PPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "8cd18614-9fb0-459f-8fc0-2ac9098a7381",
+      "parameter_type_iid": "2dc018e5-bdee-4eed-a12e-42b6e900e92d",
+      "parameter_type_name": "efficiency",
+      "parameter_type_short_name": "eff",
+      "unit_full_name": "percentage",
+      "unit_short_name": "%",
+      "scale_iid": "6b24b193-2f82-43b7-99c3-827f0ba06d0c",
+      "value_set_iid": "940044e7-28eb-4a62-8fbc-622547c5d8e6",
+      "value_switch": "MANUAL",
+      "manual_value": 94.0,
+      "published_value": 94.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "d504c42f-1f14-4776-b06d-6366f58760de",
+          "element_name": "Lithium-ion BatteryVES16",
+          "element_short_name": "LB",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "8e33ad1a-3786-4c93-b826-5b1eeb1403e6",
+      "parameter_type_iid": "00c6842f-9ad2-4d08-967c-280f9b77bd83",
+      "parameter_type_name": "battery cell type",
+      "parameter_type_short_name": "bat_cell_type",
+      "unit_full_name": "[text]",
+      "unit_short_name": "[text]",
+      "scale_iid": null,
+      "value_set_iid": "4efe9d11-d9de-4f7b-bf25-42aa57af2579",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "16d5ca72-29d3-4aa6-8968-b26b8fc1b4d7",
+          "element_name": "KU Band Antenna",
+          "element_short_name": "KUBandAntenna",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "8eb56323-ee32-45a8-ac29-a47749cfd0ad",
+      "parameter_type_iid": "bad53f69-ab4c-4f49-990d-ca8d7c8d432c",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "e18830f7-9617-4500-a362-5f234dab39fa",
+      "value_switch": "MANUAL",
+      "manual_value": 5.0,
+      "published_value": 5.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "3e935198-ee29-4a96-be14-28784ff67936",
+          "element_name": "Solar Cell Array",
+          "element_short_name": "SCA",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "8f8e6d03-e528-449d-9e5b-c856b0db3e79",
+      "parameter_type_iid": "b146f15d-c2a7-4ac9-a558-7b50d4392dca",
+      "parameter_type_name": "area",
+      "parameter_type_short_name": "area",
+      "unit_full_name": "square metre",
+      "unit_short_name": "m²",
+      "scale_iid": "275914d1-1791-4019-b7b7-1d48bfc8fcf5",
+      "value_set_iid": "db908d1f-49b2-48e4-869c-1a43ee6238e7",
+      "value_switch": "MANUAL",
+      "manual_value": 324.8,
+      "published_value": 324.8,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "7eaa384b-99df-4f7e-924e-de1408aff6b6",
+          "element_name": "Coarse Sun Sensor",
+          "element_short_name": "CSS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "90965791-8f34-42be-8878-0df94023c062",
+      "parameter_type_iid": "651e1875-9236-4bd2-b3a7-fd89797ebdd8",
+      "parameter_type_name": "power",
+      "parameter_type_short_name": "P",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "d3a50392-2064-49b4-b013-70c3130587ee",
+      "value_switch": "MANUAL",
+      "manual_value": 0.6,
+      "published_value": 0.6,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "6129fdaa-c783-413c-9fd7-2c90d3cfa682",
+          "element_name": "Orbit",
+          "element_short_name": "Orbit",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "91f43bf7-9a79-4ee0-bdde-32417ff53981",
+      "parameter_type_iid": "845395a7-2977-4655-bc22-387180ba25bf",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "d34ed55a-6583-4e21-a845-630ce88a0cb9",
+      "value_set_iid": "2ba26890-2157-4030-82da-98ff4ff97bdd",
+      "value_switch": "MANUAL",
+      "manual_value": 98.6,
+      "published_value": 98.6,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "85764718-7dc9-47bc-8e1e-e6de6b61ec6c",
+          "element_name": "Radiation Shielding",
+          "element_short_name": "RAD",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "9214873e-dac5-4b96-b425-fd1a17a5c9ab",
+      "parameter_type_iid": "355bd469-c32c-45d7-825e-aa445ed7e74a",
+      "parameter_type_name": "ratio",
+      "parameter_type_short_name": "ratio",
+      "unit_full_name": "percentage",
+      "unit_short_name": "%",
+      "scale_iid": "6b24b193-2f82-43b7-99c3-827f0ba06d0c",
+      "value_set_iid": "0512f3a5-dd13-40b8-8d54-9cf18197f90e",
+      "value_switch": "MANUAL",
+      "manual_value": 15.0,
+      "published_value": 15.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "6129fdaa-c783-413c-9fd7-2c90d3cfa682",
+          "element_name": "Orbit",
+          "element_short_name": "Orbit",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "93ec90a9-d3f3-4c10-86ad-737693dee097",
+      "parameter_type_iid": "f2b5c201-2735-4f51-b306-25239a7e3120",
+      "parameter_type_name": "period duration",
+      "parameter_type_short_name": "T_d",
+      "unit_full_name": "second",
+      "unit_short_name": "s",
+      "scale_iid": "a7c5199e-f72b-4e7e-81b3-2d42730f8c66",
+      "value_set_iid": "58b2752a-e7e5-44db-b62a-1098bdafef48",
+      "value_switch": "MANUAL",
+      "manual_value": 104.8,
+      "published_value": 104.8,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "651b9b07-e858-491f-bd80-3fbb92e42945",
+          "element_name": "Magnetometer",
+          "element_short_name": "Magnetometer",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "95701fec-8d29-4d00-b7e5-8425656f1764",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "e1743f5a-b92c-442f-9390-0089848e2d83",
+      "value_switch": "MANUAL",
+      "manual_value": 2.0,
+      "published_value": 2.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "07971c54-608d-4cd0-a00f-e3aa74caaabd",
+          "element_name": "Satellite",
+          "element_short_name": "Sat",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "957676fc-9b2f-4fb1-bd1b-885501099d97",
+      "parameter_type_iid": "d704409e-17ad-4d3d-a4ec-0e92a7dfb31f",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "291f098b-fc9b-448c-91db-fd01814f6e38",
+      "value_set_iid": "b46eac92-b284-4359-b343-41a3565834d5",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "0ee7047a-5288-49cb-a251-552ea9fc63dc",
+          "element_name": "Base",
+          "element_short_name": "Base",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "9584231f-d859-48d7-a758-95eda266574d",
+      "parameter_type_iid": "c469a26a-b841-4fc8-b5cc-8746464c9843",
+      "parameter_type_name": "thickness",
+      "parameter_type_short_name": "δ",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "c713197b-17f7-4357-a140-97edfe9a25fe",
+      "value_switch": "MANUAL",
+      "manual_value": 0.2,
+      "published_value": 0.2,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "978865a5-6fd4-4875-8274-d2c8076e049b",
+      "parameter_type_iid": "ae0c3f36-9f13-48bb-a1fc-e33c96a1ff2c",
+      "parameter_type_name": "lifetime",
+      "parameter_type_short_name": "lifetime",
+      "unit_full_name": "second",
+      "unit_short_name": "s",
+      "scale_iid": "b2d86453-6da6-43b1-8dc7-3a12413a7c81",
+      "value_set_iid": "48b95cc3-6dab-4e62-b8bd-18e7db81d912",
+      "value_switch": "MANUAL",
+      "manual_value": 3.5,
+      "published_value": 3.5,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "a0e9af62-3645-4df1-bff8-ad4bfed8edae",
+          "element_name": "Tank",
+          "element_short_name": "Tank",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "988e3956-425d-4a6a-b3c7-bed6bbe8931c",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "d69a0f54-9b29-476b-b8f3-b2aa8c751587",
+      "value_switch": "MANUAL",
+      "manual_value": 30.0,
+      "published_value": 30.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "5b707890-9b50-4287-bfcc-3729618b2a03",
+          "element_name": "KA Band Antenna",
+          "element_short_name": "KABandAntenna",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "9aa5cbd4-709d-4e06-b13c-d2f2e75cc039",
+      "parameter_type_iid": "1109cb46-ceba-4d2d-9357-5096a85dba0f",
+      "parameter_type_name": "width",
+      "parameter_type_short_name": "wid",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "3fedce86-dee8-4c81-9b2d-91d917ec33d4",
+      "value_switch": "MANUAL",
+      "manual_value": 0.5,
+      "published_value": 0.5,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8a8742c8-04aa-4f63-8ec9-616ed1dba318",
+          "element_name": "GNSS Receiver",
+          "element_short_name": "GNSS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "9c499266-84fd-4c33-8c8c-d4b0505ba5e5",
+      "parameter_type_iid": "651e1875-9236-4bd2-b3a7-fd89797ebdd8",
+      "parameter_type_name": "power",
+      "parameter_type_short_name": "P",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "94fd6ff1-ea55-4adc-8af3-c55d26f6e181",
+      "value_switch": "MANUAL",
+      "manual_value": 10.0,
+      "published_value": 10.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "182142ea-c833-4912-8cc4-9dc03b418981",
+          "element_name": "Power Conditioning unit",
+          "element_short_name": "PCU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "9d254728-e437-4f39-a971-7a3757165cf8",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "9d67420b-a3cf-4da0-a0d1-146b1675b50e",
+      "value_switch": "MANUAL",
+      "manual_value": 50.165,
+      "published_value": 50.165,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "a071a08d-6fdb-4031-922e-6c1099f270e3",
+      "parameter_type_iid": "0528421f-5546-4db5-8ee6-28ab87f00523",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "256fd6a4-593e-452f-9b8a-5d93f36a4cbd",
+      "value_set_iid": "c3dbc2e9-60d1-42b9-9197-f09cc0c74d18",
+      "value_switch": "MANUAL",
+      "manual_value": 723.0,
+      "published_value": 723.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "fde9a39a-465d-4952-a804-8c6f474fdaa7",
+          "element_name": "Ground  Segment",
+          "element_short_name": "GroundSegment",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "a251ad3b-d0db-46ae-9bca-51f2b3e7f1d2",
+      "parameter_type_iid": "1272ec43-908b-436a-b256-7319a1640dc8",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "7bc71b9d-716d-406e-bc95-e9b7678db996",
+      "value_set_iid": "3d01d44b-770b-49c9-a94a-36107550b0c0",
+      "value_switch": "MANUAL",
+      "manual_value": 33000000000.0,
+      "published_value": 33000000000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "a3a52707-459b-480a-9f49-1a2e44aa1b30",
+      "parameter_type_iid": "4f43586a-3434-4a17-bb93-08d7cf555467",
+      "parameter_type_name": "specific impulse",
+      "parameter_type_short_name": "I_sp",
+      "unit_full_name": "second",
+      "unit_short_name": "s",
+      "scale_iid": "a7c5199e-f72b-4e7e-81b3-2d42730f8c66",
+      "value_set_iid": "2ea30a23-e0b9-4002-8500-bbfe74251841",
+      "value_switch": "MANUAL",
+      "manual_value": 2500.0,
+      "published_value": 2500.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "0ee7047a-5288-49cb-a251-552ea9fc63dc",
+          "element_name": "Base",
+          "element_short_name": "Base",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "a668d748-011a-4d6b-a5ab-937077566042",
+      "parameter_type_iid": "66766f44-0a0b-4e0a-9bc7-8ae027c2da5c",
+      "parameter_type_name": "length",
+      "parameter_type_short_name": "l",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "93ce889c-8c2e-4c17-851c-181f2b2de7f2",
+      "value_switch": "MANUAL",
+      "manual_value": 3.2,
+      "published_value": 3.2,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "a46b40be-a570-4a6b-8cb9-8fb0fc09ba82",
+          "element_name": "Research & Development",
+          "element_short_name": "ResearchAndDev",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "a7e9698b-f40b-4d52-b74d-50dd49f3652e",
+      "parameter_type_iid": "e98d7d65-7a1a-45cf-93ea-e8c37f21a522",
+      "parameter_type_name": "time",
+      "parameter_type_short_name": "t",
+      "unit_full_name": "second",
+      "unit_short_name": "s",
+      "scale_iid": "a7c5199e-f72b-4e7e-81b3-2d42730f8c66",
+      "value_set_iid": "e9cdc99f-dad0-47ec-9ef4-2d4a2f7cfeaa",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "601d9bb3-41d7-4c57-906e-1095645c140d",
+          "element_name": "Laser Gimbal",
+          "element_short_name": "Laser_Gimbal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "a802161c-4546-467a-a7a6-e8b81cb1861d",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "a8a2d405-546c-4b16-b590-5f7314f29cc9",
+      "value_switch": "MANUAL",
+      "manual_value": 4.0,
+      "published_value": 4.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "6129fdaa-c783-413c-9fd7-2c90d3cfa682",
+          "element_name": "Orbit",
+          "element_short_name": "Orbit",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "ab6983a3-fe31-48c6-9b0d-a3fcf1cc9a72",
+      "parameter_type_iid": "e7bebb37-dfad-451b-bcf6-ba3668657255",
+      "parameter_type_name": "delta-v",
+      "parameter_type_short_name": "delta_v",
+      "unit_full_name": "metre per second",
+      "unit_short_name": "m/s",
+      "scale_iid": "7406c60b-9f22-44a4-9fe5-bedfa0a83b93",
+      "value_set_iid": "047a2381-1283-47ae-97ea-8eacc19cd43b",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "651b9b07-e858-491f-bd80-3fbb92e42945",
+          "element_name": "Magnetometer",
+          "element_short_name": "Magnetometer",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "abaf2ab5-029d-44b4-8918-70e160d7ef0a",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "6cbc60b4-9ec2-42c0-94db-c1bf214f7201",
+      "value_switch": "MANUAL",
+      "manual_value": 0.6,
+      "published_value": 0.6,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "43347fca-f345-462c-853e-4918a77cada9",
+          "element_name": "Ground Station Location",
+          "element_short_name": "GroundStationLocation",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "adc1aeb4-2420-45e7-b0d5-2d0eca9fcc9d",
+      "parameter_type_iid": "1dae47f1-6bc7-42d4-af29-fb00174b47a6",
+      "parameter_type_name": "mean contact duration",
+      "parameter_type_short_name": "dur_contact_mean",
+      "unit_full_name": "minute",
+      "unit_short_name": "min",
+      "scale_iid": "0180582d-7075-4c52-8d24-a05f6fe64b97",
+      "value_set_iid": "bcbd52eb-5cca-4110-999a-7159e9996905",
+      "value_switch": "MANUAL",
+      "manual_value": 40.0,
+      "published_value": 40.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "a49450f8-ffd5-406b-ad84-52d49d14d789",
+          "element_name": "Magnetorquer",
+          "element_short_name": "MGT",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "ade6494b-0e1c-4ba5-a1c9-1dc76a774e7a",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "1aa4b8fe-831e-4b9f-a512-0aadfe7f6a70",
+      "value_switch": "MANUAL",
+      "manual_value": 7.5,
+      "published_value": 7.5,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "6d96b200-674d-470a-8be8-9b67f2508a10",
+          "element_name": "Propulsion Processing Unit",
+          "element_short_name": "PPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "aef302c4-f24c-44f3-bd9c-37164d2db2a5",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "de64754b-e39f-45e1-95ab-d725ed2008d2",
+      "value_switch": "MANUAL",
+      "manual_value": 7.0,
+      "published_value": 7.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "af6d4b77-209b-45db-a4ac-98c24bddfee7",
+      "parameter_type_iid": "784ba602-2e99-45c2-8475-26bc7f19efc4",
+      "parameter_type_name": "source voltage",
+      "parameter_type_short_name": "Us",
+      "unit_full_name": "volt",
+      "unit_short_name": "V",
+      "scale_iid": "02ce435e-1af8-442f-b130-236141434711",
+      "value_set_iid": "59c5c291-3acf-40cc-88a1-3422f55ebc5b",
+      "value_switch": "MANUAL",
+      "manual_value": 48.0,
+      "published_value": 48.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2a57cfb8-28a9-490f-8abd-89f02b8e57f3",
+          "element_name": "Honeycomb",
+          "element_short_name": "Honeycomb",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "b07fb1cc-1cb3-41bd-81b9-e1f985aa6964",
+      "parameter_type_iid": "66766f44-0a0b-4e0a-9bc7-8ae027c2da5c",
+      "parameter_type_name": "length",
+      "parameter_type_short_name": "l",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "2d1100c2-8980-4907-873a-1d02d97504c6",
+      "value_switch": "MANUAL",
+      "manual_value": 3.2,
+      "published_value": 3.2,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "a46b40be-a570-4a6b-8cb9-8fb0fc09ba82",
+          "element_name": "Research & Development",
+          "element_short_name": "ResearchAndDev",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "b0e07ce8-6555-49fc-a2d6-52764723a45d",
+      "parameter_type_iid": "ae0c3f36-9f13-48bb-a1fc-e33c96a1ff2c",
+      "parameter_type_name": "lifetime",
+      "parameter_type_short_name": "lifetime",
+      "unit_full_name": "second",
+      "unit_short_name": "s",
+      "scale_iid": "e8e6b3bb-ed70-4bc9-9e2c-6a2c04bc41ee",
+      "value_set_iid": "bcc23eb1-ff52-4503-9416-f65ecde4d20d",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "3846464a-a33d-453e-8128-e145385a8348",
+          "element_name": "DDR5 1.5TB",
+          "element_short_name": "RAM",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "b494fa61-69d5-47b7-80eb-eb461272a1ff",
+      "parameter_type_iid": "1109cb46-ceba-4d2d-9357-5096a85dba0f",
+      "parameter_type_name": "width",
+      "parameter_type_short_name": "wid",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "ecbbe238-a458-4d0e-a1ba-f8833299be8c",
+      "value_switch": "MANUAL",
+      "manual_value": 93.6,
+      "published_value": 93.6,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "a46b40be-a570-4a6b-8cb9-8fb0fc09ba82",
+          "element_name": "Research & Development",
+          "element_short_name": "ResearchAndDev",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "b4a5ea39-2db1-4a84-abb2-c7f94236a0ee",
+      "parameter_type_iid": "d704409e-17ad-4d3d-a4ec-0e92a7dfb31f",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "291f098b-fc9b-448c-91db-fd01814f6e38",
+      "value_set_iid": "06f10e48-84eb-4dff-8ea2-5939bc4c6682",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2dddb54b-486e-4077-812e-9d37c1fbc546",
+          "element_name": "H100 GPU",
+          "element_short_name": "GPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "b57d70a9-c9cd-4492-bc6d-30cc4e2c89f8",
+      "parameter_type_iid": "47b1d239-cf51-4f75-81fc-47fa38458f96",
+      "parameter_type_name": "active power",
+      "parameter_type_short_name": "ap",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "ff24e65e-9c01-4bbb-a417-66827471e9d4",
+      "value_switch": "MANUAL",
+      "manual_value": 350.0,
+      "published_value": 350.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8da58eef-a87a-474e-bccb-44328aa00fb7",
+          "element_name": "Thruster",
+          "element_short_name": "Thruster",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "ba4678ee-c8c9-421e-90ac-c7b97b3a7ed6",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "a681acde-dba3-4e2c-8362-8327529bcf4c",
+      "value_switch": "MANUAL",
+      "manual_value": 10.0,
+      "published_value": 10.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "bb3b5e78-e833-407f-b6da-de1ce93baee4",
+      "parameter_type_iid": "34733dc2-2219-4be4-8f49-55f257cd4da6",
+      "parameter_type_name": "delta-v to change trajectory",
+      "parameter_type_short_name": "delta_v_change_traj",
+      "unit_full_name": "metre per second",
+      "unit_short_name": "m/s",
+      "scale_iid": "7406c60b-9f22-44a4-9fe5-bedfa0a83b93",
+      "value_set_iid": "97f96170-3053-442e-883b-9119030ef38b",
+      "value_switch": "MANUAL",
+      "manual_value": 500.0,
+      "published_value": 500.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "c5e4b118-7b87-4e51-abf1-f65888ce1ddf",
+          "element_name": "Energy Storage Unit",
+          "element_short_name": "ESU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "bc0b448f-b0f1-4003-9f86-12270a01244f",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "38742b24-846e-410a-9904-8dabdcb2fdd2",
+      "value_switch": "MANUAL",
+      "manual_value": 167.71,
+      "published_value": 167.71,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "d2343b96-e07b-4dea-b416-ecffe51d1540",
+          "element_name": "S Band Antenna",
+          "element_short_name": "SBAndAntenna",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "bdcfe09d-8b9e-458a-9c6e-9f5852eaaa2e",
+      "parameter_type_iid": "1109cb46-ceba-4d2d-9357-5096a85dba0f",
+      "parameter_type_name": "width",
+      "parameter_type_short_name": "wid",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "d265fdaf-0f07-4049-b954-a3766078801c",
+      "value_switch": "MANUAL",
+      "manual_value": 0.15,
+      "published_value": 0.15,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "bf95120a-d420-46f7-a64e-5dc6a1096e36",
+          "element_name": "Launch Vehicle",
+          "element_short_name": "LaunchVehicle",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "bfcce780-43e2-4f76-9a2e-4b7e7b52586c",
+      "parameter_type_iid": "f4947566-baf1-44ac-b2b4-fe21624927ba",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "d341920c-bcb2-4319-8638-88548a89471e",
+      "value_switch": "MANUAL",
+      "manual_value": 5.5,
+      "published_value": 5.5,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "7b83f7dd-da4c-4283-a576-727ba9373e68",
+          "element_name": "Star Tracker",
+          "element_short_name": "STTCK",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "c2956ef7-2b84-4f80-8be8-693bc19cc674",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "892b458b-71e4-4b44-9be0-acddc8404996",
+      "value_switch": "MANUAL",
+      "manual_value": 3.0,
+      "published_value": 3.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "0ee7047a-5288-49cb-a251-552ea9fc63dc",
+          "element_name": "Base",
+          "element_short_name": "Base",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "c2f59e1a-204f-456c-a868-71a4407af715",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "86554086-eca2-4cad-ad61-bf81494d498d",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "fde9a39a-465d-4952-a804-8c6f474fdaa7",
+          "element_name": "Ground  Segment",
+          "element_short_name": "GroundSegment",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "c4c31eed-c6e4-4f6c-98bb-0f05753e10f6",
+      "parameter_type_iid": "8cf4da3c-7336-4e53-bce7-68188e9f1789",
+      "parameter_type_name": "data rate",
+      "parameter_type_short_name": "data_rate",
+      "unit_full_name": "kilobit per second",
+      "unit_short_name": "kbit/s",
+      "scale_iid": "d16026db-35c6-4ba5-b220-ff5648138e36",
+      "value_set_iid": "1fd193d9-4502-4a7e-aa40-40ed4cb2b229",
+      "value_switch": "MANUAL",
+      "manual_value": 1000.0,
+      "published_value": 1000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "7eaa384b-99df-4f7e-924e-de1408aff6b6",
+          "element_name": "Coarse Sun Sensor",
+          "element_short_name": "CSS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "c8bf6408-9a94-4ddc-a5a7-b66c6694f9af",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "1cb576dd-453c-4884-8368-73b39759dd87",
+      "value_switch": "MANUAL",
+      "manual_value": 6.0,
+      "published_value": 6.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "f27b1597-0469-4755-a5b4-fea5c121b3f3",
+          "element_name": "Reaction Wheel",
+          "element_short_name": "RW",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "d19bb0bc-4eee-4fd4-8ae0-d4744245101d",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "33ce11a0-4ed5-41e5-9d70-acd2d83b4ce3",
+      "value_switch": "MANUAL",
+      "manual_value": 72.0,
+      "published_value": 72.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "7eaa384b-99df-4f7e-924e-de1408aff6b6",
+          "element_name": "Coarse Sun Sensor",
+          "element_short_name": "CSS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "d4ce2ad9-321a-4703-8e13-04ee91555691",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "a0b2ca54-2651-42dc-840c-96ff6b0b39a2",
+      "value_switch": "MANUAL",
+      "manual_value": 0.4,
+      "published_value": 0.4,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "fde9a39a-465d-4952-a804-8c6f474fdaa7",
+          "element_name": "Ground  Segment",
+          "element_short_name": "GroundSegment",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "d53bd4aa-469b-4291-994e-bb562917d726",
+      "parameter_type_iid": "f6c7fd87-d4d1-4d51-b619-022003b11aed",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "d16026db-35c6-4ba5-b220-ff5648138e36",
+      "value_set_iid": "1970b524-d1b2-4232-bc78-466e64c9d431",
+      "value_switch": "MANUAL",
+      "manual_value": 500000.0,
+      "published_value": 500000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "b75b23c9-637f-4a1e-ab25-cf23b0f21381",
+          "element_name": "Inter Satellite Communication",
+          "element_short_name": "InterSatelliteCommunication",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "d9d42d68-3320-4c46-b6bf-2b7f6bffb433",
+      "parameter_type_iid": "ff50234e-b525-4df8-a140-d69e707de05b",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "6bb9648f-2faa-46a0-bbb4-b6cf1e3b2bdf",
+      "value_set_iid": "90d0cce8-0afa-4068-931d-d387f8a120d5",
+      "value_switch": "MANUAL",
+      "manual_value": 400000000000.0,
+      "published_value": 400000000000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b416453-db85-48a5-ab01-e7c4fede02c2",
+          "element_name": "OS Storage",
+          "element_short_name": "OSStor",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "dc5421a4-a73a-419e-9a2e-dfd07ef69113",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "2a7399cd-e290-4e6d-af5e-2b50461dd75d",
+      "value_switch": "MANUAL",
+      "manual_value": 0.0075,
+      "published_value": 0.0075,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4c5e54a1-1238-496c-bdcc-613197754cca",
+          "element_name": "Launchment Service",
+          "element_short_name": "LaunchmentService",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "dcfd874d-5db3-4a4d-bc0e-331ddf65df22",
+      "parameter_type_iid": "d704409e-17ad-4d3d-a4ec-0e92a7dfb31f",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "291f098b-fc9b-448c-91db-fd01814f6e38",
+      "value_set_iid": "02150ba9-2444-486a-b9a8-01a0a19e2c3c",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "0768af82-781f-470d-b50f-db4a879a85e1",
+          "element_name": "Datacenter Module",
+          "element_short_name": "Datacmod",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "e07d543e-fd97-41d5-a101-858d77e039ff",
+      "parameter_type_iid": "66766f44-0a0b-4e0a-9bc7-8ae027c2da5c",
+      "parameter_type_name": "length",
+      "parameter_type_short_name": "l",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "935d0134-3856-4af1-908e-28a4bc8e7fb7",
+      "value_switch": "MANUAL",
+      "manual_value": 534.0,
+      "published_value": 534.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "57c14652-5033-4e62-b60b-ed82739b799b",
+          "element_name": "IMU",
+          "element_short_name": "IMU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "e284abfb-d4ff-41c6-8e2e-e2969a6e63e6",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "2a966f48-8161-43b4-a6b1-40edda859ade",
+      "value_switch": "MANUAL",
+      "manual_value": 2.0,
+      "published_value": 2.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "2dddb54b-486e-4077-812e-9d37c1fbc546",
+          "element_name": "H100 GPU",
+          "element_short_name": "GPU",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "e74e5cf2-f415-4918-bf83-0783584eb4aa",
+      "parameter_type_iid": "7b9e6eea-158a-45bc-a4f4-b8d41b5ebd17",
+      "parameter_type_name": "breadth",
+      "parameter_type_short_name": "b",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "fa1d9252-2f1f-4366-b7a5-bd279c339f38",
+      "value_switch": "MANUAL",
+      "manual_value": 112.0,
+      "published_value": 112.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "3846464a-a33d-453e-8128-e145385a8348",
+          "element_name": "DDR5 1.5TB",
+          "element_short_name": "RAM",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "e7a600ba-804f-4a4f-9d0f-68984f8e37b8",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "256d0bbd-bdb7-4a0a-9f04-e045558416f3",
+      "value_switch": "MANUAL",
+      "manual_value": 3.9,
+      "published_value": 3.9,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "3846464a-a33d-453e-8128-e145385a8348",
+          "element_name": "DDR5 1.5TB",
+          "element_short_name": "RAM",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "ea6af5ba-0d37-4197-89bd-e4fd191fb703",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "3c7735d3-b8c5-4ee1-807e-ac43022ec8d8",
+      "value_switch": "MANUAL",
+      "manual_value": 0.03,
+      "published_value": 0.03,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "3e79a852-b211-4d0f-8d9e-499fa990fadf",
+          "element_name": "Number Of Satellites",
+          "element_short_name": "NumberOfSatellites",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "eaef6b93-af78-4412-b8c1-8c35cab32d4c",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "0acfe427-da88-44c2-aa20-caa5e1985777",
+      "value_switch": "MANUAL",
+      "manual_value": 11111.0,
+      "published_value": 11111.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "0ee7047a-5288-49cb-a251-552ea9fc63dc",
+          "element_name": "Base",
+          "element_short_name": "Base",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "ed835fb4-2858-41a4-8f33-00acb2d0c02a",
+      "parameter_type_iid": "d145add7-1781-420e-8af7-c996b392ebd9",
+      "parameter_type_name": "height",
+      "parameter_type_short_name": "h",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946884",
+      "value_set_iid": "653b309a-8842-42bd-aca8-74fc31935ecf",
+      "value_switch": "MANUAL",
+      "manual_value": 3.2,
+      "published_value": 3.2,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8da58eef-a87a-474e-bccb-44328aa00fb7",
+          "element_name": "Thruster",
+          "element_short_name": "Thruster",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "ee3c7f7f-6cdd-4c9c-9145-9db5cd756a6b",
+      "parameter_type_iid": "651e1875-9236-4bd2-b3a7-fd89797ebdd8",
+      "parameter_type_name": "power",
+      "parameter_type_short_name": "P",
+      "unit_full_name": "watt",
+      "unit_short_name": "W",
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "d48fbed2-5511-4bf6-a4af-0c7bac349634",
+      "value_switch": "MANUAL",
+      "manual_value": 5000.0,
+      "published_value": 5000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "5b9e02b9-68ed-4814-8194-141ed56f37ba",
+          "element_name": "Communication Subsystem",
+          "element_short_name": "CommunicationSubsystem",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f0565a52-f9fe-4706-8c73-4cfdbd82075c",
+      "parameter_type_iid": "8a6fc1c1-8e83-4aa2-ab85-268b6c007e1a",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "6bb9648f-2faa-46a0-bbb4-b6cf1e3b2bdf",
+      "value_set_iid": "16b164aa-bc28-497b-b119-7cf416657e7b",
+      "value_switch": "MANUAL",
+      "manual_value": 12800000000000.0,
+      "published_value": 12800000000000.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "6129fdaa-c783-413c-9fd7-2c90d3cfa682",
+          "element_name": "Orbit",
+          "element_short_name": "Orbit",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f26cdb49-6261-49d1-87df-2a7bf7447f71",
+      "parameter_type_iid": "ce2ad7e6-40af-450b-a1f5-01c2f20bd510",
+      "parameter_type_name": "orbit type",
+      "parameter_type_short_name": "orbit",
+      "unit_full_name": "[text]",
+      "unit_short_name": "[text]",
+      "scale_iid": null,
+      "value_set_iid": "2d090bce-730e-45f2-8b81-bc02c438e23a",
+      "value_switch": "MANUAL",
+      "manual_value": "Dawn/Dusk SSO",
+      "published_value": "Dawn/Dusk SSO",
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f31774d7-a28d-4f97-a5aa-73fbcba189cd",
+      "parameter_type_iid": "c36a8fcd-2852-4153-a68f-eed7b1adcf43",
+      "parameter_type_name": "total Δv",
+      "parameter_type_short_name": "delta_v_tot",
+      "unit_full_name": "metre per second",
+      "unit_short_name": "m/s",
+      "scale_iid": "7406c60b-9f22-44a4-9fe5-bedfa0a83b93",
+      "value_set_iid": "5bf409e9-89c2-436f-92e4-14c8e3a7d99c",
+      "value_switch": "COMPUTED",
+      "manual_value": 518.0,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "6656d0e9-d489-42ca-8f3c-2c9a31b63383",
+          "element_name": "Inter Plane",
+          "element_short_name": "InterPlane",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f3bc10ac-194c-43fc-bafe-b86e1bf50523",
+      "parameter_type_iid": "eece49c8-acbf-4e48-824e-ab5074891d8c",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": null,
+      "value_set_iid": "7beeff42-73fa-46f5-a4a3-10c59f1f81c5",
+      "value_switch": "MANUAL",
+      "manual_value": 2.0,
+      "published_value": 2.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "3846464a-a33d-453e-8128-e145385a8348",
+          "element_name": "DDR5 1.5TB",
+          "element_short_name": "RAM",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f3e20f8a-6d2f-480c-91b3-897952119683",
+      "parameter_type_iid": "57c6c496-ed26-4e58-a429-3dd2094e4d96",
+      "parameter_type_name": "number of items",
+      "parameter_type_short_name": "n_items",
+      "unit_full_name": "one",
+      "unit_short_name": "-",
+      "scale_iid": "56863161-fa3a-47b8-a3cd-16465f734b27",
+      "value_set_iid": "5c6d3e5b-a2ee-4691-958f-54526e08f33f",
+      "value_switch": "MANUAL",
+      "manual_value": 192.0,
+      "published_value": 192.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b416453-db85-48a5-ab01-e7c4fede02c2",
+          "element_name": "OS Storage",
+          "element_short_name": "OSStor",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f403e50a-7025-43ac-92af-f62f7ab7d13b",
+      "parameter_type_iid": "66766f44-0a0b-4e0a-9bc7-8ae027c2da5c",
+      "parameter_type_name": "length",
+      "parameter_type_short_name": "l",
+      "unit_full_name": "metre",
+      "unit_short_name": "m",
+      "scale_iid": "3d5bddb6-640f-4d79-9c35-64a554946888",
+      "value_set_iid": "ffdcc8ed-844d-4fa3-a5b4-57751950cee5",
+      "value_switch": "MANUAL",
+      "manual_value": 80.0,
+      "published_value": 80.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "bf95120a-d420-46f7-a64e-5dc6a1096e36",
+          "element_name": "Launch Vehicle",
+          "element_short_name": "LaunchVehicle",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f5b2a259-c54b-499d-88a3-6781871c5e6a",
+      "parameter_type_iid": "e98d7d65-7a1a-45cf-93ea-e8c37f21a522",
+      "parameter_type_name": "time",
+      "parameter_type_short_name": "t",
+      "unit_full_name": "second",
+      "unit_short_name": "s",
+      "scale_iid": "e8e6b3bb-ed70-4bc9-9e2c-6a2c04bc41ee",
+      "value_set_iid": "405b7bfc-555c-47aa-8162-bd04ab88dc67",
+      "value_switch": "MANUAL",
+      "manual_value": 1.0,
+      "published_value": 1.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "eea48b9d-5244-4ddb-a91a-a5e0ee47d7df",
+          "element_name": "Propellant Management",
+          "element_short_name": "PMS",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f5da79ef-9a11-453c-8470-07b550235332",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "dd5e31cc-20d8-43e6-8f50-dbf72c7e47a0",
+      "value_switch": "MANUAL",
+      "manual_value": 2.0,
+      "published_value": 2.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "601d9bb3-41d7-4c57-906e-1095645c140d",
+          "element_name": "Laser Gimbal",
+          "element_short_name": "Laser_Gimbal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f6c24bb7-37a9-47dd-804e-764d59ec9b07",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "ecc1ed12-9508-4f52-9b62-ff06ecf859a8",
+      "value_switch": "MANUAL",
+      "manual_value": 32.0,
+      "published_value": 32.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "1191229d-2295-4cfb-80d3-c54db1e97992",
+          "element_name": "BeamStructure",
+          "element_short_name": "BeamStructure",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f73f38ff-565e-4c0f-98b5-ac56c5abb8bb",
+      "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+      "parameter_type_name": "mass",
+      "parameter_type_short_name": "m",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "80d3eb29-906e-4389-bc4e-bc740dd5c263",
+      "value_switch": "MANUAL",
+      "manual_value": null,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f7f67fc2-a36f-45a7-a76a-2505215fc4bc",
+      "parameter_type_iid": "dde645d2-3058-42ae-8641-9b2eb526368e",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "9a112a9a-411a-49a0-8df8-87285a1e2155",
+      "value_set_iid": "b134ae62-8237-433b-8f08-52bf6afb349a",
+      "value_switch": "MANUAL",
+      "manual_value": 350.0,
+      "published_value": 350.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "a0e9af62-3645-4df1-bff8-ad4bfed8edae",
+          "element_name": "Tank",
+          "element_short_name": "Tank",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "f9336985-2097-4893-b5af-1d3f48948bf0",
+      "parameter_type_iid": "eff75bfd-f203-419d-bd34-c36a56d7c3f9",
+      "parameter_type_name": "volume",
+      "parameter_type_short_name": "V",
+      "unit_full_name": "cubic metre",
+      "unit_short_name": "m³",
+      "scale_iid": "c9b39c7d-24d3-4e1a-b7be-5643be714dac",
+      "value_set_iid": "b60ddd45-97b8-42ab-8f14-a9a71528b1a2",
+      "value_switch": "MANUAL",
+      "manual_value": 0.08,
+      "published_value": 0.08,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+          "element_name": "Propulsion Subsystem",
+          "element_short_name": "PRO",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "fc44792c-94d8-4f89-b768-1fef083e95f3",
+      "parameter_type_iid": "8e7e52c9-7d82-4c6c-8370-9497b01efe86",
+      "parameter_type_name": "dry mass",
+      "parameter_type_short_name": "mass_dry",
+      "unit_full_name": "kilogram",
+      "unit_short_name": "kg",
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "9499a9ec-db84-48cf-b3c2-17f5e2ba600d",
+      "value_switch": "COMPUTED",
+      "manual_value": 56.0,
+      "published_value": null,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "fdc8edcf-ee5e-4a5e-8399-1ae1e43ceb06",
+      "parameter_type_iid": "c5448b6f-fec8-4be2-ab44-c64a4ad5bec7",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "a387d7fc-2776-4bd6-af5a-5c175b2ecf77",
+      "value_set_iid": "9c3a432f-b91a-4c47-a021-8eab4e75fe63",
+      "value_switch": "MANUAL",
+      "manual_value": 20.0,
+      "published_value": 20.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "8c41647d-5eb3-4389-a309-2aeb752d84a2",
+          "element_name": "Thermal",
+          "element_short_name": "Thermal",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "fee31e6b-942e-4801-a377-5cf980ef53b3",
+      "parameter_type_iid": "1066d109-502f-4a4b-8586-d1b30e6f9996",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+      "value_set_iid": "4793e78c-3378-4b25-aef8-a260f8464d35",
+      "value_switch": "MANUAL",
+      "manual_value": 648.0,
+      "published_value": 648.0,
+      "computed_value": null,
+      "reference_value": null
+    },
+    {
+      "element_bindings": [
+        {
+          "element_iid": "fde9a39a-465d-4952-a804-8c6f474fdaa7",
+          "element_name": "Ground  Segment",
+          "element_short_name": "GroundSegment",
+          "element_class_kind": "ElementDefinition"
+        }
+      ],
+      "parameter_iid": "ffa26754-2bdd-48bf-87bd-41ed0b909a42",
+      "parameter_type_iid": "97c61057-4d5a-4488-8f25-a513e27b639e",
+      "parameter_type_name": null,
+      "parameter_type_short_name": null,
+      "unit_full_name": null,
+      "unit_short_name": null,
+      "scale_iid": "7bc71b9d-716d-406e-bc95-e9b7678db996",
+      "value_set_iid": "5ae40253-4469-40b7-b87e-0a1068cd3863",
+      "value_switch": "MANUAL",
+      "manual_value": 15000000000.0,
+      "published_value": 15000000000.0,
+      "computed_value": null,
+      "reference_value": null
+    }
+  ]
+}

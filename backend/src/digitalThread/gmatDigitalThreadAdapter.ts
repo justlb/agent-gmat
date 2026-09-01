@@ -1,5 +1,5 @@
 import type { DigitalThreadDocument, JsonValue } from "./digitalThreadStore.js"
-import { getAtPath, loadOrCreateDigitalThread, saveDigitalThread, setAtPath } from "./digitalThreadStore.js"
+import { getAtPath, loadOrCreateDigitalThread, saveDigitalThread, setAtPath, updateDigitalThread } from "./digitalThreadStore.js"
 import { gmatTemplateDefinition, type GmatTemplateId } from "../gmat/templateRegistry.js"
 import { validateGmatMissionGuardrails } from "../gmat/missionGuardrails.js"
 
@@ -152,7 +152,22 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   requireNumber(document, "satellite.bus.physical.mass_kg.dry", "spacecraft.dryMassKg", values, guards)
   const propulsionType = stringAt(document, "satellite.bus.propulsion_subsystem.type")?.toLowerCase() ?? ""
 
-  if (template === "orbit-keeping" || template === "chemical-hohmann-transfer" || template === "chemical-3d-transfer") {
+  if (template === "geo-gso-electric-station-keeping" || template === "geo-electric-end-of-life") {
+    if (!propulsionType || !/(electric|hall|ion)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: `The ${template === "geo-electric-end-of-life" ? "GEO electric end-of-life" : "GEO/GSO electric station-keeping"} template requires an explicitly identified electric propulsion subsystem.`, path: "satellite.bus.propulsion_subsystem.type" })
+    const geoRoot = missionRoot
+    const initialFuelMass = firstNumber(document, `${geoRoot}.initial_fuel_mass_kg`, "satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg", "satellite.bus.physical.mass_kg.propellant")
+    if (initialFuelMass !== null) values["spacecraft.initialFuelMassKg"] = initialFuelMass
+    optionalNumber(document, `${geoRoot}.north_south_tolerance_deg`, "stationKeeping.northSouthToleranceDeg", values)
+    optionalNumber(document, `${geoRoot}.east_west_tolerance_deg`, "stationKeeping.eastWestToleranceDeg", values)
+    optionalNumber(document, `${geoRoot}.east_west_burn_duration_sec`, "stationKeeping.eastWestBurnDurationSec", values)
+    optionalNumber(document, `${geoRoot}.north_south_burn_duration_sec`, "stationKeeping.northSouthBurnDurationSec", values)
+    optionalNumber(document, `${geoRoot}.mission_duration_days`, "stationKeeping.missionDurationDays", values)
+    optionalNumber(document, "satellite.bus.physical.drag_area_m2", "spacecraft.dragAreaM2", values)
+    optionalNumber(document, "satellite.bus.physical.drag_coefficient", "spacecraft.dragCoefficient", values)
+    optionalNumber(document, "satellite.bus.propulsion_subsystem.specific_impulse_seconds", "propulsion.ispSeconds", values)
+    const solarPower = initialSolarPowerKw(document, guards, derivations)
+    if (solarPower !== null) values["power.initialMaxPowerKw"] = solarPower
+  } else if (template === "orbit-keeping" || template === "geo-gso-orbit-keeping" || template === "chemical-hohmann-transfer" || template === "chemical-3d-transfer") {
     if (!propulsionType || !/(chemical|bipropellant|monopropellant)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: `The ${template === "chemical-hohmann-transfer" ? "chemical Hohmann-transfer" : template === "chemical-3d-transfer" ? "chemical 3D GEO-transfer" : "orbit-keeping"} template requires an explicitly identified chemical propulsion subsystem.`, path: "satellite.bus.propulsion_subsystem.type" })
     if (template === "orbit-keeping") {
       requireNumber(document, "analysis_requests.gmat.orbit_keeping.minimum_reboost_altitude_km", "stationKeeping.minimumAltitudeKm", values, guards)
@@ -161,6 +176,13 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
       optionalNumber(document, "analysis_requests.gmat.orbit_keeping.final_altitude_km", "endOfLife.finalAltitudeKm", values)
       const initialFuelMass = firstNumber(document, "analysis_requests.gmat.orbit_keeping.initial_fuel_mass_kg", "satellite.bus.physical.mass_kg.propellant")
       if (initialFuelMass !== null) values["spacecraft.initialFuelMassKg"] = initialFuelMass
+    } else if (template === "geo-gso-orbit-keeping") {
+      const geoRoot = "analysis_requests.gmat.geo_gso_orbit_keeping"
+      optionalNumber(document, `${geoRoot}.initial_fuel_mass_kg`, "spacecraft.initialFuelMassKg", values)
+      optionalNumber(document, `${geoRoot}.north_south_tolerance_deg`, "stationKeeping.northSouthToleranceDeg", values)
+      optionalNumber(document, `${geoRoot}.east_west_tolerance_deg`, "stationKeeping.eastWestToleranceDeg", values)
+      optionalNumber(document, `${geoRoot}.eccentricity_tolerance`, "stationKeeping.eccentricityTolerance", values)
+      optionalNumber(document, `${geoRoot}.days_of_station_keeping`, "stationKeeping.daysOfOk", values)
     } else if (template === "chemical-hohmann-transfer") {
       requireNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.target_orbit.radius_km", "transfer.targetRadiusKm", values, guards)
       optionalNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.target_orbit.eccentricity", "transfer.targetEccentricity", values)
@@ -197,7 +219,9 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   }
   const requiredDraftPaths = template === "orbit-keeping"
     ? ["spacecraft.dryMassKg"]
-    : template === "chemical-hohmann-transfer"
+    : template === "geo-gso-orbit-keeping" || template === "geo-gso-electric-station-keeping" || template === "geo-electric-end-of-life"
+      ? ["initialOrbit.epoch", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg", "spacecraft.initialFuelMassKg"]
+      : template === "chemical-hohmann-transfer"
       ? ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.targetRadiusKm"]
       : template === "chemical-3d-transfer"
         ? ["initialOrbit.epoch", "initialOrbit.altitudeKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.finalAltitudeKm", "transfer.finalInclinationDeg"]
@@ -229,7 +253,32 @@ function missionDraftPaths(templateId: string) {
   const root = `analysis_requests.gmat.${analysisTemplateKey(templateId)}`
   return {
     ...Object.fromEntries(Object.entries(MISSION_ORBIT_PATHS).map(([draftPath, threadPath]) => [draftPath, `${root}.initial_orbit.${threadPath}`])),
-    ...(templateId === "chemical-hohmann-transfer"
+    ...(templateId === "geo-electric-end-of-life"
+      ? {
+          "spacecraft.initialFuelMassKg": `${root}.initial_fuel_mass_kg`,
+          "endOfLife.missionMode": `${root}.mission_mode`,
+          "endOfLife.escapeC3Km2PerSec2": `${root}.escape_c3_km2_per_sec2`,
+          "endOfLife.maxCemeteryDays": `${root}.max_cemetery_days`,
+          "endOfLife.maxEscapeDays": `${root}.max_escape_days`,
+        }
+      : templateId === "geo-gso-electric-station-keeping"
+      ? {
+          "spacecraft.initialFuelMassKg": `${root}.initial_fuel_mass_kg`,
+          "stationKeeping.northSouthToleranceDeg": `${root}.north_south_tolerance_deg`,
+          "stationKeeping.eastWestToleranceDeg": `${root}.east_west_tolerance_deg`,
+          "stationKeeping.eastWestBurnDurationSec": `${root}.east_west_burn_duration_sec`,
+          "stationKeeping.northSouthBurnDurationSec": `${root}.north_south_burn_duration_sec`,
+          "stationKeeping.missionDurationDays": `${root}.mission_duration_days`,
+        }
+      : templateId === "geo-gso-orbit-keeping"
+      ? {
+          "spacecraft.initialFuelMassKg": `${root}.initial_fuel_mass_kg`,
+          "stationKeeping.northSouthToleranceDeg": `${root}.north_south_tolerance_deg`,
+          "stationKeeping.eastWestToleranceDeg": `${root}.east_west_tolerance_deg`,
+          "stationKeeping.eccentricityTolerance": `${root}.eccentricity_tolerance`,
+          "stationKeeping.daysOfOk": `${root}.days_of_station_keeping`,
+        }
+      : templateId === "chemical-hohmann-transfer"
       ? {
           "transfer.targetRadiusKm": `${root}.target_orbit.radius_km`,
           "transfer.targetEccentricity": `${root}.target_orbit.eccentricity`,
@@ -260,7 +309,7 @@ const SATELLITE_DRAFT_PATHS: Record<string, string> = {
 }
 
 export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft: { templateId: string; values: Record<string, string | number | null> }) {
-  const document = await loadOrCreateDigitalThread(workspaceDir)
+  return updateDigitalThread(workspaceDir, document => {
   const provenance = document.provenance.values as { [key: string]: JsonValue }
   // A mission may update mission inputs only. Physical spacecraft values are
   // owned by the selected satellite definition and cannot be overwritten by a
@@ -325,13 +374,14 @@ export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft
     setAtPath(document, targetPath, value)
     provenance[targetPath] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString() }
   }
-  return saveDigitalThread(workspaceDir, document)
+  })
 }
 
 export async function digitalThreadGmatSeed(workspaceDir: string, template: GmatDigitalThreadTemplate) {
-  const document = await loadOrCreateDigitalThread(workspaceDir)
-  const result = adaptDigitalThreadToGmat(document, template)
-  document.provenance.derivations = result.derivations as unknown as JsonValue
-  await saveDigitalThread(workspaceDir, document)
-  return result
+  let result: ReturnType<typeof adaptDigitalThreadToGmat> | null = null
+  await updateDigitalThread(workspaceDir, document => {
+    result = adaptDigitalThreadToGmat(document, template)
+    document.provenance.derivations = result.derivations as unknown as JsonValue
+  })
+  return result!
 }

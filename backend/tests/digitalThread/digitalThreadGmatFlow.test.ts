@@ -5,11 +5,25 @@ import path from "node:path"
 import { describe, it } from "node:test"
 
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../../src/digitalThread/gmatDigitalThreadAdapter.js"
-import { draftDigitalThreadWorkspaceDir, initializeDraftDigitalThread, loadOrCreateDigitalThread, saveDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
+import { draftDigitalThreadWorkspaceDir, initializeDraftDigitalThread, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThread } from "../../src/digitalThread/digitalThreadStore.js"
 import { createPlanningRun } from "../../src/runs/missionRunService.js"
 import { getSatelliteDefinition, selectSatelliteDefinition } from "../../src/digitalThread/satelliteLibrary.js"
 
 describe("digital thread to GMAT flow", () => {
+  it("serializes simultaneous source-of-truth updates without losing either field", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-concurrent-update-"))
+    try {
+      await Promise.all([
+        updateDigitalThread(workspaceDir, document => { document.analysis_requests.simu_cic = { attitude_mode: "nadir_pointing", ground_station_ids: [], simultaneous_visibility_policy: null } }),
+        updateDigitalThread(workspaceDir, document => { document.digital_thread.satellite_definition = { id: "test-satellite", version: "1.0.0" } }),
+      ])
+      const saved = await loadOrCreateDigitalThread(workspaceDir)
+      assert.equal((saved.digital_thread.satellite_definition as { id?: string }).id, "test-satellite")
+      assert.equal((saved.analysis_requests.simu_cic as { attitude_mode?: string }).attitude_mode, "nadir_pointing")
+      assert.equal(Number(saved.digital_thread.revision), 2)
+    } finally { await fs.rm(workspaceDir, { force: true, recursive: true }) }
+  })
+
   it("starts empty, applies the selected satellite, and preserves satellite values while recording mission values", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-gmat-flow-"))
 

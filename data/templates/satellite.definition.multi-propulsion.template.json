@@ -1,0 +1,357 @@
+{
+  "id": "replace-with-unique-satellite-id",
+  "version": "1.0.0",
+  "name": "Satellite multi-propulsion template",
+  "description": "Complete reusable spacecraft-definition skeleton. Replace every null value, keep only applicable options, and record sources in provenance.",
+  "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
+  "mission_templates": [
+    "orbit-keeping",
+    "geo-gso-orbit-keeping",
+    "electric-propulsion-transfer",
+    "chemical-hohmann-transfer",
+    "chemical-3d-transfer"
+  ],
+  "template_notes": {
+    "purpose": "Library definition: stable spacecraft properties only; keep mission orbit and run-specific requests out of this file.",
+    "multi_engine_rule": "List every installed engine in engines. Before a GMAT run, copy the values of the selected engine into the legacy compatibility fields at propulsion_subsystem level.",
+    "units": "Use SI units unless a field name specifies another unit. Use null for unknown data; do not use strings such as 'TBD' for numeric values."
+  },
+  "satellite": {
+    "identity": {
+      "name": null,
+      "manufacturer": null,
+      "operator": null,
+      "country": null,
+      "platform": null,
+      "constellation": null,
+      "cospar_id": null,
+      "norad_id": null,
+      "mission_type": null,
+      "mission_objective": null,
+      "status": null
+    },
+    "bus": {
+      "physical": {
+        "mass_kg": {
+          "dry": null,
+          "wet_at_launch": null,
+          "propellant": null,
+          "payload": null,
+          "adapter": null,
+          "maximum_wet": null
+        },
+        "dimensions_meters": {
+          "body_length": null,
+          "body_width": null,
+          "body_height": null,
+          "solar_array_span": null
+        },
+        "drag_area_m2": null,
+        "drag_coefficient": null,
+        "solar_radiation_pressure_area_m2": null,
+        "solar_radiation_pressure_coefficient": null,
+        "center_of_mass_m": { "x": null, "y": null, "z": null },
+        "inertia_kg_m2": { "ixx": null, "iyy": null, "izz": null, "ixy": null, "ixz": null, "iyz": null },
+        "structure_material": null
+      },
+      "propulsion_subsystem": {
+        "architecture": "hybrid-electric-chemical",
+        "selected_engine_id": null,
+        "selected_operating_mode": null,
+        "mission_engine_selection": {
+          "electric-propulsion-transfer": null,
+          "orbit-keeping": null,
+          "geo-gso-orbit-keeping": null,
+          "chemical-hohmann-transfer": null,
+          "chemical-3d-transfer": null,
+          "reaction_control": null
+        },
+        "propellant_management": {
+          "tank_pressurization": null,
+          "feed_system": null,
+          "isolation_valves": null,
+          "total_usable_propellant_kg": null,
+          "residual_propellant_kg": null
+        },
+        "propellant_tanks": [
+          {
+            "id": "electric-propellant-tank-1",
+            "propellant": null,
+            "propulsion_family": "electric",
+            "capacity_kg": null,
+            "usable_mass_kg": null,
+            "residual_mass_kg": null,
+            "pressure_bar": null,
+            "temperature_range_celsius": { "min": null, "max": null }
+          },
+          {
+            "id": "chemical-fuel-tank-1",
+            "propellant": null,
+            "propulsion_family": "chemical",
+            "capacity_kg": null,
+            "usable_mass_kg": null,
+            "residual_mass_kg": null,
+            "pressure_bar": null,
+            "temperature_range_celsius": { "min": null, "max": null }
+          },
+          {
+            "id": "chemical-oxidizer-tank-1",
+            "propellant": null,
+            "propulsion_family": "chemical",
+            "capacity_kg": null,
+            "usable_mass_kg": null,
+            "residual_mass_kg": null,
+            "pressure_bar": null,
+            "temperature_range_celsius": { "min": null, "max": null }
+          }
+        ],
+        "engines": [
+          {
+            "id": "hall-thruster-1",
+            "name": null,
+            "propulsion_family": "electric",
+            "technology": "Hall-effect thruster",
+            "role": ["orbit-raising", "station-keeping", "collision-avoidance"],
+            "quantity_installed": null,
+            "quantity_operational": null,
+            "redundancy": null,
+            "propellant": null,
+            "performance": {
+              "nominal_thrust_n": null,
+              "thrust_range_mn": [null, null],
+              "specific_impulse_seconds": null,
+              "total_impulse_ns": null,
+              "delta_v_mps": null,
+              "efficiency_percent": null,
+              "duty_cycle": null,
+              "design_lifetime_hours": null,
+              "restart_cycles": null
+            },
+            "power": {
+              "nominal_power_kw": null,
+              "minimum_usable_power_kw": null,
+              "maximum_usable_power_kw": null,
+              "power_processing_unit_efficiency_percent": null,
+              "bus_voltage_v": null
+            },
+            "installation": {
+              "mounting_location": null,
+              "thrust_axis_body_frame": [null, null, null],
+              "gimbal_range_deg": { "pitch": null, "yaw": null },
+              "plume_keep_out_zones": []
+            }
+          },
+          {
+            "id": "ion-thruster-1",
+            "name": null,
+            "propulsion_family": "electric",
+            "technology": "Gridded ion thruster",
+            "role": ["orbit-raising", "station-keeping"],
+            "quantity_installed": null,
+            "quantity_operational": null,
+            "redundancy": null,
+            "propellant": null,
+            "performance": {
+              "nominal_thrust_n": null,
+              "thrust_range_mn": [null, null],
+              "specific_impulse_seconds": null,
+              "total_impulse_ns": null,
+              "delta_v_mps": null,
+              "efficiency_percent": null,
+              "duty_cycle": null,
+              "design_lifetime_hours": null,
+              "restart_cycles": null
+            },
+            "power": {
+              "nominal_power_kw": null,
+              "minimum_usable_power_kw": null,
+              "maximum_usable_power_kw": null,
+              "power_processing_unit_efficiency_percent": null,
+              "bus_voltage_v": null
+            },
+            "installation": {
+              "mounting_location": null,
+              "thrust_axis_body_frame": [null, null, null],
+              "gimbal_range_deg": { "pitch": null, "yaw": null },
+              "plume_keep_out_zones": []
+            }
+          },
+          {
+            "id": "bipropellant-main-engine-1",
+            "name": null,
+            "propulsion_family": "chemical",
+            "technology": "Bipropellant liquid rocket engine",
+            "role": ["orbit-transfer", "large-maneuver", "deorbit"],
+            "quantity_installed": null,
+            "quantity_operational": null,
+            "redundancy": null,
+            "propellants": { "fuel": null, "oxidizer": null, "mixture_ratio": null },
+            "performance": {
+              "nominal_thrust_n": null,
+              "thrust_range_n": [null, null],
+              "specific_impulse_seconds": null,
+              "total_impulse_ns": null,
+              "delta_v_mps": null,
+              "minimum_impulse_bit_ns": null,
+              "burn_time_s": null,
+              "restart_cycles": null
+            },
+            "feed_system": { "type": null, "chamber_pressure_bar": null, "inlet_pressure_bar": null },
+            "installation": {
+              "mounting_location": null,
+              "thrust_axis_body_frame": [null, null, null],
+              "gimbal_range_deg": { "pitch": null, "yaw": null }
+            }
+          },
+          {
+            "id": "monopropellant-rcs-1",
+            "name": null,
+            "propulsion_family": "chemical",
+            "technology": "Monopropellant reaction-control thruster",
+            "role": ["attitude-control", "momentum-dumping", "translation", "safe-mode"],
+            "quantity_installed": null,
+            "quantity_operational": null,
+            "redundancy": null,
+            "propellant": null,
+            "performance": {
+              "nominal_thrust_n": null,
+              "specific_impulse_seconds": null,
+              "minimum_impulse_bit_ns": null,
+              "total_impulse_ns": null,
+              "restart_cycles": null
+            },
+            "installation": {
+              "mounting_location": null,
+              "thrust_axis_body_frame": [null, null, null],
+              "gimbal_range_deg": { "pitch": 0, "yaw": 0 }
+            }
+          }
+        ],
+        "thruster_groups": [
+          { "id": "north-electric", "engine_ids": ["hall-thruster-1", "ion-thruster-1"], "purpose": "orbit-raising", "maximum_simultaneous_firings": null },
+          { "id": "main-chemical", "engine_ids": ["bipropellant-main-engine-1"], "purpose": "large-maneuver", "maximum_simultaneous_firings": 1 },
+          { "id": "rcs", "engine_ids": ["monopropellant-rcs-1"], "purpose": "attitude-control", "maximum_simultaneous_firings": null }
+        ],
+        "gmat_legacy_compatibility": {
+          "instruction": "Populate these fields from selected_engine_id for the mission template being run; current GMAT adapters consume these root fields.",
+          "type": null,
+          "propellant": null,
+          "specific_impulse_seconds": null,
+          "main_engine_thrust_n": null,
+          "nominal_thrust_newtons": null,
+          "nominal_duty_cycle": null,
+          "electric_thruster": {
+            "propellant_mass_kg": null,
+            "nominal_thruster_power_kw": null,
+            "minimum_usable_power_kw": null,
+            "maximum_usable_power_kw": null
+          }
+        },
+        "type": null,
+        "propellant": null,
+        "specific_impulse_seconds": null,
+        "main_engine_thrust_n": null,
+        "nominal_thrust_newtons": null,
+        "nominal_duty_cycle": null,
+        "electric_thruster": {
+          "propellant_mass_kg": null,
+          "nominal_thruster_power_kw": null,
+          "minimum_usable_power_kw": null,
+          "maximum_usable_power_kw": null
+        }
+      },
+      "electrical_subsystem": {
+        "solar_panels": {
+          "type": null,
+          "efficiency_percent": null,
+          "total_area_m2": null,
+          "total_power_generated_watts": null,
+          "beginning_of_life_power_watts": null,
+          "end_of_life_power_watts": null,
+          "array_orientation": null,
+          "degradation_percent_per_year": null
+        },
+        "batteries": {
+          "chemistry": null,
+          "quantity": null,
+          "capacity_ah": null,
+          "energy_wh": null,
+          "voltage_v": null,
+          "depth_of_discharge_percent": null,
+          "maximum_charge_power_w": null,
+          "maximum_discharge_power_w": null
+        },
+        "bus_voltage_v": null,
+        "spacecraft_bus_load_kw": null,
+        "electric_propulsion_mode": { "bus_load_kw": null, "maximum_simultaneous_thrusters": null },
+        "system_margin_percent": null
+      },
+      "attitude_control_subsystem": {
+        "control_mode": null,
+        "pointing_accuracy_arcsec": null,
+        "pointing_stability_arcsec_per_sec": null,
+        "actuators": { "reaction_wheels": null, "magnetic_torquers": null, "thrusters": null },
+        "sensors": { "star_trackers": null, "sun_sensors": null, "inertial_measurement_unit": null, "earth_horizon_sensors": null }
+      },
+      "thermal_subsystem": {
+        "control_method": null,
+        "operational_temp_range_celsius": { "min": null, "max": null },
+        "radiators_area_m2": null,
+        "survival_heaters_power_w": null
+      },
+      "opalis": {
+        "model": { "template_id": null, "reference_source": null, "simulation_mode": null, "power_supply": null, "regulation_type": null, "distribution_resistance_ohm": null },
+        "simulation": { "reference_time_step_s": null, "reference_duration_s": null, "satellite_temperature_c": null, "regulated_mode": null, "current_limit_mode": null, "voltage_limit_mode": null, "thermal_model": null },
+        "battery": { "initial_voltage_v": null, "initial_state_of_charge": null, "energy_wh": null, "cells_parallel": null, "cells_series": null, "cell_model": null, "cell_type": null, "cell_capacity_ah": null, "cable_resistance_ohm": null, "low_voltage_limit_v": null },
+        "power_distribution": { "constant_load_w": null, "margin_w": null, "rated_power_w": null, "consumption_mode": null },
+        "environment": { "solar_constant_w_m2": null, "albedo_w_m2": null, "earth_radiation_w_m2": null },
+        "solar_generator": { "cell_model": null, "cell_area_m2": null, "sections": [] }
+      },
+      "rf_comlink": {
+        "schema_version": 1,
+        "data_handling": { 
+          "initial_memory_usage_bits": null,
+           "memory_capacity_bits": null, 
+           "payload_binary_rate": { 
+            "mode": null, "rate_bps": null, "active_duration_s": null, "repeat_period_s": null } },
+        "links": [
+          {
+            "id": "telecommand",
+            "name": "TT&C telecommand",
+            "direction": "EarthSpace",
+            "requires_ground_station_tracking": true,
+            "system": { "frequency_band": null, "frequency_range_mhz": [null, null], "frequency_mhz": null, "data_rate_bps": null, "bit_error_rate": null, "modulation": null, "coding": null, "required_ebn0_db": null, "required_ebn0_manual": null },
+            "spacecraft_antenna": { "role": "receiver", "antenna_type": null, "gain_db": null, "figure_of_merit_db_per_k": null, "pointing_loss_db": null, "polarization": null },
+            "propagation": { "atmospheric_loss_db": null, "weather_unavailability_percent": null }
+          },
+          {
+            "id": "telemetry",
+            "name": "TT&C telemetry",
+            "direction": "SpaceEarth",
+            "requires_ground_station_tracking": true,
+            "system": { "frequency_band": null, "frequency_range_mhz": [null, null], "frequency_mhz": null, "data_rate_bps": null, "bit_error_rate": null, "modulation": null, "coding": null, "required_ebn0_db": null, "required_ebn0_manual": null },
+            "spacecraft_antenna": { "role": "transmitter", "antenna_type": null, "gain_db": null, "eirp_dbw": null, "pointing_loss_db": null, "axial_ratio_db": null, "polarization": null },
+            "propagation": { "atmospheric_loss_db": null, "weather_unavailability_percent": null }
+          },
+          {
+            "id": "payload-downlink",
+            "name": "Payload downlink",
+            "direction": "SpaceEarth",
+            "requires_ground_station_tracking": true,
+            "system": { "frequency_band": null, "frequency_range_mhz": [null, null], "frequency_mhz": null, "data_rate_bps": null, "bit_error_rate": null, "modulation": null, "coding": null, "required_ebn0_db": null, "required_ebn0_manual": null },
+            "spacecraft_antenna": { "role": "transmitter", "antenna_type": null, "gain_db": null, "eirp_dbw": null, "pointing_loss_db": null, "polarization": null },
+            "propagation": { "atmospheric_loss_db": null, "weather_unavailability_percent": null }
+          }
+        ]
+      }
+    }
+
+  },
+  "provenance": {
+    "values": {},
+    "derivations": [],
+    "sources": [
+      { "id": "source-1", "title": null, "url": null, "publication_date": null, "accessed_at": null, "notes": null }
+    ]
+  }
+}

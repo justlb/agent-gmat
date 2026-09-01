@@ -7,7 +7,7 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage, isPathInside } from "../shared/index.js"
 import { adaptDigitalThreadToGmat } from "./gmatDigitalThreadAdapter.js"
-import { createEphemeralDigitalThread, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
+import { createEphemeralDigitalThread, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, updateDigitalThread, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
 import { getSatelliteDefinition, listSatelliteDefinitions, selectSatelliteDefinition } from "./satelliteLibrary.js"
 import { assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
 import { appendMissionConversation, loadMissionConversation } from "./missionConversationStore.js"
@@ -15,16 +15,31 @@ import { invalidateDownstreamFromSimuCic, invalidateRunFrom } from "../runs/runL
 import { createMissionRun } from "../runs/missionRunService.js"
 import { resolveMissionRun } from "../runs/runWorkspace.js"
 import { resolveMissionWorkspace } from "../gmat/missionWorkspace.js"
+import { artifactDefinitionForPath } from "../runs/artifactRegistry.js"
+import { isGmatMissionScenarioId } from "../gmat/templateRegistry.js"
 
 function resolveWorkspaceDir(root: string, requested: unknown) {
   return resolveMissionWorkspace(root, requested, { resolveRelativeToRoot: true })
 }
 
 function resolveMissionRunArtifact(root: string, workspaceDir: string, fileName: string) {
-  const allowedFiles = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
   const resolvedWorkspace = path.resolve(workspaceDir)
-  if (!resolveMissionRun(root, resolvedWorkspace) || !allowedFiles.test(fileName)) return null
-  return path.join(resolvedWorkspace, fileName)
+  const artifact = artifactDefinitionForPath(fileName)
+  if (!resolveMissionRun(root, resolvedWorkspace) || !artifact) return null
+  const output = path.resolve(resolvedWorkspace, artifact.relativePath)
+  return isPathInside(resolvedWorkspace, output) ? output : null
+}
+
+async function listRegisteredRunArtifacts(workspaceDir: string, relativeDir = ""): Promise<Array<{ fileName: string; mtimeMs: number }>> {
+  const directory = path.join(workspaceDir, relativeDir)
+  const entries = await fs.readdir(directory, { withFileTypes: true }).catch(() => [])
+  const files = await Promise.all(entries.flatMap(entry => {
+    const relativePath = path.posix.join(relativeDir.replace(/\\/gu, "/"), entry.name)
+    if (entry.isDirectory()) return [listRegisteredRunArtifacts(workspaceDir, relativePath)]
+    if (!entry.isFile() || !artifactDefinitionForPath(relativePath)) return []
+    return [fs.stat(path.join(directory, entry.name)).then(stat => [{ fileName: relativePath, mtimeMs: stat.mtimeMs }])]
+  }))
+  return files.flat()
 }
 
 function response(document: Awaited<ReturnType<typeof loadOrCreateDigitalThread>>) {
@@ -32,6 +47,8 @@ function response(document: Awaited<ReturnType<typeof loadOrCreateDigitalThread>
     adapters: {
       gmat: {
         electricPropulsionTransfer: adaptDigitalThreadToGmat(document, "electric-propulsion-transfer"),
+        geoGsoChemical: adaptDigitalThreadToGmat(document, "geo-gso-orbit-keeping"),
+        geoGsoElectrical: adaptDigitalThreadToGmat(document, "geo-gso-electric-station-keeping"),
         orbitKeeping: adaptDigitalThreadToGmat(document, "orbit-keeping"),
       },
     },
@@ -125,7 +142,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     const draftId = typeof req.query.draftId === "string" ? req.query.draftId : ""
     const template = req.query.template
-    if (!draftId || (template !== "orbit-keeping" && template !== "electric-propulsion-transfer" && template !== "chemical-hohmann-transfer" && template !== "chemical-3d-transfer")) {
+    if (!draftId || typeof template !== "string" || !isGmatMissionScenarioId(template)) {
       return reply.status(400).send({ error: "draftId and a supported template are required" })
     }
     try {
@@ -155,9 +172,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     try {
       const workspaceDir = resolveWorkspaceDir(root, req.query.workspaceDir)
       if (!resolveMissionRun(root, workspaceDir)) return reply.status(400).send({ error: "workspaceDir is not a mission run" })
-      const allowed = /^(?:satellite\.json|conversation\.json|run_manifest\.json|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.values\.yaml|(?:orbit_keeping|electric_propulsion_transfer|chemical_hohmann_transfer)\.script|(?:ReboostReport|OrbitAnalysisReport|ElectricTransferReport)\.txt|EphemerisFile1\.oem|gmat\.log|gmat_result\.json|(?:orbit|electric_transfer)_timeseries\.json)$/u
-      const entries = await fs.readdir(workspaceDir, { withFileTypes: true })
-      const files = await Promise.all(entries.filter(entry => entry.isFile() && allowed.test(entry.name)).map(async entry => ({ fileName: entry.name, mtimeMs: (await fs.stat(path.join(workspaceDir, entry.name))).mtimeMs })))
+      const files = await listRegisteredRunArtifacts(workspaceDir)
       return reply.send({ files: files.sort((left, right) => left.fileName.localeCompare(right.fileName)) })
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to list mission-run files") }) }
   })
@@ -186,13 +201,13 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
     try {
       const workspaceDir = resolveWorkspaceDir(root, req.body?.workspaceDir)
       if (!isMissionRunWorkspace(workspaceDir)) return reply.status(409).send({ error: "start a dated mission discussion before configuring Simu-CIC" })
-      const document = await loadOrCreateDigitalThread(workspaceDir)
       const request = {
         attitude_mode: attitudeMode,
         ground_station_ids: groundStationIds,
         simultaneous_visibility_policy: attitudeMode === "ground_station_tracking" ? "first_visible_station_wins" : null,
       }
       assertValidSimuCicRequest(request)
+      const document = await updateDigitalThread(workspaceDir, document => {
       document.analysis_requests.simu_cic = request
       // One tracked station is an unambiguous RF-COMLINK target.  Persist the
       // same choice in satellite.json so the UI, Simu-CIC and RF preparation
@@ -209,7 +224,7 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
       values["analysis_requests.simu_cic"] = { source: "simu_cic_configuration", recorded_at: new Date().toISOString() }
       values["analysis_requests.rf_comlink.selected_ground_station_id"] = { source: "simu_cic_configuration", recorded_at: new Date().toISOString() }
       document.provenance.values = values
-      await saveDigitalThread(workspaceDir, document)
+      })
       // A post-GMAT change already updates this run's one satellite.json.
       // Invalidate only downstream calculations when GMAT output exists.
       const hasExecutedGmat = await fs.access(path.join(workspaceDir, "gmat_result.json")).then(() => true).catch(() => false)

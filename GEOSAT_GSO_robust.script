@@ -1,0 +1,421 @@
+Create Spacecraft GEOSAT;
+GEOSAT.DateFormat = TAIModJulian;
+GEOSAT.Epoch = '21545';
+GEOSAT.CoordinateSystem = EarthMJ2000Eq;
+GEOSAT.DisplayStateType = Keplerian;
+GEOSAT.SMA = 42164.17000000003;
+GEOSAT.ECC = 5.612411358545992e-17;
+GEOSAT.INC = 0;
+GEOSAT.RAAN = 0;
+GEOSAT.AOP = 0;
+GEOSAT.TA = 120;
+GEOSAT.DryMass = 1800;
+GEOSAT.Cd = 2.2;
+GEOSAT.Cr = 1.8;
+GEOSAT.DragArea = 15;
+GEOSAT.SRPArea = 1;
+GEOSAT.Tanks = {ElectricTank1};
+GEOSAT.Thrusters = {ElectricThruster1, ElectricThruster2, ElectricThruster3, ElectricThruster4};
+GEOSAT.PowerSystem = SolarPowerSystem1;
+GEOSAT.OrbitColor = Red;
+GEOSAT.TargetColor = Teal;
+
+Create ElectricTank ElectricTank1;
+ElectricTank1.AllowNegativeFuelMass = false;
+ElectricTank1.FuelMass = 756;
+
+Create ElectricThruster ElectricThruster1;
+ElectricThruster1.CoordinateSystem = Local;
+ElectricThruster1.Origin = Earth;
+ElectricThruster1.Axes = VNB;
+ElectricThruster1.ThrustDirection1 = 1;
+ElectricThruster1.ThrustDirection2 = 0;
+ElectricThruster1.ThrustDirection3 = 0;
+ElectricThruster1.DutyCycle = 1;
+ElectricThruster1.DecrementMass = true;
+ElectricThruster1.Tank = {ElectricTank1};
+ElectricThruster1.MixRatio = [ 1 ];
+ElectricThruster1.GravitationalAccel = 9.81;
+ElectricThruster1.ThrustModel = ConstantThrustAndIsp;
+ElectricThruster1.Isp = 4200;
+ElectricThruster1.ConstantThrust = 0.237;
+
+Create ElectricThruster ElectricThruster2;
+ElectricThruster2.CoordinateSystem = Local;
+ElectricThruster2.Origin = Earth;
+ElectricThruster2.Axes = VNB;
+ElectricThruster2.ThrustDirection1 = -1;
+ElectricThruster2.ThrustDirection2 = 0;
+ElectricThruster2.ThrustDirection3 = 0;
+ElectricThruster2.DutyCycle = 1;
+ElectricThruster2.DecrementMass = true;
+ElectricThruster2.Tank = {ElectricTank1};
+ElectricThruster2.MixRatio = [ 1 ];
+ElectricThruster2.GravitationalAccel = 9.81;
+ElectricThruster2.ThrustModel = ConstantThrustAndIsp;
+ElectricThruster2.Isp = 4200;
+ElectricThruster2.ConstantThrust = 0.237;
+
+Create ElectricThruster ElectricThruster3;
+ElectricThruster3.CoordinateSystem = Local;
+ElectricThruster3.Origin = Earth;
+ElectricThruster3.Axes = VNB;
+ElectricThruster3.ThrustDirection1 = 0;
+ElectricThruster3.ThrustDirection2 = 1;
+ElectricThruster3.ThrustDirection3 = 0;
+ElectricThruster3.DutyCycle = 1;
+ElectricThruster3.DecrementMass = true;
+ElectricThruster3.Tank = {ElectricTank1};
+ElectricThruster3.MixRatio = [ 1 ];
+ElectricThruster3.GravitationalAccel = 9.81;
+ElectricThruster3.ThrustModel = ConstantThrustAndIsp;
+ElectricThruster3.Isp = 4200;
+ElectricThruster3.ConstantThrust = 0.237;
+
+Create ElectricThruster ElectricThruster4;
+ElectricThruster4.CoordinateSystem = Local;
+ElectricThruster4.Origin = Earth;
+ElectricThruster4.Axes = VNB;
+ElectricThruster4.ThrustDirection1 = 0;
+ElectricThruster4.ThrustDirection2 = -1;
+ElectricThruster4.ThrustDirection3 = 0;
+ElectricThruster4.DutyCycle = 1;
+ElectricThruster4.DecrementMass = true;
+ElectricThruster4.Tank = {ElectricTank1};
+ElectricThruster4.MixRatio = [ 1 ];
+ElectricThruster4.GravitationalAccel = 9.81;
+ElectricThruster4.ThrustModel = ConstantThrustAndIsp;
+ElectricThruster4.Isp = 4200;
+ElectricThruster4.ConstantThrust = 0.237;
+
+Create SolarPowerSystem SolarPowerSystem1;
+SolarPowerSystem1.EpochFormat = 'UTCGregorian';
+SolarPowerSystem1.InitialEpoch = '01 Jan 2000 11:59:28.000';
+SolarPowerSystem1.InitialMaxPower = 8;
+SolarPowerSystem1.AnnualDecayRate = 5;
+SolarPowerSystem1.Margin = 5;
+SolarPowerSystem1.BusCoeff1 = 0.3;
+SolarPowerSystem1.BusCoeff2 = 0;
+SolarPowerSystem1.BusCoeff3 = 0;
+SolarPowerSystem1.ShadowModel = 'None';
+
+Create ForceModel DefaultProp_ForceModel;
+DefaultProp_ForceModel.CentralBody = Earth;
+DefaultProp_ForceModel.PrimaryBodies = {Earth};
+DefaultProp_ForceModel.PointMasses = {Luna, Sun};
+DefaultProp_ForceModel.SRP = On;
+DefaultProp_ForceModel.RelativisticCorrection = On;
+DefaultProp_ForceModel.ErrorControl = RSSStep;
+DefaultProp_ForceModel.GravityField.Earth.Degree = 4;
+DefaultProp_ForceModel.GravityField.Earth.Order = 4;
+DefaultProp_ForceModel.GravityField.Earth.PotentialFile = 'JGM2.cof';
+DefaultProp_ForceModel.GravityField.Earth.TideModel = 'None';
+DefaultProp_ForceModel.SRP.Flux = 1367;
+DefaultProp_ForceModel.SRP.SRPModel = Spherical;
+DefaultProp_ForceModel.SRP.Nominal_Sun = 149597870.691;
+
+Create Propagator DefaultProp;
+DefaultProp.FM = DefaultProp_ForceModel;
+DefaultProp.Type = RungeKutta89;
+DefaultProp.InitialStepSize = 60;
+DefaultProp.Accuracy = 1e-11;
+DefaultProp.MinStep = 0.001;
+DefaultProp.MaxStep = 2700;
+DefaultProp.MaxStepAttempts = 50;
+DefaultProp.StopIfAccuracyIsViolated = true;
+
+Create FiniteBurn EastToWestBurn;
+EastToWestBurn.Thrusters = {ElectricThruster1};
+EastToWestBurn.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
+
+Create FiniteBurn WestToEastBurn;
+WestToEastBurn.Thrusters = {ElectricThruster2};
+WestToEastBurn.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
+
+Create FiniteBurn NorthSouthBurn;
+NorthSouthBurn.Thrusters = {ElectricThruster3};
+NorthSouthBurn.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
+
+Create FiniteBurn SouthNorthBurn;
+SouthNorthBurn.Thrusters = {ElectricThruster4};
+SouthNorthBurn.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
+
+Create ReportFile StationKeepingReport;
+StationKeepingReport.Filename = 'StationKeepingReport.txt';
+StationKeepingReport.Precision = 16;
+StationKeepingReport.WriteHeaders = true;
+StationKeepingReport.LeftJustify = On;
+StationKeepingReport.FixedWidth = true;
+StationKeepingReport.Delimiter = ' ';
+StationKeepingReport.ColumnWidth = 23;
+StationKeepingReport.WriteReport = true;
+StationKeepingReport.AppendToExistingFile = false;
+
+Create XYPlot XYPlot2;
+XYPlot2.XVariable = GEOSAT.ElapsedDays;
+XYPlot2.YVariables = {GEOSAT.Earth.Latitude, targetlatitude, mlatitude, Mlatitude};
+XYPlot2.ShowGrid = true;
+XYPlot2.ShowPlot = true;
+
+Create XYPlot XYPlot3;
+XYPlot3.XVariable = GEOSAT.ElapsedDays;
+XYPlot3.YVariables = {GEOSAT.EarthMJ2000Eq.INC, sat_INC, MINC, mINC};
+XYPlot3.ShowGrid = true;
+XYPlot3.ShowPlot = true;
+
+Create XYPlot XYPlot4;
+XYPlot4.XVariable = GEOSAT.ElapsedDays;
+XYPlot4.YVariables = {GEOSAT.Earth.Longitude, mlongitude, Mlongitude, targetlongitude};
+XYPlot4.ShowGrid = true;
+XYPlot4.ShowPlot = true;
+
+Create XYPlot XYPlot7;
+XYPlot7.XVariable = GEOSAT.ElapsedDays;
+XYPlot7.YVariables = {GEOSAT.ElectricTank1.FuelMass};
+XYPlot7.ShowGrid = true;
+XYPlot7.ShowPlot = true;
+
+Create XYPlot XYPlot5;
+XYPlot5.XVariable = GEOSAT.ElapsedDays;
+XYPlot5.YVariables = {GEOSAT.ElectricThruster1.Isp, GEOSAT.ElectricThruster2.Isp, GEOSAT.ElectricThruster3.Isp, GEOSAT.ElectricThruster4.Isp};
+XYPlot5.ShowGrid = true;
+XYPlot5.ShowPlot = true;
+
+Create XYPlot XYPlot8;
+XYPlot8.XVariable = GEOSAT.ElapsedDays;
+XYPlot8.YVariables = {GEOSAT.Earth.SMA, targetSMA, minimumAllowedSMA, maximumAllowedSMA};
+XYPlot8.ShowGrid = true;
+XYPlot8.ShowPlot = true;
+
+Create Variable mission_days tolerance_ecc tolerance_eastwest tolerance_inclination;
+Create Variable targetlongitude targetlatitude targetECC targetSMA targetInclination;
+Create Variable Mlongitude mlongitude Mlatitude mlatitude sat_INC MINC mINC;
+Create Variable longitudeError previousLongitudeError longitudeRate longitudeControl;
+Create Variable previousControlTime controlTime controlInterval sampleTime;
+Create Variable controlStep coastDuration burnTimeSinceSample quarterCounter longitudeSampleThreshold;
+Create Variable inclinationError inclinationMagnitude eccentricityError currentSMA verticalVelocity;
+Create Variable longitudeBurnDuration inclinationBurnDuration;
+Create Variable minLongitudeBurnDuration maxLongitudeBurnDuration;
+Create Variable minInclinationBurnDuration maxInclinationBurnDuration;
+Create Variable derivativeGain rateDeadband negativeRateDeadband;
+Create Variable longitudeUpperThreshold longitudeLowerThreshold inclinationThreshold;
+Create Variable longitudeErrorMaximum longitudeErrorMinimum;
+Create Variable longitudeDurationFactor inclinationDurationFactor;
+Create Variable smaGuardBand minimumAllowedSMA maximumAllowedSMA;
+Create Variable positiveInclinationThreshold negativeInclinationThreshold;
+Create Variable positiveVerticalVelocityThreshold negativeVerticalVelocityThreshold;
+
+mission_days = 730;
+tolerance_ecc = 0.004;
+tolerance_eastwest = 0.1;
+tolerance_inclination = 0.01;
+targetSMA = 42164.17;
+targetInclination = 0;
+smaGuardBand = 5;
+controlStep = 21541.022625;
+longitudeSampleThreshold = 3.5;
+minLongitudeBurnDuration = 150;
+maxLongitudeBurnDuration = 900;
+minInclinationBurnDuration = 300;
+maxInclinationBurnDuration = 1200;
+derivativeGain = 0.05;
+rateDeadband = 0.002;
+positiveVerticalVelocityThreshold = 0.0000001;
+negativeVerticalVelocityThreshold = 0 - positiveVerticalVelocityThreshold;
+
+BeginMissionSequence;
+
+targetlongitude = -160.328403939753;
+targetlatitude = 0;
+targetECC = GEOSAT.Earth.ECC;
+sat_INC = targetInclination;
+Mlongitude = targetlongitude + tolerance_eastwest;
+mlongitude = targetlongitude - tolerance_eastwest;
+Mlatitude = targetInclination + tolerance_inclination;
+mlatitude = 0 - Mlatitude;
+MINC = targetInclination + tolerance_inclination;
+mINC = targetInclination - tolerance_inclination;
+
+If mINC < 0
+   mINC = 0;
+EndIf;
+
+minimumAllowedSMA = targetSMA - smaGuardBand;
+maximumAllowedSMA = targetSMA + smaGuardBand;
+longitudeUpperThreshold = 0.35 * tolerance_eastwest;
+longitudeLowerThreshold = 0 - longitudeUpperThreshold;
+inclinationThreshold = 0.2 * tolerance_inclination;
+positiveInclinationThreshold = inclinationThreshold;
+negativeInclinationThreshold = 0 - inclinationThreshold;
+longitudeErrorMaximum = 180;
+longitudeErrorMinimum = -180;
+negativeRateDeadband = 0 - rateDeadband;
+
+longitudeError = GEOSAT.Earth.Longitude - targetlongitude;
+
+If longitudeError > longitudeErrorMaximum
+   longitudeError = longitudeError - 360;
+EndIf;
+
+If longitudeError < longitudeErrorMinimum
+   longitudeError = longitudeError + 360;
+EndIf;
+
+previousLongitudeError = longitudeError;
+previousControlTime = GEOSAT.ElapsedSecs;
+longitudeRate = 0;
+longitudeControl = longitudeError;
+inclinationError = GEOSAT.EarthMJ2000Eq.INC - targetInclination;
+eccentricityError = GEOSAT.Earth.ECC - targetECC;
+quarterCounter = 0;
+burnTimeSinceSample = 0;
+
+Report StationKeepingReport GEOSAT.ElapsedDays GEOSAT.Earth.Latitude GEOSAT.Earth.Longitude GEOSAT.Earth.SMA GEOSAT.Earth.ECC GEOSAT.EarthMJ2000Eq.INC GEOSAT.ElectricTank1.FuelMass longitudeError longitudeRate longitudeControl inclinationError eccentricityError;
+
+While GEOSAT.ElapsedDays < mission_days
+
+   coastDuration = controlStep - burnTimeSinceSample;
+
+   If coastDuration < 60
+      coastDuration = 60;
+   EndIf;
+
+   Propagate DefaultProp(GEOSAT) {GEOSAT.ElapsedSecs = coastDuration};
+   sampleTime = GEOSAT.ElapsedSecs;
+   burnTimeSinceSample = 0;
+   quarterCounter = quarterCounter + 1;
+
+   longitudeError = GEOSAT.Earth.Longitude - targetlongitude;
+
+   If longitudeError > longitudeErrorMaximum
+      longitudeError = longitudeError - 360;
+   EndIf;
+
+   If longitudeError < longitudeErrorMinimum
+      longitudeError = longitudeError + 360;
+   EndIf;
+
+   inclinationError = GEOSAT.EarthMJ2000Eq.INC - targetInclination;
+   inclinationMagnitude = inclinationError;
+   verticalVelocity = GEOSAT.EarthMJ2000Eq.VZ;
+
+   If inclinationMagnitude < 0
+      inclinationMagnitude = 0 - inclinationMagnitude;
+   EndIf;
+
+   inclinationDurationFactor = minInclinationBurnDuration * inclinationMagnitude;
+   inclinationBurnDuration = inclinationDurationFactor / tolerance_inclination;
+   inclinationBurnDuration = inclinationBurnDuration + minInclinationBurnDuration;
+
+   If inclinationBurnDuration > maxInclinationBurnDuration
+      inclinationBurnDuration = maxInclinationBurnDuration;
+   EndIf;
+
+   If inclinationBurnDuration < minInclinationBurnDuration
+      inclinationBurnDuration = minInclinationBurnDuration;
+   EndIf;
+
+   If inclinationError > positiveInclinationThreshold
+      If verticalVelocity > positiveVerticalVelocityThreshold
+         BeginFiniteBurn SouthNorthBurn(GEOSAT);
+         Propagate DefaultProp(GEOSAT) {GEOSAT.ElapsedSecs = inclinationBurnDuration};
+         EndFiniteBurn SouthNorthBurn(GEOSAT);
+         burnTimeSinceSample = burnTimeSinceSample + inclinationBurnDuration;
+      EndIf;
+
+      If verticalVelocity < negativeVerticalVelocityThreshold
+         BeginFiniteBurn NorthSouthBurn(GEOSAT);
+         Propagate DefaultProp(GEOSAT) {GEOSAT.ElapsedSecs = inclinationBurnDuration};
+         EndFiniteBurn NorthSouthBurn(GEOSAT);
+         burnTimeSinceSample = burnTimeSinceSample + inclinationBurnDuration;
+      EndIf;
+   EndIf;
+
+   If inclinationError < negativeInclinationThreshold
+      If verticalVelocity > positiveVerticalVelocityThreshold
+         BeginFiniteBurn NorthSouthBurn(GEOSAT);
+         Propagate DefaultProp(GEOSAT) {GEOSAT.ElapsedSecs = inclinationBurnDuration};
+         EndFiniteBurn NorthSouthBurn(GEOSAT);
+         burnTimeSinceSample = burnTimeSinceSample + inclinationBurnDuration;
+      EndIf;
+
+      If verticalVelocity < negativeVerticalVelocityThreshold
+         BeginFiniteBurn SouthNorthBurn(GEOSAT);
+         Propagate DefaultProp(GEOSAT) {GEOSAT.ElapsedSecs = inclinationBurnDuration};
+         EndFiniteBurn SouthNorthBurn(GEOSAT);
+         burnTimeSinceSample = burnTimeSinceSample + inclinationBurnDuration;
+      EndIf;
+   EndIf;
+
+   If quarterCounter > longitudeSampleThreshold
+      controlTime = sampleTime;
+      controlInterval = controlTime - previousControlTime;
+
+      If controlInterval > 0
+         longitudeRate = longitudeError - previousLongitudeError;
+         longitudeRate = longitudeRate * 86400;
+         longitudeRate = longitudeRate / controlInterval;
+      Else
+         longitudeRate = 0;
+      EndIf;
+
+      longitudeControl = derivativeGain * longitudeRate;
+      longitudeControl = longitudeControl + longitudeError;
+      currentSMA = GEOSAT.Earth.SMA;
+
+      If longitudeError > longitudeUpperThreshold
+         If longitudeRate > rateDeadband
+            If currentSMA < maximumAllowedSMA
+               longitudeDurationFactor = longitudeControl * minLongitudeBurnDuration;
+               longitudeBurnDuration = longitudeDurationFactor / tolerance_eastwest;
+               longitudeBurnDuration = longitudeBurnDuration + minLongitudeBurnDuration;
+
+               If longitudeBurnDuration > maxLongitudeBurnDuration
+                  longitudeBurnDuration = maxLongitudeBurnDuration;
+               EndIf;
+
+               If longitudeBurnDuration < minLongitudeBurnDuration
+                  longitudeBurnDuration = minLongitudeBurnDuration;
+               EndIf;
+
+               BeginFiniteBurn EastToWestBurn(GEOSAT);
+               Propagate DefaultProp(GEOSAT) {GEOSAT.ElapsedSecs = longitudeBurnDuration};
+               EndFiniteBurn EastToWestBurn(GEOSAT);
+               burnTimeSinceSample = burnTimeSinceSample + longitudeBurnDuration;
+            EndIf;
+         EndIf;
+      EndIf;
+
+      If longitudeError < longitudeLowerThreshold
+         If longitudeRate < negativeRateDeadband
+            If currentSMA > minimumAllowedSMA
+               longitudeDurationFactor = longitudeControl * minLongitudeBurnDuration;
+               longitudeBurnDuration = longitudeDurationFactor / tolerance_eastwest;
+               longitudeBurnDuration = minLongitudeBurnDuration - longitudeBurnDuration;
+
+               If longitudeBurnDuration > maxLongitudeBurnDuration
+                  longitudeBurnDuration = maxLongitudeBurnDuration;
+               EndIf;
+
+               If longitudeBurnDuration < minLongitudeBurnDuration
+                  longitudeBurnDuration = minLongitudeBurnDuration;
+               EndIf;
+
+               BeginFiniteBurn WestToEastBurn(GEOSAT);
+               Propagate DefaultProp(GEOSAT) {GEOSAT.ElapsedSecs = longitudeBurnDuration};
+               EndFiniteBurn WestToEastBurn(GEOSAT);
+               burnTimeSinceSample = burnTimeSinceSample + longitudeBurnDuration;
+            EndIf;
+         EndIf;
+      EndIf;
+
+      previousLongitudeError = longitudeError;
+      previousControlTime = controlTime;
+      quarterCounter = 0;
+   EndIf;
+
+   eccentricityError = GEOSAT.Earth.ECC - targetECC;
+
+   Report StationKeepingReport GEOSAT.ElapsedDays GEOSAT.Earth.Latitude GEOSAT.Earth.Longitude GEOSAT.Earth.SMA GEOSAT.Earth.ECC GEOSAT.EarthMJ2000Eq.INC GEOSAT.ElectricTank1.FuelMass longitudeError longitudeRate longitudeControl inclinationError eccentricityError;
+
+EndWhile;

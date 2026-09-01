@@ -42,8 +42,9 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteS
     return () => { cancelled = true }
   }, [workspaceDir, refreshSatellite])
 
-  const selected = definitions.find(item => item.id === selectedId)
   const selectedTemplate = templates.find(item => item.id === missionTemplate)
+  const compatibleDefinitions = selectedTemplate ? definitions.filter(item => item.mission_templates.includes(selectedTemplate.id)) : definitions
+  const selected = compatibleDefinitions.find(item => item.id === selectedId)
   const source = <div className="mission-setup-sources">
     <section className="mission-template-source">
       <div>
@@ -63,7 +64,7 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteS
       <div>
         <span>SATELLITE SOURCE OF TRUTH</span>
         <strong>{selected?.name ?? 'No satellite selected'}</strong>
-        <small>{selected ? `${selected.id}@${selected.version} · Versioned physical definition` : 'Select a satellite in Satellite Library before starting a GMAT mission.'}</small>
+        <small>{selected ? `${selected.id}@${selected.version} · Versioned physical definition` : selectedTemplate ? `Choose a satellite compatible with ${selectedTemplate.name}.` : 'Select a satellite in Satellite Library before starting a GMAT mission.'}</small>
       </div>
       <select aria-label="Satellite version" disabled={satelliteLocked || (!canSelectForRun && !onStartMission)} value={selectedId} onChange={event => {
         const next = definitions.find(item => item.id === event.target.value)
@@ -73,7 +74,7 @@ export function MissionStudio({ workspaceDir, refreshSatellite = 0, onSatelliteS
           .catch(reason => setError(reason instanceof Error ? reason.message : 'Unable to select satellite'))
       }}>
         <option value="">Choose a satellite…</option>
-        {definitions.map(item => <option key={item.id} value={item.id}>{item.name} · v{item.version}</option>)}
+        {compatibleDefinitions.map(item => <option key={item.id} value={item.id}>{item.name} · v{item.version}</option>)}
       </select>
     </section>
   </div>

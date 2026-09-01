@@ -1,0 +1,158 @@
+%
+%  InclinationChangeOnly
+%
+%  Change the inclination at an equatorial-plane crossing while preserving
+%  the initial semi-major axis and eccentricity.
+%
+
+%----------------------------------------
+%---------- Spacecraft
+%----------------------------------------
+
+Create Spacecraft geoSat;
+
+geoSat.DateFormat       = TAIModJulian;
+geoSat.Epoch            = '21545';
+geoSat.CoordinateSystem = EarthMJ2000Eq;
+geoSat.DisplayStateType = Keplerian;
+geoSat.SMA              = 6578.000000000003;
+geoSat.ECC              = 0.001000000000001135;
+geoSat.INC              = 28.49999999999999;
+geoSat.RAAN             = 66.99999999999999;
+geoSat.AOP              = 355.0000000000957;
+geoSat.TA               = 249.9999999999781;
+geoSat.DryMass          = 850;
+geoSat.Cd               = 2.2;
+geoSat.Cr               = 1.8;
+geoSat.DragArea         = 15;
+geoSat.SRPArea          = 1;
+geoSat.Attitude         = CoordinateSystemFixed;
+
+%----------------------------------------
+%---------- Force model
+%----------------------------------------
+
+Create ForceModel AllForces;
+
+AllForces.CentralBody                      = Earth;
+AllForces.PrimaryBodies                    = {Earth};
+AllForces.SRP                              = On;
+AllForces.RelativisticCorrection           = Off;
+AllForces.ErrorControl                     = RSSStep;
+AllForces.GravityField.Earth.Degree        = 20;
+AllForces.GravityField.Earth.Order         = 20;
+AllForces.GravityField.Earth.PotentialFile = 'JGM2.cof';
+AllForces.GravityField.Earth.TideModel     = 'None';
+AllForces.SRP.Flux                         = 1367;
+AllForces.SRP.Nominal_Sun                  = 149597870.691;
+AllForces.Drag.AtmosphereModel             = MSISE90;
+AllForces.Drag.F107                        = 150;
+AllForces.Drag.F107A                       = 150;
+AllForces.Drag.MagneticIndex               = 3;
+
+%----------------------------------------
+%---------- Propagator
+%----------------------------------------
+
+Create Propagator DefaultProp;
+
+DefaultProp.FM                       = AllForces;
+DefaultProp.Type                     = PrinceDormand78;
+DefaultProp.InitialStepSize          = 60;
+DefaultProp.Accuracy                 = 9.999999999999999e-012;
+DefaultProp.MinStep                  = 0.001;
+DefaultProp.MaxStep                  = 86400;
+DefaultProp.MaxStepAttempts          = 50;
+DefaultProp.StopIfAccuracyIsViolated = true;
+
+%----------------------------------------
+%---------- Plane-change burn
+%----------------------------------------
+
+Create ImpulsiveBurn PlaneChange;
+
+PlaneChange.CoordinateSystem   = Local;
+PlaneChange.Origin             = Earth;
+PlaneChange.Axes               = VNB;
+PlaneChange.Element1           = 0;
+PlaneChange.Element2           = 0.1;
+PlaneChange.Element3           = 0;
+PlaneChange.DecrementMass      = false;
+PlaneChange.Isp                = 300;
+PlaneChange.GravitationalAccel = 9.81;
+
+%----------------------------------------
+%---------- Solver
+%----------------------------------------
+
+Create DifferentialCorrector DC;
+
+DC.ShowProgress      = true;
+DC.ReportStyle       = Normal;
+DC.ReportFile        = 'InclinationChangeDC.data';
+DC.MaximumIterations = 25;
+DC.DerivativeMethod  = ForwardDifference;
+DC.Algorithm         = NewtonRaphson;
+
+%----------------------------------------
+%---------- Output
+%----------------------------------------
+
+Create ReportFile InclinationReport;
+
+InclinationReport.Filename             = 'InclinationChangeReport.txt';
+InclinationReport.Precision            = 16;
+InclinationReport.WriteHeaders         = true;
+InclinationReport.LeftJustify          = On;
+InclinationReport.ZeroFill             = Off;
+InclinationReport.FixedWidth           = true;
+InclinationReport.Delimiter            = ' ';
+InclinationReport.ColumnWidth          = 23;
+InclinationReport.WriteReport          = true;
+InclinationReport.AppendToExistingFile = false;
+
+Create XYPlot InclinationPlot;
+
+InclinationPlot.SolverIterations = Current;
+InclinationPlot.XVariable        = geoSat.ElapsedDays;
+InclinationPlot.YVariables       = {geoSat.EarthMJ2000Eq.INC};
+InclinationPlot.ShowGrid         = true;
+InclinationPlot.ShowPlot         = true;
+
+%----------------------------------------
+%---------- Variables
+%----------------------------------------
+
+Create Variable targetInclination initialSMA;
+
+targetInclination = 2;
+initialSMA        = 6578.000000000003;
+
+%----------------------------------------
+%---------- Mission sequence
+%----------------------------------------
+
+BeginMissionSequence;
+
+% Apply the impulse at a node so the line of nodes is preserved.
+Propagate 'Propagate to Plane Crossing' DefaultProp(geoSat) {geoSat.Z = 0, StopTolerance = 1e-005};
+
+Target 'Change Inclination Only' DC {SolveMode = Solve, ExitMode = Stop, ShowProgressWindow = true};
+
+   % Element1 and Element2 are V and N components in km/s.  Together they
+   % rotate the velocity vector while maintaining the semi-major axis.
+   Vary 'Vary PlaneChange.V' DC(PlaneChange.Element1 = -0.8, {Perturbation = 0.0001, Lower = -5, Upper = 0, MaxStep = 0.5, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+   Vary 'Vary PlaneChange.N' DC(PlaneChange.Element2 = -3.5, {Perturbation = 0.0001, Lower = -5, Upper = 5, MaxStep = 0.5, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+
+   Maneuver 'Apply Plane Change' PlaneChange(geoSat);
+
+   Achieve 'Achieve Target Inclination' DC(geoSat.EarthMJ2000Eq.INC = targetInclination, {Tolerance = 0.001});
+   Achieve 'Preserve Semi-Major Axis' DC(geoSat.Earth.SMA = initialSMA, {Tolerance = 0.1});
+
+EndTarget;  % For targeter DC
+
+Report InclinationReport geoSat.A1ModJulian geoSat.Earth.SMA geoSat.Earth.ECC geoSat.EarthMJ2000Eq.INC;
+
+Propagate 'Propagate One Day' DefaultProp(geoSat) {geoSat.ElapsedDays = 1};
+
+Report InclinationReport geoSat.A1ModJulian geoSat.Earth.SMA geoSat.Earth.ECC geoSat.EarthMJ2000Eq.INC;

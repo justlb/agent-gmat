@@ -142,6 +142,7 @@ export default function AgentPage() {
   const [textInputDisplay, setTextInputDisplay] = useState('')
   const [managedRunError, setManagedRunError] = useState('')
   const [gmatGenerating, setGmatGenerating] = useState(false)
+  const [missionValuesSaveCount, setMissionValuesSaveCount] = useState(0)
   const [gmatGuiOpening, setGmatGuiOpening] = useState(false)
   const [simuCicConversation, setSimuCicConversation] = useState<OrbitKeepingRunConversationTurn[]>([])
   const [simuCicGuiOpening, setSimuCicGuiOpening] = useState(false)
@@ -166,6 +167,21 @@ export default function AgentPage() {
   const [remoteToolPortLoading, setRemoteToolPortLoading] = useState(false)
   const [selectedBomId, setSelectedBomId] = useState('')
   const resetProgressDataRef = useRef<(() => void) | null>(null)
+  // Field commits are serialised so typing through the mission form with Tab
+  // cannot race multiple PATCH requests against the same draft on disk.
+  const missionValueSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const activeMissionDraftIdRef = useRef<string | null>(null)
+  // Async tool calls must update only the run that launched them.  Keeping
+  // this identity separate from React's currently rendered selection avoids a
+  // completed calculation being appended to another historical conversation.
+  const activeGmatRunPathRef = useRef<string | null>(null)
+  useEffect(() => { activeGmatRunPathRef.current = activeGmatRun?.runPath ?? null }, [activeGmatRun?.runPath])
+  const updateActiveRunForPath = useCallback((runPath: string, update: (run: NonNullable<typeof activeGmatRun>) => NonNullable<typeof activeGmatRun>) => {
+    setActiveGmatRun(current => current?.runPath === runPath ? update(current) : current)
+  }, [])
+  const updateWorkflowForRun = useCallback((runPath: string, update: (entries: WorkflowLoopProgressEntry[] | null) => WorkflowLoopProgressEntry[] | null) => {
+    if (activeGmatRunPathRef.current === runPath) setGmatWorkflowEntries(update)
+  }, [])
   const remoteToolHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
   const workspaceAppState = useWorkspaceAppState({ homePath: AGENT_HOME_PATH })
 
@@ -176,6 +192,7 @@ export default function AgentPage() {
     setSatelliteRefreshNonce(value => value + 1)
   }, [])
   useEffect(() => { setMissionValuesChangeRequested(false) }, [activeGmatRun?.runPath])
+  useEffect(() => { activeMissionDraftIdRef.current = activeGmatDraft?.draftId ?? null }, [activeGmatDraft?.draftId])
   const versionState = useWorkspaceVersionState({
     fallbackWorkspaceName: 'Current workspace',
     onRefreshWorkspaceViews: refreshWorkspaceViews,
@@ -203,6 +220,22 @@ export default function AgentPage() {
     workspaces,
   } = versionState
   const gmatWorkspaceDir = activePlanningRun?.workspaceDir ?? activeContext.versionDir
+  // The workflow panel is a projection of workflow-status.json for the
+  // selected run, not a mutable global progress list. Polling also makes a
+  // completed external process visible after a tab switch or page reload.
+  useEffect(() => {
+    const runPath = activeGmatRun?.runPath
+    if (!runPath) { setGmatWorkflowEntries(null); return }
+    let cancelled = false
+    const refresh = () => {
+      void getRunWorkflowLog(runPath)
+        .then(log => { if (!cancelled && activeGmatRunPathRef.current === runPath) setGmatWorkflowEntries(workflowForSavedRun(log)) })
+        .catch(() => undefined)
+    }
+    refresh()
+    const interval = window.setInterval(refresh, 2_500)
+    return () => { cancelled = true; window.clearInterval(interval) }
+  }, [activeGmatRun?.runPath])
   const { bomInfo, loading: bomLoading } = useBomInfo(workspaceRefreshNonce, {
     enabled: !!activeContext.versionDir,
     versionDir: activeContext.versionDir,
@@ -899,27 +932,29 @@ export default function AgentPage() {
   }, [activeGmatRun, gmatGuiOpening, showSpeechText])
   const handleRunSimuCic = useCallback(() => {
     if (!activeGmatRun || simuCicRunning) return
+    const runPath = activeGmatRun.runPath
+    const runId = activeGmatRun.runId
     setSimuCicRunning(true)
     setManagedRunError('')
     setProgressPanelOpen(true)
-    setGmatWorkflowEntries(newSimuCicWorkflow())
-    setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: `Starting Simu-CIC for GMAT run ${current.runId} with this run's OEM ephemeris and attitude configuration.`, askedAt: new Date().toISOString(), question: 'Run Simu-CIC' }] } : current)
-    void runSimuCic(activeGmatRun.runPath)
+    updateWorkflowForRun(runPath, () => newSimuCicWorkflow())
+    updateActiveRunForPath(runPath, current => ({ ...current, conversation: [...current.conversation, { answer: `Starting Simu-CIC for GMAT run ${runId} with this run's OEM ephemeris and attitude configuration.`, askedAt: new Date().toISOString(), question: 'Run Simu-CIC' }] }))
+    void runSimuCic(runPath)
       .then(result => {
-        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_simucic', 'completed') : entries)
+        updateWorkflowForRun(runPath, entries => entries ? setGmatWorkflowStatus(entries, 'run_simucic', 'completed') : entries)
         const askedAt = new Date().toISOString()
-        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: 'Simu-CIC completed. CIC data are available for downstream OPALIS processing.', askedAt, question: 'Run Simu-CIC' }] } : current)
-        showSpeechText('Simu-CIC completed for run ' + activeGmatRun.runId + '. CIC data: ' + result.cicSatDir + '.')
+        updateActiveRunForPath(runPath, current => ({ ...current, conversation: [...current.conversation, { answer: 'Simu-CIC completed. CIC data are available for downstream OPALIS processing.', askedAt, question: 'Run Simu-CIC' }] }))
+        showSpeechText('Simu-CIC completed for run ' + runId + '. CIC data: ' + result.cicSatDir + '.')
         refreshWorkspaceViews()
       })
       .catch(reason => {
-        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_simucic', 'failed') : entries)
+        updateWorkflowForRun(runPath, entries => entries ? setGmatWorkflowStatus(entries, 'run_simucic', 'failed') : entries)
         const message = reason instanceof Error ? reason.message : 'Unable to run Simu-CIC'
-        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: `Simu-CIC failed: ${message}`, askedAt: new Date().toISOString(), question: 'Run Simu-CIC' }] } : current)
+        updateActiveRunForPath(runPath, current => ({ ...current, conversation: [...current.conversation, { answer: `Simu-CIC failed: ${message}`, askedAt: new Date().toISOString(), question: 'Run Simu-CIC' }] }))
         setManagedRunError(message)
       })
       .finally(() => setSimuCicRunning(false))
-  }, [activeGmatRun, refreshWorkspaceViews, showSpeechText, simuCicRunning])
+  }, [activeGmatRun, refreshWorkspaceViews, showSpeechText, simuCicRunning, updateActiveRunForPath, updateWorkflowForRun])
   const handleOpenSimuCicGui = useCallback(() => {
     if (!activeGmatRun || simuCicGuiOpening) return
     setSimuCicGuiOpening(true)
@@ -945,60 +980,64 @@ export default function AgentPage() {
       setManagedRunError('Run Simu-CIC first. OPALIS requires the CIC files generated for this GMAT run.')
       return
     }
+    const runPath = activeGmatRun.runPath
+    const runId = activeGmatRun.runId
     setOpalisRunning(true)
     setManagedRunError('')
     setProgressPanelOpen(true)
-    setGmatWorkflowEntries(entries => setGmatWorkflowStatus(entries ?? completedGmatAndSimuCicWorkflow(), 'run_opalis', 'running'))
-    setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: `Starting OPALIS for GMAT run ${current.runId} using its Simu-CIC CIC output.`, askedAt: new Date().toISOString(), question: 'Run OPALIS calculation' }] } : current)
-    void runOpalisScenario(activeGmatRun.runPath)
+    updateWorkflowForRun(runPath, entries => setGmatWorkflowStatus(entries ?? completedGmatAndSimuCicWorkflow(), 'run_opalis', 'running'))
+    updateActiveRunForPath(runPath, current => ({ ...current, conversation: [...current.conversation, { answer: `Starting OPALIS for GMAT run ${runId} using its Simu-CIC CIC output.`, askedAt: new Date().toISOString(), question: 'Run OPALIS calculation' }] }))
+    void runOpalisScenario(runPath)
       .then(result => {
-        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_opalis', 'completed') : entries)
+        updateWorkflowForRun(runPath, entries => entries ? setGmatWorkflowStatus(entries, 'run_opalis', 'completed') : entries)
         const askedAt = new Date().toISOString()
-        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: 'OPALIS calculation completed. Consolidated results are available for analysis.', askedAt, question: 'Run OPALIS calculation' }] } : current)
-        showSpeechText('OPALIS calculation completed for run ' + activeGmatRun.runId + '. Results: ' + result.summary + '.')
+        updateActiveRunForPath(runPath, current => ({ ...current, conversation: [...current.conversation, { answer: 'OPALIS calculation completed. Consolidated results are available for analysis.', askedAt, question: 'Run OPALIS calculation' }] }))
+        showSpeechText('OPALIS calculation completed for run ' + runId + '. Results: ' + result.summary + '.')
         refreshWorkspaceViews()
       })
       .catch(reason => {
-        setGmatWorkflowEntries(entries => entries
+        updateWorkflowForRun(runPath, entries => entries
           ? setGmatWorkflowStatus(entries, 'run_opalis', 'failed')
           : entries)
         const message = reason instanceof Error ? reason.message : 'Unable to run OPALIS calculation'
-        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: `OPALIS failed: ${message}`, askedAt: new Date().toISOString(), question: 'Run OPALIS calculation' }] } : current)
+        updateActiveRunForPath(runPath, current => ({ ...current, conversation: [...current.conversation, { answer: `OPALIS failed: ${message}`, askedAt: new Date().toISOString(), question: 'Run OPALIS calculation' }] }))
         setManagedRunError(message)
       })
       .finally(() => setOpalisRunning(false))
-  }, [activeGmatRun, opalisRunning, refreshWorkspaceViews, showSpeechText, simuCicCompleted, simuCicRunning])
+  }, [activeGmatRun, opalisRunning, refreshWorkspaceViews, showSpeechText, simuCicCompleted, simuCicRunning, updateActiveRunForPath, updateWorkflowForRun])
   const handlePrepareRfComlink = useCallback(() => {
     if (!activeGmatRun || rfComlinkPreparing || simuCicRunning || opalisRunning) return
     if (!simuCicCompleted) {
       setManagedRunError('Run Simu-CIC first. RF-COMLINK requires its CIC files for this GMAT run.')
       return
     }
+    const runPath = activeGmatRun.runPath
+    const runId = activeGmatRun.runId
     setRfComlinkPreparing(true)
     setManagedRunError('')
     setProgressPanelOpen(true)
-    setGmatWorkflowEntries(entries => startWorkflowBranch(entries, 'prepare_rf_comlink'))
-    setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: `Preparing RF-COMLINK for GMAT run ${current.runId} from its selected ground station and Simu-CIC CIC files.`, askedAt: new Date().toISOString(), question: 'Run RF-COMLINK' }] } : current)
-    void runRfComlinkCalculation(activeGmatRun.runPath)
+    updateWorkflowForRun(runPath, entries => startWorkflowBranch(entries, 'prepare_rf_comlink'))
+    updateActiveRunForPath(runPath, current => ({ ...current, conversation: [...current.conversation, { answer: `Preparing RF-COMLINK for GMAT run ${runId} from its selected ground station and Simu-CIC CIC files.`, askedAt: new Date().toISOString(), question: 'Run RF-COMLINK' }] }))
+    void runRfComlinkCalculation(runPath)
       .then(calculation => {
-        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'prepare_rf_comlink', 'completed') : entries)
+        updateWorkflowForRun(runPath, entries => entries ? setGmatWorkflowStatus(entries, 'prepare_rf_comlink', 'completed') : entries)
         const askedAt = new Date().toISOString()
-        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, {
-          answer: `RF-COMLINK completed for run ${activeGmatRun.runId}. ${calculation.reportCount} report(s) were saved for analysis.`,
+        updateActiveRunForPath(runPath, current => ({ ...current, conversation: [...current.conversation, {
+          answer: `RF-COMLINK completed for run ${runId}. ${calculation.reportCount} report(s) were saved for analysis.`,
           askedAt,
           question: 'Run RF-COMLINK',
-        }] } : current)
-        showSpeechText(`RF-COMLINK calculation completed for run ${activeGmatRun.runId}.`)
+        }] }))
+        showSpeechText(`RF-COMLINK calculation completed for run ${runId}.`)
         refreshWorkspaceViews()
       })
       .catch(reason => {
-        setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'prepare_rf_comlink', 'failed') : entries)
+        updateWorkflowForRun(runPath, entries => entries ? setGmatWorkflowStatus(entries, 'prepare_rf_comlink', 'failed') : entries)
         const message = reason instanceof Error ? reason.message : 'Unable to generate RF-COMLINK scenario'
-        setActiveGmatRun(current => current ? { ...current, conversation: [...current.conversation, { answer: `RF-COMLINK failed: ${message}`, askedAt: new Date().toISOString(), question: 'Run RF-COMLINK' }] } : current)
+        updateActiveRunForPath(runPath, current => ({ ...current, conversation: [...current.conversation, { answer: `RF-COMLINK failed: ${message}`, askedAt: new Date().toISOString(), question: 'Run RF-COMLINK' }] }))
         setManagedRunError(message)
       })
       .finally(() => { setRfComlinkPreparing(false); setRfComlinkCalculationStarting(false) })
-  }, [activeGmatRun, opalisRunning, refreshWorkspaceViews, rfComlinkPreparing, showSpeechText, simuCicCompleted, simuCicRunning])
+  }, [activeGmatRun, opalisRunning, refreshWorkspaceViews, rfComlinkPreparing, showSpeechText, simuCicCompleted, simuCicRunning, updateActiveRunForPath, updateWorkflowForRun])
   const handleOpenRfComlinkGui = useCallback(() => {
     if (!activeGmatRun || rfComlinkCalculationStarting) return
     setRfComlinkCalculationStarting(true)
@@ -1226,10 +1265,12 @@ export default function AgentPage() {
               const template = chatMode === 'general' ? null : missionTemplateForChatMode(chatMode)
               if (!template) return
               const selectedRun = activeGmatRun
-              setGmatGenerating(true)
               setManagedRunError('')
-              void (selectedRun
-                ? missionTemplateRuntime(template).list(gmatWorkspaceDir).then(drafts => {
+              setMissionValuesSaveCount(count => count + 1)
+              const queuedSave = missionValueSaveQueueRef.current.catch(() => undefined).then(async () => {
+                const runtime = missionTemplateRuntime(template)
+                const draft = selectedRun
+                  ? await runtime.list(gmatWorkspaceDir).then(drafts => {
                   // Hohmann archives immutable results under artifact-history,
                   // whereas the current run uses gmat/mission-runs. Prefer an
                   // exact match, then the known draft id, then the sole/latest
@@ -1240,23 +1281,27 @@ export default function AgentPage() {
                   // A saved run may originate from an earlier template version
                   // with no restorable draft. Editing it starts a new variation
                   // in the selected template rather than blocking the engineer.
-                  return matching ?? missionTemplateRuntime(template).create(gmatWorkspaceDir)
+                  return matching ?? runtime.create(gmatWorkspaceDir)
                 })
-                : Promise.resolve(activeGmatDraft ?? missionTemplateRuntime(template).create(gmatWorkspaceDir)))
-                .then(draft => {
-                  if (!draft) throw new Error('No editable mission draft is associated with this saved run.')
-                  return updateMissionValue({ draftId: draft.draftId, path, template, value, workspaceDir: gmatWorkspaceDir })
-                })
-                .then(draft => {
-                  setActiveGmatDraft(draft)
-                  setActiveGmatRun(null)
-                  setPendingGmatMessage(null)
-                  setSatelliteRefreshNonce(current => current + 1)
-                  refreshWorkspaceViews()
-                })
+                  : activeMissionDraftIdRef.current
+                    ? (await runtime.list(gmatWorkspaceDir)).find(item => item.draftId === activeMissionDraftIdRef.current) ?? await runtime.create(gmatWorkspaceDir)
+                    : await runtime.create(gmatWorkspaceDir)
+                if (!draft) throw new Error('No editable mission draft is associated with this saved run.')
+                activeMissionDraftIdRef.current = draft.draftId
+                const updatedDraft = await updateMissionValue({ draftId: draft.draftId, path, template, value, workspaceDir: gmatWorkspaceDir })
+                activeMissionDraftIdRef.current = updatedDraft.draftId
+                setActiveGmatDraft(updatedDraft)
+                setActiveGmatRun(null)
+                setPendingGmatMessage(null)
+                setSatelliteRefreshNonce(current => current + 1)
+                refreshWorkspaceViews()
+              })
+              missionValueSaveQueueRef.current = queuedSave
+              void queuedSave
                 .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Unable to update mission value'))
-                .finally(() => setGmatGenerating(false))
+                .finally(() => setMissionValuesSaveCount(count => Math.max(0, count - 1)))
             },
+            missionValuesSaving: missionValuesSaveCount > 0,
             simuCicConversation,
             simuCicRefreshNonce: satelliteRefreshNonce,
             simuCicCompleted,
@@ -1282,8 +1327,8 @@ export default function AgentPage() {
             setActiveGmatRun({ ...run, conversation: [] })
             const isElectricTransfer = run.missionType === 'electric-propulsion-transfer'
             void getRunWorkflowLog(run.runPath)
-              .then(log => setGmatWorkflowEntries(workflowForSavedRun(log)))
-              .catch(() => setGmatWorkflowEntries(setGmatWorkflowStatus(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'), 'run_gmat', 'completed')))
+              .then(log => updateWorkflowForRun(run.runPath, () => workflowForSavedRun(log)))
+              .catch(() => updateWorkflowForRun(run.runPath, () => setGmatWorkflowStatus(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'), 'run_gmat', 'completed')))
             setActiveGmatDraft(null)
             const loadRunConversation = isElectricTransfer
               ? getElectricPropulsionRunConversation

@@ -1,0 +1,16 @@
+{
+  "name": "EPH_0206-integration-test-3",
+  "status": "failed",
+  "started_at": "2026-07-16T06:54:45+00:00",
+  "input": "C:\\JUSTINE\\APP\\workflow_OPALIS\\1-conversion_vers_SIMU-CIC\\EPH_0206.txt",
+  "run_dir": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-integration-test-3",
+  "steps": {
+    "conversion": {
+      "type": "ephemeris",
+      "records": 202,
+      "output": "C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-integration-test-3\\conversion\\EPH_0206-SIMU.txt"
+    }
+  },
+  "finished_at": "2026-07-16T06:54:48+00:00",
+  "error": "La commande a echoue avec le code 1 : C:\\Users\\justine\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe C:\\JUSTINE\\APP\\workflow_OPALIS\\2-run_SIMU-CIC\\run_scilab_simulation.py --ephemeris C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-integration-test-3\\conversion\\EPH_0206-SIMU.txt --base-scenario C:\\JUSTINE\\APP\\SIMU_CIC\\simu_cic\\GUI\\examples\\Example_1.scd --save-root C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-integration-test-3\\simu-cic --cic-output C:\\JUSTINE\\APP\\workflow_OPALIS\\resultats_workflow\\EPH_0206-integration-test-3\\CIC --nadir-axis +X --trace-axis +Y"
+}

@@ -16,6 +16,8 @@ import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 import { prepareRFComlinkScenario } from "./rfComlinkPreparation.routes.js"
 import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
 import { artifactDefinitionForPath } from "../runs/artifactRegistry.js"
+import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
+import { runStageExclusively } from "../runs/runExecutionRegistry.js"
 
 type RunBody = { runPath?: unknown }
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -58,17 +60,21 @@ async function sha256(filePath: string) {
   return createHash("sha256").update(await fs.readFile(filePath)).digest("hex")
 }
 
-function runProcess(command: string, args: string[]) {
+function runProcess(command: string, args: string[], runDir?: string) {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] })
+    if (runDir) registerActiveCalculation(runDir, child)
     let stdout = ""
     let stderr = ""
     child.stdout.setEncoding("utf8")
     child.stderr.setEncoding("utf8")
     child.stdout.on("data", chunk => { stdout += chunk })
     child.stderr.on("data", chunk => { stderr += chunk })
-    child.once("error", reject)
-    child.once("close", code => code === 0 ? resolve(stdout) : reject(new Error(stderr.trim() || stdout.trim() || `${command} exited with code ${code ?? "unknown"}`)))
+    child.once("error", error => { if (runDir) unregisterActiveCalculation(runDir, child); reject(error) })
+    child.once("close", code => {
+      if (runDir) unregisterActiveCalculation(runDir, child)
+      code === 0 ? resolve(stdout) : reject(new Error(stderr.trim() || stdout.trim() || `${command} exited with code ${code ?? "unknown"}`))
+    })
   })
 }
 
@@ -144,6 +150,7 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     if (!run) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
+      return reply.send(await runStageExclusively(run.runDir, "rf_comlink", async () => {
       const prepared = await prepareRFComlinkScenario(run.root, run.runDir)
       const calculated = calculatedScenarioPath(run.runDir)
       const resultDir = path.dirname(calculated)
@@ -162,7 +169,7 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       await beginRunStage(run.runDir, "rf_comlink", "RF-COMLINK calculation is running for this mission run.")
       let output = ""
       try {
-        output = await runProcess(powerShellExecutable(), ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", toGmatNativePath(automation), "-CasePath", toGmatNativePath(calculated), "-ApplicationPath", toGmatNativePath(executable), "-WaitSeconds", String(waitSeconds)])
+        output = await runProcess(powerShellExecutable(), ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", toGmatNativePath(automation), "-CasePath", toGmatNativePath(calculated), "-ApplicationPath", toGmatNativePath(executable), "-WaitSeconds", String(waitSeconds)], run.runDir)
       } catch (error) {
         await fs.writeFile(logPath, `RF-COMLINK automation failed.\n${getErrorMessage(error, "unknown error")}\n`, "utf8")
         throw error
@@ -171,13 +178,14 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       const summaryPath = path.join(resultDir, "rf-comlink-results.json")
       const extractScript = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "03-save-results", "extract_rf_comlink_results.py")
       const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
-      await runProcess(python, [extractScript, "--scenario", calculated, "--output", summaryPath])
+      await runProcess(python, [extractScript, "--scenario", calculated, "--output", summaryPath], run.runDir)
       const summary = JSON.parse(await fs.readFile(summaryPath, "utf8")) as { reports?: unknown[] }
       const reportCount = Array.isArray(summary.reports) ? summary.reports.length : 0
       await completeRunStage(run.runDir, "rf_comlink", `RF-COMLINK completed with ${reportCount} report(s).`)
       await appendRunConversation(run.runDir, { answer: `RF-COMLINK completed for this run. ${reportCount} report(s) were extracted and the raw calculated .rfcl package is saved in Technical files.`, askedAt: new Date().toISOString(), channel: "rf-comlink", question: "Run RF-COMLINK" })
       await writeRunAnalysisContext(run.runDir)
-      return reply.send({ ok: true, reportCount, scenario: relativeToWorkspaceRoot(root, calculated), summary: relativeToWorkspaceRoot(root, summaryPath), artifacts: ["rf-comlink/03-results/calculated-rf-comlink.rfcl", "rf-comlink/03-results/rf-comlink-results.json", "rf-comlink/03-results/rf-comlink-calculation.log"].map(artifactDefinitionForPath).filter(Boolean) })
+      return { ok: true, reportCount, scenario: relativeToWorkspaceRoot(root, calculated), summary: relativeToWorkspaceRoot(root, summaryPath), artifacts: ["rf-comlink/03-results/calculated-rf-comlink.rfcl", "rf-comlink/03-results/rf-comlink-results.json", "rf-comlink/03-results/rf-comlink-calculation.log"].map(artifactDefinitionForPath).filter(Boolean) }
+      }))
     } catch (error) {
       const message = getErrorMessage(error, "failed to run RF-COMLINK")
       await failRunStage(run.runDir, "rf_comlink", message).catch(() => undefined)

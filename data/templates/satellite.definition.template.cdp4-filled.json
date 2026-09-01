@@ -1,0 +1,410 @@
+{
+  "id": "replace-with-unique-satellite-id",
+  "version": "1.0.0",
+  "name": "Satellite multi-propulsion template",
+  "description": "Complete reusable spacecraft-definition skeleton. Replace every null value, keep only applicable options, and record sources in provenance.",
+  "capabilities": [
+    "GMAT",
+    "Simu-CIC",
+    "OPALIS",
+    "RF-COMLINK"
+  ],
+  "mission_templates": [
+    "orbit-keeping",
+    "geo-gso-orbit-keeping",
+    "electric-propulsion-transfer",
+    "chemical-hohmann-transfer",
+    "chemical-3d-transfer"
+  ],
+  "satellite": {
+    "identity": {
+      "name": "Satellite",
+      "operator": null,
+      "mission_type": null
+    },
+    "bus": {
+      "physical": {
+        "mass_kg": {
+          "dry": null,
+          "wet_at_launch": null,
+          "propellant": 79
+        },
+        "drag_area_m2": null,
+        "drag_coefficient": null
+      },
+      "propulsion_subsystem_elec": {
+        "type": "Hall electric propulsion",
+        "propellant": "Xenon",
+        "specific_impulse_seconds": 2500,
+        "nominal_thrust_newtons": 0.275,
+        "nominal_duty_cycle": null,
+        "electric_thruster": {
+          "nominal_thrust_range_mn": [
+            275
+          ],
+          "nominal_thruster_power_kw": 5,
+          "minimum_usable_power_kw": null,
+          "maximum_usable_power_kw": null,
+          "propellant_mass_kg": 79,
+          "maximum_propellant_loading_kg": null,
+          "design_lifetime_hours": null
+        }
+      },
+      "propulsion_subsystem_chemical": {
+        "type": "Bipropellant chemical propulsion",
+        "propellant": "Chemical bipropellant",
+        "specific_impulse_seconds": null,
+        "main_engine_thrust_n": null
+      },
+      "electrical_subsystem": {
+        "solar_panels": {
+          "type": null,
+          "efficiency_percent": null,
+          "total_area_m2": 324.8,
+          "total_power_generated_watts": null,
+          "array_orientation": null
+        },
+        "batteries": {
+          "chemistry": null,
+          "capacity_ah": null,
+          "energy_wh": null
+        },
+        "bus_voltage_v": null,
+        "spacecraft_bus_load_kw": null,
+        "electric_propulsion_mode": {
+          "bus_load_kw": null
+        },
+        "system_margin_percent": null
+      },
+      "opalis": {
+        "model": {
+          "template_id": "empty.opalis",
+          "simulation_mode": "Simple",
+          "power_supply": null,
+          "regulation_type": null,
+          "distribution_resistance_ohm": null
+        },
+        "simulation": {
+          "reference_time_step_s": null,
+          "reference_duration_s": null,
+          "satellite_temperature_c": null,
+          "regulated_mode": null,
+          "current_limit_mode": null,
+          "voltage_limit_mode": null,
+          "thermal_model": null
+        },
+        "battery": {
+          "initial_voltage_v": null,
+          "initial_state_of_charge": null,
+          "energy_wh": null,
+          "cells_parallel": null,
+          "cells_series": null,
+          "cable_resistance_ohm": null,
+          "low_voltage_limit_v": null
+        },
+        "power_distribution": {
+          "constant_load_w": null,
+          "margin_w": null,
+          "rated_power_w": null,
+          "consumption_mode": null
+        },
+        "environment": {
+          "solar_constant_w_m2": null,
+          "albedo_w_m2": null,
+          "earth_radiation_w_m2": null
+        },
+        "solar_generator": {
+          "cell_model": null,
+          "cell_area_m2": null,
+          "sections": [
+            {
+              "type": null,
+              "area_m2": null,
+              "anchor_type": null,
+              "filling_factor": null,
+              "cells_parallel": null,
+              "cells_series": null,
+              "rated_power_w": null
+            }
+          ]
+        }
+      },
+      "rf_comlink": {
+        "schema_version": 1,
+        "data_handling": {
+          "initial_memory_usage_bits": null,
+          "memory_capacity_bits": null,
+          "payload_binary_rate": {
+            "mode": null,
+            "rate_bps": null,
+            "active_duration_s": null,
+            "repeat_period_s": null
+          }
+        },
+        "links": [
+          {
+            "id": "telecommand",
+            "name": "TT&C telecommand",
+            "direction": "EarthSpace",
+            "requires_ground_station_tracking": true,
+            "system": {
+              "frequency_band": null,
+              "frequency_range_mhz": [
+                null,
+                null
+              ],
+              "frequency_mhz": null,
+              "data_rate_bps": null,
+              "bit_error_rate": null,
+              "modulation": null,
+              "coding": null,
+              "receiver_sensitivity_dbm": -108
+            },
+            "spacecraft_antenna": {
+              "role": "receiver",
+              "antenna_type": null,
+              "boresight_body_axes": [
+                null,
+                null
+              ],
+              "polarization": null,
+              "gain_db": null,
+              "figure_of_merit_db_per_k": null,
+              "gain_valid_within_deg": null
+            }
+          },
+          {
+            "id": "telemetry",
+            "name": "TT&C telemetry",
+            "direction": "SpaceEarth",
+            "requires_ground_station_tracking": true,
+            "system": {
+              "frequency_band": null,
+              "frequency_range_mhz": [
+                null,
+                null
+              ],
+              "frequency_mhz": null,
+              "data_rate_bps": null,
+              "bit_error_rate": null,
+              "modulation": null,
+              "transmit_power_dbm": null
+            },
+            "spacecraft_antenna": {
+              "role": "transmitter",
+              "antenna_type": null,
+              "boresight_body_axes": [
+                "+Z",
+                "-Z"
+              ],
+              "polarization": "LHCP",
+              "gain_db": 0,
+              "gain_valid_within_deg": 65
+            }
+          },
+          {
+            "id": "payload-downlink",
+            "name": "Payload downlink",
+            "direction": "SpaceEarth",
+            "requires_ground_station_tracking": true,
+            "system": {
+              "frequency_band": null,
+              "frequency_range_mhz": [
+                null,
+                null
+              ],
+              "frequency_mhz": null,
+              "data_rate_bps": null,
+              "data_rate_range_bps": [
+                null,
+                null
+              ],
+              "bit_error_rate": null,
+              "modulation": null,
+              "transmit_power_dbm": null
+            },
+            "spacecraft_antenna": {
+              "role": "transmitter",
+              "antenna_type": "high-speed data phased array",
+              "boresight_body_axes": [
+                "-Z"
+              ],
+              "gain_db": 2,
+              "eirp_dbw": 9,
+              "pointing_loss_db": 0,
+              "note": null
+            }
+          }
+        ]
+      }
+    }
+  },
+  "provenance": {
+    "values": {
+      "satellite.identity.name": {
+        "value": "Satellite",
+        "source_parameter_iid": null,
+        "source_note": "ElementDefinition name"
+      },
+      "satellite.bus.physical.mass_kg.propellant": {
+        "element_bindings": [
+          {
+            "element_iid": "c8c862e7-8e1b-4db8-a5be-144b7b32176e",
+            "element_name": "Propellant",
+            "element_short_name": "Propellant",
+            "element_class_kind": "ElementDefinition"
+          }
+        ],
+        "parameter_iid": "7e7b3aa0-f126-4049-9de6-18d49187b699",
+        "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+        "parameter_type_name": "mass",
+        "parameter_type_short_name": "m",
+        "unit_full_name": "kilogram",
+        "unit_short_name": "kg",
+        "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+        "value_set_iid": "b2b54c0a-6a60-4406-bc8e-1403739b4fa2",
+        "value_switch": "MANUAL",
+        "manual_value": 79.0,
+        "published_value": 79.0,
+        "computed_value": null,
+        "reference_value": null
+      },
+      "satellite.bus.propulsion_subsystem_elec.propellant": {
+        "element_bindings": [
+          {
+            "element_iid": "c8c862e7-8e1b-4db8-a5be-144b7b32176e",
+            "element_name": "Propellant",
+            "element_short_name": "Propellant",
+            "element_class_kind": "ElementDefinition"
+          }
+        ],
+        "parameter_iid": "7000f293-970c-4c5b-85a8-66ad0dc48bd3",
+        "parameter_type_iid": "04a85164-f571-45da-883d-ecb3e8a8a43b",
+        "parameter_type_name": null,
+        "parameter_type_short_name": null,
+        "unit_full_name": null,
+        "unit_short_name": null,
+        "scale_iid": null,
+        "value_set_iid": "862ea052-7990-4a98-b27b-a6f8d359e841",
+        "value_switch": "MANUAL",
+        "manual_value": "Xenon",
+        "published_value": "Xenon",
+        "computed_value": null,
+        "reference_value": null
+      },
+      "satellite.bus.propulsion_subsystem_elec.specific_impulse_seconds": {
+        "element_bindings": [
+          {
+            "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+            "element_name": "Propulsion Subsystem",
+            "element_short_name": "PRO",
+            "element_class_kind": "ElementDefinition"
+          }
+        ],
+        "parameter_iid": "978865a5-6fd4-4875-8274-d2c8076e049b",
+        "parameter_type_iid": "ae0c3f36-9f13-48bb-a1fc-e33c96a1ff2c",
+        "parameter_type_name": "lifetime",
+        "parameter_type_short_name": "lifetime",
+        "unit_full_name": "second",
+        "unit_short_name": "s",
+        "scale_iid": "b2d86453-6da6-43b1-8dc7-3a12413a7c81",
+        "value_set_iid": "48b95cc3-6dab-4e62-b8bd-18e7db81d912",
+        "value_switch": "MANUAL",
+        "manual_value": 3.5,
+        "published_value": 3.5,
+        "computed_value": null,
+        "reference_value": null
+      },
+      "satellite.bus.propulsion_subsystem_elec.nominal_thrust_newtons": {
+        "element_bindings": [
+          {
+            "element_iid": "4b123655-f65f-4008-a8b4-bdc09fd948f2",
+            "element_name": "Propulsion Subsystem",
+            "element_short_name": "PRO",
+            "element_class_kind": "ElementDefinition"
+          }
+        ],
+        "parameter_iid": "bb3b5e78-e833-407f-b6da-de1ce93baee4",
+        "parameter_type_iid": "34733dc2-2219-4be4-8f49-55f257cd4da6",
+        "parameter_type_name": "delta-v to change trajectory",
+        "parameter_type_short_name": "delta_v_change_traj",
+        "unit_full_name": "metre per second",
+        "unit_short_name": "m/s",
+        "scale_iid": "7406c60b-9f22-44a4-9fe5-bedfa0a83b93",
+        "value_set_iid": "97f96170-3053-442e-883b-9119030ef38b",
+        "value_switch": "MANUAL",
+        "manual_value": 500.0,
+        "published_value": 500.0,
+        "computed_value": null,
+        "reference_value": null
+      },
+      "satellite.bus.propulsion_subsystem_elec.electric_thruster.nominal_thrust_range_mn[0]": {
+        "value": 275,
+        "derived_from_parameter_iid": "bb3b5e78-e833-407f-b6da-de1ce93baee4",
+        "derivation": "0.275 N × 1000 = 275 mN"
+      },
+      "satellite.bus.propulsion_subsystem_elec.electric_thruster.nominal_thruster_power_kw": {
+        "value": 5,
+        "derived_from_parameter_iid": "ee3c7f7f-6cdd-4c9c-9145-9db5cd756a6b",
+        "derivation": "5000 W ÷ 1000 = 5 kW"
+      },
+      "satellite.bus.propulsion_subsystem_elec.electric_thruster.propellant_mass_kg": {
+        "element_bindings": [
+          {
+            "element_iid": "c8c862e7-8e1b-4db8-a5be-144b7b32176e",
+            "element_name": "Propellant",
+            "element_short_name": "Propellant",
+            "element_class_kind": "ElementDefinition"
+          }
+        ],
+        "parameter_iid": "7e7b3aa0-f126-4049-9de6-18d49187b699",
+        "parameter_type_iid": "8db6737f-5269-47a1-9df8-55ba358c5737",
+        "parameter_type_name": "mass",
+        "parameter_type_short_name": "m",
+        "unit_full_name": "kilogram",
+        "unit_short_name": "kg",
+        "scale_iid": "61ce4bb0-8301-4061-8e45-0c6682db9a9f",
+        "value_set_iid": "b2b54c0a-6a60-4406-bc8e-1403739b4fa2",
+        "value_switch": "MANUAL",
+        "manual_value": 79.0,
+        "published_value": 79.0,
+        "computed_value": null,
+        "reference_value": null
+      },
+      "satellite.bus.electrical_subsystem.solar_panels.total_area_m2": {
+        "element_bindings": [
+          {
+            "element_iid": "3e935198-ee29-4a96-be14-28784ff67936",
+            "element_name": "Solar Cell Array",
+            "element_short_name": "SCA",
+            "element_class_kind": "ElementDefinition"
+          }
+        ],
+        "parameter_iid": "8f8e6d03-e528-449d-9e5b-c856b0db3e79",
+        "parameter_type_iid": "b146f15d-c2a7-4ac9-a558-7b50d4392dca",
+        "parameter_type_name": "area",
+        "parameter_type_short_name": "area",
+        "unit_full_name": "square metre",
+        "unit_short_name": "m²",
+        "scale_iid": "275914d1-1791-4019-b7b7-1d48bfc8fcf5",
+        "value_set_iid": "db908d1f-49b2-48e4-869c-1a43ee6238e7",
+        "value_switch": "MANUAL",
+        "manual_value": 324.8,
+        "published_value": 324.8,
+        "computed_value": null,
+        "reference_value": null
+      }
+    },
+    "derivations": [],
+    "sources": [
+      {
+        "id": "source-1",
+        "title": "CDP4 iteration export",
+        "url": "C:\\Users\\justl\\Documents\\xwechat_files\\wxid_6mmbdg6y39pd12_092c\\msg\\file\\2026-08\\SpringSchool\\EngineeringModels\\99c64085-43fb-4c7a-b3c9-9b1347242b5e\\Iterations\\1faa121e-8b77-4346-93d2-59261474e013.json",
+        "publication_date": null,
+        "accessed_at": "2026-08-27T07:34:24.2612201Z",
+        "notes": "Values use the manual field when populated, as requested. Values marked COMPUTED but with computed/published value \"-\" are not inserted."
+      }
+    ]
+  }
+}

@@ -22,6 +22,7 @@ export type MissionTemplateDefinition = {
   downstreamAnalyses: string[]
   id: GmatMissionTemplateId
   name: string
+  propulsionRequirement: string
   ui: {
     missionInputFields: MissionInputField[]
     objective: string

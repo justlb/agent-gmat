@@ -1,0 +1,18 @@
+RUN : generation-scd-ok
+STATUT : success
+
+OU TROUVER LES FICHIERS
+-----------------------
+Entrees conservees       : 00-entrees
+Ephemeride convertie     : 01-conversion\EPH_GMAT_SIMU.txt
+Fichiers CIC pour OPALIS : 02-simu-cic\02-fichiers-cic\Sat
+Cas OPALIS final         : 03-opalis\02-resultats\generation-scd-ok.opalis
+Resume OPALIS JSON       : 03-opalis\02-resultats\generation-scd-ok.json
+
+ORGANISATION
+------------
+00-entrees          copies des fichiers fournis au workflow
+01-conversion       ephemeride convertie au format *-SIMU.txt
+02-simu-cic         execution Simu-CIC et fichiers CIC generes
+03-opalis           cas A, flux dynamiques et resultats OPALIS
+workflow.json       manifeste technique complet

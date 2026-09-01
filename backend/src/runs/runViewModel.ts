@@ -6,6 +6,7 @@
  */
 import fs from "node:fs/promises"
 import path from "node:path"
+import { parse } from "yaml"
 
 import { assertValidDigitalThreadDocument } from "../digitalThread/digitalThreadSchema.js"
 import { loadRunWorkflowLog } from "../opalis/workflowRunLog.js"
@@ -46,7 +47,27 @@ function missionValues(document: JsonRecord, templateId: string | null) {
     values["spacecraft.initialFuelMassKg"] = atPath(document, "analysis_requests.gmat.orbit_keeping.initial_fuel_mass_kg")
     values["stationKeeping.minimumAltitudeKm"] = atPath(document, "analysis_requests.gmat.orbit_keeping.minimum_reboost_altitude_km")
   }
-  if (templateId === "chemical-hohmann-transfer") {
+  if (templateId === "geo-gso-orbit-keeping") {
+    values["initialOrbit.raanDeg"] = atPath(document, "satellite.orbit.keplerian_elements.raan_deg")
+    values["initialOrbit.argPeriapsisDeg"] = atPath(document, "satellite.orbit.keplerian_elements.arg_of_perigee_deg")
+    values["initialOrbit.trueAnomalyDeg"] = atPath(document, "satellite.orbit.keplerian_elements.true_anomaly_deg")
+    values["spacecraft.initialFuelMassKg"] = atPath(document, "analysis_requests.gmat.geo_gso_orbit_keeping.initial_fuel_mass_kg")
+    values["stationKeeping.northSouthToleranceDeg"] = atPath(document, "analysis_requests.gmat.geo_gso_orbit_keeping.north_south_tolerance_deg")
+    values["stationKeeping.eastWestToleranceDeg"] = atPath(document, "analysis_requests.gmat.geo_gso_orbit_keeping.east_west_tolerance_deg")
+    values["stationKeeping.eccentricityTolerance"] = atPath(document, "analysis_requests.gmat.geo_gso_orbit_keeping.eccentricity_tolerance")
+    values["stationKeeping.daysOfOk"] = atPath(document, "analysis_requests.gmat.geo_gso_orbit_keeping.days_of_station_keeping")
+  }
+  if (templateId === "geo-gso-electric-station-keeping") {
+    values["initialOrbit.raanDeg"] = atPath(document, "satellite.orbit.keplerian_elements.raan_deg")
+    values["initialOrbit.argPeriapsisDeg"] = atPath(document, "satellite.orbit.keplerian_elements.arg_of_perigee_deg")
+    values["initialOrbit.trueAnomalyDeg"] = atPath(document, "satellite.orbit.keplerian_elements.true_anomaly_deg")
+    values["spacecraft.initialFuelMassKg"] = atPath(document, "analysis_requests.gmat.geo_electric_station_keeping.initial_fuel_mass_kg")
+    values["stationKeeping.northSouthToleranceDeg"] = atPath(document, "analysis_requests.gmat.geo_electric_station_keeping.north_south_tolerance_deg")
+    values["stationKeeping.eastWestToleranceDeg"] = atPath(document, "analysis_requests.gmat.geo_electric_station_keeping.east_west_tolerance_deg")
+    values["stationKeeping.eastWestBurnDurationSec"] = atPath(document, "analysis_requests.gmat.geo_electric_station_keeping.east_west_burn_duration_sec")
+    values["stationKeeping.northSouthBurnDurationSec"] = atPath(document, "analysis_requests.gmat.geo_electric_station_keeping.north_south_burn_duration_sec")
+    values["stationKeeping.missionDurationDays"] = atPath(document, "analysis_requests.gmat.geo_electric_station_keeping.mission_duration_days")
+  }  if (templateId === "chemical-hohmann-transfer") {
     values["transfer.targetRadiusKm"] = atPath(document, "analysis_requests.gmat.chemical_hohmann_transfer.target_orbit.radius_km")
     values["transfer.targetEccentricity"] = atPath(document, "analysis_requests.gmat.chemical_hohmann_transfer.target_orbit.eccentricity")
     values["transfer.finalPropagationSeconds"] = atPath(document, "analysis_requests.gmat.chemical_hohmann_transfer.final_propagation_seconds")
@@ -73,6 +94,15 @@ function satelliteAssumptions(document: JsonRecord) {
   })
 }
 
+async function readPersistedMissionValues(runDir: string) {
+  const entries = await fs.readdir(runDir, { withFileTypes: true }).catch(() => [])
+  const valueFile = entries.filter(entry => entry.isFile() && /\.values\.yaml$/u.test(entry.name)).map(entry => entry.name).sort()[0]
+  if (!valueFile) return {}
+  const parsed = parse(await fs.readFile(path.join(runDir, valueFile), "utf8")) as { values?: unknown } | null
+  const values = record(parsed?.values)
+  if (!values) return {}
+  return Object.fromEntries(Object.entries(values).filter(([, value]) => typeof value === "string" || typeof value === "number" || value === null)) as Record<string, string | number | null>
+}
 async function readRunDocument(runDir: string) {
   const canonical = path.join(runDir, "satellite.json")
   const raw = await fs.readFile(canonical, "utf8")
@@ -82,10 +112,11 @@ async function readRunDocument(runDir: string) {
 }
 
 export async function buildRunViewModel(run: MissionRunReference) {
-  const [loadedDocument, manifestSource, workflow] = await Promise.all([
+  const [loadedDocument, manifestSource, workflow, persistedMissionValues] = await Promise.all([
     readRunDocument(run.runDir),
     loadRunManifest(run.runDir),
     loadRunWorkflowLog(run.runDir),
+    readPersistedMissionValues(run.runDir),
   ])
   const { document, source } = loadedDocument
   const manifest = record(manifestSource)
@@ -98,7 +129,7 @@ export async function buildRunViewModel(run: MissionRunReference) {
   return {
     artifacts,
     document,
-    missionValues: missionValues(document, templateId),
+    missionValues: { ...missionValues(document, templateId), ...persistedMissionValues },
     runId: run.runId,
     runPath: run.runPath,
     satelliteAssumptions: satelliteAssumptions(document),

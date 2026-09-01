@@ -171,6 +171,14 @@
         "initial_orbit": { "epoch_tai_mod_julian": null, "semi_major_axis_km": null, "eccentricity": null, "inclination_deg": null, "raan_deg": null, "arg_of_perigee_deg": null, "true_anomaly_deg": null },
         "minimum_reboost_altitude_km": null, "target_semi_major_axis_km": null, "initial_fuel_mass_kg": null, "fuel_reserve_kg": null, "final_altitude_km": null
       },
+      "geo_gso_orbit_keeping": {
+        "initial_orbit": { "epoch_tai_mod_julian": null, "semi_major_axis_km": null, "eccentricity": null, "inclination_deg": null, "raan_deg": null, "arg_of_perigee_deg": null, "true_anomaly_deg": null },
+        "initial_fuel_mass_kg": null,
+        "north_south_tolerance_deg": 0.01,
+        "east_west_tolerance_deg": 0.01,
+        "eccentricity_tolerance": 0.0004,
+        "days_of_station_keeping": 30
+      },
       "electric_propulsion_transfer": {
         "initial_orbit": { "epoch_tai_mod_julian": null, "semi_major_axis_km": null, "eccentricity": null, "inclination_deg": null, "raan_deg": null, "arg_of_perigee_deg": null, "true_anomaly_deg": null },
         "target_final_altitude_km": null

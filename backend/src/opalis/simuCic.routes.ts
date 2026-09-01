@@ -13,6 +13,7 @@ import { loadRunDigitalThreadSnapshot } from "../digitalThread/digitalThreadStor
 import { writeSimuCicDefinition } from "./simuCicDefinition.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { cancelActiveCalculations, registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
+import { runStageExclusively } from "../runs/runExecutionRegistry.js"
 import { loadRunWorkflowLog } from "./workflowRunLog.js"
 import { beginRunStage, completeRunStage, failRunStage } from "../runs/runLifecycle.js"
 import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
@@ -152,6 +153,10 @@ async function convertGmatEphemeris(settings: ReturnType<typeof requiredSimuCicC
     nativePath(converter),
     nativePath(ephemeris),
     "--output", nativePath(convertedEphemeris),
+    // Long LEO runs can contain ~100k adaptive GMAT samples.  The OEM is kept
+    // in full; Simu-CIC gets a bounded, evenly sampled CIC input so its GUI
+    // does not exhaust its native data structures.
+    "--max-records", "18000",
     "--json",
   ]
   let output = ""
@@ -233,6 +238,7 @@ export async function runSimuCicForRun(config: AppConfig, root: string, runDir: 
   const conversion = await convertGmatEphemeris(settings, runDir)
   const saveRoot = path.join(runDir, "opalis", "02-simu-cic", "01-execution-complete")
   const cicOutput = path.join(runDir, "opalis", "02-simu-cic", "02-fichiers-cic")
+  const diagnosticsDir = path.join(runDir, "opalis", "02-simu-cic", "diagnostics")
   await fs.mkdir(saveRoot, { recursive: true })
   const args = [
     nativePath(settings.simuCicRunner), "--gui", "--hide-window",
@@ -243,6 +249,7 @@ export async function runSimuCicForRun(config: AppConfig, root: string, runDir: 
     "--base-scenario", nativePath(inputScenario),
     "--save-root", nativePath(saveRoot),
     "--cic-output", nativePath(cicOutput),
+    "--diagnostics-dir", nativePath(diagnosticsDir),
   ]
   const output = await runCommand(settings.workerPython, args, runDir, settings.timeoutMs)
   const cicSatDir = path.join(cicOutput, "Sat")
@@ -280,7 +287,7 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     const cancelled = cancelActiveCalculations(root, runDir)
     if (runDir) {
       const workflow = await loadRunWorkflowLog(runDir)
-      for (const stage of ["simu_cic", "opalis"] as const) {
+      for (const stage of ["simu_cic", "opalis", "rf_comlink"] as const) {
         if (workflow.stages[stage].status === "running") await failRunStage(runDir, stage, "Stopped by the user.")
       }
     }
@@ -310,7 +317,7 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
     try {
-      return reply.send(await runSimuCicForRun(config, root, runDir))
+      return reply.send(await runStageExclusively(runDir, "simu_cic", () => runSimuCicForRun(config, root, runDir)))
     } catch (error) {
       await failRunStage(runDir, "simu_cic", getErrorMessage(error, "failed to run Simu-CIC")).catch(() => undefined)
       return reply.status(422).send({ error: getErrorMessage(error, "failed to run Simu-CIC") })
