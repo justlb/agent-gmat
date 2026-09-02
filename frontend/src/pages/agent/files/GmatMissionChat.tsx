@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { MarkdownText } from '../../../components/outputMarkdown'
 import type { AgentChatMode } from '../AgentRecorderControl'
 import { getSelectedSatellite, listSimuCicGroundStations, saveSimuCicConfiguration, type PredefinedGroundStation, type SimuCicConfiguration } from '../satelliteLibraryApi'
@@ -234,6 +234,11 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
   const [runValuesVerification, setRunValuesVerification] = useState('')
   const [satelliteAssumptions, setSatelliteAssumptions] = useState<Assumption[]>([])
   const [templateDefinitions, setTemplateDefinitions] = useState<MissionTemplateDefinition[]>([])
+  // Loading the current digital thread is asynchronous.  Keep an explicit
+  // generation so an older load cannot put the picker back to Nadir after an
+  // engineer has just selected a station in the draft.
+  const simuCicLoadGeneration = useRef(0)
+  const simuCicSource = useRef<string | null>(null)
   const isRunScopedWorkspace = /[\\/]gmat[\\/]mission-runs[\\/][^\\/]+$/u.test(workspaceDir ?? '')
   useEffect(() => { setEditingRunValues(false) }, [activeRunId])
   useEffect(() => {
@@ -244,11 +249,13 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
   useEffect(() => { let cancelled = false; void listMissionTemplateDefinitions().then(items => { if (!cancelled) setTemplateDefinitions(items) }).catch(() => { if (!cancelled) setTemplateDefinitions([]) }); return () => { cancelled = true } }, [])
   useEffect(() => {
     let cancelled = false
-    // Do not render an attitude law from the previously selected draft/run
-    // while the next run's satellite.json is loading. That brief stale state
-    // made e.g. "Bremen" appear although the new run and Simu-CIC calculation
-    // both use the default nadir law.
-    setSimuCic({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
+    const loadGeneration = ++simuCicLoadGeneration.current
+    const source = `${workspaceDir ?? ''}\u0000${activeRunId ?? ''}`
+    const sourceChanged = simuCicSource.current !== source
+    simuCicSource.current = source
+    // Reset only when changing data source. A refresh of the same draft must
+    // retain the selected station while its saved satellite.json is reloaded.
+    if (sourceChanged) setSimuCic({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
     // A first message is sent while Mission Studio is switching from the
     // global workspace to a new dated planning run. The global workspace may
     // legitimately contain a station choice from a previous conversation,
@@ -288,7 +295,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
         })
     void runView
       .then(result => {
-        if (cancelled) return
+        if (cancelled || simuCicLoadGeneration.current !== loadGeneration) return
         const configuration = result.simuCic
         setSimuCic(configuration.attitude_mode === 'ground_station_tracking'
           ? configuration
@@ -297,9 +304,10 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
         setRunValuesVerification(result.verification)
         setSatelliteAssumptions(result.satelliteAssumptions)
       })
-      .catch(() => { if (!cancelled) { setSimuCic({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null }); setSavedRunValues(null); setRunValuesVerification('Unable to verify satellite.json'); setSatelliteAssumptions([]) } })
+      .catch(() => { if (!cancelled && simuCicLoadGeneration.current === loadGeneration) { if (sourceChanged) setSimuCic({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null }); setSavedRunValues(null); setRunValuesVerification('Unable to verify satellite.json'); setSatelliteAssumptions([]) } })
     return () => { cancelled = true }
-  }, [workspaceDir, isRunScopedWorkspace, draft?.draftId, draft?.status, draft?.updatedAt, activeRunId, chatMode, simuCicRefreshNonce])
+  // Draft edits do not change the workspace that owns this configuration.
+  }, [workspaceDir, isRunScopedWorkspace, activeRunId, chatMode, simuCicRefreshNonce])
   const template = chatMode === 'general' ? null : missionTemplateForChatMode(chatMode)
   const fields = (template ? templateDefinitions.find(item => item.id === template as GmatMissionTemplateId)?.ui.missionInputFields ?? [] : [])
     .filter(field => field.path === 'spacecraft.initialFuelMassKg' || (!field.path.startsWith('spacecraft.') && !field.path.startsWith('propulsion.') && !field.path.startsWith('power.')))
@@ -335,6 +343,9 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
   const simuCicComplete = simuCic.attitude_mode === 'nadir_pointing' || (simuCic.attitude_mode === 'ground_station_tracking' && !simuCicNeedsStations)
   const updateGroundStation = (stationId: string) => {
     if (busy) return
+    // Invalidate an in-flight initial load before showing the optimistic
+    // selection; its stale response must never overwrite this choice.
+    simuCicLoadGeneration.current += 1
     const next: SimuCicConfiguration = stationId
       ? { attitude_mode: 'ground_station_tracking', ground_station_ids: [stationId], simultaneous_visibility_policy: 'first_visible_station_wins' }
       : { attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null }
