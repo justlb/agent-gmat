@@ -26,6 +26,7 @@ import { rfComlinkRoutes } from "../rfComlink/rfComlink.routes.js"
 import { rfComlinkPreparationRoutes } from "../rfComlink/rfComlinkPreparation.routes.js"
 import { vtsRoutes } from "../vts/vts.routes.js"
 import { runViewRoutes } from "../runs/runView.routes.js"
+import { missionPipelineRoutes } from "../runs/missionPipeline.routes.js"
 
 export async function registerApiRoutes(
   fastify: FastifyInstance,
@@ -60,4 +61,5 @@ export async function registerApiRoutes(
   await fastify.register(rfComlinkPreparationRoutes)
   await fastify.register(vtsRoutes)
   await fastify.register(runViewRoutes)
+  await fastify.register(missionPipelineRoutes)
 }

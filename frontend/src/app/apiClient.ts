@@ -19,9 +19,11 @@ export function buildApiUrl(path: string, { apiBase, query }: Pick<ApiRequestOpt
 }
 
 export async function getApiErrorMessage(response: Response, fallback = 'Request failed') {
-  const payload = await response.json().catch(() => ({})) as ErrorPayload
+  const source = await response.text().catch(() => '')
+  const payload = (() => { try { return JSON.parse(source) as ErrorPayload } catch { return {} } })()
   if (typeof payload.error === 'string' && payload.error.trim()) return payload.error
   if (typeof payload.message === 'string' && payload.message.trim()) return payload.message
+  if (source.trim()) return `${fallback}: ${response.status} — ${source.trim().slice(0, 500)}`
   return `${fallback}: ${response.status}`
 }
 

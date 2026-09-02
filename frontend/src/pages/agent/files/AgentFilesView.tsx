@@ -216,7 +216,7 @@ export function AgentFilesView({
                 <section className="agent-gmat-saved-draft agent-gmat-planning-discussion">
                   <header>
                     <strong>Mission discussion · {draftTimestamp({ createdAt: planningDiscussion.createdAt, draftId: planningDiscussion.planningRunId } as OrbitKeepingDraft)}</strong>
-                    <small>Routing the GMAT template</small>
+                    <small>Routing the GMAT mission scenario</small>
                   </header>
                   {primaryMissionRunFiles.map(file => <a className="agent-gmat-draft-file" href={missionRunFileDownloadUrl(planningDiscussion, file)} key={file}><span>{file}</span><small>Download</small></a>)}
                   {missionRunFiles.some(file => !isPrimaryMissionFile(file)) ? (

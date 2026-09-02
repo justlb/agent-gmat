@@ -1,9 +1,9 @@
 import fs from "node:fs/promises"
-import os from "node:os"
 import path from "node:path"
 
 import { adaptDigitalThreadToGmat, syncDigitalThreadFromGmatDraft } from "../src/digitalThread/gmatDigitalThreadAdapter.js"
-import { captureDigitalThreadSnapshot, createPlanningRun, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, saveDigitalThread, setAtPath } from "../src/digitalThread/digitalThreadStore.js"
+import { captureDigitalThreadSnapshot, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, saveDigitalThread, setAtPath } from "../src/digitalThread/digitalThreadStore.js"
+import { createPlanningRun } from "../src/runs/missionRunService.js"
 import { listSatelliteDefinitions, selectSatelliteDefinition } from "../src/digitalThread/satelliteLibrary.js"
 import { finalizeMissionRun } from "../src/gmat/missionRunLifecycle.js"
 import { missionTemplateRuntime } from "../src/gmat/missionTemplateRuntime.js"
@@ -84,8 +84,20 @@ async function seedReferenceMission(workspaceDir: string, template: GmatTemplate
     "satellite.orbit.keplerian_elements.true_anomaly_deg": 250,
   }
   const root = `analysis_requests.gmat.${template === "orbit-keeping" ? "orbit_keeping" : template.replace(/-/gu, "_")}`
-  if (template === "orbit-keeping") values[`${root}.minimum_reboost_altitude_km`] = 180
-  if (template === "electric-propulsion-transfer") values[`${root}.burn_duration_days`] = 2
+  if (template === "orbit-keeping") {
+    // Keep the reboost target close to the trigger altitude. The generated
+    // burns are bounded to 0.02 km/s; asking a 180 km orbit to return to a
+    // 300 km SMA saturates that bound and makes DefaultDC diverge.
+    values[`${root}.minimum_reboost_altitude_km`] = 250
+    values[`${root}.target_semi_major_axis_km`] = 6631.1363
+  }
+  if (template === "electric-propulsion-transfer") {
+    values[`${root}.burn_duration_days`] = 2
+    // Required by the GMAT adapter to derive transfer.finalAltitudeKm.
+    // This representative LEO raise lets compatible electric satellites run
+    // through the batch campaign instead of being rejected before GMAT.
+    values[`${root}.target_final_altitude_km`] = 800
+  }
   if (template === "chemical-hohmann-transfer") values[`${root}.target_orbit.radius_km`] = 7378.1363
   if (template === "chemical-3d-transfer") {
     const gmat = document.analysis_requests.gmat as Record<string, unknown>
@@ -111,7 +123,11 @@ function workflowStages(detail: string): CampaignCase["workflow"] {
 }
 
 export async function runGmatCompatibilityCampaign({ execute = false }: { execute?: boolean } = {}): Promise<CampaignReport> {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-compatibility-campaign-"))
+  // GMAT is a Windows executable even when this campaign runs from WSL. Its
+  // scripts must therefore live below the mounted project drive, not /tmp.
+  const campaignRoot = path.join(getProjectRoot(), "reports", "gmat-batch-work")
+  await fs.mkdir(campaignRoot, { recursive: true })
+  const root = await fs.mkdtemp(path.join(campaignRoot, "gmat-compatibility-campaign-"))
   const cases: CampaignCase[] = []
   try {
     const [satellites, templates] = await Promise.all([listSatelliteDefinitions(), Promise.resolve(allGmatTemplateDefinitions())])
@@ -152,7 +168,9 @@ export async function runGmatCompatibilityCampaign({ execute = false }: { execut
         const draftWorkspace = draftDigitalThreadWorkspaceDir(planning.workspaceDir, template.id, confirmed.draftId)
         await syncDigitalThreadFromGmatDraft(draftWorkspace, confirmed)
         await syncDigitalThreadFromGmatDraft(planning.workspaceDir, confirmed)
-        const external = config?.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined
+        // Batch campaign contract: a scenario taking over one minute is
+        // reported as a failure, even when the normal interactive timeout is longer.
+        const external = config?.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: Math.min(config.tools.gmat.timeoutMs, 60_000) } : undefined
         const execution = await runtime.execute({ connection: { apiKey: "campaign", baseUrl: "http://campaign.invalid", model: "campaign" }, draft: confirmed, execution: external, workspaceDir: planning.workspaceDir })
         const snapshot = await captureDigitalThreadSnapshot(draftWorkspace)
         await finalizeMissionRun({ digitalThreadSnapshot: snapshot, draftConversation: [], result: execution.result, root, runDir: execution.runDir, workspaceDir: planning.workspaceDir })

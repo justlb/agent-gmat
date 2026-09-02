@@ -299,6 +299,22 @@ export async function syncSimuCicRequestToRunSnapshot(runDir: string, sourceDocu
   return snapshot
 }
 
+/** Carries the current Mission Studio attitude/RF selection into a draft just
+ * before GMAT snapshots it as an immutable run. Drafts keep their own GMAT
+ * values, but these downstream mission requests are selected in the shared
+ * workspace and may have changed after the draft was created. */
+export async function syncMissionAnalysisRequestsToDraft(workspaceDir: string, draftWorkspaceDir: string) {
+  const source = await loadOrCreateDigitalThread(workspaceDir)
+  const draft = await loadOrCreateDigitalThread(draftWorkspaceDir)
+  draft.analysis_requests.simu_cic = JSON.parse(JSON.stringify(source.analysis_requests.simu_cic)) as JsonValue
+  draft.analysis_requests.rf_comlink = JSON.parse(JSON.stringify(source.analysis_requests.rf_comlink)) as JsonValue
+  const provenance = asObject(draft.provenance.values) ?? {}
+  provenance["analysis_requests.simu_cic"] = { source: "mission_workspace", synchronized_at: new Date().toISOString() }
+  provenance["analysis_requests.rf_comlink"] = { source: "mission_workspace", synchronized_at: new Date().toISOString() }
+  draft.provenance.values = provenance
+  return saveDigitalThread(draftWorkspaceDir, draft)
+}
+
 function extractResponseText(payload: unknown) {
   if (payload && typeof payload === "object" && typeof (payload as { output_text?: unknown }).output_text === "string") return (payload as { output_text: string }).output_text.trim()
   const output = payload && typeof payload === "object" ? (payload as { output?: unknown }).output : undefined

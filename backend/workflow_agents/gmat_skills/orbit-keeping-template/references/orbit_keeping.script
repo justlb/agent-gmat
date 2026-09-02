@@ -356,11 +356,8 @@ While DefaultSC.ChemicalTank1.FuelMass > fuelReserve & DefaultSC.Earth.Altitude 
    Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode = DiscardAndContinue, ShowProgressWindow = true};
 
       Propagate 'Propagate to Periapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Periapsis};
-
-      % Burn magnitudes are in km/s.  Positive, bounded values prevent
-      % retrograde solver trials from creating an Earth-intersecting orbit.
-      Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation = 0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
-      Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation = 0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+      Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation = 0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+      Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation = 0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
 
       Maneuver 'Apply TOI' TOI(DefaultSC);
       Propagate 'Propagate to Apoapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Apoapsis};

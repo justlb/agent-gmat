@@ -812,7 +812,7 @@ export default function AgentPage() {
   const handleExecuteGmatDraft = useCallback(() => {
     if (!activeGmatDraft || gmatGenerating) return
     if (chatMode === 'general') {
-      setManagedRunError('Select an orbit-keeping or electric-propulsion template before executing a GMAT draft.')
+      setManagedRunError('Select an orbit-keeping or electric-propulsion mission scenario before executing a GMAT draft.')
       return
     }
     setGmatGenerating(true)
@@ -875,11 +875,34 @@ export default function AgentPage() {
         setChatMode('general')
         setSelectedMissionTemplate(null)
         refreshWorkspaceViews()
-        showSpeechText(`New planning run ${planningRun.planningRunId} created. Describe the mission to select its GMAT template.`)
+        showSpeechText(`New planning run ${planningRun.planningRunId} created. Describe the mission to select its GMAT mission scenario.`)
       })
       .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft creation failed'))
       .finally(() => setGmatGenerating(false))
   }, [activeContext.versionDir, gmatGenerating, refreshWorkspaceViews, showSpeechText])
+  const handleRunFullMissionPipeline = useCallback(() => {
+    if (!activeGmatDraft || gmatGenerating || chatMode === 'general') return
+    const scenario = missionTemplateForChatMode(chatMode)
+    setGmatGenerating(true)
+    setManagedRunError('')
+    setProgressPanelOpen(true)
+    setGmatWorkflowEntries(setGmatWorkflowStatus(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'), 'run_gmat', 'running'))
+    void missionTemplateRuntime(scenario).runFullPipeline(activeGmatDraft.draftId, gmatWorkspaceDir)
+      .then(result => {
+        setActiveGmatRun({ conversation: [], draftId: activeGmatDraft.draftId, result: result.result, runId: result.runId, runPath: result.runPath, template: scenario })
+        void getRunWorkflowLog(result.runPath).then(log => setGmatWorkflowEntries(workflowForSavedRun(log))).catch(() => undefined)
+        refreshWorkspaceViews()
+      })
+      .catch(reason => setManagedRunError(reason instanceof Error ? reason.message : 'Full mission pipeline failed'))
+      .finally(() => setGmatGenerating(false))
+  }, [activeGmatDraft, chatMode, gmatGenerating, gmatWorkspaceDir, refreshWorkspaceViews])
+  useEffect(() => {
+    if (!activeGmatRun) return
+    const refresh = () => { void getRunWorkflowLog(activeGmatRun.runPath).then(log => setGmatWorkflowEntries(workflowForSavedRun(log))).catch(() => undefined) }
+    refresh()
+    const timer = window.setInterval(refresh, 1500)
+    return () => window.clearInterval(timer)
+  }, [activeGmatRun?.runPath])
   const displayedSessionStatus = managedVoiceRunning || latestManagedStatus?.status === 'running'
     ? 'running'
     : latestManagedStatus?.status === 'completed' || latestManagedStatus?.status === 'partial'
@@ -1205,6 +1228,7 @@ export default function AgentPage() {
                   return planningRun.workspaceDir
                 }),
             onExecute: handleExecuteGmatDraft,
+            onRunFullPipeline: handleRunFullMissionPipeline,
             onMissionValuesChangeRequested: () => setMissionValuesChangeRequested(true),
             onNewRun: handleNewGmatDraft,
             onRunSimuCic: handleRunSimuCic,

@@ -89,7 +89,7 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showCompl
   if (activeView === 'tools') return showGncConfig ? 'GNC Tools' : 'GMAT Results'
   if (activeView === 'log') return 'Workspace Files'
   if (activeView === 'satellites') return 'Satellite Library'
-  if (activeView === 'templates') return 'GMAT Template Library'
+  if (activeView === 'templates') return 'GMAT Mission Scenario Library'
   if (activeView === 'mission') return 'Mission Studio'
   return 'Voice chat'
 }

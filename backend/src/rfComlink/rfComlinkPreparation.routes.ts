@@ -12,6 +12,7 @@ import { adaptDigitalThreadToRFComlink } from "./rfComlinkDigitalThreadAdapter.j
 import { loadRunWorkflowLog } from "../opalis/workflowRunLog.js"
 import { failRunStage } from "../runs/runLifecycle.js"
 import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
+import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
 
 type RunBody = { runPath?: unknown }
 type JsonRecord = Record<string, unknown>
@@ -26,14 +27,15 @@ function rfComlinkHomeForHost() {
   return windowsPath ? `/mnt/${windowsPath[1].toLowerCase()}/${windowsPath[2]}` : configured
 }
 
-function runProcess(command: string, args: string[]) {
+function runProcess(command: string, args: string[], runDir?: string) {
   return new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] })
+    const child = spawn(command, args, { cwd: runDir, stdio: ["ignore", "pipe", "pipe"] })
+    if (runDir) registerActiveCalculation(runDir, child)
     let stderr = ""
     child.stderr.setEncoding("utf8")
     child.stderr.on("data", chunk => { stderr += chunk })
-    child.once("error", reject)
-    child.once("close", code => code === 0 ? resolve() : reject(new Error(stderr.trim() || `${command} exited with code ${code ?? "unknown"}`)))
+    child.once("error", error => { if (runDir) unregisterActiveCalculation(runDir, child); reject(error) })
+    child.once("close", code => { if (runDir) unregisterActiveCalculation(runDir, child); code === 0 ? resolve() : reject(new Error(stderr.trim() || `${command} exited with code ${code ?? "unknown"}`)) })
   })
 }
 
@@ -144,7 +146,7 @@ export async function prepareRFComlinkScenario(root: string, runDir: string) {
   await fs.access(template)
   const script = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "02-prepare-scenario", "build_rf_comlink_scenario.py")
   const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
-  await runProcess(python, [script, "--template", template, "--inputs", inputs.outputPath, "--output", output])
+  await runProcess(python, [script, "--template", template, "--inputs", inputs.outputPath, "--output", output], runDir)
   return { ...inputs, scenario: relativeToWorkspaceRoot(root, output), scenarioPath: output }
 }
 

@@ -29,6 +29,7 @@ export type MissionTemplateFrontendRuntime = {
   execute: (draftId: string, options: MissionTemplateExecutionOptions) => Promise<OrbitKeepingGenerateResult>
   list: (workspaceDir?: string | null) => Promise<OrbitKeepingDraft[]>
   listFiles: (workspaceDir?: string | null) => Promise<MissionTemplateFile[]>
+  runFullPipeline: (draftId: string, workspaceDir?: string | null) => Promise<OrbitKeepingGenerateResult>
 }
 
 function asMissionDraft(draft: unknown) { return draft as OrbitKeepingDraft }
@@ -71,6 +72,12 @@ function genericRuntime(template: GmatMissionTemplateId): MissionTemplateFronten
         manifestPath: '', result: execution.result, resultPath: '', runId: execution.runId,
         runPath: execution.runPath, scriptPath: '', timeSeriesPath: '', valuesPath: '',
       }
+    },
+    runFullPipeline: async (draftId, workspaceDir) => {
+      const output = await requestApiJson<{ execution: { changes?: OrbitKeepingGenerateResult['changes']; result: OrbitKeepingGenerateResult['result']; runId: string; runPath: string } }>(templateDraftPath(template, `/${encodeURIComponent(draftId)}/run-full-pipeline`), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceDir: requireWorkspace(workspaceDir) }),
+      })
+      return { changes: output.execution.changes ?? [], draftId, latencyMs: output.execution.result.executionDurationMs ?? 0, manifestPath: '', result: output.execution.result, resultPath: '', runId: output.execution.runId, runPath: output.execution.runPath, scriptPath: '', timeSeriesPath: '', valuesPath: '' }
     },
     list: async workspaceDir => {
       if (!workspaceDir) return []

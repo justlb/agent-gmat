@@ -771,83 +771,83 @@ slots:
       {DefaultSC.Earth.Periapsis};
     value: "'Propagate to Periapsis'"
   - id: line_359_literal_1
-    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "'Vary TOI.V'"
   - id: line_359_literal_2
-    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
-    value: "0.003"
+    value: "0.001"
   - id: line_359_literal_3
-    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.0001"
   - id: line_359_literal_4
-    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0"
   - id: line_359_literal_5
-    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.02"
   - id: line_359_literal_6
-    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
-    value: "0.005"
+    value: "0.001"
   - id: line_359_literal_7
-    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.0"
   - id: line_359_literal_8
-    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "1.0"
   - id: line_360_literal_1
-    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "'Vary GOI.V'"
   - id: line_360_literal_2
-    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
-    value: "0.003"
+    value: "0.001"
   - id: line_360_literal_3
-    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.0001"
   - id: line_360_literal_4
-    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0"
   - id: line_360_literal_5
-    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.02"
   - id: line_360_literal_6
-    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
-    value: "0.005"
+    value: "0.001"
   - id: line_360_literal_7
-    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "0.0"
   - id: line_360_literal_8
-    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.003, {Perturbation =
-      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.005, AdditiveScaleFactor =
+    context: Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation =
+      0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor =
       0.0, MultiplicativeScaleFactor = 1.0});
     value: "1.0"
   - id: line_362_literal_1
@@ -879,7 +879,7 @@ slots:
   - id: line_367_literal_3
     context: Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0,
       {Tolerance = 0.005});
-    value: "0.005"
+    value: "0.001"
   - id: line_372_literal_1
     context: Report OrbitAnalysisReport DefaultSC.A1ModJulian
       DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass

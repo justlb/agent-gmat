@@ -18,6 +18,7 @@ import { loadRunWorkflowLog } from "./workflowRunLog.js"
 import { beginRunStage, completeRunStage, failRunStage } from "../runs/runLifecycle.js"
 import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
 import { resolveMissionRun } from "../runs/runWorkspace.js"
+import { acquireMissionPipelineLock, releaseMissionPipelineLock } from "../runs/missionPipelineLock.js"
 
 type RunBody = { runPath?: unknown }
 
@@ -161,6 +162,7 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
     const runDir = root ? resolveGmatRunDir(path.resolve(root), req.body?.runPath) : null
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    if (!acquireMissionPipelineLock(runDir, "opalis")) return reply.status(409).send({ error: "OPALIS is already running for this mission run" })
     let opalisStarted = false
     try {
       const workflow = await loadRunWorkflowLog(runDir)
@@ -212,7 +214,7 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
     } catch (error) {
       if (opalisStarted) await failRunStage(runDir, "opalis", getErrorMessage(error, "failed to run OPALIS scenario")).catch(() => undefined)
       return reply.status(422).send({ error: getErrorMessage(error, "failed to run OPALIS scenario") })
-    }
+    } finally { releaseMissionPipelineLock(runDir, "opalis") }
   })
 
   fastify.post<{ Body: RunBody }>("/api/opalis/open-prepared-scenario", async (req, reply) => {

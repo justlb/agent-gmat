@@ -17,6 +17,7 @@ import { loadRunWorkflowLog } from "./workflowRunLog.js"
 import { beginRunStage, completeRunStage, failRunStage } from "../runs/runLifecycle.js"
 import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
 import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
+import { acquireMissionPipelineLock, releaseMissionPipelineLock } from "../runs/missionPipelineLock.js"
 
 type RunBody = { runPath?: unknown }
 
@@ -111,23 +112,40 @@ async function reconcileGmatStatusFromEphemeris(runDir: string, ephemeris: strin
   return true
 }
 
-async function runCommand(executable: string, args: string[], cwd: string, timeoutMs: number) {
+async function runCommand(executable: string, args: string[], cwd: string, timeoutMs: number, completed?: () => Promise<boolean>) {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(executable, args, { cwd, windowsHide: true })
     registerActiveCalculation(cwd, child)
     let output = ""
+    let settled = false
     child.stdout.on("data", chunk => { output += String(chunk) })
     child.stderr.on("data", chunk => { output += String(chunk) })
+    const finish = (callback: () => void) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      if (completionTimer) clearInterval(completionTimer)
+      unregisterActiveCalculation(cwd, child)
+      callback()
+    }
     const timer = setTimeout(() => {
       child.kill()
-      reject(new Error("Simu-CIC timed out after " + timeoutMs + " ms"))
+      finish(() => reject(new Error("Simu-CIC timed out after " + timeoutMs + " ms")))
     }, timeoutMs)
-    child.once("error", error => { clearTimeout(timer); reject(error) })
+    const completionTimer = completed ? setInterval(() => {
+      void completed().then(isComplete => {
+        if (!isComplete) return
+        // Some GUI Scilab versions leave their launcher alive even after all
+        // CIC files have been written. The verified artifacts are the useful
+        // completion signal for a non-interactive mission pipeline.
+        child.kill()
+        finish(() => resolve(output))
+      }).catch(() => undefined)
+    }, 1_000) : null
+    child.once("error", error => finish(() => reject(error)))
     child.once("close", code => {
-      unregisterActiveCalculation(cwd, child)
-      clearTimeout(timer)
-      if (code === 0) resolve(output)
-      else reject(new Error("Simu-CIC failed with code " + code + ": " + output.slice(-2_000)))
+      if (code === 0) finish(() => resolve(output))
+      else finish(() => reject(new Error("Simu-CIC failed with code " + code + ": " + output.slice(-2_000))))
     })
   })
 }
@@ -218,6 +236,8 @@ export async function runSimuCicForRun(config: AppConfig, root: string, runDir: 
   const cicOutput = path.join(runDir, "opalis", "02-simu-cic", "02-fichiers-cic")
   await fs.mkdir(saveRoot, { recursive: true })
   const args = [
+    // Simu-CIC requires the GUI runtime of this installation, but its window
+    // remains hidden and artifact completion below keeps the pipeline batch.
     nativePath(settings.simuCicRunner), "--gui", "--hide-window",
     "--scilab", nativePath(guiBinFor(settings.scilabBin)),
     "--ephemeris", nativePath(conversion.convertedEphemeris),
@@ -227,7 +247,25 @@ export async function runSimuCicForRun(config: AppConfig, root: string, runDir: 
     "--save-root", nativePath(saveRoot),
     "--cic-output", nativePath(cicOutput),
   ]
-  const output = await runCommand(settings.workerPython, args, runDir, settings.timeoutMs)
+  const output = await runCommand(settings.workerPython, args, runDir, settings.timeoutMs, async () => {
+    const entries = await fs.readdir(saveRoot, { withFileTypes: true }).catch(() => [])
+    const completedRun = entries.find(entry => entry.isDirectory() && entry.name.startsWith("run_"))
+    if (!completedRun) return false
+    const generatedCic = path.join(saveRoot, completedRun.name, "CIC", "Sat")
+    const files: string[] = await fs.readdir(generatedCic).catch(() => [])
+    // These are the shared minimum inputs read immediately by OPALIS and
+    // RF-COMLINK. Waiting for all of them avoids a race with Simu-CIC's
+    // incremental writes when the GUI process itself does not exit promptly.
+    const requiredFiles = [
+      "Sat_SUN_ANGLE_SA_1.TXT", "Sat_SATELLITE_ECLIPSE.TXT", "Sat_EARTH_ANGLE_SA_1.TXT", "Sat_SATELLITE_ALTITUDE.TXT",
+      "Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT", "Sat_GEOGRAPHICAL_COORDINATES.TXT", "Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT",
+      "Sat_DISTANCE_GROUND_STATION_1.TXT", "Sat_GEOMETRICAL_VISIBILITY_GROUND_STATION_1.TXT", "Sat_SATELLITE_DIRECTION-GROUND_STATION_1_FRAME.TXT",
+    ]
+    if (!requiredFiles.every(file => files.includes(file))) return false
+    await fs.rm(cicOutput, { force: true, recursive: true }).catch(() => undefined)
+    await fs.cp(path.dirname(generatedCic), cicOutput, { recursive: true })
+    return true
+  })
   const cicSatDir = path.join(cicOutput, "Sat")
   const cicFiles = await fs.readdir(cicSatDir).catch(() => [])
   if (!cicFiles.some(file => file.endsWith(".TXT"))) throw new Error("Simu-CIC completed without producing CIC/Sat files")
@@ -263,7 +301,7 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     const cancelled = cancelActiveCalculations(root, runDir)
     if (runDir) {
       const workflow = await loadRunWorkflowLog(runDir)
-      for (const stage of ["simu_cic", "opalis"] as const) {
+      for (const stage of ["simu_cic", "opalis", "rf_comlink"] as const) {
         if (workflow.stages[stage].status === "running") await failRunStage(runDir, stage, "Stopped by the user.")
       }
     }
@@ -292,12 +330,13 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     const runDir = root ? resolveGmatRunDir(root, req.body?.runPath) : null
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     if (!runDir) return reply.status(400).send({ error: "invalid GMAT run path" })
+    if (!acquireMissionPipelineLock(runDir, "simu_cic")) return reply.status(409).send({ error: "Simu-CIC is already running for this mission run" })
     try {
       return reply.send(await runSimuCicForRun(config, root, runDir))
     } catch (error) {
       await failRunStage(runDir, "simu_cic", getErrorMessage(error, "failed to run Simu-CIC")).catch(() => undefined)
       return reply.status(422).send({ error: getErrorMessage(error, "failed to run Simu-CIC") })
-    }
+    } finally { releaseMissionPipelineLock(runDir, "simu_cic") }
   })
 
   fastify.post<{ Body: RunBody }>("/api/opalis/simu-cic/open-gui", async (req, reply) => {

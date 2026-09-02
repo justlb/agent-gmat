@@ -192,7 +192,7 @@ function RunComparisonMemory({ runs }: { runs: NonNullable<Draft>['runs'] }) {
 export type GmatMissionChatProps = {
   activeRunId?: string
   chatMode: AgentChatMode
-  /** Mission Studio inserts its template and satellite selectors directly
+  /** Mission Studio inserts its mission-scenario and satellite selectors directly
    * below the General heading, before mission-specific values. */
   contextContent?: ReactNode
   conversation?: Array<{ answer: string; askedAt: string; question: string }>
@@ -202,6 +202,7 @@ export type GmatMissionChatProps = {
   busy: boolean
   pending?: { error?: string; kind: 'draft' | 'run'; message: string; status: 'sending' | 'failed' } | null
   onExecute: () => void
+  onRunFullPipeline?: () => void
   /** Creates the dated mission folder when the engineer configures a
    * downstream tool before the first GMAT execution. */
   onEnsureMissionRun?: () => Promise<string>
@@ -224,7 +225,7 @@ export type GmatMissionChatProps = {
   workspaceDir?: string | null
 }
 
-export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, conversation = [], draft, error, gmatRunFailed = false, onEnsureMissionRun, onExecute, onMissionValuesChangeRequested, onNewRun, onRunSimuCic, onRunOpalis, onPrepareRfComlink, onStopCalculations, onRetry, onSend, onUpdateMissionValue, onSimuCicConfigurationChanged, pending, simuCicConversation = [], simuCicCompleted = false, simuCicRefreshNonce = 0, simuCicRunning = false, rfComlinkPreparing = false, rfComlinkCalculationStarting = false, workspaceDir }: GmatMissionChatProps) {
+export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, conversation = [], draft, error, gmatRunFailed = false, onEnsureMissionRun, onExecute, onRunFullPipeline, onMissionValuesChangeRequested, onNewRun, onRunSimuCic, onRunOpalis, onPrepareRfComlink, onStopCalculations, onRetry, onSend, onUpdateMissionValue, onSimuCicConfigurationChanged, pending, simuCicConversation = [], simuCicCompleted = false, simuCicRefreshNonce = 0, simuCicRunning = false, rfComlinkPreparing = false, rfComlinkCalculationStarting = false, workspaceDir }: GmatMissionChatProps) {
   const [message, setMessage] = useState('')
   const [editingRunValues, setEditingRunValues] = useState(false)
   const [simuCic, setSimuCic] = useState<SimuCicConfiguration>({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
@@ -422,6 +423,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
                   type="button"
                   onClick={onExecute}
                 >Confirm and run GMAT</button>
+                {onRunFullPipeline ? <button className="gmat-mission-run-button" disabled={busy || draft.status !== 'ready'} type="button" onClick={onRunFullPipeline}>{busy ? 'GMAT calculation running…' : 'Run complete mission pipeline'}</button> : null}
                 {draft.status !== 'ready' && !draft.missing.length && blockers.length ? <p className="gmat-mission-run-blocker">GMAT is blocked by the safety check shown in the discussion.</p> : null}
               </> : null}</> : null}</> : null}
             </> : activeRunId ? <p>Loading saved mission values…</p> : <p>Describe the mission to start a new draft.</p>}
@@ -441,7 +443,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
               {warnings.map(item => <StatusMessage key={item.code} text={item.message} title="GMAT warning" />)}
               {activeRunId ? runConversation.map((turn, index) => <Turn answer={turn.answer} key={`${turn.askedAt}-${index}`} question={turn.question} />) : draft ? draftConversation.map((turn, index) => <Turn answer={turn.answer} key={`${turn.askedAt}-${index}`} question={turn.question} />) : simuCicConversation.map((turn, index) => <Turn answer={turn.answer} key={`${turn.askedAt}-${index}`} question={turn.question} />)}
               {pending ? <><p className="is-user is-pending"><span>You</span>{pending.message}</p>{pending.status === 'sending' ? <p className="is-assistant is-pending"><span>GMAT assistant</span>{pending.kind === 'run' ? 'Analyzing saved results…' : 'Thinking…'}</p> : <div className="gmat-mission-send-error"><span>GMAT assistant</span><p>{pending.error || 'Message was not sent.'}</p><button type="button" onClick={onRetry}>Retry</button></div>}</> : null}
-              {!activeRunId && !draft && !simuCicConversation.length && !pending ? <p className="gmat-mission-chat-placeholder">Start with the template selector, choose a compatible satellite, then describe the mission. The assistant will guide you through the remaining inputs.</p> : null}
+              {!activeRunId && !draft && !simuCicConversation.length && !pending ? <p className="gmat-mission-chat-placeholder">Start with the mission scenario selector, choose a compatible satellite, then describe the mission. The assistant will guide you through the remaining inputs.</p> : null}
             </div>
             <div className="gmat-mission-composer"><textarea disabled={busy} onChange={event => setMessage(event.target.value)} onKeyDown={onKeyDown} placeholder={activeRunId ? 'Ask a question about this completed run...' : 'Describe the mission parameters to validate...'} rows={3} value={message} /><button disabled={busy || !message.trim()} onClick={submit} type="button">Send</button>{busy && onStopCalculations ? <button className="gmat-mission-stop-button" onClick={onStopCalculations} type="button">Stop calculations</button> : null}</div>
           </section>

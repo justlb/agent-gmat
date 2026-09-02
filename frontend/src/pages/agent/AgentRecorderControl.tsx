@@ -430,7 +430,7 @@ export function AgentRecorderControl({
                   <section className="agent-gmat-draft-assumptions" aria-label="Assumed defaults to confirm">
                     <header>
                       <strong>Assumed defaults to confirm</strong>
-                      <span>Template defaults</span>
+                      <span>Mission scenario defaults</span>
                     </header>
                     <div className="agent-gmat-optional-examples">
                       <ul>{(gmatDraft.safety?.assumptions ?? []).map(assumption => <li key={assumption.label}>{assumption.label}: {assumption.value}</li>)}</ul>

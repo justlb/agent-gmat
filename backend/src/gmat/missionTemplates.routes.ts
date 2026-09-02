@@ -7,13 +7,14 @@ import type { FastifyInstance } from "fastify"
 
 import type { AppConfig } from "../config.js"
 import { adaptDigitalThreadToGmat, digitalThreadGmatSeed, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
-import { captureDigitalThreadSnapshot, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread } from "../digitalThread/digitalThreadStore.js"
+import { captureDigitalThreadSnapshot, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, syncMissionAnalysisRequestsToDraft } from "../digitalThread/digitalThreadStore.js"
 import { appendMissionConversation } from "../digitalThread/missionConversationStore.js"
 import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage } from "../shared/index.js"
 import { artifactDefinitionForPath, contentTypeForArtifact, RUN_ARTIFACTS } from "../runs/artifactRegistry.js"
 import { missionRunsDirectory } from "../runs/runWorkspace.js"
+import { startMissionPipeline } from "../runs/missionPipeline.routes.js"
 import { resolveMissionWorkspace } from "./missionWorkspace.js"
 import { missionTemplateRuntime, type MissionTemplateDraft } from "./missionTemplateRuntime.js"
 import { finalizeMissionRun } from "./missionRunLifecycle.js"
@@ -263,11 +264,46 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
       const runtime = missionTemplateRuntime(template)
       const draft = await runtime.load(workspaceDir, req.params.draftId)
       if (!draft.confirmed) throw new Error("confirm the GMAT mission draft before execution")
-      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftDigitalThreadWorkspaceDir(workspaceDir, template, draft.draftId))
+      const draftWorkspaceDir = draftDigitalThreadWorkspaceDir(workspaceDir, template, draft.draftId)
+      await syncMissionAnalysisRequestsToDraft(workspaceDir, draftWorkspaceDir)
+      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftWorkspaceDir)
       const execution = await runtime.execute({ connection: resolveModelBackend(config, "chatModel"), draft, execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined, workspaceDir })
       const runPath = await finalizeMissionRun({ digitalThreadSnapshot, draftConversation: (draft as { conversation?: Array<{ assistant: string; user: string }> }).conversation ?? [], result: execution.result, root, runDir: execution.runDir, workspaceDir })
       const recordedDraft = await runtime.recordRun({ draft, execution, runPath, workspaceDir })
       return reply.send({ ...execution, draft: presentDraft(recordedDraft, template), runPath })
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to execute GMAT mission draft") }) }
+  })
+
+  /** Executes any mission scenario and immediately hands its immutable run to
+   * the shared Simu-CIC → (OPALIS || RF-COMLINK) pipeline. */
+  fastify.post<{ Params: TemplateParams & { draftId: string }; Body: WorkspaceBody }>("/api/gmat/templates/:template/drafts/:draftId/run-full-pipeline", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const template = resolveTemplate(req.params.template)
+      const workspaceDir = resolveWorkspace(root, req.body?.workspaceDir)
+      const runtime = missionTemplateRuntime(template)
+      const current = await runtime.load(workspaceDir, req.params.draftId)
+      const requiredPaths = (current as { digitalThreadRequiredPaths?: unknown }).digitalThreadRequiredPaths
+      const authoritative = Array.isArray(requiredPaths) && requiredPaths.length
+        ? (await digitalThreadGmatSeed(draftDigitalThreadWorkspaceDir(workspaceDir, template, current.draftId), template)).values
+        : undefined
+      const draft = current.confirmed ? current : await runtime.confirm(workspaceDir, current.draftId, authoritative)
+      if (draft.missing.length) throw new Error(`complete the mission scenario before starting the full pipeline: ${draft.missing.join(", ")}`)
+      await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
+      const draftWorkspaceDir = draftDigitalThreadWorkspaceDir(workspaceDir, template, draft.draftId)
+      await syncMissionAnalysisRequestsToDraft(workspaceDir, draftWorkspaceDir)
+      const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftWorkspaceDir)
+      const execution = await runtime.execute({ connection: resolveModelBackend(config, "chatModel"), draft, execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined, workspaceDir })
+      if (execution.result.status !== "completed") throw new Error(execution.result.error || `GMAT ended with status ${execution.result.status}`)
+      const runPath = await finalizeMissionRun({ digitalThreadSnapshot, draftConversation: (draft as { conversation?: Array<{ assistant: string; user: string }> }).conversation ?? [], result: execution.result, root, runDir: execution.runDir, workspaceDir })
+      const recordedDraft = await runtime.recordRun({ draft, execution, runPath, workspaceDir })
+      // execution.runDir has just been created and finalized above. Hand it to
+      // the orchestrator directly: re-resolving it through an internal HTTP
+      // request was the source of the 400 returned after a successful GMAT run.
+      const pipelineRunPath = runPath.split(path.sep).join("/")
+      const workflow = await startMissionPipeline({ fastify, headers: req.headers, root, runDir: execution.runDir, runPath: pipelineRunPath })
+      return reply.code(202).send({ execution, draft: presentDraft(recordedDraft, template), pipeline: { ok: true, workflow }, runPath: pipelineRunPath })
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to run full mission pipeline") }) }
   })
 }
