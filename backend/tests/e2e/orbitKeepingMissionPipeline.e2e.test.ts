@@ -49,10 +49,10 @@ describe("real Orbit Keeping mission pipeline", { skip: !execute }, () => {
       assert.equal(created.statusCode, 200, created.body)
       const draftId = (created.json() as { draftId: string }).draftId
       for (const [fieldPath, value] of [
-        ["initialOrbit.epoch", "21545"], ["initialOrbit.smaKm", "6631.1363"], ["initialOrbit.eccentricity", "0"],
+        ["initialOrbit.epoch", "21545"], ["initialOrbit.smaKm", "6678.1363"], ["initialOrbit.eccentricity", "0"],
         ["initialOrbit.inclinationDeg", "0"], ["initialOrbit.raanDeg", "0"], ["initialOrbit.argPeriapsisDeg", "0"], ["initialOrbit.trueAnomalyDeg", "0"],
-        ["spacecraft.dryMassKg", "300"], ["spacecraft.initialFuelMassKg", "100"], ["spacecraft.dragAreaM2", "15"], ["spacecraft.dragCoefficient", "2.5"],
-        ["propulsion.ispSeconds", "300"], ["stationKeeping.minimumAltitudeKm", "250"], ["stationKeeping.targetSmaKm", "6631.1363"], ["stationKeeping.fuelReserveKg", "7"], ["endOfLife.finalAltitudeKm", "150"],
+        ["spacecraft.dryMassKg", "300"], ["spacecraft.initialFuelMassKg", "10"], ["spacecraft.dragAreaM2", "15"], ["spacecraft.dragCoefficient", "2.5"],
+        ["propulsion.ispSeconds", "300"], ["stationKeeping.minimumAltitudeKm", "250"], ["stationKeeping.targetSmaKm", "6678.1363"], ["stationKeeping.fuelReserveKg", "1"], ["endOfLife.finalAltitudeKm", "150"],
       ]) {
         const updated = await server.inject({ method: "PATCH", url: `${base}/drafts/${draftId}/values`, headers, payload: { path: fieldPath, value, workspaceDir } })
         assert.equal(updated.statusCode, 200, updated.body)

@@ -295,9 +295,9 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
       await syncMissionAnalysisRequestsToDraft(workspaceDir, draftWorkspaceDir)
       const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftWorkspaceDir)
       const execution = await runtime.execute({ connection: resolveModelBackend(config, "chatModel"), draft, execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined, workspaceDir })
-      if (execution.result.status !== "completed") throw new Error(execution.result.error || `GMAT ended with status ${execution.result.status}`)
       const runPath = await finalizeMissionRun({ digitalThreadSnapshot, draftConversation: (draft as { conversation?: Array<{ assistant: string; user: string }> }).conversation ?? [], result: execution.result, root, runDir: execution.runDir, workspaceDir })
       const recordedDraft = await runtime.recordRun({ draft, execution, runPath, workspaceDir })
+      if (execution.result.status !== "completed") throw new Error(execution.result.error || `GMAT ended with status ${execution.result.status}`)
       // execution.runDir has just been created and finalized above. Hand it to
       // the orchestrator directly: re-resolving it through an internal HTTP
       // request was the source of the 400 returned after a successful GMAT run.

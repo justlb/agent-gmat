@@ -311,7 +311,7 @@ EphemerisFile1.WriteEphemeris = true;
 %----------------------------------------
 %---------- Arrays, Variables, Strings
 %----------------------------------------
-Create Variable minAltitude finalAltitude fuelReserve targetSMA;
+Create Variable minAltitude finalAltitude fuelReserve targetSMA minimumFuelForReboost;
 minAltitude = 250;
 finalAltitude = 150;
 fuelReserve = 1;
@@ -346,10 +346,15 @@ OrbitView1_View.FOVy = 45;
 
 BeginMissionSequence;
 
+minimumFuelForReboost = fuelReserve + 5;
+
 % Do not issue a new "propagate to minAltitude" command after a reboost
 % sequence has left the spacecraft below that altitude.  In that case the
 % decaying orbit cannot cross minAltitude again and would propagate to entry.
-While DefaultSC.ChemicalTank1.FuelMass > fuelReserve & DefaultSC.Earth.Altitude > minAltitude
+% Preserve enough propellant for a full targeter correction. Without this
+% margin, a final reboost may start above fuelReserve and still drive the
+% tank below zero during the two impulsive burns.
+While DefaultSC.ChemicalTank1.FuelMass > minimumFuelForReboost & DefaultSC.Earth.Altitude > minAltitude
 
    Propagate 'Propagate to Reboost Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = minAltitude};
 
