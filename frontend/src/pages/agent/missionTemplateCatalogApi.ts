@@ -10,6 +10,8 @@ import type { GmatChatMode, GmatMissionTemplateId } from './gmatMissionTemplates
 
 export type MissionInputField = {
   derived?: 'initialAltitude'
+  kind?: 'boolean'
+  required?: boolean
   label: string
   path: string
   unit?: string
@@ -49,3 +51,4 @@ export function listMissionTemplateDefinitions() {
     })
   return catalogueRequest
 }
+

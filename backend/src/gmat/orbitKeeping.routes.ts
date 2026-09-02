@@ -225,7 +225,12 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
     const userWorkspaceRoot = getRequestUserWorkspaceRoot()
     if (!userWorkspaceRoot) return reply.status(500).send({ error: "user workspace is unavailable" })
     try {
-      return reply.send(await createOrbitKeepingDraft(resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)))
+      const workspaceDir = resolveOutputWorkspaceDir(userWorkspaceRoot, req.body?.workspaceDir)
+      const adapted = await digitalThreadGmatSeed(workspaceDir, "orbit-keeping")
+      const draft = await createOrbitKeepingDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
+      await syncDigitalThreadFromGmatDraft(draftDigitalThreadWorkspaceDir(workspaceDir, "orbit-keeping", draft.draftId), draft)
+      await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
+      return reply.send(draft)
     } catch (err) {
       return reply.status(422).send({ error: getErrorMessage(err, "failed to create GMAT draft") })
     }
@@ -496,3 +501,4 @@ export async function orbitKeepingRoutes(fastify: FastifyInstance, { config }: {
     }
   })
 }
+

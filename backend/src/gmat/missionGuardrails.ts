@@ -13,6 +13,17 @@ export type GmatMissionGuardrailTemplate =
   | "electric-propulsion-transfer"
   | "chemical-hohmann-transfer"
   | "chemical-3d-transfer"
+  | "chemical-2d-transfer"
+  | "chemical-escape"
+  | "chemical-leo-orbit-maintenance"
+  | "electrical-2d-transfer"
+  | "electrical-3d-transfer"
+  | "electrical-escape"
+  | "electrical-leo-orbit-maintenance"
+  | "geo-chemical-station-keeping"
+  | "geo-electric-station-keeping"
+  | "gso-chemical-station-keeping"
+  | "gso-electric-station-keeping"
 
 export type MissionGuardrail = { code: string; message: string; path: string }
 export type MissionValues = Record<string, string | number | null | undefined>
@@ -160,3 +171,4 @@ export function assertGmatMissionGuardrails(template: GmatMissionGuardrailTempla
   if (guards.length) throw new Error(`GMAT mission guardrails failed: ${guards.map(guard => guard.message).join(" ")}`)
   return guards
 }
+

@@ -1,6 +1,6 @@
 {
   "id": "geo-gso-orbit-keeping",
-  "name": "GEO Station Keeping — Chemical",
+  "name": "Legacy — GEO Station Keeping (Chemical)",
   "description": "Chemical GEO station keeping with impulsive East/West and node-based North/South deadband corrections.",
   "analysis_request_key": "geo_gso_orbit_keeping",
   "draft_directory": [
@@ -70,6 +70,13 @@
         "path": "initialOrbit.epoch"
       },
       {
+        "label": "Initial altitude",
+        "path": "initialOrbit.altitudeKm",
+        "derived": "initialAltitude",
+        "required": true,
+        "unit": "km"
+      },
+      {
         "label": "Semi-major axis",
         "path": "initialOrbit.smaKm",
         "unit": "km"
@@ -101,7 +108,8 @@
       {
         "label": "Dry mass",
         "path": "spacecraft.dryMassKg",
-        "unit": "kg"
+        "unit": "kg",
+        "required": false
       },
       {
         "label": "Initial fuel mass",
@@ -111,16 +119,19 @@
       {
         "label": "Drag area",
         "path": "spacecraft.dragAreaM2",
-        "unit": "m²"
+        "unit": "m²",
+        "required": false
       },
       {
         "label": "Drag coefficient",
-        "path": "spacecraft.dragCoefficient"
+        "path": "spacecraft.dragCoefficient",
+        "required": false
       },
       {
         "label": "Specific impulse",
         "path": "propulsion.ispSeconds",
-        "unit": "s"
+        "unit": "s",
+        "required": false
       },
       {
         "label": "East/West tolerance",
@@ -164,23 +175,28 @@
       },
       {
         "label": "Decrement mass",
-        "path": "propagation.decrementMass"
+        "path": "propagation.decrementMass",
+        "required": false
       },
       {
         "label": "Include Sun point mass",
-        "path": "propagation.includeSun"
+        "path": "propagation.includeSun",
+        "required": false
       },
       {
         "label": "Include Moon point mass",
-        "path": "propagation.includeLuna"
+        "path": "propagation.includeLuna",
+        "required": false
       },
       {
         "label": "Atmosphere model",
-        "path": "propagation.atmosphereModel"
+        "path": "propagation.atmosphereModel",
+        "required": false
       },
       {
         "label": "Relativistic correction",
-        "path": "propagation.relativisticCorrection"
+        "path": "propagation.relativisticCorrection",
+        "required": false
       }
     ]
   },

@@ -1,0 +1,195 @@
+{
+  "id": "chemical-3d-transfer",
+  "analysis_request_key": "chemical_3d_transfer",
+  "chat_mode": "gmat-chemical-3d",
+  "name": "Chemical 3D Transfer",
+  "description": "Corrected GMAT scenario parameterized from satellite data and values confirmed in Mission Studio.",
+  "propulsion_requirement": "chemical",
+  "initial_state_representation": "Keplerian",
+  "gmat_reference_script": "chemical_3D_transfer.script",
+  "draft_directory": [
+    "gmat",
+    "chemical-3d-transfer",
+    "drafts"
+  ],
+  "downstream_analyses": [
+    "opalis",
+    "simu-cic",
+    "rf-comlink"
+  ],
+  "satellite_inputs": [
+    "dry mass",
+    "Cd",
+    "Cr",
+    "drag area",
+    "SRP area",
+    "propellant mass",
+    "specific impulse"
+  ],
+  "artifacts": [
+    {
+      "path": "chemical_3D_transfer.script",
+      "kind": "script",
+      "primary": true
+    },
+    {
+      "kind": "values",
+      "path": "chemical_3D_transfer.values.yaml"
+    },
+    {
+      "kind": "result",
+      "path": "gmat_result.json"
+    },
+    {
+      "kind": "log",
+      "path": "gmat.log"
+    },
+    {
+      "kind": "oem",
+      "path": "EphemerisFile1.oem"
+    }
+  ],
+  "ui": {
+    "objective": "Chemical 3D Transfer",
+    "summary": "Reference GMAT values are prefilled and must be reviewed before execution.",
+    "mission_input_fields": [
+      {
+        "label": "Epoch",
+        "path": "initialOrbit.epoch",
+        "required": false
+      },
+      {
+        "label": "Initial altitude",
+        "path": "initialOrbit.altitudeKm",
+        "required": true,
+        "unit": "km"
+      },
+      {
+        "label": "Initial semi-major axis",
+        "path": "initialOrbit.smaKm",
+        "unit": "km",
+        "required": true
+      },
+      {
+        "label": "Initial eccentricity",
+        "path": "initialOrbit.eccentricity",
+        "required": true
+      },
+      {
+        "label": "Initial inclination",
+        "path": "initialOrbit.inclinationDeg",
+        "required": true,
+        "unit": "deg"
+      },
+      {
+        "label": "Initial RAAN",
+        "path": "initialOrbit.raanDeg",
+        "required": false,
+        "unit": "deg"
+      },
+      {
+        "label": "Initial AOP",
+        "path": "initialOrbit.argPeriapsisDeg",
+        "required": false,
+        "unit": "deg"
+      },
+      {
+        "label": "Initial true anomaly",
+        "path": "initialOrbit.trueAnomalyDeg",
+        "required": false,
+        "unit": "deg"
+      },
+      {
+        "label": "Dry mass",
+        "path": "spacecraft.dryMassKg",
+        "required": false,
+        "unit": "kg"
+      },
+      {
+        "label": "Drag coefficient",
+        "path": "spacecraft.dragCoefficient",
+        "required": false
+      },
+      {
+        "label": "Reflectivity coefficient",
+        "path": "spacecraft.reflectivityCoefficient",
+        "required": false
+      },
+      {
+        "label": "Drag area",
+        "path": "spacecraft.dragAreaM2",
+        "required": false,
+        "unit": "m²"
+      },
+      {
+        "label": "SRP area",
+        "path": "spacecraft.srpAreaM2",
+        "required": false,
+        "unit": "m²"
+      },
+      {
+        "label": "Propellant mass",
+        "path": "propulsion.fuelMassKg",
+        "required": false,
+        "unit": "kg"
+      },
+      {
+        "label": "Specific impulse",
+        "path": "propulsion.ispSeconds",
+        "required": false,
+        "unit": "s"
+      },
+      {
+        "label": "Target SMA",
+        "path": "targetOrbit.smaKm",
+        "required": true,
+        "unit": "km"
+      },
+      {
+        "label": "Target inclination",
+        "path": "targetOrbit.inclinationDeg",
+        "required": true,
+        "unit": "deg"
+      },
+      {
+        "label": "Decrement mass",
+        "path": "propagation.decrementMass",
+        "required": false,
+        "kind": "boolean"
+      },
+      {
+        "label": "Include Sun point mass",
+        "path": "propagation.includeSun",
+        "required": false,
+        "kind": "boolean"
+      },
+      {
+        "label": "Include Luna point mass",
+        "path": "propagation.includeLuna",
+        "required": false,
+        "kind": "boolean"
+      },
+      {
+        "label": "Atmosphere model (None or MSISE90)",
+        "path": "propagation.atmosphereModel",
+        "required": false
+      },
+      {
+        "label": "Relativistic correction",
+        "path": "propagation.relativisticCorrection",
+        "required": false,
+        "kind": "boolean"
+      }
+    ],
+    "outputs": [
+      "GMAT report",
+      "OEM ephemeris",
+      "gmat.log",
+      "satellite.json"
+    ],
+    "satellite_requirements": [
+      "Satellite physical properties",
+      "Compatible propulsion subsystem"
+    ]
+  }
+}

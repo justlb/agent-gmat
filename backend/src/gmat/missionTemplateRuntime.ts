@@ -19,6 +19,7 @@ import { appendChemical3dDraftConversation, confirmChemical3dDraft, createChemic
 import { appendGeoElectricEndOfLifeDraftConversation, confirmGeoElectricEndOfLifeDraft, createGeoElectricEndOfLifeDraft, discussGeoElectricEndOfLifeDraft, generateGeoElectricEndOfLifeMission, loadGeoElectricEndOfLifeDraft, recordGeoElectricEndOfLifeDraftRun, setGeoElectricEndOfLifeDraftValue } from "./geoElectricEndOfLife.js"
 import { appendGeoGsoElectricStationKeepingDraftConversation, confirmGeoGsoElectricStationKeepingDraft, createGeoGsoElectricStationKeepingDraft, discussGeoGsoElectricStationKeepingDraft, generateGeoGsoElectricStationKeepingMission, loadGeoGsoElectricStationKeepingDraft, recordGeoGsoElectricStationKeepingDraftRun, setGeoGsoElectricStationKeepingDraftValue } from "./geoGsoElectricStationKeeping.js"
 import { appendGeoGsoOrbitKeepingDraftConversation, confirmGeoGsoOrbitKeepingDraft, createGeoGsoOrbitKeepingDraft, discussGeoGsoOrbitKeepingDraft, generateGeoGsoOrbitKeepingMission, loadGeoGsoOrbitKeepingDraft, recordGeoGsoOrbitKeepingDraftRun, setGeoGsoOrbitKeepingDraftValue } from "./geoGsoOrbitKeeping.js"
+import { appendCorrectedScenarioDraftConversation, confirmCorrectedScenarioDraft, correctedScenarios, createCorrectedScenarioDraft, discussCorrectedScenarioDraft, generateCorrectedScenarioMission, loadCorrectedScenarioDraft, recordCorrectedScenarioDraftRun, setCorrectedScenarioDraftValue } from "./correctedScenarioRuntime.js"
 
 export type MissionDraftValue = string | number | null
 
@@ -55,7 +56,9 @@ type MissionTemplateRuntime = {
 /* This is the only explicit mapping needed when a new template is introduced.
  * Its GMAT generator remains template-specific, while shared HTTP/UI workflow
  * operations use this uniform contract. */
-const runtimes: Record<GmatTemplateId, MissionTemplateRuntime> = {
+const correctedRuntimes = Object.fromEntries(Object.keys(correctedScenarios).map(id => [id, { appendConversation: (w: string, d: string, turn: { assistant: string; user: string }) => appendCorrectedScenarioDraftConversation(id as GmatTemplateId, w, d, turn), confirm: (w: string, d: string) => confirmCorrectedScenarioDraft(id as GmatTemplateId, w, d), create: (w: string, v?: Record<string, MissionDraftValue>, p?: string[]) => createCorrectedScenarioDraft(id as GmatTemplateId, w, v, p), discuss: ({ draft, message, workspaceDir }: { draft: MissionTemplateDraft; message: string; workspaceDir: string }) => discussCorrectedScenarioDraft(id as GmatTemplateId, workspaceDir, draft as never, message), execute: ({ draft, execution, workspaceDir }: { draft: MissionTemplateDraft; execution?: { bin: string; timeoutMs: number }; workspaceDir: string }) => generateCorrectedScenarioMission(id as GmatTemplateId, { draft: draft as never, execution, workspaceDir }), load: (w: string, d: string) => loadCorrectedScenarioDraft(id as GmatTemplateId, w, d), recordRun: ({ draft, execution, runPath, workspaceDir }: { draft: MissionTemplateDraft; execution: MissionTemplateExecution; runPath: string; workspaceDir: string }) => recordCorrectedScenarioDraftRun(id as GmatTemplateId, workspaceDir, draft as never, execution as never, runPath), setValue: (w: string, d: MissionTemplateDraft, f: string, v: string) => setCorrectedScenarioDraftValue(id as GmatTemplateId, w, d as never, f, v) }])) as Partial<Record<GmatTemplateId, MissionTemplateRuntime>>
+
+const runtimes: Partial<Record<GmatTemplateId, MissionTemplateRuntime>> = {
   "geo-electric-end-of-life": { appendConversation: appendGeoElectricEndOfLifeDraftConversation, confirm: async (w,d,a) => confirmGeoElectricEndOfLifeDraft(w,d,a), create: async (w,v,p) => createGeoElectricEndOfLifeDraft(w,v,p), discuss: async ({ draft, message, workspaceDir }) => discussGeoElectricEndOfLifeDraft({ draft: draft as Awaited<ReturnType<typeof loadGeoElectricEndOfLifeDraft>>, message, workspaceDir }), execute: async ({ draft, execution, workspaceDir }) => generateGeoElectricEndOfLifeMission({ draft: draft as Awaited<ReturnType<typeof loadGeoElectricEndOfLifeDraft>>, execution, workspaceDir }), load: loadGeoElectricEndOfLifeDraft, recordRun: async ({ draft, execution, runPath, workspaceDir }) => recordGeoElectricEndOfLifeDraftRun({ draft: draft as Awaited<ReturnType<typeof loadGeoElectricEndOfLifeDraft>>, execution: execution as Awaited<ReturnType<typeof generateGeoElectricEndOfLifeMission>>, runPath, workspaceDir }), setValue: async (w,d,f,v) => setGeoElectricEndOfLifeDraftValue(w,d as Awaited<ReturnType<typeof loadGeoElectricEndOfLifeDraft>>,f,v) },
   "geo-gso-electric-station-keeping": {
     appendConversation: appendGeoGsoElectricStationKeepingDraftConversation,
@@ -134,9 +137,12 @@ const runtimes: Record<GmatTemplateId, MissionTemplateRuntime> = {
 }
 
 export function missionTemplateRuntime(template: GmatTemplateId): MissionTemplateRuntime {
-  return runtimes[template]
+  const runtime = correctedRuntimes[template] ?? runtimes[template]
+  if (!runtime) throw new Error(`unsupported GMAT mission runtime: ${template}`)
+  return runtime
 }
 
 export function appendMissionTemplateDraftConversation(template: GmatTemplateId, workspaceDir: string, draftId: string, turn: { assistant: string; user: string }) {
   return missionTemplateRuntime(template).appendConversation(workspaceDir, draftId, turn)
 }
+

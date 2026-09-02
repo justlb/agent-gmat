@@ -1,0 +1,201 @@
+{
+  "id": "gso-chemical-station-keeping",
+  "analysis_request_key": "gso_chemical_station_keeping",
+  "chat_mode": "gmat-gso-chemical-station-keeping",
+  "name": "GSO Chemical Station Keeping",
+  "description": "Corrected GMAT scenario parameterized from satellite data and values confirmed in Mission Studio.",
+  "propulsion_requirement": "chemical",
+  "initial_state_representation": "Keplerian",
+  "gmat_reference_script": "gso_chemical_station_keeping.script",
+  "draft_directory": [
+    "gmat",
+    "gso-chemical-station-keeping",
+    "drafts"
+  ],
+  "downstream_analyses": [
+    "opalis",
+    "simu-cic",
+    "rf-comlink"
+  ],
+  "satellite_inputs": [
+    "dry mass",
+    "Cd",
+    "Cr",
+    "drag area",
+    "SRP area",
+    "propellant mass",
+    "specific impulse"
+  ],
+  "artifacts": [
+    {
+      "path": "gso_chemical_station_keeping.script",
+      "kind": "script",
+      "primary": true
+    },
+    {
+      "kind": "values",
+      "path": "gso_chemical_station_keeping.values.yaml"
+    },
+    {
+      "kind": "result",
+      "path": "gmat_result.json"
+    },
+    {
+      "kind": "log",
+      "path": "gmat.log"
+    },
+    {
+      "kind": "oem",
+      "path": "EphemerisFile1.oem"
+    }
+  ],
+  "ui": {
+    "objective": "GSO Chemical Station Keeping",
+    "summary": "Reference GMAT values are prefilled and must be reviewed before execution.",
+    "mission_input_fields": [
+      {
+        "label": "Epoch",
+        "path": "initialOrbit.epoch",
+        "required": false
+      },
+      {
+        "label": "Initial altitude",
+        "path": "initialOrbit.altitudeKm",
+        "unit": "km",
+        "required": true
+      },
+      {
+        "label": "Initial semi-major axis",
+        "path": "initialOrbit.smaKm",
+        "required": true,
+        "unit": "km"
+      },
+      {
+        "label": "Initial eccentricity",
+        "path": "initialOrbit.eccentricity",
+        "required": true
+      },
+      {
+        "label": "Initial inclination",
+        "path": "initialOrbit.inclinationDeg",
+        "required": true,
+        "unit": "deg"
+      },
+      {
+        "label": "Initial RAAN",
+        "path": "initialOrbit.raanDeg",
+        "required": false,
+        "unit": "deg"
+      },
+      {
+        "label": "Initial AOP",
+        "path": "initialOrbit.argPeriapsisDeg",
+        "required": false,
+        "unit": "deg"
+      },
+      {
+        "label": "Initial true anomaly",
+        "path": "initialOrbit.trueAnomalyDeg",
+        "required": false,
+        "unit": "deg"
+      },
+      {
+        "label": "Dry mass",
+        "path": "spacecraft.dryMassKg",
+        "required": false,
+        "unit": "kg"
+      },
+      {
+        "label": "Drag coefficient",
+        "path": "spacecraft.dragCoefficient",
+        "required": false
+      },
+      {
+        "label": "Reflectivity coefficient",
+        "path": "spacecraft.reflectivityCoefficient",
+        "required": false
+      },
+      {
+        "label": "Drag area",
+        "path": "spacecraft.dragAreaM2",
+        "required": false,
+        "unit": "m²"
+      },
+      {
+        "label": "SRP area",
+        "path": "spacecraft.srpAreaM2",
+        "required": false,
+        "unit": "m²"
+      },
+      {
+        "label": "Propellant mass",
+        "path": "propulsion.fuelMassKg",
+        "required": false,
+        "unit": "kg"
+      },
+      {
+        "label": "Specific impulse",
+        "path": "propulsion.ispSeconds",
+        "required": false,
+        "unit": "s"
+      },
+      {
+        "label": "Mission duration",
+        "path": "mission.durationDays",
+        "required": false,
+        "unit": "days"
+      },
+      {
+        "label": "Control interval",
+        "path": "mission.controlIntervalSecs",
+        "required": false,
+        "unit": "s"
+      },
+      {
+        "label": "Fuel reserve",
+        "path": "mission.fuelReserveKg",
+        "required": false,
+        "unit": "kg"
+      },
+      {
+        "label": "Decrement mass",
+        "path": "propagation.decrementMass",
+        "required": false,
+        "kind": "boolean"
+      },
+      {
+        "label": "Include Sun point mass",
+        "path": "propagation.includeSun",
+        "required": false,
+        "kind": "boolean"
+      },
+      {
+        "label": "Include Luna point mass",
+        "path": "propagation.includeLuna",
+        "required": false,
+        "kind": "boolean"
+      },
+      {
+        "label": "Atmosphere model (None or MSISE90)",
+        "path": "propagation.atmosphereModel",
+        "required": false
+      },
+      {
+        "label": "Relativistic correction",
+        "path": "propagation.relativisticCorrection",
+        "required": false,
+        "kind": "boolean"
+      }
+    ],
+    "outputs": [
+      "GMAT report",
+      "OEM ephemeris",
+      "gmat.log",
+      "satellite.json"
+    ],
+    "satellite_requirements": [
+      "Satellite physical properties",
+      "Compatible propulsion subsystem"
+    ]
+  }
+}

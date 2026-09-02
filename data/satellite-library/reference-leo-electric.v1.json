@@ -3,8 +3,23 @@
   "version": "1.0.0",
   "name": "Starlink V1.5 Electric Reference",
   "description": "Starlink V1.5-class electric-propulsion proxy. Its krypton Hall-thruster performance is inferred from SpaceX's published V2 Mini comparison (170 mN, 2500 s, stated as 2.4× thrust and 1.5× Isp of first generation); mission orbit and run-specific values are intentionally excluded.",
-  "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
-  "mission_templates": ["electric-propulsion-transfer", "geo-gso-electric-station-keeping", "geo-electric-end-of-life"],
+  "capabilities": [
+    "GMAT",
+    "Simu-CIC",
+    "OPALIS",
+    "RF-COMLINK"
+  ],
+  "mission_templates": [
+    "electric-propulsion-transfer",
+    "geo-gso-electric-station-keeping",
+    "geo-electric-end-of-life",
+    "electrical-2d-transfer",
+    "electrical-3d-transfer",
+    "electrical-escape",
+    "electrical-leo-orbit-maintenance",
+    "geo-electric-station-keeping",
+    "gso-electric-station-keeping"
+  ],
   "satellite": {
     "identity": {
       "name": "Starlink V1.5-class",
@@ -135,7 +150,7 @@
               "frequency_band": "S",
               "frequency_mhz": 2200,
               "data_rate_bps": 50000,
-              "bit_error_rate": 8.522275225393864e-8,
+              "bit_error_rate": 8.522275225393865E-08,
               "modulation": "BPSK",
               "required_ebn0_db": 11.3,
               "required_ebn0_manual": true
@@ -147,7 +162,10 @@
               "pointing_loss_db": 0,
               "figure_of_merit_db_per_k": -22.8
             },
-            "propagation": { "atmospheric_loss_db": -0.3, "weather_unavailability_percent": 1 }
+            "propagation": {
+              "atmospheric_loss_db": -0.3,
+              "weather_unavailability_percent": 1
+            }
           },
           {
             "id": "housekeeping-telemetry",
@@ -158,7 +176,7 @@
               "frequency_band": "S",
               "frequency_mhz": 2200,
               "data_rate_bps": 50000,
-              "bit_error_rate": 8.522275225393864e-8,
+              "bit_error_rate": 8.522275225393865E-08,
               "modulation": "BPSK",
               "required_ebn0_db": 11.3,
               "required_ebn0_manual": true
@@ -170,7 +188,10 @@
               "pointing_loss_db": -3,
               "axial_ratio_db": -2
             },
-            "propagation": { "atmospheric_loss_db": -0.3, "weather_unavailability_percent": 1 }
+            "propagation": {
+              "atmospheric_loss_db": -0.3,
+              "weather_unavailability_percent": 1
+            }
           }
         ]
       }

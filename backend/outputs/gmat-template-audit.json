@@ -1,0 +1,98 @@
+{
+  "generatedAt": "2026-09-02T01:50:47.164Z",
+  "templateCount": 18,
+  "errors": 0,
+  "warnings": 0,
+  "templates": [
+    {
+      "id": "chemical-2d-transfer",
+      "manifest": "workflow_agents/gmat_skills/chemical-2d-transfer-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "chemical-3d-transfer",
+      "manifest": "workflow_agents/gmat_skills/chemical-3d-transfer-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "chemical-escape",
+      "manifest": "workflow_agents/gmat_skills/chemical-escape-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "chemical-leo-orbit-maintenance",
+      "manifest": "workflow_agents/gmat_skills/chemical-leo-orbit-maintenance-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "electrical-2d-transfer",
+      "manifest": "workflow_agents/gmat_skills/electrical-2d-transfer-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "electrical-3d-transfer",
+      "manifest": "workflow_agents/gmat_skills/electrical-3d-transfer-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "electrical-escape",
+      "manifest": "workflow_agents/gmat_skills/electrical-escape-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "electrical-leo-orbit-maintenance",
+      "manifest": "workflow_agents/gmat_skills/electrical-leo-orbit-maintenance-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "geo-chemical-station-keeping",
+      "manifest": "workflow_agents/gmat_skills/geo-chemical-station-keeping-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "geo-electric-station-keeping",
+      "manifest": "workflow_agents/gmat_skills/geo-electric-station-keeping-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "gso-chemical-station-keeping",
+      "manifest": "workflow_agents/gmat_skills/gso-chemical-station-keeping-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "gso-electric-station-keeping",
+      "manifest": "workflow_agents/gmat_skills/gso-electric-station-keeping-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "orbit-keeping",
+      "manifest": "workflow_agents/gmat_skills/orbit-keeping-template/template.json",
+      "issues": []
+    },
+    {
+      "id": "geo-gso-orbit-keeping",
+      "manifest": "workflow_agents/gmat_skills/geo-gso-orbit-keeping-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "geo-gso-electric-station-keeping",
+      "manifest": "workflow_agents/gmat_skills/geo-gso-electric-station-keeping-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "geo-electric-end-of-life",
+      "manifest": "workflow_agents/gmat_skills/geo-electric-end-of-life-scenario/scenario.json",
+      "issues": []
+    },
+    {
+      "id": "electric-propulsion-transfer",
+      "manifest": "workflow_agents/gmat_skills/electric-propulsion-transfer-template/template.json",
+      "issues": []
+    },
+    {
+      "id": "chemical-hohmann-transfer",
+      "manifest": "workflow_agents/gmat_skills/chemical-hohmann-transfer-template/template.json",
+      "issues": []
+    }
+  ]
+}

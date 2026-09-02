@@ -20,10 +20,9 @@ type Value = string | number | null
 type Run = { completedAt: string; result: { error?: string; status: string }; runId: string; runPath: string }
 export type GeoElectricEndOfLifeDraft = { assistantMessage?: string; confirmed: boolean; conversation: Array<{ assistant: string; user: string }>; createdAt: string; digitalThreadRequiredPaths?: string[]; draftId: string; missing: string[]; runs: Run[]; status: "collecting" | "ready" | "confirmed"; templateId: "geo-electric-end-of-life"; updatedAt: string; values: Record<string, Value> }
 
-const GEO_NOMINAL_SMA_KM = 42164.17
-const requiredFields = ["initialOrbit.epoch", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg", "spacecraft.initialFuelMassKg", "spacecraft.dryMassKg", "spacecraft.dragAreaM2", "spacecraft.dragCoefficient", "propulsion.ispSeconds"] as const
+const requiredFields = ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg", "spacecraft.initialFuelMassKg", "spacecraft.dryMassKg", "spacecraft.dragAreaM2", "spacecraft.dragCoefficient", "propulsion.ispSeconds"] as const
 const fields = [...requiredFields, "endOfLife.missionMode", "endOfLife.escapeC3Km2PerSec2", "endOfLife.maxCemeteryDays", "endOfLife.maxEscapeDays", "power.initialMaxPowerKw"] as const
-const defaults: Record<string, Value> = { "initialOrbit.epoch": "21545", "initialOrbit.eccentricity": 0, "initialOrbit.inclinationDeg": 0, "initialOrbit.raanDeg": 0, "initialOrbit.argPeriapsisDeg": 0, "initialOrbit.trueAnomalyDeg": 0, "spacecraft.initialFuelMassKg": 400, "spacecraft.dryMassKg": 1800, "spacecraft.dragAreaM2": 20, "spacecraft.dragCoefficient": 2.2, "propulsion.ispSeconds": 1800, "endOfLife.missionMode": 0, "endOfLife.escapeC3Km2PerSec2": 0.01, "endOfLife.maxCemeteryDays": 20, "endOfLife.maxEscapeDays": 300, "power.initialMaxPowerKw": 30 }
+const defaults: Record<string, Value> = { "initialOrbit.epoch": "21545", "initialOrbit.smaKm": 42164.17, "initialOrbit.eccentricity": 0, "initialOrbit.inclinationDeg": 0, "initialOrbit.raanDeg": 0, "initialOrbit.argPeriapsisDeg": 0, "initialOrbit.trueAnomalyDeg": 0, "spacecraft.initialFuelMassKg": 400, "spacecraft.dryMassKg": 1800, "spacecraft.dragAreaM2": 20, "spacecraft.dragCoefficient": 2.2, "propulsion.ispSeconds": 1800, "endOfLife.missionMode": 0, "endOfLife.escapeC3Km2PerSec2": 0.01, "endOfLife.maxCemeteryDays": 20, "endOfLife.maxEscapeDays": 300, "power.initialMaxPowerKw": 30 }
 
 function draftPath(workspaceDir: string, draftId: string) {
   if (!/^draft_[a-f0-9-]+$/u.test(draftId)) throw new Error("invalid GEO electric end-of-life draft id")
@@ -45,7 +44,7 @@ async function save(workspaceDir: string, draft: GeoElectricEndOfLifeDraft) {
 }
 export async function createGeoElectricEndOfLifeDraft(workspaceDir: string, initialValues: Record<string, Value> = {}, digitalThreadRequiredPaths: string[] = []) {
   const createdAt = new Date().toISOString()
-  const values = { ...Object.fromEntries(fields.map(field => [field, initialValues[field] ?? defaults[field] ?? null])), "initialOrbit.smaKm": GEO_NOMINAL_SMA_KM } as Record<string, Value>
+  const values = Object.fromEntries(fields.map(field => [field, initialValues[field] ?? defaults[field] ?? null])) as Record<string, Value>
   const draft = await save(workspaceDir, refresh({ confirmed: false, conversation: [], createdAt, digitalThreadRequiredPaths, draftId: `draft_${crypto.randomUUID()}`, runs: [], templateId: "geo-electric-end-of-life", values }))
   await initializeDraftDigitalThread(workspaceDir, "geo-electric-end-of-life", draft.draftId)
   return draft

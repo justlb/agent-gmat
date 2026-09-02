@@ -1,21 +1,54 @@
 {
   "id": "chemical-hohmann-transfer",
-  "name": "2D Chemical Transfer",
+  "name": "Legacy — Chemical 2D Transfer",
   "description": "Two-impulse Earth-orbit transfer solved by GMAT's differential corrector.",
   "analysis_request_key": "chemical_hohmann_transfer",
-  "draft_directory": ["gmat", "chemical-hohmann-transfer", "drafts"],
+  "draft_directory": [
+    "gmat",
+    "chemical-hohmann-transfer",
+    "drafts"
+  ],
   "chat_mode": "gmat-chemical-hohmann",
   "gmat_reference_script": "references/chemical_hohmann_transfer.script",
   "artifacts": [
-    { "path": "chemical_hohmann_transfer.script", "kind": "script" },
-    { "path": "chemical_hohmann_transfer.values.yaml", "kind": "values" },
-    { "path": "gmat_result.json", "kind": "result" },
-    { "path": "run-analysis-context.json", "kind": "result" },
-    { "path": "run_manifest.json", "kind": "manifest" },
-    { "path": "satellite.json", "kind": "digital-thread", "primary": true },
-    { "path": "EphemerisFile1.oem", "kind": "ephemeris", "primary": true },
-    { "path": "gmat.log", "kind": "log" },
-    { "path": "opalis/03-opalis/02-resultats/calculated-opalis-timeseries.json", "kind": "opalis" }
+    {
+      "path": "chemical_hohmann_transfer.script",
+      "kind": "script"
+    },
+    {
+      "path": "chemical_hohmann_transfer.values.yaml",
+      "kind": "values"
+    },
+    {
+      "path": "gmat_result.json",
+      "kind": "result"
+    },
+    {
+      "path": "run-analysis-context.json",
+      "kind": "result"
+    },
+    {
+      "path": "run_manifest.json",
+      "kind": "manifest"
+    },
+    {
+      "path": "satellite.json",
+      "kind": "digital-thread",
+      "primary": true
+    },
+    {
+      "path": "EphemerisFile1.oem",
+      "kind": "ephemeris",
+      "primary": true
+    },
+    {
+      "path": "gmat.log",
+      "kind": "log"
+    },
+    {
+      "path": "opalis/03-opalis/02-resultats/calculated-opalis-timeseries.json",
+      "kind": "opalis"
+    }
   ],
   "source": "GMAT Tut_SimpleOrbitTransfer.script",
   "propulsion_requirement": "chemical",
@@ -23,16 +56,62 @@
   "ui": {
     "objective": "Raise or lower an Earth orbit using a transfer-orbit burn followed by a circularisation burn at apoapsis.",
     "summary": "Two-impulse chemical transfer solved by GMAT's differential corrector.",
-    "outputs": ["GMAT script and values", "GMAT execution log", "OEM ephemeris", "Run-local satellite.json"],
-    "satellite_requirements": ["Dry mass", "Chemical propulsion and Isp", "Drag area and coefficient"],
+    "outputs": [
+      "GMAT script and values",
+      "GMAT execution log",
+      "OEM ephemeris",
+      "Run-local satellite.json"
+    ],
+    "satellite_requirements": [
+      "Dry mass",
+      "Chemical propulsion and Isp",
+      "Drag area and coefficient"
+    ],
     "mission_input_fields": [
-      { "label": "Initial epoch", "path": "initialOrbit.epoch" },
-      { "label": "Initial altitude", "path": "initialOrbit.smaKm", "unit": "km", "value_transform": "earth-radius" },
-      { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity" },
-      { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
-      { "label": "Target altitude", "path": "transfer.targetRadiusKm", "unit": "km", "value_transform": "earth-radius" },
-      { "label": "Target eccentricity", "path": "transfer.targetEccentricity" },
-      { "label": "Final propagation duration", "path": "transfer.finalPropagationSeconds", "unit": "s" }
+      {
+        "label": "Initial epoch",
+        "path": "initialOrbit.epoch",
+        "required": false
+      },
+      {
+        "label": "Initial altitude",
+        "path": "initialOrbit.altitudeKm",
+        "derived": "initialAltitude",
+        "required": true,
+        "unit": "km"
+      },
+      {
+        "label": "Initial semi-major axis",
+        "path": "initialOrbit.smaKm",
+        "unit": "km",
+        "value_transform": "earth-radius"
+      },
+      {
+        "label": "Initial eccentricity",
+        "path": "initialOrbit.eccentricity"
+      },
+      {
+        "label": "Initial inclination",
+        "path": "initialOrbit.inclinationDeg",
+        "unit": "deg"
+      },
+      {
+        "label": "Target altitude",
+        "path": "transfer.targetRadiusKm",
+        "unit": "km",
+        "value_transform": "earth-radius"
+      },
+      {
+        "label": "Target eccentricity",
+        "path": "transfer.targetEccentricity",
+        "required": false
+      },
+      {
+        "label": "Final propagation duration",
+        "path": "transfer.finalPropagationSeconds",
+        "unit": "s",
+        "required": false
+      }
     ]
   },
   "mission_inputs": {
@@ -52,7 +131,11 @@
     "satellite.bus.physical.drag_coefficient",
     "satellite.bus.propulsion_subsystem.specific_impulse_seconds"
   ],
-  "downstream_analyses": ["simu-cic", "opalis", "rf-comlink"],
+  "downstream_analyses": [
+    "simu-cic",
+    "opalis",
+    "rf-comlink"
+  ],
   "planned_physical_extension": {
     "status": "not_enabled",
     "description": "The canonical tutorial keeps DecrementMass=false. A separate, validated variant will add a chemical tank and propellant depletion after this baseline is verified."

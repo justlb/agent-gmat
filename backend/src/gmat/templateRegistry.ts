@@ -13,17 +13,19 @@ import { getBackendRoot } from "../config.js"
  * New scenarios use `<id>-scenario/scenario.json`. Existing `template.json`
  * manifests are deliberately supported during the non-breaking migration.
  */
-export const GMAT_MISSION_SCENARIO_IDS = ["orbit-keeping", "geo-gso-orbit-keeping", "geo-gso-electric-station-keeping", "geo-electric-end-of-life", "electric-propulsion-transfer", "chemical-hohmann-transfer", "chemical-3d-transfer"] as const
+export const GMAT_MISSION_SCENARIO_IDS = ["chemical-2d-transfer", "chemical-3d-transfer", "chemical-escape", "chemical-leo-orbit-maintenance", "electrical-2d-transfer", "electrical-3d-transfer", "electrical-escape", "electrical-leo-orbit-maintenance", "geo-chemical-station-keeping", "geo-electric-station-keeping", "gso-chemical-station-keeping", "gso-electric-station-keeping", "orbit-keeping", "geo-gso-orbit-keeping", "geo-gso-electric-station-keeping", "geo-electric-end-of-life", "electric-propulsion-transfer", "chemical-hohmann-transfer"] as const
 export type GmatMissionScenarioId = typeof GMAT_MISSION_SCENARIO_IDS[number]
 /** @deprecated Use GMAT_MISSION_SCENARIO_IDS. */
 export const GMAT_TEMPLATE_IDS = GMAT_MISSION_SCENARIO_IDS
 /** @deprecated Use GmatMissionScenarioId. */
 export type GmatTemplateId = GmatMissionScenarioId
-export type GmatAnalysisRequestKey = "orbit_keeping" | "geo_gso_orbit_keeping" | "geo_electric_station_keeping" | "geo_electric_end_of_life" | "electric_propulsion_transfer" | "chemical_hohmann_transfer" | "chemical_3d_transfer"
+export type GmatAnalysisRequestKey = string
 
 export type GmatTemplateMissionInput = {
   derived?: "initialAltitude"
+  kind?: "boolean"
   label: string
+  required?: boolean
   path: string
   unit?: string
   valueTransform?: "earth-radius"
@@ -102,10 +104,14 @@ function readUi(value: unknown, manifestPath: string): GmatTemplateUiDefinition 
     if (!field || typeof field.label !== "string" || !field.label.trim() || typeof field.path !== "string" || !field.path.trim()) throw new Error(`invalid ui.mission_input_fields[${index}] in ${manifestPath}`)
     if (field.unit !== undefined && typeof field.unit !== "string") throw new Error(`invalid ui.mission_input_fields[${index}].unit in ${manifestPath}`)
     if (field.derived !== undefined && field.derived !== "initialAltitude") throw new Error(`invalid ui.mission_input_fields[${index}].derived in ${manifestPath}`)
+    if (field.kind !== undefined && field.kind !== "boolean") throw new Error(`invalid ui.mission_input_fields[${index}].kind in ${manifestPath}`)
+    if (field.required !== undefined && typeof field.required !== "boolean") throw new Error(`invalid ui.mission_input_fields[${index}].required in ${manifestPath}`)
     if (field.value_transform !== undefined && field.value_transform !== "earth-radius") throw new Error(`invalid ui.mission_input_fields[${index}].value_transform in ${manifestPath}`)
     return {
       ...(field.derived === "initialAltitude" ? { derived: "initialAltitude" as const } : {}),
+      ...(field.kind === "boolean" ? { kind: "boolean" as const } : {}),
       label: field.label.trim(),
+      ...(typeof field.required === "boolean" ? { required: field.required } : {}),
       path: field.path.trim(),
       ...(typeof field.unit === "string" ? { unit: field.unit } : {}),
       ...(field.value_transform === "earth-radius" ? { valueTransform: "earth-radius" as const } : {}),
@@ -178,3 +184,5 @@ export function gmatTemplateDefinition(template: GmatTemplateId): GmatTemplateDe
 export function allGmatTemplateDefinitions() { return GMAT_TEMPLATE_IDS.map(template => gmatTemplateDefinition(template)) }
 /** @deprecated Use isGmatMissionScenarioId. */
 export function isGmatTemplateId(value: string): value is GmatTemplateId { return (GMAT_TEMPLATE_IDS as readonly string[]).includes(value) }
+
+

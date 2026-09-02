@@ -16,6 +16,20 @@ import { resolveMissionRun } from "../runs/runWorkspace.js"
 
 type RoutingDecision = { target: "clarify" | "general" | GmatTemplateId; message: string }
 
+const SATELLITE_OWNED_MISSION_PATHS = new Set([
+  "spacecraft.dryMassKg", "spacecraft.dragCoefficient", "spacecraft.reflectivityCoefficient", "spacecraft.dragAreaM2", "spacecraft.srpAreaM2",
+  "spacecraft.initialFuelMassKg", "propulsion.fuelMassKg", "propulsion.ispSeconds", "power.initialPowerKw", "power.initialMaxPowerKw",
+  "power.annualDegradationPercent", "power.marginPercent", "power.systemMarginPercent", "power.busLoadKw", "power.minThrusterPowerKw", "power.maxThrusterPowerKw",
+])
+const EARTH_RADIUS_KM = 6378.1363
+
+function normalizeMissionOrbitInput(fieldPath: string, rawValue: string) {
+  if (fieldPath !== "initialOrbit.altitudeKm") return { fieldPath, rawValue }
+  const altitudeKm = Number(rawValue)
+  if (!Number.isFinite(altitudeKm)) throw new Error("initial altitude must be a finite number")
+  return { fieldPath: "initialOrbit.smaKm", rawValue: String(altitudeKm + EARTH_RADIUS_KM) }
+}
+
 function isSimuCicRequest(message: string) {
   const normalized = message.toLocaleLowerCase()
   return /simu\s*-?\s*cic|ground\s+(?:station|sat+ion)s?|station\s+au\s+sol|attitude|point(?:age|ing)|nadir|\b(?:follow|track|suiv\w*)\b/iu.test(message)
@@ -115,12 +129,15 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     const template = req.body?.template
-    const fieldPath = typeof req.body?.path === "string" ? req.body.path : ""
-    const rawValue = typeof req.body?.value === "string" || typeof req.body?.value === "number" ? String(req.body.value) : ""
+    let fieldPath = typeof req.body?.path === "string" ? req.body.path : ""
+    let rawValue = typeof req.body?.value === "string" || typeof req.body?.value === "number" ? String(req.body.value) : ""
     const draftId = typeof req.body?.draftId === "string" ? req.body.draftId : ""
     if (typeof template !== "string" || !isGmatTemplateId(template) || !fieldPath || !rawValue.trim()) {
       return reply.status(400).send({ error: "template, path, and value are required" })
     }
+    if (SATELLITE_OWNED_MISSION_PATHS.has(fieldPath)) return reply.status(403).send({ error: "satellite-owned parameters are read from satellite.json and cannot be edited in Mission Studio" })
+    try { ({ fieldPath, rawValue } = normalizeMissionOrbitInput(fieldPath, rawValue)) }
+    catch (error) { return reply.status(400).send({ error: getErrorMessage(error, "invalid mission orbit value") }) }
     const workspaceDir = typeof req.body?.workspaceDir === "string" && req.body.workspaceDir.trim() ? path.resolve(req.body.workspaceDir) : root
     if (!isPathInside(path.resolve(root), workspaceDir) || !isMissionRunWorkspace(workspaceDir)) {
       return reply.status(409).send({ error: "select a template and satellite for a dated mission run before entering mission values" })

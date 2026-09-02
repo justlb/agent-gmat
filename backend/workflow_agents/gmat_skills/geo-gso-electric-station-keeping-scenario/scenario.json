@@ -1,49 +1,181 @@
 {
   "id": "geo-gso-electric-station-keeping",
-  "name": "GSO Orbit Keeping — Electrical",
+  "name": "Legacy — GSO Station Keeping (Electrical)",
   "description": "Low-thrust electric GSO station keeping by maintaining semi-major axis, eccentricity and inclination.",
   "analysis_request_key": "geo_electric_station_keeping",
-  "draft_directory": ["gmat", "geo-gso-electric-station-keeping", "drafts"],
+  "draft_directory": [
+    "gmat",
+    "geo-gso-electric-station-keeping",
+    "drafts"
+  ],
   "chat_mode": "gmat-geo-electric-station-keeping",
   "gmat_reference_script": "references/geo_electric_station_keeping.script",
   "gmat_reference_values": "references/geo_electric_station_keeping.values.yaml",
   "artifacts": [
-    { "path": "geo_electric_station_keeping.script", "kind": "script", "primary": true },
-    { "path": "geo_electric_station_keeping.values.yaml", "kind": "values" },
-    { "path": "GEO_StationKeeping_Electric_30d_Report.txt", "kind": "report", "primary": true },
-    { "path": "EphemerisFile1.oem", "kind": "ephemeris", "primary": true },
-    { "path": "satellite.json", "kind": "digital-thread", "primary": true },
-    { "path": "run_manifest.json", "kind": "manifest" },
-    { "path": "gmat.log", "kind": "log" }
+    {
+      "path": "geo_electric_station_keeping.script",
+      "kind": "script",
+      "primary": true
+    },
+    {
+      "path": "geo_electric_station_keeping.values.yaml",
+      "kind": "values"
+    },
+    {
+      "path": "GEO_StationKeeping_Electric_30d_Report.txt",
+      "kind": "report",
+      "primary": true
+    },
+    {
+      "path": "EphemerisFile1.oem",
+      "kind": "ephemeris",
+      "primary": true
+    },
+    {
+      "path": "satellite.json",
+      "kind": "digital-thread",
+      "primary": true
+    },
+    {
+      "path": "run_manifest.json",
+      "kind": "manifest"
+    },
+    {
+      "path": "gmat.log",
+      "kind": "log"
+    }
   ],
   "propulsion_requirement": "electric",
   "initial_state_representation": "Keplerian",
   "ui": {
     "objective": "Maintain an electric-propulsion GSO spacecraft around fixed SMA, eccentricity and inclination targets.",
     "summary": "Finite-burn electric GSO station keeping with adjustable SMA, eccentricity and inclination tolerances.",
-    "outputs": ["GMAT script and values", "Electric station-keeping report", "Run-local satellite.json"],
-    "satellite_requirements": ["Dry mass", "Electric propellant", "Electric thrusters and Isp", "Solar-array power"],
+    "outputs": [
+      "GMAT script and values",
+      "Electric station-keeping report",
+      "Run-local satellite.json"
+    ],
+    "satellite_requirements": [
+      "Dry mass",
+      "Electric propellant",
+      "Electric thrusters and Isp",
+      "Solar-array power"
+    ],
     "mission_input_fields": [
-      { "label": "Initial epoch", "path": "initialOrbit.epoch" },
-      { "label": "Eccentricity", "path": "initialOrbit.eccentricity" },
-      { "label": "Inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
-      { "label": "RAAN", "path": "initialOrbit.raanDeg", "unit": "deg" },
-      { "label": "Argument of periapsis", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg" },
-      { "label": "True anomaly", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg" },
-      { "label": "Initial electric propellant", "path": "spacecraft.initialFuelMassKg", "unit": "kg" },
-      { "label": "SMA tolerance", "path": "stationKeeping.smaToleranceKm", "unit": "km" },
-      { "label": "Eccentricity tolerance", "path": "stationKeeping.eccentricityTolerance" },
-      { "label": "Inclination tolerance", "path": "stationKeeping.inclinationToleranceDeg", "unit": "deg" },
-      { "label": "SMA burn duration", "path": "stationKeeping.smaBurnDurationSec", "unit": "s" },
-      { "label": "Eccentricity burn duration", "path": "stationKeeping.eccentricityBurnDurationSec", "unit": "s" },
-      { "label": "Inclination burn duration", "path": "stationKeeping.inclinationBurnDurationSec", "unit": "s" },
-      { "label": "Mission duration", "path": "stationKeeping.missionDurationDays", "unit": "days" }
+      {
+        "label": "Initial altitude",
+        "path": "initialOrbit.altitudeKm",
+        "derived": "initialAltitude",
+        "required": true,
+        "unit": "km"
+      },
+      {
+        "label": "Initial semi-major axis",
+        "path": "initialOrbit.smaKm",
+        "required": true,
+        "unit": "km"
+      },
+      {
+        "label": "Initial epoch",
+        "path": "initialOrbit.epoch"
+      },
+      {
+        "label": "Eccentricity",
+        "path": "initialOrbit.eccentricity"
+      },
+      {
+        "label": "Inclination",
+        "path": "initialOrbit.inclinationDeg",
+        "unit": "deg"
+      },
+      {
+        "label": "RAAN",
+        "path": "initialOrbit.raanDeg",
+        "unit": "deg"
+      },
+      {
+        "label": "Argument of periapsis",
+        "path": "initialOrbit.argPeriapsisDeg",
+        "unit": "deg"
+      },
+      {
+        "label": "True anomaly",
+        "path": "initialOrbit.trueAnomalyDeg",
+        "unit": "deg"
+      },
+      {
+        "label": "Initial electric propellant",
+        "path": "spacecraft.initialFuelMassKg",
+        "unit": "kg"
+      },
+      {
+        "label": "SMA tolerance",
+        "path": "stationKeeping.smaToleranceKm",
+        "unit": "km",
+        "required": false
+      },
+      {
+        "label": "Eccentricity tolerance",
+        "path": "stationKeeping.eccentricityTolerance",
+        "required": false
+      },
+      {
+        "label": "Inclination tolerance",
+        "path": "stationKeeping.inclinationToleranceDeg",
+        "unit": "deg",
+        "required": false
+      },
+      {
+        "label": "SMA burn duration",
+        "path": "stationKeeping.smaBurnDurationSec",
+        "unit": "s",
+        "required": false
+      },
+      {
+        "label": "Eccentricity burn duration",
+        "path": "stationKeeping.eccentricityBurnDurationSec",
+        "unit": "s",
+        "required": false
+      },
+      {
+        "label": "Inclination burn duration",
+        "path": "stationKeeping.inclinationBurnDurationSec",
+        "unit": "s",
+        "required": false
+      },
+      {
+        "label": "Mission duration",
+        "path": "stationKeeping.missionDurationDays",
+        "unit": "days",
+        "required": false
+      }
     ]
   },
   "mission_inputs": {
-    "required": ["initial_keplerian_orbit", "electric_propellant", "electric_thruster", "solar_array"],
-    "defaults": { "sma_tolerance_km": 5, "eccentricity_tolerance": 0.0001, "inclination_tolerance_deg": 0.015, "sma_burn_duration_sec": 600, "eccentricity_burn_duration_sec": 600, "inclination_burn_duration_sec": 1200, "mission_duration_days": 60 }
+    "required": [
+      "initial_keplerian_orbit",
+      "electric_propellant",
+      "electric_thruster",
+      "solar_array"
+    ],
+    "defaults": {
+      "sma_tolerance_km": 5,
+      "eccentricity_tolerance": 0.0001,
+      "inclination_tolerance_deg": 0.015,
+      "sma_burn_duration_sec": 600,
+      "eccentricity_burn_duration_sec": 600,
+      "inclination_burn_duration_sec": 1200,
+      "mission_duration_days": 60
+    }
   },
-  "satellite_inputs": ["satellite.bus.physical.mass_kg.dry", "satellite.bus.propulsion_subsystem.electric_thruster", "satellite.bus.electrical_subsystem"],
-  "downstream_analyses": ["simu-cic", "opalis", "rf-comlink"]
+  "satellite_inputs": [
+    "satellite.bus.physical.mass_kg.dry",
+    "satellite.bus.propulsion_subsystem.electric_thruster",
+    "satellite.bus.electrical_subsystem"
+  ],
+  "downstream_analyses": [
+    "simu-cic",
+    "opalis",
+    "rf-comlink"
+  ]
 }

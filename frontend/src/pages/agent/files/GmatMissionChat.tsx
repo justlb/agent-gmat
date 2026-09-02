@@ -15,14 +15,27 @@ type Draft = {
   safety: { assumptions: Array<{ label: string; value: string }>; checks: Array<{ code: string; message: string; severity: 'error' | 'warning' }> }
   status: 'blocked' | 'collecting' | 'ready' | 'confirmed'
   updatedAt?: string
-  values: Record<string, string | number | null>
+  values: Record<string, string | number | boolean | null>
   runs?: Array<{ completedAt: string; missionValues?: Record<string, string | number | null>; result: { finalAltitudeKm?: number; finalFuelMassKg?: number; finalRadiusKm?: number; status: string }; runId: string; runPath: string }>
 } | null
 
 type Assumption = { label: string; value: string }
 const EARTH_EQUATORIAL_RADIUS_KM = 6378.1363
-const RF_COMLINK_GROUND_STATION_IDS = ['kiruna', 'kourou', 'inuvik', 'aussaguel'] as const
+const OPTIONAL_MISSION_DEFAULTS: Record<string, string | number | boolean> = {
+  'initialOrbit.epoch': '21545',
+  'initialOrbit.raanDeg': 0,
+  'initialOrbit.argPeriapsisDeg': 0,
+  'initialOrbit.trueAnomalyDeg': 0,
+  'propagation.decrementMass': true,
+  'propagation.includeSun': true,
+  'propagation.includeLuna': true,
+  'propagation.atmosphereModel': 'None',
+  'propagation.relativisticCorrection': false,
+}
 
+function missionValueOrDefault(values: Record<string, string | number | boolean | null> | null | undefined, field: MissionInputField) {
+  return values?.[field.path] ?? OPTIONAL_MISSION_DEFAULTS[field.path] ?? null
+}
 function valueAt(document: Record<string, unknown>, path: string): string | number | null {
   let value: unknown = document
   for (const key of path.split('.')) {
@@ -43,7 +56,6 @@ function editableSatelliteAssumptions(document: Record<string, unknown>, mode: A
   const fields: Array<[string, string, string?]> = [
     ['Dry mass', 'satellite.bus.physical.mass_kg.dry', 'kg'],
     ['Drag area', 'satellite.bus.physical.drag_area_m2', 'm²'],
-    ['Drag coefficient', 'satellite.bus.physical.drag_coefficient'],
     ['Specific impulse', 'satellite.bus.propulsion_subsystem.specific_impulse_seconds', 's'],
     ['Solar-array area', 'satellite.bus.electrical_subsystem.solar_panels.total_area_m2', 'm²'],
     ['Solar-array efficiency', 'satellite.bus.electrical_subsystem.solar_panels.efficiency_percent', '%'],
@@ -107,7 +119,8 @@ function verifyRunValuesAgainstAdapter(values: Record<string, string | number | 
   return mismatches.length ? `Verification warning: ${mismatches.join(', ')} differs from the GMAT adapter; satellite.json is displayed.` : 'Verified against satellite.json'
 }
 
-function MissionValueField({ busy, field, onSubmit, value }: { busy: boolean; field: MissionInputField; onSubmit: (path: string, value: string) => void; value: string | number | null }) {
+function MissionValueField({ busy, field, onSubmit, value }: { busy: boolean; field: MissionInputField; onSubmit: (path: string, value: string) => void; value: string | number | boolean | null }) {
+  if (field.kind === 'boolean') return <input aria-label={`Toggle ${field.label}`} checked={value === true || value === 1 || value === 'true'} disabled={busy} onChange={event => onSubmit(field.path, event.target.checked ? 'true' : 'false')} type="checkbox" />
   const displayValue = field.valueTransform === 'earth-radius' && typeof value === 'number'
     ? Number((value - EARTH_EQUATORIAL_RADIUS_KM).toFixed(6))
     : value
@@ -244,7 +257,7 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
   const [simuCic, setSimuCic] = useState<SimuCicConfiguration>({ attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null })
   const [groundStations, setGroundStations] = useState<PredefinedGroundStation[]>([])
   const [simuCicConfigurationError, setSimuCicConfigurationError] = useState('')
-  const [savedRunValues, setSavedRunValues] = useState<Record<string, string | number | null> | null>(null)
+  const [savedRunValues, setSavedRunValues] = useState<Record<string, string | number | boolean | null> | null>(null)
   const [runValuesVerification, setRunValuesVerification] = useState('')
   const [satelliteAssumptions, setSatelliteAssumptions] = useState<Assumption[]>([])
   const [templateDefinitions, setTemplateDefinitions] = useState<MissionTemplateDefinition[]>([])
@@ -324,8 +337,13 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
   }, [workspaceDir, isRunScopedWorkspace, draft?.draftId, draft?.status, draft?.updatedAt, activeRunId, chatMode, simuCicRefreshNonce])
   const template = chatMode === 'general' ? null : missionTemplateForChatMode(chatMode)
   const allFields = template ? templateDefinitions.find(item => item.id === template as GmatMissionTemplateId)?.ui.missionInputFields ?? [] : []
-  const fields = allFields.filter(field => !field.path.startsWith('propagation.'))
-  const propagationFields = allFields.filter(field => field.path.startsWith('propagation.'))
+  // Vehicle aerodynamics and propulsion data are sourced from the selected
+  // satellite definition. They are rendered into GMAT but are not mission inputs.
+  const satelliteOwned = new Set(['spacecraft.dryMassKg', 'spacecraft.initialFuelMassKg', 'spacecraft.dragCoefficient', 'spacecraft.reflectivityCoefficient', 'spacecraft.dragAreaM2', 'spacecraft.srpAreaM2', 'propulsion.fuelMassKg', 'propulsion.ispSeconds', 'propulsion.thrustNewtons', 'power.initialPowerKw', 'power.initialMaxPowerKw', 'power.annualDegradationPercent', 'power.marginPercent', 'power.systemMarginPercent', 'power.busLoadKw', 'power.minThrusterPowerKw', 'power.maxThrusterPowerKw'])
+  const editableFields = allFields.filter(field => !satelliteOwned.has(field.path))
+  const fields = editableFields.filter(field => !field.path.startsWith('propagation.') && field.required !== false)
+  const optionalFields = editableFields.filter(field => !field.path.startsWith('propagation.') && field.required === false)
+  const propagationFields = editableFields.filter(field => field.path.startsWith('propagation.'))
   // A selected template exposes its required inputs immediately. The first
   // filled field creates/updates the draft through the normal LLM workflow.
   const templateSelected = !activeRunId && chatMode !== 'general'
@@ -345,7 +363,11 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit() }
   }
-  const missing = displayedValues ? fields.filter(field => !field.derived && (displayedValues[field.path] === null || displayedValues[field.path] === undefined || displayedValues[field.path] === '')).map(field => field.label) : []
+  // The backend is authoritative about which values are executable. This prevents
+  // stale UI state from reporting a saved or defaulted value as missing.
+  const missing = draft
+    ? fields.filter(field => draft.missing.includes(field.path)).map(field => field.label)
+    : displayedValues ? fields.filter(field => !field.derived && (displayedValues[field.path] === null || displayedValues[field.path] === undefined || displayedValues[field.path] === '')).map(field => field.label) : []
   const blockers = draft?.safety?.checks.filter(check => check.severity === 'error') ?? []
   const warnings = draft?.safety?.checks.filter(check => check.severity === 'warning') ?? []
   const assumptions = uniqueAssumptions([
@@ -371,14 +393,14 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
         ? onEnsureMissionRun()
         : Promise.reject(new Error('Start a dated mission discussion before configuring Simu-CIC.'))
     void runWorkspace.then(runWorkspaceDir => saveSimuCicConfiguration(next, runWorkspaceDir))
-      .then(result => {
-        const saved = result.document.analysis_requests?.simu_cic
-        const persisted: SimuCicConfiguration = saved?.attitude_mode === 'ground_station_tracking'
-          ? saved
-          : { attitude_mode: 'nadir_pointing', ground_station_ids: [], simultaneous_visibility_policy: null }
+      .then(() => {
+        // The requested value has already been validated by the API. Keep it
+        // visible while the parent refreshes satellite.json: older response
+        // projections did not always expose analysis_requests and therefore
+        // incorrectly reset this selector to Nadir.
         pendingSimuCicSelectionRef.current = null
         simuCicSelectionRevisionRef.current += 1
-        setSimuCic(persisted)
+        setSimuCic(next)
         onSimuCicConfigurationChanged?.()
       })
       .catch(reason => {
@@ -423,13 +445,13 @@ export function GmatMissionChat({ activeRunId, busy, chatMode, contextContent, c
                   const absent = field.derived ? derivedAltitude === null : value === null || value === undefined || value === ''
                   return <li className={absent ? 'is-missing' : ''} key={field.derived ?? field.path}><span>{field.label}</span>{(!activeRunId || editingRunValues) && onUpdateMissionValue ? <MissionValueField busy={busy} field={field} onSubmit={onUpdateMissionValue} value={typeof rawValue === 'string' || typeof rawValue === 'number' ? rawValue : null} /> : <b>{absent ? 'Not provided' : `${value}${field.unit ? ` ${field.unit}` : ''}`}</b>}</li>
                 })}
-              </ul>{propagationFields.length ? <details className="gmat-mission-assumptions"><summary><strong>Optional propagation settings</strong><span>{propagationFields.length} settings</span></summary><ul>{propagationFields.map(field => <li key={field.path}><span>{field.label}</span>{(!activeRunId || editingRunValues) && onUpdateMissionValue ? <MissionValueField busy={busy} field={field} onSubmit={onUpdateMissionValue} value={typeof displayedValues?.[field.path] === "string" || typeof displayedValues?.[field.path] === "number" ? displayedValues[field.path] : null} /> : <b>{String(displayedValues?.[field.path] ?? "Not provided")}</b>}</li>)}</ul></details> : null}</section>
+              </ul>{optionalFields.length ? <details open className="gmat-mission-assumptions"><summary><strong>Optional mission settings</strong><span>{optionalFields.length} settings</span></summary><ul>{optionalFields.map(field => <li key={field.path}><span>{field.label}</span>{(!activeRunId || editingRunValues) && onUpdateMissionValue ? <MissionValueField busy={busy} field={field} onSubmit={onUpdateMissionValue} value={missionValueOrDefault(displayedValues, field)} /> : <b>{String(displayedValues?.[field.path] ?? "Not provided")}</b>}</li>)}</ul></details> : null}{propagationFields.length ? <details open className="gmat-mission-assumptions"><summary><strong>Optional propagation settings</strong><span>{propagationFields.length} settings</span></summary><ul>{propagationFields.map(field => <li key={field.path}><span>{field.label}</span>{(!activeRunId || editingRunValues) && onUpdateMissionValue ? <MissionValueField busy={busy} field={field} onSubmit={onUpdateMissionValue} value={missionValueOrDefault(displayedValues, field)} /> : <b>{String(displayedValues?.[field.path] ?? "Not provided")}</b>}</li>)}</ul></details> : null}</section>
               <section><header><strong>Required before Simu-CIC can run</strong><span>{simuCicComplete ? 'Complete' : simuCicNeedsStations ? 'Station required' : 'Attitude law required'}</span></header><ul>
                 <li><span>Attitude behavior</span><b>{simuCic.attitude_mode === 'nadir_pointing' ? 'Nadir pointing' : simuCic.attitude_mode === 'ground_station_tracking' ? 'Track ground station(s)' : 'Nadir pointing'}</b></li>
                 {simuCic.attitude_mode === 'ground_station_tracking' ? <li className={simuCicNeedsStations ? 'is-missing' : ''}><span>Ground stations</span><b>{simuCic.ground_station_ids.length ? simuCic.ground_station_ids.join(', ') : 'Not provided'}</b></li> : null}
                 <li className="gmat-mission-ground-station-picker"><label htmlFor="simu-cic-ground-station">Attitude target</label><select disabled={busy || simuCicRunning} id="simu-cic-ground-station" onChange={event => updateGroundStation(event.target.value)} value={simuCic.attitude_mode === 'ground_station_tracking' ? simuCic.ground_station_ids[0] ?? '' : ''}>
                   <option value="">Nadir pointing (default)</option>
-                  {RF_COMLINK_GROUND_STATION_IDS.flatMap(id => groundStations.filter(station => station.id === id)).map(station => <option key={station.id} value={station.id}>{station.name} ({station.id})</option>)}
+                  {groundStations.map(station => <option key={station.id} value={station.id}>{station.name} ({station.id})</option>)}
                 </select></li>
               </ul>{simuCicConfigurationError ? <p className="gmat-mission-run-blocker">{simuCicConfigurationError}</p> : <p className="gmat-mission-simucic-hint">Choose nadir pointing or a predefined station before or after GMAT. The choice is saved in this mission’s satellite.json.</p>}</section>
               {showMissionInputs ? <><details className="gmat-mission-assumptions"><summary><strong>Assumed defaults to confirm</strong><span>{assumptions.length} implicit values</span></summary><ul className="assumptions">{assumptions.map(item => <li key={item.label}>{item.label}: {item.value}</li>)}</ul></details>

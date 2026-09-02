@@ -97,7 +97,7 @@ function optionalNumber(document: DigitalThreadDocument, sourcePath: string, tar
   if (value !== null) values[targetPath] = value
 }
 
-function initialSolarPowerKw(document: DigitalThreadDocument, guards: DigitalThreadGuard[], derivations: DigitalThreadDerivation[]) {
+function initialSolarPowerKw(document: DigitalThreadDocument, guards: DigitalThreadGuard[], derivations: DigitalThreadDerivation[], allowScriptFallback = false) {
   const ratedWattsPath = "satellite.bus.electrical_subsystem.solar_panels.total_power_generated_watts"
   const ratedWatts = numberAt(document, ratedWattsPath)
   if (ratedWatts !== null) {
@@ -110,7 +110,7 @@ function initialSolarPowerKw(document: DigitalThreadDocument, guards: DigitalThr
   const area = numberAt(document, areaPath)
   const efficiency = numberAt(document, efficiencyPath)
   if (area === null || efficiency === null) {
-    guards.push({ code: "missing_solar_power_model", message: "GMAT electric propulsion needs rated solar power, or both solar-array area and efficiency.", path: ratedWattsPath })
+    if (!allowScriptFallback) guards.push({ code: "missing_solar_power_model", message: "GMAT electric propulsion needs rated solar power, or both solar-array area and efficiency.", path: ratedWattsPath })
     return null
   }
   const value = 1361 * area * (efficiency / 100) / 1000
@@ -151,6 +151,30 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   }
   requireNumber(document, "satellite.bus.physical.mass_kg.dry", "spacecraft.dryMassKg", values, guards)
   const propulsionType = stringAt(document, "satellite.bus.propulsion_subsystem.type")?.toLowerCase() ?? ""
+  const correctedTemplate = ["chemical-2d-transfer", "chemical-3d-transfer", "chemical-escape", "chemical-leo-orbit-maintenance", "electrical-2d-transfer", "electrical-3d-transfer", "electrical-escape", "electrical-leo-orbit-maintenance", "geo-chemical-station-keeping", "geo-electric-station-keeping", "gso-chemical-station-keeping", "gso-electric-station-keeping"].includes(template)
+  if (correctedTemplate) {
+    const electric = template.startsWith("electrical-") || template.includes("electric-station")
+    const chemical = !electric
+    if (!propulsionType || !(electric ? /(electric|hall|ion)/u : /(chemical|bipropellant|monopropellant)/u).test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: `The ${template} template requires a compatible propulsion subsystem.`, path: "satellite.bus.propulsion_subsystem.type" })
+    const propellant = firstNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg", "satellite.bus.physical.mass_kg.propellant")
+    if (propellant !== null) values["propulsion.fuelMassKg"] = propellant
+    optionalNumber(document, "satellite.bus.physical.drag_area_m2", "spacecraft.dragAreaM2", values)
+    optionalNumber(document, "satellite.bus.physical.drag_coefficient", "spacecraft.dragCoefficient", values)
+    optionalNumber(document, "satellite.bus.physical.reflectivity_coefficient", "spacecraft.reflectivityCoefficient", values)
+    optionalNumber(document, "satellite.bus.physical.srp_area_m2", "spacecraft.srpAreaM2", values)
+    optionalNumber(document, "satellite.bus.propulsion_subsystem.specific_impulse_seconds", "propulsion.ispSeconds", values)
+    if (["chemical-leo-orbit-maintenance", "electrical-leo-orbit-maintenance", "chemical-2d-transfer", "chemical-3d-transfer", "electrical-2d-transfer", "electrical-3d-transfer"].includes(template) && typeof values["initialOrbit.smaKm"] === "number") values["initialOrbit.altitudeKm"] = values["initialOrbit.smaKm"] - 6378.1363
+    if (electric) {
+      optionalNumber(document, "satellite.bus.propulsion_subsystem.nominal_thrust_newtons", "propulsion.thrustNewtons", values)
+      optionalNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.minimum_usable_power_kw", "power.minThrusterPowerKw", values)
+      optionalNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.maximum_usable_power_kw", "power.maxThrusterPowerKw", values)
+      optionalNumber(document, "satellite.bus.electrical_subsystem.system_margin_percent", "power.marginPercent", values)
+      optionalNumber(document, "satellite.bus.electrical_subsystem.spacecraft_bus_load_kw", "power.busLoadKw", values)
+      optionalNumber(document, "satellite.bus.electrical_subsystem.solar_panels.annual_degradation_percent", "power.annualDegradationPercent", values)
+      const solarPower = initialSolarPowerKw(document, guards, derivations, true)
+      if (solarPower !== null) values["power.initialPowerKw"] = solarPower
+    }
+  } else
 
   if (template === "geo-gso-electric-station-keeping" || template === "geo-electric-end-of-life") {
     if (!propulsionType || !/(electric|hall|ion)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: `The ${template === "geo-electric-end-of-life" ? "GEO electric end-of-life" : "GEO/GSO electric station-keeping"} template requires an explicitly identified electric propulsion subsystem.`, path: "satellite.bus.propulsion_subsystem.type" })
@@ -251,6 +275,8 @@ const MISSION_ORBIT_PATHS: Record<string, string> = {
 
 function missionDraftPaths(templateId: string) {
   const root = `analysis_requests.gmat.${analysisTemplateKey(templateId)}`
+  const corrected = ["chemical-2d-transfer", "chemical-3d-transfer", "chemical-escape", "chemical-leo-orbit-maintenance", "electrical-2d-transfer", "electrical-3d-transfer", "electrical-escape", "electrical-leo-orbit-maintenance", "geo-chemical-station-keeping", "geo-electric-station-keeping", "gso-chemical-station-keeping", "gso-electric-station-keeping"].includes(templateId)
+  if (corrected) return { ...Object.fromEntries(Object.entries(MISSION_ORBIT_PATHS).map(([draftPath, threadPath]) => [draftPath, `${root}.initial_orbit.${threadPath}`])), ...Object.fromEntries(["targetOrbit.smaKm", "targetOrbit.altitudeKm", "targetOrbit.eccentricity", "targetOrbit.inclinationDeg", "mission.mode", "mission.escapeC3", "mission.minAltitudeKm", "mission.finalAltitudeKm", "mission.targetAltitudeKm", "mission.days", "mission.maxDays", "tolerance.eastWestDeg", "tolerance.northSouthDeg"].map(draftPath => [draftPath, `${root}.parameters.${draftPath}`])) }
   return {
     ...Object.fromEntries(Object.entries(MISSION_ORBIT_PATHS).map(([draftPath, threadPath]) => [draftPath, `${root}.initial_orbit.${threadPath}`])),
     ...(templateId === "geo-electric-end-of-life"
@@ -298,15 +324,6 @@ function missionDraftPaths(templateId: string) {
   }
 }
 
-const SATELLITE_DRAFT_PATHS: Record<string, string> = {
-  "spacecraft.dryMassKg": "satellite.bus.physical.mass_kg.dry",
-  "spacecraft.dragAreaM2": "satellite.bus.physical.drag_area_m2",
-  "spacecraft.dragCoefficient": "satellite.bus.physical.drag_coefficient",
-  "propulsion.ispSeconds": "satellite.bus.propulsion_subsystem.specific_impulse_seconds",
-  "propulsion.minimumUsablePowerKw": "satellite.bus.propulsion_subsystem.electric_thruster.minimum_usable_power_kw",
-  "propulsion.maximumUsablePowerKw": "satellite.bus.propulsion_subsystem.electric_thruster.maximum_usable_power_kw",
-  "power.systemMarginPercent": "satellite.bus.electrical_subsystem.system_margin_percent",
-}
 
 export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft: { templateId: string; values: Record<string, string | number | null> }) {
   return updateDigitalThread(workspaceDir, document => {
@@ -320,42 +337,7 @@ export async function syncDigitalThreadFromGmatDraft(workspaceDir: string, draft
     setAtPath(document, threadPath, value)
     provenance[threadPath] = { source: "gmat_mission_draft", recorded_at: new Date().toISOString() }
   }
-  // Physical values are editable as mission-specific what-if overrides.  The
-  // selected file in data/satellite-library is never written here.
-  for (const [draftPath, threadPath] of Object.entries(SATELLITE_DRAFT_PATHS)) {
-    const value = draft.values[draftPath]
-    if (value === null || value === undefined || value === "") continue
-    setAtPath(document, threadPath, value)
-    provenance[threadPath] = { source: "gmat_mission_satellite_override", recorded_at: new Date().toISOString() }
-  }
-  if (draft.templateId === "electric-propulsion-transfer") {
-    const propellantMass = draft.values["spacecraft.initialFuelMassKg"]
-    if (typeof propellantMass === "number") {
-      const threadPath = "satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg"
-      setAtPath(document, threadPath, propellantMass)
-      provenance[threadPath] = { source: "gmat_mission_satellite_override", recorded_at: new Date().toISOString() }
-    }
-    const solarPowerKw = draft.values["power.initialMaxPowerKw"]
-    if (typeof solarPowerKw === "number") {
-      const threadPath = "satellite.bus.electrical_subsystem.solar_panels.total_power_generated_watts"
-      setAtPath(document, threadPath, solarPowerKw * 1000)
-      provenance[threadPath] = { source: "gmat_mission_satellite_override", recorded_at: new Date().toISOString(), conversion: "kW_to_W" }
-    }
-    const busLoadKw = draft.values["power.busLoadKw"]
-    if (typeof busLoadKw === "number") {
-      // An electric-propulsion allocation is more specific when the selected
-      // satellite defines one; otherwise the nominal spacecraft bus load is
-      // the only available source. Both paths are present in satellite.json
-      // templates where applicable, so custom records remain supported.
-      const propulsionModePath = "satellite.bus.electrical_subsystem.electric_propulsion_mode.bus_load_kw"
-      const threadPath = getAtPath(document, propulsionModePath) === undefined
-        ? "satellite.bus.electrical_subsystem.spacecraft_bus_load_kw"
-        : propulsionModePath
-      setAtPath(document, threadPath, busLoadKw)
-      provenance[threadPath] = { source: "gmat_mission_satellite_override", recorded_at: new Date().toISOString() }
-    }
-  }
-  // `analysis_requests` preserves the exact mission inputs for each tool.
+  // `analysis_requests preserves the exact mission inputs for each tool.
   // `satellite.orbit` is the active orbital state of this mission and is the
   // compact, top-level representation that downstream tools consume.
   const epoch = draft.values["initialOrbit.epoch"]

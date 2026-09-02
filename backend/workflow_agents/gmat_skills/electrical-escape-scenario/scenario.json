@@ -1,0 +1,236 @@
+{
+  "id": "electrical-escape",
+  "analysis_request_key": "electrical_escape",
+  "chat_mode": "gmat-electrical-escape",
+  "name": "Electrical End-of-Life",
+  "description": "Corrected GMAT scenario parameterized from satellite data and values confirmed in Mission Studio.",
+  "propulsion_requirement": "electric",
+  "initial_state_representation": "Keplerian",
+  "gmat_reference_script": "electrical_escape.script",
+  "draft_directory": [
+    "gmat",
+    "electrical-escape",
+    "drafts"
+  ],
+  "downstream_analyses": [
+    "opalis",
+    "simu-cic",
+    "rf-comlink"
+  ],
+  "satellite_inputs": [
+    "dry mass",
+    "Cd",
+    "Cr",
+    "drag area",
+    "SRP area",
+    "propellant mass",
+    "specific impulse"
+  ],
+  "artifacts": [
+    {
+      "path": "electrical_escape.script",
+      "kind": "script",
+      "primary": true
+    },
+    {
+      "kind": "values",
+      "path": "electrical_escape.values.yaml"
+    },
+    {
+      "kind": "result",
+      "path": "gmat_result.json"
+    },
+    {
+      "kind": "log",
+      "path": "gmat.log"
+    },
+    {
+      "kind": "oem",
+      "path": "EphemerisFile1.oem"
+    }
+  ],
+  "ui": {
+    "objective": "Electrical End-of-Life",
+    "summary": "Reference GMAT values are prefilled and must be reviewed before execution.",
+    "mission_input_fields": [
+      {
+        "label": "Epoch",
+        "path": "initialOrbit.epoch",
+        "required": false
+      },
+      {
+        "label": "Initial altitude",
+        "path": "initialOrbit.altitudeKm",
+        "unit": "km",
+        "required": true
+      },
+      {
+        "label": "Initial semi-major axis",
+        "path": "initialOrbit.smaKm",
+        "required": true,
+        "unit": "km"
+      },
+      {
+        "label": "Initial eccentricity",
+        "path": "initialOrbit.eccentricity",
+        "required": true
+      },
+      {
+        "label": "Initial inclination",
+        "path": "initialOrbit.inclinationDeg",
+        "required": true,
+        "unit": "deg"
+      },
+      {
+        "label": "Initial RAAN",
+        "path": "initialOrbit.raanDeg",
+        "required": false,
+        "unit": "deg"
+      },
+      {
+        "label": "Initial AOP",
+        "path": "initialOrbit.argPeriapsisDeg",
+        "required": false,
+        "unit": "deg"
+      },
+      {
+        "label": "Initial true anomaly",
+        "path": "initialOrbit.trueAnomalyDeg",
+        "required": false,
+        "unit": "deg"
+      },
+      {
+        "label": "Dry mass",
+        "path": "spacecraft.dryMassKg",
+        "required": false,
+        "unit": "kg"
+      },
+      {
+        "label": "Drag coefficient",
+        "path": "spacecraft.dragCoefficient",
+        "required": false
+      },
+      {
+        "label": "Reflectivity coefficient",
+        "path": "spacecraft.reflectivityCoefficient",
+        "required": false
+      },
+      {
+        "label": "Drag area",
+        "path": "spacecraft.dragAreaM2",
+        "required": false,
+        "unit": "m²"
+      },
+      {
+        "label": "SRP area",
+        "path": "spacecraft.srpAreaM2",
+        "required": false,
+        "unit": "m²"
+      },
+      {
+        "label": "Propellant mass",
+        "path": "propulsion.fuelMassKg",
+        "required": false,
+        "unit": "kg"
+      },
+      {
+        "label": "Specific impulse",
+        "path": "propulsion.ispSeconds",
+        "required": false,
+        "unit": "s"
+      },
+      {
+        "label": "Thruster thrust",
+        "path": "propulsion.thrustNewtons",
+        "required": true,
+        "unit": "N"
+      },
+      {
+        "label": "Initial solar power",
+        "path": "power.initialPowerKw",
+        "required": true,
+        "unit": "kW"
+      },
+      {
+        "label": "Annual power degradation",
+        "path": "power.annualDegradationPercent",
+        "required": true,
+        "unit": "%"
+      },
+      {
+        "label": "Power margin",
+        "path": "power.marginPercent",
+        "required": true,
+        "unit": "%"
+      },
+      {
+        "label": "Bus load",
+        "path": "power.busLoadKw",
+        "required": true,
+        "unit": "kW"
+      },
+      {
+        "label": "Minimum usable thruster power",
+        "path": "power.minThrusterPowerKw",
+        "required": true,
+        "unit": "kW"
+      },
+      {
+        "label": "Maximum usable thruster power",
+        "path": "power.maxThrusterPowerKw",
+        "required": true,
+        "unit": "kW"
+      },
+      {
+        "label": "End-of-life mode (0=graveyard, 1=escape)",
+        "path": "mission.mode",
+        "required": true
+      },
+      {
+        "label": "Escape C3",
+        "path": "mission.escapeC3",
+        "required": false,
+        "unit": "km²/s²"
+      },
+      {
+        "label": "Decrement mass",
+        "path": "propagation.decrementMass",
+        "required": false,
+        "kind": "boolean"
+      },
+      {
+        "label": "Include Sun point mass",
+        "path": "propagation.includeSun",
+        "required": false,
+        "kind": "boolean"
+      },
+      {
+        "label": "Include Luna point mass",
+        "path": "propagation.includeLuna",
+        "required": false,
+        "kind": "boolean"
+      },
+      {
+        "label": "Atmosphere model (None or MSISE90)",
+        "path": "propagation.atmosphereModel",
+        "required": false
+      },
+      {
+        "label": "Relativistic correction",
+        "path": "propagation.relativisticCorrection",
+        "required": false,
+        "kind": "boolean"
+      }
+    ],
+    "outputs": [
+      "GMAT report",
+      "OEM ephemeris",
+      "gmat.log",
+      "satellite.json"
+    ],
+    "satellite_requirements": [
+      "Satellite physical properties",
+      "Compatible propulsion subsystem"
+    ]
+  }
+}

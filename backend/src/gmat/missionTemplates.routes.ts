@@ -7,7 +7,7 @@ import type { FastifyInstance } from "fastify"
 
 import type { AppConfig } from "../config.js"
 import { adaptDigitalThreadToGmat, digitalThreadGmatSeed, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
-import { captureDigitalThreadSnapshot, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread } from "../digitalThread/digitalThreadStore.js"
+import { captureDigitalThreadSnapshot, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, syncSimuCicRequestToRunSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { appendMissionConversation } from "../digitalThread/missionConversationStore.js"
 import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
@@ -22,6 +22,20 @@ import { listRunArtifactHistory } from "./artifactHistory.js"
 
 type WorkspaceBody = { workspaceDir?: unknown }
 type TemplateParams = { template: string }
+
+const SATELLITE_OWNED_MISSION_PATHS = new Set([
+  "spacecraft.dryMassKg", "spacecraft.dragCoefficient", "spacecraft.reflectivityCoefficient", "spacecraft.dragAreaM2", "spacecraft.srpAreaM2",
+  "spacecraft.initialFuelMassKg", "propulsion.fuelMassKg", "propulsion.ispSeconds", "power.initialPowerKw", "power.initialMaxPowerKw",
+  "power.annualDegradationPercent", "power.marginPercent", "power.systemMarginPercent", "power.busLoadKw", "power.minThrusterPowerKw", "power.maxThrusterPowerKw",
+])
+const EARTH_RADIUS_KM = 6378.1363
+
+function normalizeMissionOrbitInput(fieldPath: string, value: string) {
+  if (fieldPath !== "initialOrbit.altitudeKm") return { fieldPath, value }
+  const altitudeKm = Number(value)
+  if (!Number.isFinite(altitudeKm)) throw new Error("initial altitude must be a finite number")
+  return { fieldPath: "initialOrbit.smaKm", value: String(altitudeKm + EARTH_RADIUS_KM) }
+}
 
 function resolveTemplate(value: string): GmatTemplateId {
   if (!isGmatTemplateId(value)) throw new Error("unknown GMAT mission template")
@@ -204,10 +218,13 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
 
   fastify.patch<{ Params: TemplateParams & { draftId: string }; Body: WorkspaceBody & { path?: unknown; value?: unknown } }>("/api/gmat/templates/:template/drafts/:draftId/values", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
-    const fieldPath = typeof req.body?.path === "string" ? req.body.path : ""
-    const value = typeof req.body?.value === "string" || typeof req.body?.value === "number" ? String(req.body.value) : ""
+    let fieldPath = typeof req.body?.path === "string" ? req.body.path : ""
+    let value = typeof req.body?.value === "string" || typeof req.body?.value === "number" ? String(req.body.value) : ""
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     if (!fieldPath || !value.trim()) return reply.status(400).send({ error: "path and value are required" })
+    if (SATELLITE_OWNED_MISSION_PATHS.has(fieldPath)) return reply.status(403).send({ error: "satellite-owned parameters are read from satellite.json and cannot be edited in Mission Studio" })
+    try { ({ fieldPath, value } = normalizeMissionOrbitInput(fieldPath, value)) }
+    catch (error) { return reply.status(400).send({ error: getErrorMessage(error, "invalid mission orbit value") }) }
     try {
       const template = resolveTemplate(req.params.template)
       const workspaceDir = resolveWorkspace(root, req.body?.workspaceDir)
@@ -266,6 +283,10 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
       const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftDigitalThreadWorkspaceDir(workspaceDir, template, draft.draftId))
       const execution = await runtime.execute({ connection: resolveModelBackend(config, "chatModel"), draft, execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined, workspaceDir })
       const runPath = await finalizeMissionRun({ digitalThreadSnapshot, draftConversation: (draft as { conversation?: Array<{ assistant: string; user: string }> }).conversation ?? [], result: execution.result, root, runDir: execution.runDir, workspaceDir })
+      // The attitude target is a downstream mission input, selected in the
+      // planning satellite.json before GMAT. Copy it after finalization so the
+      // completed run snapshot is the one Simu-CIC reads.
+      await syncSimuCicRequestToRunSnapshot(execution.runDir, await loadOrCreateDigitalThread(workspaceDir))
       const recordedDraft = await runtime.recordRun({ draft, execution, runPath, workspaceDir })
       return reply.send({ ...execution, draft: presentDraft(recordedDraft, template), runPath })
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to execute GMAT mission draft") }) }

@@ -18,14 +18,14 @@ type JsonRecord = Record<string, unknown>
 
 function record(value: unknown): JsonRecord | null { return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : null }
 
-function atPath(document: JsonRecord, fieldPath: string): string | number | null {
+function atPath(document: JsonRecord, fieldPath: string): string | number | boolean | null {
   let current: unknown = document
   for (const field of fieldPath.split(".")) {
     const next = record(current)
     if (!next) return null
     current = next[field]
   }
-  return typeof current === "string" || typeof current === "number" ? current : null
+  return typeof current === "string" || typeof current === "number" || typeof current === "boolean" ? current : null
 }
 
 function missionValues(document: JsonRecord, templateId: string | null) {
@@ -33,7 +33,7 @@ function missionValues(document: JsonRecord, templateId: string | null) {
   const initialAltitude = typeof semiMajorAxis === "number"
     ? Number((semiMajorAxis - 6378.1363).toFixed(6))
     : null
-  const values: Record<string, string | number | null> = {
+  const values: Record<string, string | number | boolean | null> = {
     "initialOrbit.epoch": atPath(document, "satellite.orbit.reference_epoch_tai_mod_julian"),
     "initialOrbit.smaKm": semiMajorAxis,
     // Altitude is derived from the run-local SMA rather than copied from a
@@ -101,7 +101,7 @@ async function readPersistedMissionValues(runDir: string) {
   const parsed = parse(await fs.readFile(path.join(runDir, valueFile), "utf8")) as { values?: unknown } | null
   const values = record(parsed?.values)
   if (!values) return {}
-  return Object.fromEntries(Object.entries(values).filter(([, value]) => typeof value === "string" || typeof value === "number" || value === null)) as Record<string, string | number | null>
+  return Object.fromEntries(Object.entries(values).filter(([, value]) => typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value === null)) as Record<string, string | number | boolean | null>
 }
 async function readRunDocument(runDir: string) {
   const canonical = path.join(runDir, "satellite.json")
@@ -139,3 +139,5 @@ export async function buildRunViewModel(run: MissionRunReference) {
     workflow,
   }
 }
+
+

@@ -3,8 +3,23 @@
   "version": "1.0.0",
   "name": "Chemical Propulsion Sat",
   "description": "Physical reference for a chemical-propulsion LEO spacecraft. Mission orbit and run-specific values are intentionally excluded.",
-  "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
-  "mission_templates": ["orbit-keeping", "geo-gso-orbit-keeping", "chemical-hohmann-transfer", "chemical-3d-transfer"],
+  "capabilities": [
+    "GMAT",
+    "Simu-CIC",
+    "OPALIS",
+    "RF-COMLINK"
+  ],
+  "mission_templates": [
+    "orbit-keeping",
+    "geo-gso-orbit-keeping",
+    "chemical-hohmann-transfer",
+    "chemical-3d-transfer",
+    "chemical-2d-transfer",
+    "chemical-escape",
+    "chemical-leo-orbit-maintenance",
+    "geo-chemical-station-keeping",
+    "gso-chemical-station-keeping"
+  ],
   "satellite": {
     "identity": {
       "name": "Chemical Propulsion Sat",
@@ -128,7 +143,7 @@
               "frequency_band": "S",
               "frequency_mhz": 2400,
               "data_rate_bps": 4000,
-              "bit_error_rate": 8.522275225393864e-8,
+              "bit_error_rate": 8.522275225393865E-08,
               "modulation": "BPSK",
               "required_ebn0_db": 11.3,
               "required_ebn0_manual": true
@@ -140,7 +155,10 @@
               "pointing_loss_db": 0,
               "figure_of_merit_db_per_k": -22.8
             },
-            "propagation": { "atmospheric_loss_db": -0.2, "weather_unavailability_percent": 1 }
+            "propagation": {
+              "atmospheric_loss_db": -0.2,
+              "weather_unavailability_percent": 1
+            }
           },
           {
             "id": "housekeeping-telemetry",
@@ -151,7 +169,7 @@
               "frequency_band": "S",
               "frequency_mhz": 2400,
               "data_rate_bps": 50000,
-              "bit_error_rate": 8.522275225393864e-8,
+              "bit_error_rate": 8.522275225393865E-08,
               "modulation": "BPSK",
               "required_ebn0_db": 11.3,
               "required_ebn0_manual": true
@@ -163,7 +181,10 @@
               "pointing_loss_db": -3,
               "axial_ratio_db": -2
             },
-            "propagation": { "atmospheric_loss_db": -0.2, "weather_unavailability_percent": 1 }
+            "propagation": {
+              "atmospheric_loss_db": -0.2,
+              "weather_unavailability_percent": 1
+            }
           },
           {
             "id": "payload-telemetry",
@@ -174,7 +195,7 @@
               "frequency_band": "X",
               "frequency_mhz": 8100,
               "data_rate_bps": 150000000,
-              "bit_error_rate": 7.631837383153526e-6,
+              "bit_error_rate": 7.631837383153526E-06,
               "modulation": "BPSK",
               "required_ebn0_db": 9.59,
               "required_ebn0_manual": true
@@ -185,7 +206,10 @@
               "eirp_dbw": 25,
               "pointing_loss_db": -1.5
             },
-            "propagation": { "atmospheric_loss_db": -0.7, "weather_unavailability_percent": 1 }
+            "propagation": {
+              "atmospheric_loss_db": -0.7,
+              "weather_unavailability_percent": 1
+            }
           }
         ]
       }

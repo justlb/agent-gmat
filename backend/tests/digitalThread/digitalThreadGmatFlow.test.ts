@@ -83,8 +83,8 @@ describe("digital thread to GMAT flow", () => {
     assert.equal((await loadOrCreateDigitalThread(secondWorkspace)).analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km, null)
   })
 
-  it("keeps satellite what-if changes inside the run digital thread and out of Satellite Library", async () => {
-    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-satellite-override-"))
+  it("keeps satellite physical values owned by satellite.json when a draft is synchronized", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-satellite-owned-"))
     await selectSatelliteDefinition(workspaceDir, "ref-starlink-v1-5-public-rf", "1.0.0")
     const baseline = await loadOrCreateDigitalThread(workspaceDir)
     const seed = adaptDigitalThreadToGmat(baseline, "electric-propulsion-transfer")
@@ -95,32 +95,21 @@ describe("digital thread to GMAT flow", () => {
         ...seed.values,
         "spacecraft.dryMassKg": 320,
         "spacecraft.initialFuelMassKg": 8,
-        "propulsion.minimumUsablePowerKw": 1.1,
-        "propulsion.maximumUsablePowerKw": 4,
         "power.initialMaxPowerKw": 5,
         "power.busLoadKw": 2.4,
-        "power.systemMarginPercent": 12,
       },
     })
 
-    const overridden = await loadOrCreateDigitalThread(workspaceDir)
-    assert.equal(overridden.satellite.bus.physical.mass_kg.dry, 320)
-    assert.equal(overridden.satellite.bus.propulsion_subsystem.electric_thruster.propellant_mass_kg, 8)
-    assert.equal(overridden.satellite.bus.electrical_subsystem.solar_panels.total_power_generated_watts, 5000)
-    assert.equal(overridden.satellite.bus.electrical_subsystem.electric_propulsion_mode.bus_load_kw, 2.4)
-    assert.equal(overridden.satellite.bus.electrical_subsystem.system_margin_percent, 12)
+    const synchronized = await loadOrCreateDigitalThread(workspaceDir)
+    assert.equal(synchronized.satellite.bus.physical.mass_kg.dry, 296)
+    assert.equal(synchronized.satellite.bus.electrical_subsystem.solar_panels.total_power_generated_watts, 4200)
 
-    const libraryDefinition = await getSatelliteDefinition("ref-starlink-v1-5-public-rf", "1.0.0")
-    assert.equal(libraryDefinition.satellite.bus.physical.mass_kg.dry, 296, "library definition remains immutable")
-    assert.equal(libraryDefinition.satellite.bus.electrical_subsystem.solar_panels.total_power_generated_watts, 4200, "library electrical values remain immutable")
-
-    const adapted = adaptDigitalThreadToGmat(overridden, "electric-propulsion-transfer")
-    assert.equal(adapted.values["spacecraft.dryMassKg"], 320)
-    assert.equal(adapted.values["spacecraft.initialFuelMassKg"], 8)
-    assert.equal(adapted.values["power.initialMaxPowerKw"], 5)
-    assert.equal(adapted.values["power.busLoadKw"], 2.4)
+    const adapted = adaptDigitalThreadToGmat(synchronized, "electric-propulsion-transfer")
+    assert.equal(adapted.values["spacecraft.dryMassKg"], seed.values["spacecraft.dryMassKg"])
+    assert.equal(adapted.values["spacecraft.initialFuelMassKg"], seed.values["spacecraft.initialFuelMassKg"])
+    assert.equal(adapted.values["power.initialMaxPowerKw"], seed.values["power.initialMaxPowerKw"])
+    assert.equal(adapted.values["power.busLoadKw"], seed.values["power.busLoadKw"])
   })
-
   it("replaces the complete physical definition when the user changes satellite", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-satellite-switch-"))
     await selectSatelliteDefinition(workspaceDir, "ref-starlink-v1-5-public-rf", "1.0.0")

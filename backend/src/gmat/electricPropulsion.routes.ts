@@ -220,7 +220,14 @@ export async function electricPropulsionRoutes(fastify: FastifyInstance, { confi
   fastify.post<{ Body: DraftWorkspaceBody }>("/api/gmat/electric-propulsion-transfer/drafts", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
-    try { return reply.send(await createElectricPropulsionDraft(resolveOutputWorkspaceDir(root, req.body?.workspaceDir))) } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to create electric-propulsion GMAT draft") }) }
+    try {
+      const workspaceDir = resolveOutputWorkspaceDir(root, req.body?.workspaceDir)
+      const adapted = await digitalThreadGmatSeed(workspaceDir, "electric-propulsion-transfer")
+      const draft = await createElectricPropulsionDraft(workspaceDir, adapted.values, adapted.requiredDraftPaths)
+      await syncDigitalThreadFromGmatDraft(draftDigitalThreadWorkspaceDir(workspaceDir, "electric-propulsion-transfer", draft.draftId), draft)
+      await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
+      return reply.send(draft)
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to create electric-propulsion GMAT draft") }) }
   })
   fastify.get<{ Querystring: { workspaceDir?: string } }>("/api/gmat/electric-propulsion-transfer/drafts", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
@@ -345,3 +352,4 @@ export async function electricPropulsionRoutes(fastify: FastifyInstance, { confi
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "invalid GMAT electric-transfer time series") }) }
   })
 }
+
