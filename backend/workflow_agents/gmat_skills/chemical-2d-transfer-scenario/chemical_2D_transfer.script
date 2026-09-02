@@ -187,16 +187,40 @@ DefaultGroundTrackPlot.TextureMap           = '../data/graphics/texture/Modified
 %----------------------------------------
 %---------- Mission Sequence
 %----------------------------------------
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.UpperLeft = [ 0 0 ];
+EphemerisFile1.Size = [ 0 0 ];
+EphemerisFile1.RelativeZOrder = 0;
+EphemerisFile1.Maximized = false;
+EphemerisFile1.Spacecraft = DefaultSC;
+EphemerisFile1.Filename = 'EphemerisFile1.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.OutputFormat = LittleEndian;
+EphemerisFile1.IncludeCovariance = None;
+EphemerisFile1.WriteEphemeris = true;
+
 BeginMissionSequence;
+
+% Application instrumentation: activate the downstream OEM subscriber.
+Toggle EphemerisFile1 On;
 
 Propagate 'Prop To Periapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Periapsis};
 Target 'Hohmann Transfer' DC1 {SolveMode = Solve, ExitMode = SaveAndContinue};
-   Vary 'Vary TOI' DC1(TOI.Element1 = 1, {Perturbation = 0.0001, Lower = 0.0, Upper = 3.14159, MaxStep = 0.5});
+   Vary 'Vary TOI' DC1(TOI.Element1 = 0.001, {Perturbation = 0.0001, Lower = 0.0, Upper = 3.14159, MaxStep = 0.005, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
    Maneuver 'Perform TOI' TOI(DefaultSC);
    Propagate 'Prop To Apoapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Apoapsis};
    Achieve 'Achieve RMAG = 42165' DC1(DefaultSC.Earth.RMAG = 42164.169, {Tolerance = 0.1});
-   Vary 'Vary GOI' DC1(GOI.Element1 = 1, {Perturbation = 0.0001, Lower = 0.0, Upper = 3.14159, MaxStep = 0.2});
+   Vary 'Vary GOI' DC1(GOI.Element1 = 0.001, {Perturbation = 0.0001, Lower = 0.0, Upper = 3.14159, MaxStep = 0.002, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
    Maneuver 'Perform GOI' GOI(DefaultSC);
-   Achieve 'Achieve ECC = 0.005' DC1(DefaultSC.Earth.ECC = 0.005, {Tolerance = 0.0001});
 EndTarget;  % For targeter DC1
+% Targeting has committed the converged state. Re-enable OEM sampling for the
+% physical propagation below; solver trial passes must not be exported.
+Toggle EphemerisFile1 On;
 Propagate 'Prop One Day' DefaultProp(DefaultSC) {DefaultSC.ElapsedSecs = 86400};

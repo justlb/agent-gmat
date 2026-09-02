@@ -206,7 +206,29 @@ OrbitView_Frame.FOVy = 45;
 Create Variable MissionDays FuelReserveKg TargetSMA FilteredSMA SmaError LowSmaBand HighSmaBand;
 Create Variable ThrottleBias ThrottleGain BaseThrottle;
 
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.UpperLeft = [ 0 0 ];
+EphemerisFile1.Size = [ 0 0 ];
+EphemerisFile1.RelativeZOrder = 0;
+EphemerisFile1.Maximized = false;
+EphemerisFile1.Spacecraft = LEO_EP;
+EphemerisFile1.Filename = 'EphemerisFile1.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.OutputFormat = LittleEndian;
+EphemerisFile1.IncludeCovariance = None;
+EphemerisFile1.WriteEphemeris = true;
+
 BeginMissionSequence;
+
+% Application instrumentation: activate the downstream OEM subscriber.
+Toggle EphemerisFile1 On;
 
 MissionDays          = 90;
 % Control once per orbit at periapsis, so orbital elements are sampled at

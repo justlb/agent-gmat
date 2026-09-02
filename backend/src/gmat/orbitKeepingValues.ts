@@ -34,6 +34,10 @@ function stableContext(value: string) {
   return value.replace(/\s+/gu, " ").trim()
 }
 
+function assignmentKey(context: string) {
+  return /^\s*([A-Za-z][A-Za-z0-9_.]*)\s*=/u.exec(context)?.[1] ?? null
+}
+
 function locateSlots(template: string): LocatedSlot[] {
   const slots: LocatedSlot[] = []
   let lineStart = 0
@@ -154,13 +158,21 @@ export function renderOrbitKeepingValues(template: string, values: OrbitKeepingV
   const located = locateSlots(template)
   const replacementsById = new Map(values.slots.map((slot) => [slot.id, slot]))
   const replacementsByContext = new Map<string, OrbitKeepingValueSlot[]>()
+  const replacementsByAssignment = new Map<string, OrbitKeepingValueSlot[]>()
   for (const slot of values.slots) {
     const key = stableContext(slot.context)
     const matches = replacementsByContext.get(key) ?? []
     matches.push(slot)
     replacementsByContext.set(key, matches)
+    const assignment = assignmentKey(slot.context)
+    if (assignment) {
+      const assignmentMatches = replacementsByAssignment.get(assignment) ?? []
+      assignmentMatches.push(slot)
+      replacementsByAssignment.set(assignment, assignmentMatches)
+    }
   }
   const contextOccurrence = new Map<string, number>()
+  const assignmentOccurrence = new Map<string, number>()
   const used = new Set<OrbitKeepingValueSlot>()
   const replacements: Array<{ expected: LocatedSlot; replacement: OrbitKeepingValueSlot }> = []
   for (const expected of located) {
@@ -170,10 +182,14 @@ export function renderOrbitKeepingValues(template: string, values: OrbitKeepingV
     const byId = replacementsById.get(expected.id)
     const context = stableContext(expected.context)
     const occurrence = contextOccurrence.get(context) ?? 0
+    const assignment = assignmentKey(expected.context)
+    const assignmentIndex = assignment ? assignmentOccurrence.get(assignment) ?? 0 : 0
     const replacement = byId && stableContext(byId.context) === context
       ? byId
       : replacementsByContext.get(context)?.[occurrence]
+        ?? (assignment ? replacementsByAssignment.get(assignment)?.[assignmentIndex] : undefined)
     contextOccurrence.set(context, occurrence + 1)
+    if (assignment) assignmentOccurrence.set(assignment, assignmentIndex + 1)
     if (!replacement) continue
     assertSafeValue(replacement.value, expected.id)
     used.add(replacement)

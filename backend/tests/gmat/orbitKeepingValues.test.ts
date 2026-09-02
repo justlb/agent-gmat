@@ -69,4 +69,11 @@ describe("orbit keeping values renderer", () => {
     const currentTemplate = "Create EphemerisFile EphemerisFile1;\nTarget 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode = DiscardAndContinue, ShowProgressWindow = true};\n"
     assert.equal(renderOrbitKeepingValues(currentTemplate, values), currentTemplate)
   })
+
+  it("migrates a historical assignment whose generated filename changed", () => {
+    const previousTemplate = "ReboostReport.Filename = 'D:/old/run/ReboostReport.txt';\n"
+    const values = extractOrbitKeepingValues(previousTemplate)
+    const currentTemplate = "Create EphemerisFile EphemerisFile1;\nReboostReport.Filename = 'ReboostReport.txt';\n"
+    assert.equal(renderOrbitKeepingValues(currentTemplate, values), "Create EphemerisFile EphemerisFile1;\nReboostReport.Filename = 'D:/old/run/ReboostReport.txt';\n")
+  })
 })

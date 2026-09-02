@@ -51,7 +51,7 @@
   ],
   "ui": {
     "objective": "Chemical End-of-Life",
-    "summary": "Reference GMAT values are prefilled and must be reviewed before execution.",
+    "summary": "Enter the mission values to save them to satellite.json before GMAT execution.",
     "mission_input_fields": [
       {
         "label": "Epoch",
@@ -145,7 +145,7 @@
         "required": true
       },
       {
-        "label": "Escape C3",
+        "label": "Escape C3 (escape mode only; e.g. 0.01)",
         "path": "mission.escapeC3",
         "required": false,
         "unit": "km²/s²"

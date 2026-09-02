@@ -26,7 +26,8 @@ import { cancelGmatCalculations, getRunWorkflowLog, openPreparedOpalisScenario, 
 import { openRfComlinkGui, runRfComlinkCalculation } from './agent/rfComlinkApi'
 import { createPlanningRun, type PlanningRun } from './agent/planningRunApi'
 import { updateMissionValue } from './agent/missionValuesApi'
-import { chatModeForMissionTemplate, missionTemplateForChatMode, type GmatChatMode, type GmatMissionTemplateId } from './agent/gmatMissionTemplates'
+import { getRunView } from './agent/runViewApi'
+import { GMAT_MISSION_TEMPLATES, chatModeForMissionTemplate, missionTemplateForChatMode, type GmatChatMode, type GmatMissionTemplateId } from './agent/gmatMissionTemplates'
 import {
   AGENT_HOME_PATH,
   NAV_ITEMS,
@@ -517,12 +518,9 @@ export default function AgentPage() {
   useEffect(() => {
     if (!activePlanningRun || activeGmatRun) return
     let cancelled = false
-    void Promise.all([
-      missionTemplateRuntime('orbit-keeping').list(activePlanningRun.workspaceDir).then(drafts => drafts.map(draft => ({ draft, template: 'orbit-keeping' as const }))),
-      missionTemplateRuntime('electric-propulsion-transfer').list(activePlanningRun.workspaceDir).then(drafts => drafts.map(draft => ({ draft, template: 'electric-propulsion-transfer' as const }))),
-      missionTemplateRuntime('chemical-hohmann-transfer').list(activePlanningRun.workspaceDir).then(drafts => drafts.map(draft => ({ draft, template: 'chemical-hohmann-transfer' as const }))),
-      missionTemplateRuntime('chemical-3d-transfer').list(activePlanningRun.workspaceDir).then(drafts => drafts.map(draft => ({ draft, template: 'chemical-3d-transfer' as const }))),
-    ]).then(groups => {
+    void Promise.all(Object.values(GMAT_MISSION_TEMPLATES).map(template =>
+      missionTemplateRuntime(template).list(activePlanningRun.workspaceDir).then(drafts => drafts.map(draft => ({ draft, template }))),
+    )).then(groups => {
       if (cancelled) return
       const latest = groups.flat().sort((left, right) => String(right.draft.updatedAt ?? right.draft.createdAt ?? '').localeCompare(String(left.draft.updatedAt ?? left.draft.createdAt ?? '')))[0]
       if (!latest) return
@@ -1269,7 +1267,11 @@ export default function AgentPage() {
               setMissionValuesSaveCount(count => count + 1)
               const queuedSave = missionValueSaveQueueRef.current.catch(() => undefined).then(async () => {
                 const runtime = missionTemplateRuntime(template)
-                const draft = selectedRun
+                // The active draft id is authoritative. Never rediscover an
+                // incomplete draft through the history list: that list used
+                // to hide drafts without a GMAT run and caused every field to
+                // be written into a newly-created, apparently empty draft.
+                const selectedDraft = selectedRun
                   ? await runtime.list(gmatWorkspaceDir).then(drafts => {
                   // Hohmann archives immutable results under artifact-history,
                   // whereas the current run uses gmat/mission-runs. Prefer an
@@ -1283,12 +1285,15 @@ export default function AgentPage() {
                   // in the selected template rather than blocking the engineer.
                   return matching ?? runtime.create(gmatWorkspaceDir)
                 })
-                  : activeMissionDraftIdRef.current
-                    ? (await runtime.list(gmatWorkspaceDir)).find(item => item.draftId === activeMissionDraftIdRef.current) ?? await runtime.create(gmatWorkspaceDir)
-                    : await runtime.create(gmatWorkspaceDir)
-                if (!draft) throw new Error('No editable mission draft is associated with this saved run.')
-                activeMissionDraftIdRef.current = draft.draftId
-                const updatedDraft = await updateMissionValue({ draftId: draft.draftId, path, template, value, workspaceDir: gmatWorkspaceDir })
+                  : null
+                let draftId = selectedDraft?.draftId ?? activeMissionDraftIdRef.current
+                if (!draftId) {
+                  const created = await runtime.create(gmatWorkspaceDir)
+                  draftId = created.draftId
+                  activeMissionDraftIdRef.current = draftId
+                  setActiveGmatDraft(created)
+                }
+                const updatedDraft = await updateMissionValue({ draftId, path, template, value, workspaceDir: gmatWorkspaceDir })
                 activeMissionDraftIdRef.current = updatedDraft.draftId
                 setActiveGmatDraft(updatedDraft)
                 setActiveGmatRun(null)
@@ -1332,7 +1337,7 @@ export default function AgentPage() {
             setActiveGmatDraft(null)
             const loadRunConversation = isElectricTransfer
               ? getElectricPropulsionRunConversation
-              : run.missionType === 'orbit-keeping' ? getOrbitKeepingRunConversation : async () => [] as OrbitKeepingRunConversationTurn[]
+              : run.missionType === 'orbit-keeping' ? getOrbitKeepingRunConversation : (runPath: string) => getRunView(runPath).then(view => view.conversation)
             void loadRunConversation(run.runPath)
               .then(conversation => setActiveGmatRun(current => current?.runPath === run.runPath ? { ...current, conversation } : current))
               .catch(() => null)

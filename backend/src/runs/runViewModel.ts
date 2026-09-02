@@ -103,6 +103,17 @@ async function readPersistedMissionValues(runDir: string) {
   if (!values) return {}
   return Object.fromEntries(Object.entries(values).filter(([, value]) => typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value === null)) as Record<string, string | number | boolean | null>
 }
+async function readRunConversation(runDir: string) {
+  const parsed: unknown = JSON.parse(await fs.readFile(path.join(runDir, "conversation.json"), "utf8").catch(() => "[]"))
+  if (!Array.isArray(parsed)) return []
+  return parsed.flatMap(item => {
+    if (!item || typeof item !== "object") return []
+    const turn = item as Record<string, unknown>
+    return typeof turn.question === "string" && typeof turn.answer === "string"
+      ? [{ answer: turn.answer, askedAt: typeof turn.askedAt === "string" ? turn.askedAt : "", question: turn.question }]
+      : []
+  })
+}
 async function readRunDocument(runDir: string) {
   const canonical = path.join(runDir, "satellite.json")
   const raw = await fs.readFile(canonical, "utf8")
@@ -112,11 +123,12 @@ async function readRunDocument(runDir: string) {
 }
 
 export async function buildRunViewModel(run: MissionRunReference) {
-  const [loadedDocument, manifestSource, workflow, persistedMissionValues] = await Promise.all([
+  const [loadedDocument, manifestSource, workflow, persistedMissionValues, conversation] = await Promise.all([
     readRunDocument(run.runDir),
     loadRunManifest(run.runDir),
     loadRunWorkflowLog(run.runDir),
     readPersistedMissionValues(run.runDir),
+    readRunConversation(run.runDir),
   ])
   const { document, source } = loadedDocument
   const manifest = record(manifestSource)
@@ -128,6 +140,7 @@ export async function buildRunViewModel(run: MissionRunReference) {
   }))).filter((artifact): artifact is NonNullable<typeof artifact> => artifact !== null)
   return {
     artifacts,
+    conversation,
     document,
     missionValues: { ...missionValues(document, templateId), ...persistedMissionValues },
     runId: run.runId,

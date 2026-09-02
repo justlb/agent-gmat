@@ -110,6 +110,20 @@ describe("digital thread to GMAT flow", () => {
     assert.equal(adapted.values["power.initialMaxPowerKw"], seed.values["power.initialMaxPowerKw"])
     assert.equal(adapted.values["power.busLoadKw"], seed.values["power.busLoadKw"])
   })
+  it("creates scenario-specific nested parameter groups on first synchronization", async () => {
+    const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-scenario-parameters-"))
+    await syncDigitalThreadFromGmatDraft(workspaceDir, {
+      templateId: "chemical-escape",
+      values: {
+        "mission.mode": 1,
+        "mission.escapeC3": 0.01,
+      },
+    })
+    const saved = await loadOrCreateDigitalThread(workspaceDir)
+    const request = saved.analysis_requests.gmat.chemical_escape as { parameters?: { mission?: Record<string, unknown> } }
+    assert.equal(request.parameters?.mission?.mode, 1)
+    assert.equal(request.parameters?.mission?.escapeC3, 0.01)
+  })
   it("replaces the complete physical definition when the user changes satellite", async () => {
     const workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "digital-thread-satellite-switch-"))
     await selectSatelliteDefinition(workspaceDir, "ref-starlink-v1-5-public-rf", "1.0.0")

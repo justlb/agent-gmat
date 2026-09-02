@@ -123,11 +123,17 @@ def frontend_ready(url: str) -> bool:
         return False
 
 
-def backend_ready(url: str) -> bool:
-    """Check a local API route that does not trigger an external LLM request."""
+def template_catalog_ready(url: str) -> bool:
+    """Check the catalogue that Mission Studio actually needs to render fields.
+
+    A Vite ``200`` page and the generic skills endpoint do not prove that the
+    frontend can load GMAT inputs.  The mission form intentionally receives its
+    fields from ``/api/gmat/templates``; therefore this endpoint is the startup
+    contract worth validating on both sides of the Vite proxy.
+    """
     try:
-        status, _ = http_json(url, verify_tls=True)
-        return status == 200
+        status, payload = http_json(url, verify_tls=not url.startswith("https://"))
+        return status == 200 and isinstance(payload, dict) and isinstance(payload.get("templates"), list) and bool(payload["templates"])
     except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
         return False
 
@@ -183,24 +189,25 @@ def main() -> int:
         return started.returncode
 
     backend_url = f"http://127.0.0.1:{backend_port}/api/health"
-    backend_service_url = f"http://127.0.0.1:{backend_port}/api/skills"
+    backend_templates_url = f"http://127.0.0.1:{backend_port}/api/gmat/templates"
     frontend_url = f"https://127.0.0.1:{frontend_port}"
+    frontend_templates_url = f"{frontend_url}/api/gmat/templates"
     deadline = time.monotonic() + args.timeout
     last_backend: object = "backend has not responded yet"
     while time.monotonic() < deadline:
-        backend_ok = backend_ready(backend_service_url)
+        backend_ok = template_catalog_ready(backend_templates_url)
         model_ok = False
         try:
             status, last_backend = http_json(backend_url, verify_tls=True)
             model_ok = status == 200 and isinstance(last_backend, dict) and last_backend.get("ok") is True
         except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as error:
             last_backend = str(error)
-        frontend_ok = frontend_ready(frontend_url)
+        frontend_ok = frontend_ready(frontend_url) and template_catalog_ready(frontend_templates_url)
         if frontend_ok and backend_ok and (model_ok or not args.require_model_health):
             if model_ok:
-                print("\nReady: frontend, backend, and LLM connection are healthy.")
+                print("\nReady: frontend, backend, Mission Studio catalogue, and LLM connection are healthy.")
             else:
-                print("\nReady: frontend and backend are running, but the LLM is currently unreachable.")
+                print("\nReady: frontend, backend, and the Mission Studio catalogue are running, but the LLM is currently unreachable.")
                 print("The UI is usable; GMAT chat requests will work once model connectivity returns.")
             print(f"Frontend: {frontend_url}")
             print(f"Backend:  {backend_url}")

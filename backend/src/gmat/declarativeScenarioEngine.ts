@@ -25,8 +25,23 @@ export function renderGmatTemplate(template: string, values: ScenarioValues, bin
     }
     let replacements = 0
     for (const property of binding.properties) {
-      const expression = new RegExp(`(${escapeRegExp(property)}\\s*=\\s*)[^,;\\)\\}]+(?=[,;\\)\\}])`, "gu")
-      if (expression.test(rendered)) { rendered = rendered.replace(expression, `$1${format(value, binding.quote)}`); replacements += 1 }
+      const formatted = format(value, binding.quote)
+      // Prefer a complete GMAT assignment line. This is required for list
+      // values such as `{Sun, Luna}`: a scalar regex stops at the comma and
+      // used to produce invalid values such as `{Sun}, Luna}`.
+      const directAssignment = new RegExp(`^(\\s*${escapeRegExp(property)}\\s*=\\s*).*(;\\s*)$`, "gmu")
+      if (directAssignment.test(rendered)) {
+        rendered = rendered.replace(directAssignment, `$1${formatted}$2`)
+        replacements += 1
+        continue
+      }
+      // Qualified properties may also appear inside Target/Achieve commands.
+      // Never use an unqualified name here: `ECC =` can occur inside the
+      // quoted command label and corrupt GMAT syntax.
+      if (property.includes(".")) {
+        const embeddedAssignment = new RegExp(`(${escapeRegExp(property)}\\s*=\\s*)[^,;\\)\\}]+(?=[,;\\)\\}])`, "gu")
+        if (embeddedAssignment.test(rendered)) { rendered = rendered.replace(embeddedAssignment, `$1${formatted}`); replacements += 1 }
+      }
     }
     if (binding.required && replacements === 0) throw new Error(`template does not expose required GMAT binding: ${binding.path}`)
   }

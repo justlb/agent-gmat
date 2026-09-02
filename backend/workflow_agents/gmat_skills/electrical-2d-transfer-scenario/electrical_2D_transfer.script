@@ -407,7 +407,8 @@ Toggle OFI_DefaultOrbitView Off;
 Toggle DefaultGroundTrackPlot Off;
 Toggle PowerVsTime Off;
 Toggle ElectricTransferReport Off;
-Toggle EphemerisFile1 Off;
+% Application instrumentation: retain trajectory samples for the OEM artifact.
+Toggle EphemerisFile1 On;
 BeginFiniteBurn 'Start the Maneuver' FiniteBurn1(DefaultSC);
 % One continuous propagation: GMAT stops at the first attained event.
 Propagate 'Spiral from 300 km LEO to GEO SMA' DefaultProp(DefaultSC) {DefaultSC.Earth.SMA = targetFinalSmaKm, DefaultSC.ElectricTank1.FuelMass = fuelReserveKg, DefaultSC.ElapsedDays = maxTransferDays};

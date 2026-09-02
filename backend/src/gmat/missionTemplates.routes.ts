@@ -7,7 +7,7 @@ import type { FastifyInstance } from "fastify"
 
 import type { AppConfig } from "../config.js"
 import { adaptDigitalThreadToGmat, digitalThreadGmatSeed, syncDigitalThreadFromGmatDraft } from "../digitalThread/gmatDigitalThreadAdapter.js"
-import { captureDigitalThreadSnapshot, draftDigitalThreadWorkspaceDir, loadOrCreateDigitalThread, syncSimuCicRequestToRunSnapshot } from "../digitalThread/digitalThreadStore.js"
+import { captureDigitalThreadSnapshot, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, syncSimuCicRequestToRunSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { appendMissionConversation } from "../digitalThread/missionConversationStore.js"
 import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
@@ -31,10 +31,13 @@ const SATELLITE_OWNED_MISSION_PATHS = new Set([
 const EARTH_RADIUS_KM = 6378.1363
 
 function normalizeMissionOrbitInput(fieldPath: string, value: string) {
-  if (fieldPath !== "initialOrbit.altitudeKm") return { fieldPath, value }
+  if (fieldPath !== "initialOrbit.altitudeKm" && fieldPath !== "targetOrbit.altitudeKm") return { fieldPath, value }
   const altitudeKm = Number(value)
-  if (!Number.isFinite(altitudeKm)) throw new Error("initial altitude must be a finite number")
-  return { fieldPath: "initialOrbit.smaKm", value: String(altitudeKm + EARTH_RADIUS_KM) }
+  if (!Number.isFinite(altitudeKm)) throw new Error("orbit altitude must be a finite number")
+  return {
+    fieldPath: fieldPath === "initialOrbit.altitudeKm" ? "initialOrbit.smaKm" : "targetOrbit.smaKm",
+    value: String(altitudeKm + EARTH_RADIUS_KM),
+  }
 }
 
 function resolveTemplate(value: string): GmatTemplateId {
@@ -46,20 +49,42 @@ function resolveWorkspace(root: string, candidate: unknown) {
   return resolveMissionWorkspace(root, candidate, { requireExplicitWorkspace: true, requireMissionRun: true, resolveRelativeToRoot: true })
 }
 
+/** The Files panel is also available before a dated planning run is selected.
+ * In that state the client sends the workspace-version directory. */
+function resolveHistoryRunsDir(root: string, candidate: unknown) {
+  const workspaceDir = resolveMissionWorkspace(root, candidate, { requireExplicitWorkspace: true, resolveRelativeToRoot: true })
+  return isMissionRunWorkspace(workspaceDir) ? path.dirname(workspaceDir) : missionRunsDirectory(workspaceDir)
+}
+
 /** Older Orbit Keeping drafts preserve a legacy internal templateId. The
  * generic API always exposes the canonical registered template ID. */
 function presentDraft<T extends { templateId: string }>(draft: T, template: GmatTemplateId) {
   return { ...draft, templateId: template }
 }
 
-function hasRecordedRun(draft: MissionTemplateDraft) {
-  const runs = (draft as MissionTemplateDraft & { runs?: unknown }).runs
-  return Array.isArray(runs) && runs.length > 0
-}
-
 async function runManifestTemplate(workspaceDir: string) {
   const manifest = await fs.readFile(path.join(workspaceDir, "run_manifest.json"), "utf8").then(source => JSON.parse(source) as { templateId?: unknown }).catch(() => null)
   return typeof manifest?.templateId === "string" ? manifest.templateId : null
+}
+
+/**
+ * The first Mission Studio implementation wrote a GMAT script directly in a
+ * dated run directory, before `run_manifest.json` existed.  Those runs are
+ * still valid engineering artifacts and must remain visible.  A legacy run
+ * belongs to a scenario only when it contains that scenario's declared GMAT
+ * script (or its reference-script basename); we never guess from a report or
+ * an OEM filename, because those names are shared by several scenarios.
+ */
+async function legacyRunMatchesTemplate(workspaceDir: string, template: GmatTemplateId) {
+  const definition = gmatTemplateDefinition(template)
+  const scriptNames = new Set([
+    path.basename(definition.gmatReferenceScript).toLocaleLowerCase(),
+    ...definition.artifacts
+      .filter(artifact => artifact.kind === "script")
+      .map(artifact => path.basename(artifact.path).toLocaleLowerCase()),
+  ])
+  const entries = await fs.readdir(workspaceDir, { withFileTypes: true }).catch(() => [])
+  return entries.some(entry => entry.isFile() && scriptNames.has(entry.name.toLocaleLowerCase()))
 }
 
 async function runDraftId(workspaceDir: string, template: GmatTemplateId) {
@@ -87,7 +112,10 @@ function artifactsForTemplate(template: GmatTemplateId): ListedArtifactDefinitio
 }
 
 async function listTemplateArtifacts(root: string, workspaceDir: string, template: GmatTemplateId) {
-  if (await runManifestTemplate(workspaceDir) !== template) return []
+  const manifestTemplate = await runManifestTemplate(workspaceDir)
+  // New runs are authoritative through their manifest.  Only runs created
+  // before manifests are eligible for the narrow legacy-script fallback.
+  if (manifestTemplate ? manifestTemplate !== template : !await legacyRunMatchesTemplate(workspaceDir, template)) return []
   const draftId = await runDraftId(workspaceDir, template)
   const runPath = path.relative(path.resolve(root), workspaceDir).split(path.sep).join("/")
   const files = await Promise.all(artifactsForTemplate(template).map(async artifact => {
@@ -122,9 +150,8 @@ async function listTemplateArtifacts(root: string, workspaceDir: string, templat
 /** Mission runs are stored in the user's canonical GMAT run directory.  Do not
  * recursively scan the entire workspace here: that makes the Files view time
  * out as historic runs accumulate. */
-async function listTemplateHistory(root: string, template: GmatTemplateId) {
+async function listTemplateHistory(root: string, runsDir: string, template: GmatTemplateId) {
   const results: Array<Awaited<ReturnType<typeof listTemplateArtifacts>>[number] & { historical?: boolean }> = []
-  const runsDir = missionRunsDirectory(root)
   const runs = await fs.readdir(runsDir, { withFileTypes: true }).catch(() => [])
   for (const run of runs.filter(candidate => candidate.isDirectory())) {
     const runDir = path.join(runsDir, run.name)
@@ -152,7 +179,8 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     try {
       const template = resolveTemplate(req.params.template)
-      return reply.send({ files: await listTemplateHistory(root, template) })
+      const runsDir = resolveHistoryRunsDir(root, req.query.workspaceDir)
+      return reply.send({ files: await listTemplateHistory(root, runsDir, template) })
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to list GMAT template artifacts") }) }
   })
 
@@ -161,14 +189,16 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     try {
       const template = resolveTemplate(req.params.template)
-      const workspaceDir = resolveWorkspace(root, req.query.workspaceDir)
-      if (await runManifestTemplate(workspaceDir) !== template) return reply.status(404).send({ error: "GMAT template artifact not found" })
-      const candidate = typeof req.query.relativePath === "string" ? path.resolve(root, req.query.relativePath) : ""
-      const relativeToWorkspace = candidate ? path.relative(workspaceDir, candidate).split(path.sep).join("/") : ""
-      const declared = artifactsForTemplate(template).find(artifact => artifact.path === relativeToWorkspace) ?? artifactDefinitionForPath(relativeToWorkspace)
-      const stat = candidate && declared ? await fs.stat(candidate).catch(() => null) : null
+      const runsDir = resolveHistoryRunsDir(root, req.query.workspaceDir)
+      const requestedPath = typeof req.query.relativePath === "string" ? req.query.relativePath : ""
+      // Authorize downloads against the exact inventory returned by the Files
+      // panel. This works for both current and versioned historical artifacts
+      // without trusting a client-provided filesystem path.
+      const declared = (await listTemplateHistory(root, runsDir, template)).find(file => file.relativePath === requestedPath)
+      const candidate = declared ? path.resolve(root, declared.relativePath) : ""
+      const stat = candidate ? await fs.stat(candidate).catch(() => null) : null
       if (!declared || !stat?.isFile()) return reply.status(404).send({ error: "GMAT template artifact not found" })
-      const contentType = declared.contentType ?? contentTypeForArtifact(declared.kind)
+      const contentType = contentTypeForArtifact(declared.kind)
       return reply.header("Content-Type", contentType).header("Content-Disposition", `attachment; filename="${path.basename(candidate)}"`).header("Content-Length", String(stat.size)).send(createReadStream(candidate))
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download GMAT template artifact") }) }
   })
@@ -199,10 +229,10 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
       const entries = await fs.readdir(draftsDir, { withFileTypes: true }).catch(() => [])
       const runtime = missionTemplateRuntime(template)
       const drafts = await Promise.all(entries.filter(entry => entry.isDirectory()).map(entry => runtime.load(workspaceDir, entry.name).catch(() => null)))
-      // A draft is only durable user-facing history once it produced a GMAT
-      // execution. Incomplete forms are implementation state, not runs to
-      // restore after a page reload.
-      return reply.send({ drafts: drafts.filter((draft): draft is NonNullable<typeof draft> => draft !== null && hasRecordedRun(draft)).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).map(draft => presentDraft(draft, template)) })
+      // Drafts are durable from the first entered field. Hiding incomplete
+      // drafts makes the frontend lose its active editing aggregate after a
+      // refresh and was the root cause of values apparently disappearing.
+      return reply.send({ drafts: drafts.filter((draft): draft is NonNullable<typeof draft> => draft !== null).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).map(draft => presentDraft(draft, template)) })
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to list GMAT mission drafts") }) }
   })
 
@@ -211,7 +241,16 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     try {
       const template = resolveTemplate(req.params.template)
-      return reply.send(presentDraft(await missionTemplateRuntime(template).load(resolveWorkspace(root, req.query.workspaceDir), req.params.draftId), template))
+      const workspaceDir = resolveWorkspace(root, req.query.workspaceDir)
+      const draft = await missionTemplateRuntime(template).load(workspaceDir, req.params.draftId)
+      // Loading a legacy draft is also its migration point.  Earlier
+      // declarative scenarios could save draft.json but fail while writing a
+      // missing parameters.targetOrbit object, leaving satellite.json empty.
+      // Reapply the complete draft atomically now that the digital-thread
+      // shape is guaranteed by initialize/load.
+      await syncDigitalThreadFromGmatDraft(draftDigitalThreadWorkspaceDir(workspaceDir, template, draft.draftId), draft)
+      await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
+      return reply.send(presentDraft(draft, template))
     }
     catch (error) { return reply.status(404).send({ error: getErrorMessage(error, "GMAT mission draft not found") }) }
   })

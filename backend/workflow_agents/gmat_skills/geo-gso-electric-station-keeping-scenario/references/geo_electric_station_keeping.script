@@ -207,7 +207,29 @@ Create Variable MissionDuration ControlIntervalSecs FuelReserveKg missionComplet
 Create Variable targetSMA targetECC targetINC toleranceSMA toleranceECC toleranceINC smaLower smaUpper eccTrigger incTrigger eccError absEccError incError absIncError;
 Create Variable SmaBurnDuration EccBurnDuration NSBurnDuration;
 
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.UpperLeft = [ 0 0 ];
+EphemerisFile1.Size = [ 0 0 ];
+EphemerisFile1.RelativeZOrder = 0;
+EphemerisFile1.Maximized = false;
+EphemerisFile1.Spacecraft = GSO_EP;
+EphemerisFile1.Filename = 'EphemerisFile1.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.OutputFormat = LittleEndian;
+EphemerisFile1.IncludeCovariance = None;
+EphemerisFile1.WriteEphemeris = true;
+
 BeginMissionSequence;
+
+% Application instrumentation: activate the downstream OEM subscriber.
+Toggle EphemerisFile1 On;
 
 % Capture the requested GSO elements once.  They never move during the run.
 targetSMA = GSO_EP.Earth.SMA;

@@ -24,10 +24,10 @@ const SATELLITE_OWNED_MISSION_PATHS = new Set([
 const EARTH_RADIUS_KM = 6378.1363
 
 function normalizeMissionOrbitInput(fieldPath: string, rawValue: string) {
-  if (fieldPath !== "initialOrbit.altitudeKm") return { fieldPath, rawValue }
+  if (fieldPath !== "initialOrbit.altitudeKm" && fieldPath !== "targetOrbit.altitudeKm") return { fieldPath, rawValue }
   const altitudeKm = Number(rawValue)
-  if (!Number.isFinite(altitudeKm)) throw new Error("initial altitude must be a finite number")
-  return { fieldPath: "initialOrbit.smaKm", rawValue: String(altitudeKm + EARTH_RADIUS_KM) }
+  if (!Number.isFinite(altitudeKm)) throw new Error("orbit altitude must be a finite number")
+  return { fieldPath: fieldPath === "initialOrbit.altitudeKm" ? "initialOrbit.smaKm" : "targetOrbit.smaKm", rawValue: String(altitudeKm + EARTH_RADIUS_KM) }
 }
 
 function isSimuCicRequest(message: string) {
@@ -301,7 +301,7 @@ export async function missionRouterRoutes(fastify: FastifyInstance, { config }: 
       const runtime = missionTemplateRuntime(decision.target)
       const existingDraft = draftId && template === decision.target ? await runtime.load(workspaceDir, draftId) : null
       const draft = existingDraft
-        ? { ...existingDraft, digitalThreadRequiredPaths: adapted.requiredDraftPaths, values: { ...existingDraft.values, ...Object.fromEntries(Object.entries(adapted.values).filter(([, value]) => value !== null)) } }
+        ? { ...existingDraft, digitalThreadRequiredPaths: adapted.requiredDraftPaths, values: { ...existingDraft.values, ...Object.fromEntries(Object.entries(adapted.values).filter(([path, value]) => value !== null && SATELLITE_OWNED_MISSION_PATHS.has(path))) } }
         : await runtime.create(workspaceDir, adapted.values, adapted.requiredDraftPaths)
       let updatedDraft = await runtime.discuss({ connection: resolveModelBackend(config, "chatModel"), draft, message, workspaceDir })
       await appendMissionConversation(workspaceDir, { answer: updatedDraft.assistantMessage ?? "Mission draft updated.", askedAt: updatedDraft.updatedAt, channel: "gmat-draft", question: message })

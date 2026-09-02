@@ -108,6 +108,12 @@ function ensureMissionRequestShape(document: DigitalThreadDocument) {
     for (const field of ["epoch_tai_mod_julian", "semi_major_axis_km", "eccentricity", "inclination_deg", "raan_deg", "arg_of_perigee_deg", "true_anomaly_deg"]) {
       if (!(field in orbit)) { orbit[field] = null; changed = true }
     }
+    // Declarative scenarios persist their target-orbit values below
+    // `parameters.targetOrbit.*`.  Create that shape up front so the generic
+    // mission-value route can safely write Target SMA/altitude instead of
+    // failing on an absent intermediate object.
+    const parameters = asObject(request.parameters) ?? (request.parameters = {}, request.parameters as { [key: string]: JsonValue })
+    if (!asObject(parameters.targetOrbit)) { parameters.targetOrbit = {}; changed = true }
   }
   const hohmann = asObject(gmat.chemical_hohmann_transfer)!
   const targetOrbit = asObject(hohmann.target_orbit) ?? (hohmann.target_orbit = {}, hohmann.target_orbit as { [key: string]: JsonValue })
@@ -154,8 +160,18 @@ function setAtPath(document: DigitalThreadDocument, fieldPath: string, value: Js
   let current: { [key: string]: JsonValue } = document
   for (const key of keys.slice(0, -1)) {
     const next = asObject(current[key])
-    if (!next) throw new Error(`digital-thread path is not writable: ${fieldPath}`)
-    current = next
+    if (next) { current = next; continue }
+    // Mission manifests intentionally add scenario-specific parameter groups
+    // (`mission`, `targetOrbit`, tolerances, …). Create a missing/null object
+    // on an allow-listed write instead of requiring every possible nested
+    // shape to be duplicated in the base satellite template.
+    if (current[key] === null || current[key] === undefined) {
+      const created: { [key: string]: JsonValue } = {}
+      current[key] = created
+      current = created
+      continue
+    }
+    throw new Error(`digital-thread path is not writable: ${fieldPath}`)
   }
   current[keys.at(-1)!] = value
 }

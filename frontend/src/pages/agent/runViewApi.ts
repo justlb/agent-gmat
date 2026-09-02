@@ -19,6 +19,7 @@ export type RunViewArtifact = {
 
 export type RunView = {
   artifacts: RunViewArtifact[]
+  conversation: Array<{ answer: string; askedAt: string; question: string }>
   document: Record<string, unknown>
   missionValues: Record<string, string | number | null>
   runId: string

@@ -51,7 +51,7 @@
   ],
   "ui": {
     "objective": "GEO Chemical Station Keeping",
-    "summary": "Reference GMAT values are prefilled and must be reviewed before execution.",
+    "summary": "Enter the mission values to save them to satellite.json before GMAT execution.",
     "mission_input_fields": [
       {
         "label": "Epoch",

@@ -277,8 +277,8 @@ BeginMissionSequence;
 
 targetFinalSmaKm = 6378.1363 + targetFinalAltitudeKm;
 lastSafeElapsedDays = maxTransferDays - burnStepDays;
-% Do not feed discarded/short control segments to the OEM interpolator.
-Toggle Electric3DEphemeris Off;
+% Application instrumentation: retain the accepted trajectory in the OEM artifact.
+Toggle Electric3DEphemeris On;
 
 Report Electric3DTransferReport Electric3DSC.ElapsedDays Electric3DSC.Earth.SMA Electric3DSC.Earth.Altitude Electric3DSC.EarthMJ2000Eq.INC Electric3DSC.ElectricTank3D.FuelMass Electric3DSC.TotalMass;
 Toggle Electric3DTransferReport Off;

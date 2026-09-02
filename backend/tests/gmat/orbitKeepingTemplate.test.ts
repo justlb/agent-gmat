@@ -25,7 +25,7 @@ describe("orbit keeping reference template", () => {
     assert.equal(result.bytesWritten, Buffer.byteLength(expected, "utf8"))
     assert.match(actual, /Create Spacecraft DefaultSC;/u)
     assert.match(actual, /BeginMissionSequence;/u)
-    assert.match(actual, /While DefaultSC\.ChemicalTank1\.FuelMass > fuelReserve/u)
+    assert.match(actual, /While DefaultSC\.ChemicalTank1\.FuelMass > minimumReboostFuel & DefaultSC\.Earth\.Altitude > minAltitude/u)
     assert.match(actual, /Target 'Circular Reboost' DefaultDC/u)
   })
 })

@@ -164,6 +164,18 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
     optionalNumber(document, "satellite.bus.physical.srp_area_m2", "spacecraft.srpAreaM2", values)
     optionalNumber(document, "satellite.bus.propulsion_subsystem.specific_impulse_seconds", "propulsion.ispSeconds", values)
     if (["chemical-leo-orbit-maintenance", "electrical-leo-orbit-maintenance", "chemical-2d-transfer", "chemical-3d-transfer", "electrical-2d-transfer", "electrical-3d-transfer"].includes(template) && typeof values["initialOrbit.smaKm"] === "number") values["initialOrbit.altitudeKm"] = values["initialOrbit.smaKm"] - 6378.1363
+    const targetRoot = `${missionRoot}.parameters.targetOrbit`
+    const targetSmaKm = firstNumber(document, `${targetRoot}.smaKm`)
+    const targetAltitudeKm = firstNumber(document, `${targetRoot}.altitudeKm`)
+    if (targetSmaKm !== null) {
+      values["targetOrbit.smaKm"] = targetSmaKm
+      values["targetOrbit.altitudeKm"] = targetSmaKm - 6378.1363
+    } else if (targetAltitudeKm !== null) {
+      values["targetOrbit.altitudeKm"] = targetAltitudeKm
+      values["targetOrbit.smaKm"] = targetAltitudeKm + 6378.1363
+    }
+    optionalNumber(document, `${targetRoot}.eccentricity`, "targetOrbit.eccentricity", values)
+    optionalNumber(document, `${targetRoot}.inclinationDeg`, "targetOrbit.inclinationDeg", values)
     if (electric) {
       optionalNumber(document, "satellite.bus.propulsion_subsystem.nominal_thrust_newtons", "propulsion.thrustNewtons", values)
       optionalNumber(document, "satellite.bus.propulsion_subsystem.electric_thruster.minimum_usable_power_kw", "power.minThrusterPowerKw", values)
@@ -276,7 +288,7 @@ const MISSION_ORBIT_PATHS: Record<string, string> = {
 function missionDraftPaths(templateId: string) {
   const root = `analysis_requests.gmat.${analysisTemplateKey(templateId)}`
   const corrected = ["chemical-2d-transfer", "chemical-3d-transfer", "chemical-escape", "chemical-leo-orbit-maintenance", "electrical-2d-transfer", "electrical-3d-transfer", "electrical-escape", "electrical-leo-orbit-maintenance", "geo-chemical-station-keeping", "geo-electric-station-keeping", "gso-chemical-station-keeping", "gso-electric-station-keeping"].includes(templateId)
-  if (corrected) return { ...Object.fromEntries(Object.entries(MISSION_ORBIT_PATHS).map(([draftPath, threadPath]) => [draftPath, `${root}.initial_orbit.${threadPath}`])), ...Object.fromEntries(["targetOrbit.smaKm", "targetOrbit.altitudeKm", "targetOrbit.eccentricity", "targetOrbit.inclinationDeg", "mission.mode", "mission.escapeC3", "mission.minAltitudeKm", "mission.finalAltitudeKm", "mission.targetAltitudeKm", "mission.days", "mission.maxDays", "tolerance.eastWestDeg", "tolerance.northSouthDeg"].map(draftPath => [draftPath, `${root}.parameters.${draftPath}`])) }
+  if (corrected) return { ...Object.fromEntries(Object.entries(MISSION_ORBIT_PATHS).map(([draftPath, threadPath]) => [draftPath, `${root}.initial_orbit.${threadPath}`])), ...Object.fromEntries(["targetOrbit.smaKm", "targetOrbit.altitudeKm", ...(templateId === "chemical-2d-transfer" ? [] : ["targetOrbit.eccentricity"]), "targetOrbit.inclinationDeg", "mission.mode", "mission.escapeC3", "mission.minAltitudeKm", "mission.finalAltitudeKm", "mission.targetAltitudeKm", "mission.days", "mission.maxDays", "tolerance.eastWestDeg", "tolerance.northSouthDeg"].map(draftPath => [draftPath, `${root}.parameters.${draftPath}`])) }
   return {
     ...Object.fromEntries(Object.entries(MISSION_ORBIT_PATHS).map(([draftPath, threadPath]) => [draftPath, `${root}.initial_orbit.${threadPath}`])),
     ...(templateId === "geo-electric-end-of-life"

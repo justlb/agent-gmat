@@ -371,6 +371,9 @@ DefaultOrbit_View.FOVy = 45;
 %----------------------------------------
 BeginMissionSequence;
 
+% Application instrumentation: activate the downstream OEM subscriber.
+Toggle EphemerisFile1 On;
+
 Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;
 BeginFiniteBurn 'Start the Maneuver' FiniteBurn1(DefaultSC);
 % Application substitution: the requested final altitude is exposed as this validated slot.

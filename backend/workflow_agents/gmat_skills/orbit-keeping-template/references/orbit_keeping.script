@@ -349,6 +349,8 @@ OrbitView1_View.FOVy = 45;
 %----------------------------------------
 
 BeginMissionSequence;
+% Application instrumentation: activate the downstream OEM subscriber.
+Toggle EphemerisFile1 On;
 minimumReboostFuel = fuelReserve + reboostFuelMargin;
 
 % Do not issue a new "propagate to minAltitude" command after a reboost
