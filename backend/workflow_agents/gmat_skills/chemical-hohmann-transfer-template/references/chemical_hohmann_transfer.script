@@ -42,6 +42,11 @@ DefaultSC.AttitudeDisplayStateType     = 'Quaternion';
 DefaultSC.AttitudeRateDisplayStateType = 'AngularVelocity';
 DefaultSC.AttitudeCoordinateSystem     = 'EarthMJ2000Eq';
 
+Create ChemicalTank ChemicalTank1;
+ChemicalTank1.AllowNegativeFuelMass = false;
+ChemicalTank1.FuelMass = 100;
+DefaultSC.Tanks = {ChemicalTank1};
+
 
 %----------------------------------------
 %---------- ForceModels
@@ -87,7 +92,8 @@ TOI.Axes               = VNB;
 TOI.Element1           = 0;
 TOI.Element2           = 0;
 TOI.Element3           = 0;
-TOI.DecrementMass      = false;
+TOI.DecrementMass      = true;
+TOI.Tank               = {ChemicalTank1};
 TOI.Isp                = 300;
 TOI.GravitationalAccel = 9.810000000000001;
 
@@ -100,7 +106,8 @@ GOI.Axes               = VNB;
 GOI.Element1           = 0;
 GOI.Element2           = 0;
 GOI.Element3           = 0;
-GOI.DecrementMass      = false;
+GOI.DecrementMass      = true;
+GOI.Tank               = {ChemicalTank1};
 GOI.Isp                = 300;
 GOI.GravitationalAccel = 9.810000000000001;
 
@@ -176,11 +183,13 @@ BeginMissionSequence;
 
 Propagate 'Prop To Periapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Periapsis};
 Target 'Hohmann Transfer' DC1 {SolveMode = Solve, ExitMode = SaveAndContinue};
-   Vary 'Vary TOI' DC1(TOI.Element1 = 1, {Perturbation = 0.0001, Lower = 0.0, Upper = 3.14159, MaxStep = 0.5});
+   % Bound trial impulses so a small satellite tank is never depleted while
+   % the differential corrector searches for the two-burn solution.
+   Vary 'Vary TOI' DC1(TOI.Element1 = 0.18, {Perturbation = 0.0001, Lower = 0.0, Upper = 0.35, MaxStep = 0.025});
    Maneuver 'Perform TOI' TOI(DefaultSC);
    Propagate 'Prop To Apoapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Apoapsis};
    Achieve 'Achieve RMAG = 42165' DC1(DefaultSC.Earth.RMAG = 42164.169, {Tolerance = 0.1});
-   Vary 'Vary GOI' DC1(GOI.Element1 = 1, {Perturbation = 0.0001, Lower = 0.0, Upper = 3.14159, MaxStep = 0.2});
+   Vary 'Vary GOI' DC1(GOI.Element1 = 0.18, {Perturbation = 0.0001, Lower = 0.0, Upper = 0.35, MaxStep = 0.025});
    Maneuver 'Perform GOI' GOI(DefaultSC);
    Achieve 'Achieve ECC = 0.005' DC1(DefaultSC.Earth.ECC = 0.005, {Tolerance = 0.0001});
 EndTarget;  % For targeter DC1

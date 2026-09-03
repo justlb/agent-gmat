@@ -6,7 +6,7 @@ export function TemplateLibrary() {
   const [activeId, setActiveId] = useState<GmatMissionTemplateId>('orbit-keeping')
   const [templates, setTemplates] = useState<MissionTemplateDefinition[]>([])
   const [error, setError] = useState('')
-  useEffect(() => { let cancelled = false; void listMissionTemplateDefinitions().then(items => { if (!cancelled) { setTemplates(items); setActiveId(current => items.some(item => item.id === current) ? current : items[0]?.id ?? 'orbit-keeping') } }).catch(reason => { if (!cancelled) setError(reason instanceof Error ? reason.message : 'Unable to load templates') }); return () => { cancelled = true } }, [])
+  useEffect(() => { let cancelled = false; void listMissionTemplateDefinitions().then(items => { const visible = items.filter(item => item.id !== 'chemical-3d-transfer'); if (!cancelled) { setTemplates(visible); setActiveId(current => visible.some(item => item.id === current) ? current : visible[0]?.id ?? 'orbit-keeping') } }).catch(reason => { if (!cancelled) setError(reason instanceof Error ? reason.message : 'Unable to load templates') }); return () => { cancelled = true } }, [])
   const active = templates.find(template => template.id === activeId) ?? templates[0]
   return <div className="template-library">
     <section className="satellite-library-intro">

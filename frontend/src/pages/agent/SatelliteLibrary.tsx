@@ -3,7 +3,7 @@ import { getSelectedSatellite, listSatelliteDefinitions, satelliteDefinitionDown
 
 type TechnicalRow = [label: string, detail: string]
 
-const templateLabel = (template: string) => template === 'orbit-keeping' ? 'Orbit keeping' : 'Electric transfer'
+const templateLabel = (template: string) => template === 'orbit-keeping' ? 'Chemical LEO orbit maintenance' : 'Electrical 2D transfer'
 
 export function SatelliteLibrary({ workspaceDir }: { workspaceDir?: string | null }) {
   const [definitions, setDefinitions] = useState<SatelliteDefinition[]>([])

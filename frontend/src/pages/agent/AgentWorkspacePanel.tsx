@@ -14,7 +14,7 @@ import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './
 import { AgentFilesView } from './files/AgentFilesView'
 import { SatelliteLibrary } from './SatelliteLibrary'
 import { TemplateLibrary } from './TemplateLibrary'
-import { MissionStudio } from './MissionStudio'
+import { MissionV2 } from './MissionV2'
 import type { GmatMissionTemplateId } from './gmatMissionTemplates'
 import type { GeneratedFileTreeEntry } from '../workspace/GeneratedFilesTreeCard'
 
@@ -90,7 +90,7 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showCompl
   if (activeView === 'log') return 'Workspace Files'
   if (activeView === 'satellites') return 'Satellite Library'
   if (activeView === 'templates') return 'GMAT Mission Scenario Library'
-  if (activeView === 'mission') return 'Mission Studio'
+  if (activeView === 'mission') return 'Mission v2'
   return 'Voice chat'
 }
 
@@ -140,12 +140,12 @@ export function AgentWorkspacePanel({
   workspaceChanging,
   workspaceItems,
   workspaceRefreshNonce = 0,
-  satelliteRefreshNonce = 0,
+  satelliteRefreshNonce: _satelliteRefreshNonce = 0,
   missionWorkspaceDir,
-  planningDiscussion,
-  onMissionSatelliteSelected,
-  missionTemplate,
-  onMissionTemplateSelected,
+  planningDiscussion: _planningDiscussion,
+  onMissionSatelliteSelected: _onMissionSatelliteSelected,
+  missionTemplate: _missionTemplate,
+  onMissionTemplateSelected: _onMissionTemplateSelected,
   onStartMission,
 }: AgentWorkspacePanelProps) {
   const panelClassName = [
@@ -268,27 +268,7 @@ export function AgentWorkspacePanel({
         ) : activeView === 'templates' ? (
           <TemplateLibrary />
         ) : activeView === 'mission' ? (
-          <MissionStudio
-            activeGmatRunPath={activeGmatRunPath}
-            activeGmatRunId={activeGmatRunId}
-            activeContext={activeContext}
-            handleSelectFile={handleSelectFile}
-            onSelectGmatDraft={onSelectGmatDraft}
-            onSelectGmatRun={onSelectGmatRun}
-            gmatMissionChat={gmatMissionChat}
-            selectedFileError={selectedFileError}
-            selectedFileLoading={selectedFileLoading}
-            selectedFilePath={selectedFilePath}
-            selectedFilePreview={selectedFilePreview}
-            workspaceRefreshNonce={workspaceRefreshNonce}
-            workspaceDir={missionWorkspaceDir ?? activeContext.versionDir}
-            planningDiscussion={planningDiscussion}
-            refreshSatellite={satelliteRefreshNonce}
-            onSatelliteSelected={onMissionSatelliteSelected ?? refreshWorkspaceViews}
-            missionTemplate={missionTemplate}
-            onMissionTemplateSelected={onMissionTemplateSelected}
-            onStartMission={onStartMission}
-          />
+          <MissionV2 onStartMission={onStartMission} workspaceDir={missionWorkspaceDir ?? activeContext.versionDir} />
         ) : (
           <AgentFilesView
             activeGmatRunPath={activeGmatRunPath}

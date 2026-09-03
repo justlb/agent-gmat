@@ -108,7 +108,7 @@ async function loadSatelliteElectricPropulsionCalibration(workspaceDir: string):
 function applySatelliteElectricPropulsionCalibration(script: string, calibration: SatelliteElectricPropulsionCalibration | null) {
   if (!calibration) return script
   const replacements: Array<[RegExp, string, string]> = [
-    [/^ElectricThruster1\.ThrustModel = ThrustMassPolynomial;$/mu, "ElectricThruster1.ThrustModel = FixedEfficiency;", "ElectricThruster1.ThrustModel"],
+    [/^ElectricThruster1\.ThrustModel = ConstantThrustAndIsp;$/mu, "ElectricThruster1.ThrustModel = ConstantThrustAndIsp;", "ElectricThruster1.ThrustModel"],
     [/^ElectricThruster1\.Isp = [^;]+;$/mu, `ElectricThruster1.Isp = ${calibration.ispSeconds};`, "ElectricThruster1.Isp"],
     [/^ElectricThruster1\.FixedEfficiency = [^;]+;$/mu, `ElectricThruster1.FixedEfficiency = ${calibration.fixedEfficiency};`, "ElectricThruster1.FixedEfficiency"],
     [/^ElectricThruster1\.DutyCycle = [^;]+;$/mu, `ElectricThruster1.DutyCycle = ${calibration.dutyCycle};`, "ElectricThruster1.DutyCycle"],

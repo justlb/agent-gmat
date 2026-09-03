@@ -279,7 +279,14 @@ async function saveDraft(workspaceDir: string, draft: ElectricPropulsionDraft) {
 
 export async function createElectricPropulsionDraft(workspaceDir: string, initialValues: Record<string, DraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
   const now = new Date().toISOString()
-  const draft = await saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "electric-propulsion-transfer", values: Object.fromEntries(fields.map(field => [field.path, initialValues[field.path] ?? null])) }))
+  const values: Record<string, DraftValue> = {
+    ...Object.fromEntries(fields.map(field => [field.path, initialValues[field.path] ?? null])),
+    "initialOrbit.epoch": initialValues["initialOrbit.epoch"] ?? "31262.66709490726",
+    "initialOrbit.raanDeg": initialValues["initialOrbit.raanDeg"] ?? 0,
+    "initialOrbit.argPeriapsisDeg": initialValues["initialOrbit.argPeriapsisDeg"] ?? 0,
+    "initialOrbit.trueAnomalyDeg": initialValues["initialOrbit.trueAnomalyDeg"] ?? 0,
+  }
+  const draft = await saveDraft(workspaceDir, refreshDraft({ confirmed: false, conversation: [], conversationStartedAt: null, createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "electric-propulsion-transfer", values }))
   await initializeDraftDigitalThread(workspaceDir, "electric-propulsion-transfer", draft.draftId)
   return draft
 }
@@ -304,6 +311,7 @@ export async function setElectricPropulsionDraftValue(workspaceDir: string, draf
   if (requestedPath === "initialOrbit.altitudeKm") {
     const altitudeKm = Number(raw)
     if (!Number.isFinite(altitudeKm) || altitudeKm < 0) throw new Error("initial altitude must be a non-negative number in km")
+    values["initialOrbit.altitudeKm"] = altitudeKm
     values["initialOrbit.smaKm"] = Number((altitudeKm + EARTH_EQUATORIAL_RADIUS_KM).toFixed(9))
   } else if (requestedPath === "initialOrbit.epoch") {
     values[requestedPath] = /^\d{4}-\d{2}-\d{2}T/u.test(raw) ? utcGregorianToTaiModJulian(raw) : raw

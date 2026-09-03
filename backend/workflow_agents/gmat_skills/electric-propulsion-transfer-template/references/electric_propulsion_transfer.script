@@ -14,8 +14,8 @@ DefaultSC.DateFormat = TAIModJulian;
 DefaultSC.Epoch = '31262.66709490726';
 DefaultSC.CoordinateSystem = EarthMJ2000Eq;
 DefaultSC.DisplayStateType = Keplerian;
-DefaultSC.SMA = 7178.136300000001;
-DefaultSC.ECC = 1.279570234560536e-16;
+DefaultSC.SMA = 6678.1363;
+DefaultSC.ECC = 2.380881074052113e-16;
 DefaultSC.INC = 0;
 DefaultSC.RAAN = 0;
 DefaultSC.AOP = 0;
@@ -75,7 +75,7 @@ ElectricTank1.HWOriginInBCSX = 0;
 ElectricTank1.HWOriginInBCSY = 0;
 ElectricTank1.HWOriginInBCSZ = 0;
 
-ElectricTank1.AllowNegativeFuelMass = true;
+ElectricTank1.AllowNegativeFuelMass = false;
 ElectricTank1.FuelMass = 756;
 ElectricTank1.FuelCenterOfMassX = 0;
 ElectricTank1.FuelCenterOfMassY = 0;
@@ -104,9 +104,9 @@ ElectricThruster1.DecrementMass = true;
 ElectricThruster1.Tank = {ElectricTank1};
 ElectricThruster1.MixRatio = [ 1 ];
 ElectricThruster1.GravitationalAccel = 9.81;
-ElectricThruster1.ThrustModel = ThrustMassPolynomial;
-ElectricThruster1.MaximumUsablePower = 5;
-ElectricThruster1.MinimumUsablePower = 0.638;
+ElectricThruster1.ThrustModel = ConstantThrustAndIsp;
+ElectricThruster1.MaximumUsablePower = 12;
+ElectricThruster1.MinimumUsablePower = 0.01;
 ElectricThruster1.ThrustCoeff1 = -5.19082;
 ElectricThruster1.ThrustCoeff2 = 2.96519;
 ElectricThruster1.ThrustCoeff3 = -14.4789;
@@ -119,7 +119,7 @@ ElectricThruster1.MassFlowCoeff4 = 0.03211;
 ElectricThruster1.MassFlowCoeff5 = 2.13781;
 ElectricThruster1.FixedEfficiency = 0.7;
 ElectricThruster1.Isp = 4200;
-ElectricThruster1.ConstantThrust = 5;
+ElectricThruster1.ConstantThrust = 0.25;
 
 Create SolarPowerSystem SolarPowerSystem1;
 
@@ -149,15 +149,22 @@ Create ForceModel DefaultProp_ForceModel;
 
 DefaultProp_ForceModel.CentralBody = Earth;
 DefaultProp_ForceModel.PrimaryBodies = {Earth};
-DefaultProp_ForceModel.Drag = None;
 DefaultProp_ForceModel.SRP = Off;
-DefaultProp_ForceModel.RelativisticCorrection = Off;
+DefaultProp_ForceModel.PointMasses = {Sun, Luna};
+DefaultProp_ForceModel.RelativisticCorrection = On;
 DefaultProp_ForceModel.ErrorControl = RSSStep;
 DefaultProp_ForceModel.GravityField.Earth.Degree = 4;
 DefaultProp_ForceModel.GravityField.Earth.Order = 4;
 DefaultProp_ForceModel.GravityField.Earth.StmLimit = 100;
 DefaultProp_ForceModel.GravityField.Earth.PotentialFile = 'JGM2.cof';
 DefaultProp_ForceModel.GravityField.Earth.TideModel = 'None';
+DefaultProp_ForceModel.Drag.AtmosphereModel = MSISE90;
+DefaultProp_ForceModel.Drag.HistoricWeatherSource = 'ConstantFluxAndGeoMag';
+DefaultProp_ForceModel.Drag.PredictedWeatherSource = 'ConstantFluxAndGeoMag';
+DefaultProp_ForceModel.Drag.F107 = 150;
+DefaultProp_ForceModel.Drag.F107A = 150;
+DefaultProp_ForceModel.Drag.MagneticIndex = 3;
+DefaultProp_ForceModel.Drag.DragModel = 'Spherical';
 
 %----------------------------------------
 %---------- Propagators
@@ -170,10 +177,10 @@ DefaultProp.Type = RungeKutta89;
 % Validated long-transfer settings: six times fewer outer-loop samples than
 % the former 60 s setup, while RungeKutta89 adapts internally near eclipses
 % and perturbations.
-DefaultProp.InitialStepSize = 360;
-DefaultProp.Accuracy = 1e-09;
+DefaultProp.InitialStepSize = 21600;
+DefaultProp.Accuracy = 1e-05;
 DefaultProp.MinStep = 0;
-DefaultProp.MaxStep = 3600;
+DefaultProp.MaxStep = 86400;
 DefaultProp.MaxStepAttempts = 50;
 DefaultProp.StopIfAccuracyIsViolated = true;
 

@@ -9,6 +9,7 @@ import path from "node:path"
 
 import { assertValidDigitalThreadDocument } from "../digitalThread/digitalThreadSchema.js"
 import { loadRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { loadOpalisResultSummary } from "../opalis/opalisResults.js"
 import { artifactDefinitionForPath, RUN_ARTIFACTS } from "./artifactRegistry.js"
 import type { MissionRunReference } from "./runWorkspace.js"
 import { loadRunManifest } from "./runManifest.js"
@@ -81,6 +82,33 @@ async function readRunDocument(runDir: string) {
   return { document: parsed as JsonRecord, source: "satellite.json" as const }
 }
 
+function metric(value: string, source: string) { return { source, value } }
+
+async function missionOverview(runDir: string, document: JsonRecord) {
+  const [opalis, gmatSource, electricSource] = await Promise.all([
+    loadOpalisResultSummary(runDir),
+    fs.readFile(path.join(runDir, "gmat_result.json"), "utf8").then(value => JSON.parse(value) as JsonRecord).catch(() => ({} as JsonRecord)),
+    fs.readFile(path.join(runDir, "electric_transfer_timeseries.json"), "utf8").then(value => JSON.parse(value) as unknown).catch(() => []),
+  ])
+  const propagation = atPath(document, "analysis_requests.gmat.chemical_hohmann_transfer.final_propagation_seconds")
+  const lifetimeDays = typeof propagation === "number" && propagation > 0 ? `${(propagation / 86400).toFixed(2)} days` : "Unavailable"
+  const electrical = !opalis ? "Waiting for results" : !opalis.simulationExecuted ? "Unavailable" : opalis.alerts.some(alert => alert.level === "warning") ? "Check required" : "OK"
+  const gmat = record(gmatSource) ?? {}
+  const samples = Array.isArray(electricSource) ? electricSource.filter(record) : []
+  const altitudes = samples.map(sample => typeof sample?.altitudeKm === "number" ? sample.altitudeKm : null).filter((value): value is number => value !== null)
+  const fuelUsed = typeof gmat.fuelUsedBetweenReportsKg === "number" ? `${gmat.fuelUsedBetweenReportsKg.toFixed(3)} kg` : "Unavailable"
+  const averageAltitude = altitudes.length ? `${(altitudes.reduce((sum, value) => sum + value, 0) / altitudes.length).toFixed(1)} km` : "Unavailable"
+  return {
+    lifetime: metric(lifetimeDays, "GMAT mission configuration"),
+    fuelMassConsumed: metric(fuelUsed, "GMAT ElectricTransferReport"),
+    averageAltitude: metric(averageAltitude, "GMAT ElectricTransferReport"),
+    contactTime: metric("Waiting for Simu-CIC", "CIC visibility file"),
+    latency: metric("Waiting for Simu-CIC", "CIC station-distance file"),
+    eclipseTime: metric("Waiting for Simu-CIC", "CIC eclipse file"),
+    electricalConfiguration: metric(electrical, "OPALIS result"),
+  }
+}
+
 export async function buildRunViewModel(run: MissionRunReference) {
   const [loadedDocument, manifestSource, workflow] = await Promise.all([
     readRunDocument(run.runDir),
@@ -91,6 +119,7 @@ export async function buildRunViewModel(run: MissionRunReference) {
   const manifest = record(manifestSource)
   const templateId = typeof manifest?.templateId === "string" ? manifest.templateId : null
   const simuCic = record(record(document.analysis_requests)?.simu_cic) ?? { attitude_mode: "nadir_pointing", ground_station_ids: [], simultaneous_visibility_policy: null }
+  const overview = await missionOverview(run.runDir, document)
   const artifacts = (await Promise.all(RUN_ARTIFACTS.map(async artifact => {
     const stat = await fs.stat(path.join(run.runDir, artifact.relativePath)).catch(() => null)
     return stat?.isFile() ? { ...artifact, size: stat.size, updatedAt: stat.mtime.toISOString() } : null
@@ -99,6 +128,7 @@ export async function buildRunViewModel(run: MissionRunReference) {
     artifacts,
     document,
     missionValues: missionValues(document, templateId),
+    overview,
     runId: run.runId,
     runPath: run.runPath,
     satelliteAssumptions: satelliteAssumptions(document),

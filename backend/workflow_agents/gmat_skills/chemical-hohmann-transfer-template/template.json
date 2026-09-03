@@ -1,7 +1,7 @@
 {
   "id": "chemical-hohmann-transfer",
-  "name": "Chemical Hohmann transfer",
-  "description": "Two-impulse Earth-orbit transfer solved by GMAT's differential corrector.",
+  "name": "Chemical 2D transfer",
+  "description": "Two-impulse chemical Earth-orbit transfer with propellant depletion, solved by GMAT's differential corrector.",
   "analysis_request_key": "chemical_hohmann_transfer",
   "draft_directory": ["gmat", "chemical-hohmann-transfer", "drafts"],
   "chat_mode": "gmat-chemical-hohmann",
@@ -17,32 +17,36 @@
     { "path": "EphemerisFile1.oem", "kind": "ephemeris", "primary": true },
     { "path": "gmat.log", "kind": "log" }
   ],
-  "source": "GMAT Tut_SimpleOrbitTransfer.script",
+  "source": "GMAT Chemical 2D Transfer.script",
   "propulsion_requirement": "chemical",
-  "initial_state_representation": "Cartesian",
+  "initial_state_representation": "Keplerian",
   "ui": {
-    "objective": "Raise or lower an Earth orbit using a transfer-orbit burn followed by a circularisation burn at apoapsis.",
-    "summary": "Two-impulse chemical transfer solved by GMAT's differential corrector.",
-    "outputs": ["GMAT script and values", "GMAT execution log", "OEM ephemeris", "Run-local satellite.json"],
-    "satellite_requirements": ["Dry mass", "Chemical propulsion and Isp", "Drag area and coefficient"],
+    "objective": "Raise or lower an Earth orbit using two chemical burns, then generate an OEM and an altitude/fuel report.",
+    "summary": "Chemical 2D transfer with satellite physical properties injected from the satellite library.",
+    "outputs": ["GMAT script and values", "Altitude and fuel report", "OEM ephemeris", "Run-local satellite.json"],
+    "satellite_requirements": ["Dry mass", "Chemical propellant mass and Isp", "Drag and SRP properties"],
     "mission_input_fields": [
-      { "label": "Initial epoch", "path": "initialOrbit.epoch" },
-      { "label": "Initial altitude", "path": "initialOrbit.smaKm", "unit": "km", "value_transform": "earth-radius" },
+      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km" },
       { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity" },
       { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
-      { "label": "Target altitude", "path": "transfer.targetRadiusKm", "unit": "km", "value_transform": "earth-radius" },
-      { "label": "Target eccentricity", "path": "transfer.targetEccentricity" },
-      { "label": "Final propagation duration", "path": "transfer.finalPropagationSeconds", "unit": "s" }
+      { "label": "Final altitude", "path": "transfer.targetAltitudeKm", "unit": "km" },
+      { "label": "Initial epoch (optional)", "path": "initialOrbit.epoch" },
+      { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg" },
+      { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg" },
+      { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg" },
+      { "label": "Final propagation time (optional)", "path": "transfer.finalPropagationSeconds", "unit": "s" },
+      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg" }
     ]
   },
   "mission_inputs": {
     "required": [
-      "initial_epoch",
-      "initial_orbit",
-      "target_orbit_radius"
+      "initial_altitude",
+      "initial_eccentricity",
+      "initial_inclination",
+      "final_altitude"
     ],
     "defaults": {
-      "target_eccentricity": 0.005,
+      "target_eccentricity": 0,
       "final_propagation_seconds": 86400
     }
   },
@@ -50,7 +54,8 @@
     "satellite.bus.physical.mass_kg.dry",
     "satellite.bus.physical.drag_area_m2",
     "satellite.bus.physical.drag_coefficient",
-    "satellite.bus.propulsion_subsystem.specific_impulse_seconds"
+    "satellite.bus.propulsion_subsystem.specific_impulse_seconds",
+    "satellite.bus.physical.mass_kg.propellant"
   ],
   "downstream_analyses": ["simu-cic", "opalis", "rf-comlink"],
   "planned_physical_extension": {

@@ -165,6 +165,8 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
       requireNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.target_orbit.radius_km", "transfer.targetRadiusKm", values, guards)
       optionalNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.target_orbit.eccentricity", "transfer.targetEccentricity", values)
       optionalNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.final_propagation_seconds", "transfer.finalPropagationSeconds", values)
+      const fuelMass = firstNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.initial_fuel_mass_kg", "satellite.bus.physical.mass_kg.propellant")
+      if (fuelMass !== null) values["spacecraft.initialFuelMassKg"] = fuelMass
     } else {
       const initialSma = values["initialOrbit.smaKm"]
       if (typeof initialSma === "number") values["initialOrbit.altitudeKm"] = initialSma - 6378.1363
@@ -231,9 +233,12 @@ function missionDraftPaths(templateId: string) {
     ...Object.fromEntries(Object.entries(MISSION_ORBIT_PATHS).map(([draftPath, threadPath]) => [draftPath, `${root}.initial_orbit.${threadPath}`])),
     ...(templateId === "chemical-hohmann-transfer"
       ? {
+          "initialOrbit.altitudeKm": `${root}.initial_orbit.altitude_km`,
+          "transfer.targetAltitudeKm": `${root}.target_orbit.altitude_km`,
           "transfer.targetRadiusKm": `${root}.target_orbit.radius_km`,
           "transfer.targetEccentricity": `${root}.target_orbit.eccentricity`,
           "transfer.finalPropagationSeconds": `${root}.final_propagation_seconds`,
+          "spacecraft.initialFuelMassKg": `${root}.initial_fuel_mass_kg`,
         }
       : templateId === "chemical-3d-transfer"
       ? { "initialOrbit.altitudeKm": `${root}.initial_orbit.altitude_km`, "transfer.finalAltitudeKm": `${root}.final_altitude_km`, "transfer.finalInclinationDeg": `${root}.final_inclination_deg` }

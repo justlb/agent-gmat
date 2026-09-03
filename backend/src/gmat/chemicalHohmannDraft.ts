@@ -48,17 +48,20 @@ const TAI_UTC_LEAP_SECONDS: ReadonlyArray<readonly [string, number]> = [
   ["2009-01-01T00:00:00Z", 34], ["2012-07-01T00:00:00Z", 35], ["2015-01-01T00:00:00Z", 36], ["2017-01-01T00:00:00Z", 37],
 ]
 const fields = [
-  { label: "Initial epoch", path: "initialOrbit.epoch", required: true },
-  { label: "Initial semi-major axis", min: EARTH_EQUATORIAL_RADIUS_KM, path: "initialOrbit.smaKm", required: true },
+  // The four mission inputs intentionally start empty.  SMA/radius are
+  // internal GMAT values: altitude is the only orbital-size input exposed to
+  // an engineer and is converted deterministically below.
+  { label: "Initial altitude", min: 150, path: "initialOrbit.altitudeKm", required: true },
   { label: "Initial eccentricity", max: 0.999999, min: 0, path: "initialOrbit.eccentricity", required: true },
   { label: "Initial inclination", max: 180, min: 0, path: "initialOrbit.inclinationDeg", required: true },
-  { label: "Target orbit radius", min: EARTH_EQUATORIAL_RADIUS_KM, path: "transfer.targetRadiusKm", required: true },
+  { label: "Final altitude", min: 150, path: "transfer.targetAltitudeKm", required: true },
+  { label: "Initial epoch", path: "initialOrbit.epoch", required: false },
+  { label: "Initial RAAN", max: 360, min: 0, path: "initialOrbit.raanDeg", required: false },
+  { label: "Initial AOP", max: 360, min: 0, path: "initialOrbit.argPeriapsisDeg", required: false },
+  { label: "Initial true anomaly", max: 360, min: 0, path: "initialOrbit.trueAnomalyDeg", required: false },
   { label: "Target eccentricity", max: 0.999999, min: 0, path: "transfer.targetEccentricity", required: false },
   { label: "Final propagation duration", min: 0, path: "transfer.finalPropagationSeconds", required: false },
-  { label: "Dry mass", min: 0.001, path: "spacecraft.dryMassKg", required: false },
-  { label: "Drag area", min: 0.0001, path: "spacecraft.dragAreaM2", required: false },
-  { label: "Drag coefficient", min: 0.0001, path: "spacecraft.dragCoefficient", required: false },
-  { label: "Specific impulse", min: 0.1, path: "propulsion.ispSeconds", required: false },
+  { label: "Loaded fuel mass", min: 0, path: "spacecraft.initialFuelMassKg", required: false },
 ] as const
 
 function newDraftId() { return `draft_${crypto.randomUUID()}` }
@@ -109,7 +112,19 @@ async function save(workspaceDir: string, draft: ChemicalHohmannDraft) {
 }
 
 export async function createChemicalHohmannDraft(workspaceDir: string, initialValues: Record<string, ChemicalHohmannDraftValue> = {}, digitalThreadRequiredPaths: string[] = []) {
-  const values = Object.fromEntries(fields.map(field => [field.path, initialValues[field.path] ?? (field.path === "transfer.targetEccentricity" ? 0.005 : field.path === "transfer.finalPropagationSeconds" ? 86400 : null)]))
+  const values: Record<string, ChemicalHohmannDraftValue> = {
+    ...initialValues,
+    "initialOrbit.altitudeKm": null,
+    "initialOrbit.eccentricity": null,
+    "initialOrbit.inclinationDeg": null,
+    "transfer.targetAltitudeKm": null,
+    "transfer.targetEccentricity": initialValues["transfer.targetEccentricity"] ?? 0,
+    "initialOrbit.epoch": initialValues["initialOrbit.epoch"] ?? "21545",
+    "initialOrbit.raanDeg": initialValues["initialOrbit.raanDeg"] ?? 0,
+    "initialOrbit.argPeriapsisDeg": initialValues["initialOrbit.argPeriapsisDeg"] ?? 0,
+    "initialOrbit.trueAnomalyDeg": initialValues["initialOrbit.trueAnomalyDeg"] ?? 0,
+    "transfer.finalPropagationSeconds": typeof initialValues["transfer.finalPropagationSeconds"] === "number" && initialValues["transfer.finalPropagationSeconds"] > 0 ? initialValues["transfer.finalPropagationSeconds"] : 86400,
+  }
   const now = new Date().toISOString()
   const draft = await save(workspaceDir, refresh({ confirmed: false, conversation: [], createdAt: now, digitalThreadRequiredPaths, draftId: newDraftId(), runs: [], templateId: "chemical-hohmann-transfer", values }))
   await initializeDraftDigitalThread(workspaceDir, "chemical-hohmann-transfer", draft.draftId)
@@ -138,10 +153,12 @@ export async function setChemicalHohmannDraftValue(workspaceDir: string, draft: 
   if (requestedPath === "initialOrbit.altitudeKm") {
     const altitude = Number(raw)
     if (!Number.isFinite(altitude) || altitude < 0) throw new Error("initial altitude must be a non-negative number in km")
+    values["initialOrbit.altitudeKm"] = altitude
     values["initialOrbit.smaKm"] = Number((EARTH_EQUATORIAL_RADIUS_KM + altitude).toFixed(9))
   } else if (requestedPath === "transfer.targetAltitudeKm") {
     const altitude = Number(raw)
     if (!Number.isFinite(altitude) || altitude < 0) throw new Error("target altitude must be a non-negative number in km")
+    values["transfer.targetAltitudeKm"] = altitude
     values["transfer.targetRadiusKm"] = Number((EARTH_EQUATORIAL_RADIUS_KM + altitude).toFixed(9))
   } else if (requestedPath === "initialOrbit.utcGregorian") {
     values["initialOrbit.epoch"] = utcGregorianToTaiModJulian(raw)

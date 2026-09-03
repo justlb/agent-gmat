@@ -1,7 +1,7 @@
 {
   "id": "orbit-keeping",
-  "name": "Orbit keeping",
-  "description": "Chemical-propulsion LEO station keeping with drag decay and reboost events.",
+  "name": "Chemical LEO orbit maintenance",
+  "description": "Chemical-propulsion LEO maintenance with drag decay, controlled reboosts and fuel reserve protection.",
   "analysis_request_key": "orbit_keeping",
   "draft_directory": ["gmat", "drafts"],
   "chat_mode": "gmat-orbit-keeping",
@@ -25,19 +25,19 @@
   "initial_state_representation": "Keplerian",
   "ui": {
     "objective": "Maintain a minimum orbital altitude while consuming the chemical propellant carried by the selected satellite.",
-    "summary": "Chemical-propulsion LEO station keeping with drag decay and reboost events.",
+    "summary": "Chemical LEO orbit maintenance with GMAT reboost targeting and fuel depletion.",
     "outputs": ["GMAT script and values", "Orbit and reboost reports", "OEM ephemeris", "Run-local satellite.json"],
     "satellite_requirements": ["Dry mass", "Chemical propellant capacity", "Specific impulse", "Drag area and coefficient"],
     "mission_input_fields": [
-      { "label": "Epoch", "path": "initialOrbit.epoch" },
-      { "label": "Initial semi-major axis", "path": "initialOrbit.smaKm", "unit": "km" },
       { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km", "derived": "initialAltitude" },
       { "label": "Eccentricity", "path": "initialOrbit.eccentricity" },
       { "label": "Inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
-      { "label": "Drag area", "path": "spacecraft.dragAreaM2", "unit": "m2" },
-      { "label": "Drag coefficient", "path": "spacecraft.dragCoefficient" },
-      { "label": "Initial fuel mass", "path": "spacecraft.initialFuelMassKg", "unit": "kg" },
-      { "label": "Minimum reboost altitude", "path": "stationKeeping.minimumAltitudeKm", "unit": "km" }
+      { "label": "Minimum reboost altitude", "path": "stationKeeping.minimumAltitudeKm", "unit": "km" },
+      { "label": "Epoch (optional)", "path": "initialOrbit.epoch" },
+      { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg" },
+      { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg" },
+      { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg" },
+      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg" }
     ]
   },
   "mission_inputs": {

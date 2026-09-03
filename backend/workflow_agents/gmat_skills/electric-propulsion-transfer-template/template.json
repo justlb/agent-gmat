@@ -1,7 +1,7 @@
 {
   "id": "electric-propulsion-transfer",
-  "name": "Electric propulsion transfer",
-  "description": "Low-thrust electric orbit transfer driven by the selected satellite electrical system.",
+  "name": "Electrical 2D transfer",
+  "description": "Deterministic two-dimensional electric transfer using the selected satellite's propulsion and power system.",
   "analysis_request_key": "electric_propulsion_transfer",
   "draft_directory": ["gmat", "electric-propulsion-transfer", "drafts"],
   "chat_mode": "gmat-electric-propulsion",
@@ -22,17 +22,20 @@
   "propulsion_requirement": "electric",
   "initial_state_representation": "Keplerian",
   "ui": {
-    "objective": "Propagate an electric-thrust transfer using the spacecraft mass, propellant, thruster and solar-power constraints.",
-    "summary": "Low-thrust electric orbit transfer driven by the selected satellite electrical system.",
+    "objective": "Raise an Earth orbit with the satellite's electric thruster and generate a report plus OEM.",
+    "summary": "Electrical 2D transfer using ConstantThrustAndIsp with satellite physical properties injected into GMAT.",
     "outputs": ["GMAT script and values", "Electric-transfer report", "OEM ephemeris", "Run-local satellite.json"],
     "satellite_requirements": ["Dry mass", "Electric propellant capacity", "Thruster power limits", "Solar-array power, bus load and margin"],
     "mission_input_fields": [
-      { "label": "Initial epoch", "path": "initialOrbit.epoch" },
-      { "label": "Initial semi-major axis", "path": "initialOrbit.smaKm", "unit": "km" },
       { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km", "derived": "initialAltitude" },
       { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity" },
       { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
-      { "label": "Target final altitude", "path": "transfer.finalAltitudeKm", "unit": "km" }
+      { "label": "Final altitude", "path": "transfer.finalAltitudeKm", "unit": "km" },
+      { "label": "Initial epoch (optional)", "path": "initialOrbit.epoch" },
+      { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg" },
+      { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg" },
+      { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg" },
+      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg" }
     ]
   },
   "mission_inputs": {

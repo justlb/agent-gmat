@@ -25,6 +25,7 @@ export type ChemicalHohmannRenderValues = {
   "spacecraft.dragAreaM2": number | null
   "spacecraft.dragCoefficient": number | null
   "spacecraft.dryMassKg": number | null
+  "spacecraft.initialFuelMassKg"?: number | null
   "transfer.finalPropagationSeconds": number | null
   "transfer.targetEccentricity": number | null
   "transfer.targetRadiusKm": number | null
@@ -92,6 +93,7 @@ export function renderChemicalHohmannScript(template: string, values: ChemicalHo
     "DefaultSC.DryMass": String(finiteNumber(values, "spacecraft.dryMassKg")),
     "DefaultSC.Cd": String(finiteNumber(values, "spacecraft.dragCoefficient")),
     "DefaultSC.DragArea": String(finiteNumber(values, "spacecraft.dragAreaM2")),
+    "ChemicalTank1.FuelMass": String(finiteNumber(values, "spacecraft.initialFuelMassKg")),
     "TOI.Isp": String(finiteNumber(values, "propulsion.ispSeconds")),
     "GOI.Isp": String(finiteNumber(values, "propulsion.ispSeconds")),
   })) rendered = replaceSingleAssignment(rendered, property, value)
