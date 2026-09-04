@@ -9,7 +9,7 @@ import { CurrentWorkspaceCard } from '../workspace/CurrentWorkspaceCard'
 import { GncDashboardPanel } from '../workspace/GncDashboardPanel'
 import { getWorkspaceDisplayName, usesCatchSupportingTable } from '../workspace/workspaceVersion'
 import { ComplianceCheckInputConfigEditor } from './ComplianceCheckInputConfigEditor'
-import { GmatAnalysisPanel } from './GmatAnalysisPanel'
+import { ResultsPage } from './ResultsPage'
 import type { AgentToolView, AgentWorkspaceView, WorkspaceFilePreview } from './types'
 import { AgentFilesView } from './files/AgentFilesView'
 import { SatelliteLibrary } from './SatelliteLibrary'
@@ -97,7 +97,7 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showCompl
 export function AgentWorkspacePanel({
   activeGmatRunPath,
   activeGmatRunId,
-  activeGmatRunTemplate,
+  activeGmatRunTemplate: _activeGmatRunTemplate,
   activeContext,
   activeManifestVersion,
   activeTool,
@@ -258,9 +258,8 @@ export function AgentWorkspacePanel({
         ) : activeView === 'tools' && activeTool === 'gnc-dashboard' && showGncConfig ? (
           <GncDashboardPanel activeContext={activeContext} />
         ) : activeView === 'tools' ? (
-          <GmatAnalysisPanel
+          <ResultsPage
             runPath={activeGmatRunPath}
-            template={activeGmatRunTemplate}
             workspaceDir={missionWorkspaceDir ?? activeContext.versionDir}
           />
         ) : activeView === 'satellites' ? (

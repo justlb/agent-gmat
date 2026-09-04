@@ -91,6 +91,20 @@ async function answerFromContext(config: AppConfig, intent: "knowledge" | "advic
 }
 
 export async function missionAssistantRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+  // Results discussion is always read-only with respect to mission inputs and execution.
+  // It bypasses the intent router so every question uses the selected run, for every template.
+  fastify.post<{ Body: { runPath?: unknown; message?: unknown } }>("/api/runs/analysis", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const run = resolveMissionRun(root, req.body?.runPath)
+    if (!run) return reply.status(400).send({ error: "invalid GMAT run path" })
+    const question = typeof req.body?.message === "string" ? req.body.message.trim() : ""
+    if (!question || question.length > 12000) return reply.status(400).send({ error: "message must contain between 1 and 12000 characters" })
+    try {
+      await fs.access(path.join(run.runDir, "run_manifest.json"))
+      return await analyzeRunWithAnalysisContext({ connection: resolveModelBackend(config, "chatModel"), question, runDir: run.runDir, refreshContext: true })
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "run analysis failed") }) }
+  })
   fastify.post<{ Body: Body }>("/api/gmat/assistant", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : ""

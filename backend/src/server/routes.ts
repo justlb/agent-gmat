@@ -3,13 +3,11 @@ import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 import { imageRoutes } from "../artifacts/index.js"
 import { managedRunRoutes, taskRoutes } from "../codex-run/index.js"
-import { cosyVoiceRoutes } from "../cosyvoice/index.js"
 import { gncConfigRoutes } from "../gnc_config/index.js"
 import { manifestRoutes } from "../manifests/index.js"
 import { sessionRoutes } from "../sessions/index.js"
 import { authRoutes } from "../system/auth.routes.js"
 import { healthRoutes, remoteToolsRoutes, skillsRoutes } from "../system/index.js"
-import { funasrRoutes } from "../funasr/index.js"
 import { workspaceRoutes, stageLogsRoutes } from "../workspaces/index.js"
 import { responsesCompatRoutes } from "../codex-run/responsesCompat.js"
 import { orbitKeepingRoutes } from "../gmat/orbitKeeping.routes.js"
@@ -24,7 +22,6 @@ import { opalisRunRoutes } from "../opalis/opalisRun.routes.js"
 import { missionAssistantRoutes } from "../gmat/missionAssistant.routes.js"
 import { rfComlinkRoutes } from "../rfComlink/rfComlink.routes.js"
 import { rfComlinkPreparationRoutes } from "../rfComlink/rfComlinkPreparation.routes.js"
-import { vtsRoutes } from "../vts/vts.routes.js"
 import { runViewRoutes } from "../runs/runView.routes.js"
 import { missionPipelineRoutes } from "../runs/missionPipeline.routes.js"
 
@@ -45,8 +42,6 @@ export async function registerApiRoutes(
   await fastify.register(gncConfigRoutes)
   await fastify.register(manifestRoutes, { logger })
   await fastify.register(stageLogsRoutes)
-  await fastify.register(cosyVoiceRoutes, { config, logger })
-  await fastify.register(funasrRoutes, { config, logger })
   await fastify.register(orbitKeepingRoutes, { config })
   await fastify.register(electricPropulsionRoutes, { config })
   await fastify.register(chemicalHohmannRoutes, { config })
@@ -59,7 +54,6 @@ export async function registerApiRoutes(
   await fastify.register(opalisRunRoutes, { config })
   await fastify.register(rfComlinkRoutes)
   await fastify.register(rfComlinkPreparationRoutes)
-  await fastify.register(vtsRoutes)
   await fastify.register(runViewRoutes)
   await fastify.register(missionPipelineRoutes)
 }

@@ -5,10 +5,11 @@ import type { GmatMissionTemplateId } from './gmatMissionTemplates'
 import { getOrbitKeepingTimeSeries, type OrbitKeepingTimeSeriesSample } from './orbitKeepingApi'
 import { getOpalisResults, type OpalisResultSummary } from './simuCicApi'
 import { requestApiJson } from '../../app/apiClient'
+import type { ResultSample } from './runResultsApi'
 
 type PlottableTemplate = Extract<GmatMissionTemplateId, 'electric-propulsion-transfer' | 'orbit-keeping'>
 type Metric = 'altitudeKm' | 'eccentricity' | 'fuelMassKg' | 'massFlowRateKgPerSec' | 'powerAvailableKw' | 'semiMajorAxisKm'
-type AnalysisSample = { altitudeKm?: number; eccentricity: number; elapsedDays: number; fuelMassKg: number; massFlowRateKgPerSec?: number; powerAvailableKw?: number; semiMajorAxisKm: number }
+type AnalysisSample = ResultSample
 type RunOption = { label: string; path: string; template: PlottableTemplate }
 type ChartSeries = { color: string; label: string; samples: AnalysisSample[] }
 
@@ -30,7 +31,7 @@ function LineChart({ metric, series }: { metric: Metric; series: ChartSeries[] }
   const usable = series.map(entry => ({ ...entry, samples: entry.samples.filter(sample => hasMetric(sample, metric)) })).filter(entry => entry.samples.length)
   const samples = usable.flatMap(entry => entry.samples)
   if (!samples.length) return <p className="gmat-analysis-note">This GMAT report does not contain {METRICS[metric].label.toLowerCase()} samples.</p>
-  const xValues = samples.map(sample => sample.elapsedDays); const yValues = samples.map(sample => sample[metric]); const xMin = Math.min(...xValues); const xMax = Math.max(...xValues); const yMin = Math.min(...yValues); const yMax = Math.max(...yValues); const xSpan = xMax - xMin || 1; const ySpan = yMax - yMin || 1
+  const { xMin, xMax, yMin, yMax } = samples.reduce((range, sample) => ({ xMin: Math.min(range.xMin, sample.elapsedDays), xMax: Math.max(range.xMax, sample.elapsedDays), yMin: Math.min(range.yMin, sample[metric]), yMax: Math.max(range.yMax, sample[metric]) }), { xMin: Infinity, xMax: -Infinity, yMin: Infinity, yMax: -Infinity }); const xSpan = xMax - xMin || 1; const ySpan = yMax - yMin || 1
   const x = (value: number) => margin.left + (value - xMin) / xSpan * chartWidth; const y = (value: number) => margin.top + chartHeight - (value - yMin) / ySpan * chartHeight
   const xTicks = axisTicks(xMin, xMax); const yTicks = axisTicks(yMin, yMax); const unit = METRICS[metric].unit
   return <><svg aria-label={`${METRICS[metric].label} from GMAT output`} className="gmat-analysis-chart" viewBox={`0 0 ${width} ${height}`} role="img">
@@ -46,12 +47,23 @@ function orbitSamples(samples: OrbitKeepingTimeSeriesSample[]): AnalysisSample[]
 /** GMAT reports SMA for electric transfers; the Results page presents the
  * engineering-facing altitude derived from that immutable raw output. */
 function electricSamples(samples: ElectricPropulsionTimeSeriesSample[]): AnalysisSample[] { return samples.map(sample => ({ altitudeKm: sample.semiMajorAxisKm - EARTH_EQUATORIAL_RADIUS_KM, eccentricity: sample.eccentricity, elapsedDays: sample.elapsedDays, fuelMassKg: sample.fuelMassKg, massFlowRateKgPerSec: sample.massFlowRateKgPerSec, powerAvailableKw: sample.powerAvailableKw, semiMajorAxisKm: sample.semiMajorAxisKm })) }
-function metricRange(samples: AnalysisSample[], metric: Metric) { const values = samples.filter(sample => hasMetric(sample, metric)).map(sample => sample[metric]); return values.length ? { maximum: Math.max(...values), minimum: Math.min(...values) } : null }
+function metricRange(samples: AnalysisSample[], metric: Metric) { const values = samples.filter(sample => hasMetric(sample, metric)).map(sample => sample[metric]); return values.length ? values.reduce((range, value) => ({ maximum: Math.max(range.maximum, value), minimum: Math.min(range.minimum, value) }), { maximum: -Infinity, minimum: Infinity }) : null }
 function finalMetric(samples: AnalysisSample[], metric: Metric) { const sample = [...samples].reverse().find(item => hasMetric(item, metric)); return sample?.[metric] ?? null }
 function metricValue(value: number | null, unit = '', digits = 1) { return value === null ? 'Unavailable' : `${value.toFixed(digits)}${unit ? ` ${unit}` : ''}` }
 
 function OpalisResultsCard({ result }: { result: OpalisResultSummary }) { return <section className="opalis-results-card"><strong>OPALIS electrical results</strong><span>Calculated from this run&apos;s CIC ephemeris and satellite.json configuration.</span><div className="gmat-analysis-metrics"><span>Initial SoC: {metricValue(result.initialSocPercent, '%')}</span><span>Final SoC: {metricValue(result.finalSocPercent, '%')}</span><span>Max depth of discharge: {metricValue(result.maxDepthOfDischargePercent, '%')}</span><span>Solar energy: {metricValue(result.solarArrayEnergy, ' Wh', 2)}</span></div><p className={result.stopCondition === 'eBattMin reached' ? 'opalis-result-warning' : 'opalis-result-info'}>Stop condition: {result.stopCondition ?? 'Unavailable'}</p></section> }
 async function loadSamples(run: RunOption) { return run.template === 'electric-propulsion-transfer' ? getElectricPropulsionTimeSeries(run.path).then(electricSamples) : getOrbitKeepingTimeSeries(run.path).then(orbitSamples) }
+
+/** Charts embedded beneath the shared overview; selection belongs to the Results sidebar. */
+export function ResultCharts({ samples, comparison = [], label, comparisonLabel }: { samples: ResultSample[]; comparison?: ResultSample[]; label: string; comparisonLabel?: string }) {
+  const series: ChartSeries[] = [{ color: '#60a5fa', label, samples }, ...(comparisonLabel ? [{ color: '#f59e0b', label: comparisonLabel, samples: comparison }] : [])]
+  const metrics: Metric[] = ['altitudeKm', 'semiMajorAxisKm', 'eccentricity', 'fuelMassKg', 'powerAvailableKw', 'massFlowRateKgPerSec']
+  if (!samples.length) return <p className="results-notice">No saved GMAT time-series data for this run. Its summary and discussion remain available.</p>
+  return <div className="gmat-analysis-panel results-charts">{metrics.filter(metric => samples.some(sample => hasMetric(sample, metric))).map(metric => {
+    const range = metricRange(samples, metric)!
+    return <section key={metric}><strong>{METRICS[metric].label} vs elapsed time</strong><span>Saved GMAT output · elapsed time in days</span><LineChart metric={metric} series={series} /><div className="gmat-analysis-metrics"><span>Minimum: {axisValue(range.minimum)} {METRICS[metric].unit}</span><span>Maximum: {axisValue(range.maximum)} {METRICS[metric].unit}</span></div></section>
+  })}</div>
+}
 
 export function GmatAnalysisPanel({ runPath, template, workspaceDir }: { runPath?: string; template?: GmatMissionTemplateId; workspaceDir?: string | null }) {
   const [error, setError] = useState(''); const [loading, setLoading] = useState(false); const [metric, setMetric] = useState<Metric>('altitudeKm'); const [runs, setRuns] = useState<RunOption[]>([]); const [selectedPath, setSelectedPath] = useState(runPath ?? ''); const [comparisonPath, setComparisonPath] = useState(''); const [primarySamples, setPrimarySamples] = useState<AnalysisSample[]>([]); const [comparisonSamples, setComparisonSamples] = useState<AnalysisSample[]>([]); const [opalisResult, setOpalisResult] = useState<OpalisResultSummary | null>(null); const [vtsStatus, setVtsStatus] = useState('')
