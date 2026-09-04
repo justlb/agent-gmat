@@ -134,6 +134,24 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
     templates: allGmatTemplateDefinitions().map(({ skillDirectory: _skillDirectory, ...template }) => template),
   }))
 
+  fastify.get<{ Params: TemplateParams }>("/api/gmat/templates/:template/example-script", async (req, reply) => {
+    try {
+      const definition = gmatTemplateDefinition(resolveTemplate(req.params.template))
+      const scriptPath = path.resolve(definition.skillDirectory, definition.gmatExampleScript ?? definition.gmatReferenceScript)
+      const relativeToSkill = path.relative(definition.skillDirectory, scriptPath)
+      if (!relativeToSkill || path.isAbsolute(relativeToSkill) || relativeToSkill.split(path.sep).includes("..")) {
+        throw new Error("invalid GMAT example script path")
+      }
+      const stat = await fs.stat(scriptPath).catch(() => null)
+      if (!stat?.isFile()) return reply.status(404).send({ error: "GMAT example script not found" })
+      return reply
+        .header("Content-Type", "text/plain; charset=utf-8")
+        .header("Content-Disposition", `attachment; filename="${path.basename(scriptPath)}"`)
+        .header("Content-Length", String(stat.size))
+        .send(createReadStream(scriptPath))
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download GMAT example script") }) }
+  })
+
   fastify.get<{ Params: TemplateParams; Querystring: { workspaceDir?: string } }>("/api/gmat/templates/:template/files", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })

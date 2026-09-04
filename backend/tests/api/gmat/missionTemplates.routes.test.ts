@@ -10,6 +10,27 @@ import { createTestServer } from "../../helpers/createTestServer.js"
 import { createTestConfig } from "../../helpers/testConfig.js"
 
 describe("generic GMAT mission template routes", () => {
+  it("downloads manifest-owned example scripts", async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-template-download-"))
+    const server = await createTestServer({ config: createTestConfig({ workspace: { usersRoot: path.join(tempRoot, "users") } }) })
+    try {
+      const scripts = [
+        ["orbit-keeping", "orbit_keeping.script"],
+        ["electric-propulsion-transfer", "electric_propulsion_transfer.script"],
+        ["chemical-hohmann-transfer", "chemical_hohmann_transfer.script"],
+      ] as const
+      for (const [template, fileName] of scripts) {
+        const response = await server.inject({ method: "GET", url: `/api/gmat/templates/${template}/example-script` })
+        assert.equal(response.statusCode, 200, template)
+        assert.equal(response.headers["content-type"], "text/plain; charset=utf-8")
+        assert.equal(response.headers["content-disposition"], `attachment; filename="${fileName}"`)
+        assert.match(response.body, /BeginMissionSequence/u)
+      }
+      const unknown = await server.inject({ method: "GET", url: "/api/gmat/templates/not-a-template/example-script" })
+      assert.equal(unknown.statusCode, 422)
+    } finally { await server.close() }
+  })
+
   it("exposes one validated draft lifecycle for every registered template", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-template-contract-"))
     const server = await createTestServer({ config: createTestConfig({ workspace: { usersRoot: path.join(tempRoot, "users") } }) })

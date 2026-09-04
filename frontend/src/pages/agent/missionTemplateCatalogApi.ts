@@ -48,3 +48,8 @@ export function listMissionTemplateDefinitions() {
     })
   return catalogueRequest
 }
+
+/** Direct download URL for the immutable reference script declared by a template manifest. */
+export function missionTemplateExampleScriptUrl(template: GmatMissionTemplateId) {
+  return joinApiPath(undefined, `/gmat/templates/${encodeURIComponent(template)}/example-script`)
+}

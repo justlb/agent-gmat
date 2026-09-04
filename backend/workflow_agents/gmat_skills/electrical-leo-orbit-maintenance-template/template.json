@@ -1,0 +1,41 @@
+{
+  "id": "electrical-leo-orbit-maintenance",
+  "name": "Electrical LEO orbit maintenance",
+  "description": "Continuous electric-thrust LEO station keeping with bounded throttle control.",
+  "analysis_request_key": "electrical_leo_orbit_maintenance",
+  "draft_directory": ["gmat", "electrical-leo-orbit-maintenance", "drafts"],
+  "chat_mode": "gmat-electrical-leo-orbit-maintenance",
+  "gmat_reference_script": "references/electrical_LEOorbit_maintenance.script",
+  "artifacts": [
+    { "path": "electrical_LEOorbit_maintenance.script", "kind": "script" },
+    { "path": "ReportFile1.txt", "kind": "report" },
+    { "path": "EphemerisFile1.oem", "kind": "ephemeris", "primary": true },
+    { "path": "gmat.log", "kind": "log" }
+  ],
+  "source": "electrical_LEOorbit_maintenance.script",
+  "propulsion_requirement": "electric",
+  "initial_state_representation": "Keplerian",
+  "ui": {
+    "objective": "Maintain a LEO orbit with a continuous electric reboost.",
+    "summary": "Electrical LEO orbit maintenance with satellite properties injected from the satellite library.",
+    "outputs": ["GMAT script and report", "OEM ephemeris", "Run-local satellite.json"],
+    "satellite_requirements": ["Dry mass", "Electric propellant mass, Isp and thrust", "Drag and SRP properties"],
+    "mission_input_fields": [
+      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km" },
+      { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity" },
+      { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
+      { "label": "Minimum reboost altitude", "path": "stationKeeping.minimumAltitudeKm", "unit": "km" },
+      { "label": "Initial epoch (optional)", "path": "initialOrbit.epoch" },
+      { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg" },
+      { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg" },
+      { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg" },
+      { "label": "Mission duration (optional)", "path": "stationKeeping.missionDays", "unit": "days" },
+      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg" },
+      { "label": "Throttle bias (optional)", "path": "stationKeeping.throttleBias" },
+      { "label": "Throttle gain (optional)", "path": "stationKeeping.throttleGain" }
+    ]
+  },
+  "mission_inputs": { "required": ["initial_altitude", "initial_eccentricity", "initial_inclination", "minimum_altitude"], "defaults": { "mission_days": 3, "throttle_bias": 0.87, "throttle_gain": 0.15 } },
+  "satellite_inputs": ["satellite.bus.physical.mass_kg.dry", "satellite.bus.physical.drag_area_m2", "satellite.bus.physical.drag_coefficient", "satellite.bus.propulsion_subsystem.specific_impulse_seconds", "satellite.bus.propulsion_subsystem.main_engine_thrust_n", "satellite.bus.physical.mass_kg.propellant"],
+  "downstream_analyses": ["simu-cic", "opalis", "rf-comlink"]
+}

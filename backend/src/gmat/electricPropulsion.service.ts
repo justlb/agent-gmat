@@ -125,11 +125,14 @@ function enableEphemerisOutput(script: string) {
   }
   const marker = "BeginMissionSequence;"
   if (!script.includes(marker)) throw new Error("electric-propulsion template does not expose its mission sequence")
-  const propagation = "While 'Raise to target altitude' DefaultSC.Earth.Altitude < targetFinalAltitudeKm"
-  if (!script.includes(propagation) || !script.includes("Propagate 'Propagate one output step' DefaultProp(DefaultSC);")) throw new Error("electric-propulsion template does not expose its altitude-targeted propagation loop")
-  const withSubscriber = script.includes("Toggle EphemerisFile1 On;")
+  const legacyPropagation = script.includes("While 'Raise to target altitude' DefaultSC.Earth.Altitude < targetFinalAltitudeKm")
+    && script.includes("Propagate 'Propagate one output step' DefaultProp(DefaultSC);")
+  const continuousPropagation = script.includes("Propagate 'Spiral ' DefaultProp(DefaultSC) {DefaultSC.Earth.SMA = targetFinalAltitudeKm};")
+  const stationKeepingPropagation = script.includes("While 'Continuous circular LEO electric orbit keeping' DefaultSC.ElapsedDays < MissionDays")
+  if (!legacyPropagation && !continuousPropagation && !stationKeepingPropagation) throw new Error("electric-propulsion template does not expose its supported propagation sequence")
+  const withSubscriber = script.includes("Toggle EphemerisFile1 On;") || script.includes("Toggle ElectricTransferReport EphemerisFile1 On;")
     ? script
-    : script.replace(marker, `${marker}\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;`)
+    : script.replace(marker, `${marker}\n\n% Application instrumentation: activate downstream report and OEM subscribers.\n${stationKeepingPropagation ? "Toggle ElectricTransferReport EphemerisFile1 On;" : "Toggle EphemerisFile1 On;"}`)
   return withSubscriber
 }
 

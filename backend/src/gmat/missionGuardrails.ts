@@ -8,6 +8,7 @@
 export type GmatMissionGuardrailTemplate =
   | "orbit-keeping"
   | "electric-propulsion-transfer"
+  | "electrical-leo-orbit-maintenance"
   | "chemical-hohmann-transfer"
   | "chemical-3d-transfer"
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { GmatMissionTemplateId } from './gmatMissionTemplates'
-import { listMissionTemplateDefinitions, type MissionTemplateDefinition } from './missionTemplateCatalogApi'
+import { listMissionTemplateDefinitions, missionTemplateExampleScriptUrl, type MissionTemplateDefinition } from './missionTemplateCatalogApi'
 
 export function TemplateLibrary() {
   const [activeId, setActiveId] = useState<GmatMissionTemplateId>('orbit-keeping')
@@ -18,7 +18,10 @@ export function TemplateLibrary() {
         {templates.map(template => <article className={`template-definition-card ${template.id === activeId ? 'is-selected' : ''}`} key={template.id}>
           <header><span>GMAT TEMPLATE</span><small>{template.id}</small></header><h3>{template.name}</h3><p>{template.ui.summary}</p>
           <dl className="template-card-summary"><div><dt>Mission inputs</dt><dd>{template.ui.missionInputFields.length}</dd></div><div><dt>Satellite constraints</dt><dd>{template.ui.satelliteRequirements.length}</dd></div><div><dt>Downstream tools</dt><dd>{template.downstreamAnalyses.length}</dd></div></dl>
-          <button type="button" onClick={() => setActiveId(template.id)}>View template details</button>
+          <div className="template-definition-actions">
+            <button type="button" onClick={() => setActiveId(template.id)}>View template details</button>
+            <a download href={missionTemplateExampleScriptUrl(template.id)}>Download example script</a>
+          </div>
         </article>)}
       </div>
       {active ? <aside className="template-active-card">

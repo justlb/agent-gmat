@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { joinApiPath } from '../../app/apiBase'
 import { listMissionTemplateDefinitions, type MissionTemplateDefinition } from './missionTemplateCatalogApi'
@@ -18,6 +18,7 @@ const initialPipeline: PipelineStatus = { gmat: { status: 'not_started' }, simu_
 function numberAt(source: Record<string, unknown>, path: string) { return path.split('.').reduce<unknown>((value, key) => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : null, source) }
 
 export function MissionV2({ onStartMission, workspaceDir }: Props) {
+  const restored = useRef(false)
   const [satellites, setSatellites] = useState<SatelliteDefinition[]>([])
   const [templates, setTemplates] = useState<MissionTemplateDefinition[]>([])
   const [stations, setStations] = useState<PredefinedGroundStation[]>([])
@@ -34,7 +35,32 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
   const [overview, setOverview] = useState<RunView['overview'] | null>(null)
   const [message, setMessage] = useState('Choose a satellite to begin.')
 
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('mission-v2-state')
+      if (saved) {
+        const state = JSON.parse(saved) as Partial<{ satelliteId: string; templateId: GmatMissionTemplateId; stationId: string; activeWorkspace: string; draftId: string; values: Record<string, string | number | null>; runPath: string }>
+        if (state.satelliteId) setSatelliteId(state.satelliteId)
+        if (state.templateId) setTemplateId(state.templateId)
+        if (state.stationId) setStationId(state.stationId)
+        if (state.activeWorkspace) setActiveWorkspace(state.activeWorkspace)
+        if (state.draftId) setDraftId(state.draftId)
+        if (state.values) setValues(state.values)
+        if (state.runPath) setRunPath(state.runPath)
+      }
+    } catch { /* a malformed browser cache must never block the page */ }
+    restored.current = true
+  }, [])
+  useEffect(() => {
+    if (!restored.current) return
+    sessionStorage.setItem('mission-v2-state', JSON.stringify({ satelliteId, templateId, stationId, activeWorkspace, draftId, values, runPath }))
+  }, [satelliteId, templateId, stationId, activeWorkspace, draftId, values, runPath])
+
   useEffect(() => { void Promise.all([listSatelliteDefinitions(), listMissionTemplateDefinitions(), listSimuCicGroundStations()]).then(([a, b, c]) => { setSatellites(a); setTemplates(b); setStations(c) }).catch(error => setMessage(error instanceof Error ? error.message : 'Unable to load mission definitions')) }, [])
+  useEffect(() => {
+    if (templateId !== 'electrical-leo-orbit-maintenance') return
+    setValues(current => ({ ...current, 'stationKeeping.missionDays': current['stationKeeping.missionDays'] ?? 3, 'stationKeeping.throttleBias': current['stationKeeping.throttleBias'] ?? 0.87, 'stationKeeping.throttleGain': current['stationKeeping.throttleGain'] ?? 0.15 }))
+  }, [templateId])
   useEffect(() => {
     if (!runPath) return
     let cancelled = false
@@ -43,11 +69,11 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
     return () => { cancelled = true; window.clearInterval(timer) }
   }, [runPath])
   const satellite = satellites.find(item => item.id === satelliteId)
-  const available = useMemo(() => templates.filter(item => item.id !== 'chemical-3d-transfer' && (!satellite || satellite.mission_templates.includes(item.id))), [satellite, templates])
+  const available = useMemo(() => templates.filter(item => item.id !== 'chemical-3d-transfer' && (!satellite || satellite.mission_templates.includes(item.id) || (item.id === 'electrical-leo-orbit-maintenance' && satellite.mission_templates.includes('electric-propulsion-transfer')))), [satellite, templates])
   const template = templates.find(item => item.id === templateId)
   const requiredPaths = new Set(templateId === 'electric-propulsion-transfer'
     ? ['initialOrbit.altitudeKm', 'initialOrbit.eccentricity', 'initialOrbit.inclinationDeg', 'transfer.finalAltitudeKm']
-    : templateId === 'orbit-keeping'
+    : templateId === 'orbit-keeping' || templateId === 'electrical-leo-orbit-maintenance'
       ? ['initialOrbit.altitudeKm', 'initialOrbit.eccentricity', 'initialOrbit.inclinationDeg', 'stationKeeping.minimumAltitudeKm']
       : ['initialOrbit.altitudeKm', 'initialOrbit.eccentricity', 'initialOrbit.inclinationDeg', 'transfer.targetAltitudeKm'])
   const requiredFields = template?.ui.missionInputFields.filter(field => requiredPaths.has(field.path)) ?? []
@@ -62,7 +88,7 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
   const chooseTemplate = async (id: string) => {
     setTemplateId(id as GmatMissionTemplateId); setDraftId(''); setValues({})
     if (!id) return
-    try { const current = await ensureWorkspace(); const draft = await missionTemplateRuntime(id as GmatMissionTemplateId).create(current); setDraftId(draft.draftId); setValues(draft.values); setMessage('Enter the required mission values, then run the deterministic pipeline.') } catch (error) { setMessage(error instanceof Error ? error.message : 'Mission scenario setup failed') }
+    try { const current = await ensureWorkspace(); const draft = await missionTemplateRuntime(id as GmatMissionTemplateId).create(current); const response = id === 'electrical-leo-orbit-maintenance' ? await fetch(joinApiPath(undefined, `/gmat/templates/${id}/drafts/${draft.draftId}/values`), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceDir: current, path: 'transfer.finalAltitudeKm', value: '500' }) }) : null; const saved = response?.ok ? await response.json() as { values?: Record<string, string | number | null> } : null; setDraftId(draft.draftId); setValues(id === 'electrical-leo-orbit-maintenance' ? { ...draft.values, ...(saved?.values ?? {}), 'stationKeeping.missionDays': 3, 'stationKeeping.throttleBias': 0.87, 'stationKeeping.throttleGain': 0.15, 'spacecraft.initialFuelMassKg': draft.values['spacecraft.initialFuelMassKg'] ?? 80 } : draft.values); setMessage('Enter the required mission values, then run the deterministic pipeline.') } catch (error) { setMessage(error instanceof Error ? error.message : 'Mission scenario setup failed') }
   }
   const update = async (path: string, value: string) => {
     if (!templateId || !draftId) return

@@ -5,9 +5,9 @@ import { getBackendRoot } from "../config.js"
 
 /** IDs are a compile-time guard for the template adapters. The definition of
  * each template itself comes only from its versioned template.json manifest. */
-export const GMAT_TEMPLATE_IDS = ["orbit-keeping", "electric-propulsion-transfer", "chemical-hohmann-transfer", "chemical-3d-transfer"] as const
+export const GMAT_TEMPLATE_IDS = ["orbit-keeping", "electric-propulsion-transfer", "electrical-leo-orbit-maintenance", "chemical-hohmann-transfer", "chemical-3d-transfer"] as const
 export type GmatTemplateId = typeof GMAT_TEMPLATE_IDS[number]
-export type GmatAnalysisRequestKey = "orbit_keeping" | "electric_propulsion_transfer" | "chemical_hohmann_transfer" | "chemical_3d_transfer"
+export type GmatAnalysisRequestKey = "orbit_keeping" | "electric_propulsion_transfer" | "electrical_leo_orbit_maintenance" | "chemical_hohmann_transfer" | "chemical_3d_transfer"
 
 export type GmatTemplateMissionInput = {
   derived?: "initialAltitude"
@@ -32,6 +32,7 @@ export type GmatTemplateDefinition = {
   description: string
   downstreamAnalyses: string[]
   draftDirectory: string[]
+  gmatExampleScript?: string
   gmatReferenceScript: string
   gmatReferenceValues?: string
   id: GmatTemplateId
@@ -51,6 +52,7 @@ type TemplateManifest = {
   downstream_analyses: unknown
   draft_directory: unknown
   gmat_reference_script: string
+  gmat_example_script?: string
   gmat_reference_values?: string
   id: string
   initial_state_representation: string
@@ -116,6 +118,7 @@ function readManifest(template: GmatTemplateId): GmatTemplateDefinition {
     if (typeof manifest[property] !== "string" || !manifest[property].trim()) throw new Error(`missing ${property} in ${manifestPath}`)
   }
   if (manifest.gmat_reference_values !== undefined && (typeof manifest.gmat_reference_values !== "string" || !manifest.gmat_reference_values.trim())) throw new Error(`invalid gmat_reference_values in ${manifestPath}`)
+  if (manifest.gmat_example_script !== undefined && (typeof manifest.gmat_example_script !== "string" || !manifest.gmat_example_script.trim())) throw new Error(`invalid gmat_example_script in ${manifestPath}`)
   const draftDirectory = readStringList(manifest.draft_directory, "draft_directory", manifestPath)
   if (draftDirectory.some(segment => segment === "." || segment === ".." || segment.includes("/") || segment.includes("\\"))) throw new Error(`unsafe draft_directory in ${manifestPath}`)
   const required = manifest as TemplateManifest
@@ -126,6 +129,7 @@ function readManifest(template: GmatTemplateId): GmatTemplateDefinition {
     description: required.description,
     downstreamAnalyses: readStringList(required.downstream_analyses, "downstream_analyses", manifestPath),
     draftDirectory,
+    gmatExampleScript: required.gmat_example_script,
     gmatReferenceScript: required.gmat_reference_script,
     gmatReferenceValues: required.gmat_reference_values,
     id: template,
