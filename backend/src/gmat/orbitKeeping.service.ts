@@ -12,7 +12,7 @@ import { defaultOrbitKeepingTemplatePath } from "./orbitKeepingTemplate.js"
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import { beginRunStage, invalidateDownstreamFromGmat } from "../runs/runLifecycle.js"
 import { updateRunManifest } from "../runs/runManifest.js"
-import { applyOrbitKeepingValueChanges, parseOrbitKeepingValues, renderOrbitKeepingValues, type OrbitKeepingValueChange } from "./orbitKeepingValues.js"
+import { applyOrbitKeepingValueChanges, extractOrbitKeepingValues, parseOrbitKeepingValues, renderOrbitKeepingValues, type OrbitKeepingValueChange } from "./orbitKeepingValues.js"
 
 function enableEphemerisOutput(script: string) {
   if (!script.includes("Create EphemerisFile EphemerisFile1;")) {
@@ -119,7 +119,6 @@ export async function generateOrbitKeepingMission({
   workspaceDir,
   fetchImpl,
   templatePath = defaultOrbitKeepingTemplatePath(),
-  valuesPath = defaultOrbitKeepingValuesPath(),
   artifactId = formatRunDirectoryName(new Date()),
   execution,
   onProgress,
@@ -130,7 +129,6 @@ export async function generateOrbitKeepingMission({
   workspaceDir: string
   fetchImpl?: typeof fetch
   templatePath?: string
-  valuesPath?: string
   artifactId?: string
   execution?: {
     bin: string
@@ -144,11 +142,11 @@ export async function generateOrbitKeepingMission({
   if (!/^[A-Za-z0-9_-]+$/u.test(artifactId)) throw new Error("artifact id contains unsupported characters")
 
   onProgress?.({ key: "load_template", percent: 5, status: "running" })
-  const [template, valuesSource] = await Promise.all([
-    fs.readFile(templatePath, "utf8"),
-    fs.readFile(valuesPath, "utf8"),
-  ])
-  const sourceValues = parseOrbitKeepingValues(valuesSource)
+  const template = await fs.readFile(templatePath, "utf8")
+  // The editable slots are derived from the same script that GMAT will run.
+  // This prevents a hand-maintained YAML file from going stale when the
+  // reference mission script is updated.
+  const sourceValues = extractOrbitKeepingValues(template)
   onProgress?.({ key: "load_template", percent: 15, status: "completed" })
   onProgress?.({ key: "llm_patch", percent: 20, status: "running" })
   const edit = changes

@@ -5,8 +5,12 @@ import { getBackendRoot } from "../config.js"
 
 /** IDs are a compile-time guard for the template adapters. The definition of
  * each template itself comes only from its versioned template.json manifest. */
-export const GMAT_TEMPLATE_IDS = ["orbit-keeping", "electric-propulsion-transfer", "electrical-leo-orbit-maintenance", "chemical-hohmann-transfer", "chemical-3d-transfer"] as const
-export type GmatTemplateId = typeof GMAT_TEMPLATE_IDS[number]
+// Only maintained scenarios are registered at startup.  Chemical 3D transfer
+// was intentionally removed with its skill directory, so it must not be
+// loaded merely because legacy source files still mention its historical ID.
+export const GMAT_TEMPLATE_IDS = ["orbit-keeping", "electric-propulsion-transfer", "electrical-leo-orbit-maintenance", "chemical-hohmann-transfer"] as const
+export type GmatTemplateId = typeof GMAT_TEMPLATE_IDS[number] | "chemical-3d-transfer"
+type RegisteredGmatTemplateId = typeof GMAT_TEMPLATE_IDS[number]
 export type GmatAnalysisRequestKey = "orbit_keeping" | "electric_propulsion_transfer" | "electrical_leo_orbit_maintenance" | "chemical_hohmann_transfer" | "chemical_3d_transfer"
 
 export type GmatTemplateMissionInput = {
@@ -142,8 +146,12 @@ function readManifest(template: GmatTemplateId): GmatTemplateDefinition {
   }
 }
 
-const definitions = Object.fromEntries(GMAT_TEMPLATE_IDS.map(template => [template, readManifest(template)])) as Record<GmatTemplateId, GmatTemplateDefinition>
+const definitions = Object.fromEntries(GMAT_TEMPLATE_IDS.map(template => [template, readManifest(template)])) as Record<RegisteredGmatTemplateId, GmatTemplateDefinition>
 
-export function gmatTemplateDefinition(template: GmatTemplateId): GmatTemplateDefinition { return definitions[template] }
+export function gmatTemplateDefinition(template: GmatTemplateId): GmatTemplateDefinition {
+  const definition = definitions[template as RegisteredGmatTemplateId]
+  if (!definition) throw new Error(`GMAT mission scenario is no longer maintained: ${template}`)
+  return definition
+}
 export function allGmatTemplateDefinitions() { return GMAT_TEMPLATE_IDS.map(template => gmatTemplateDefinition(template)) }
 export function isGmatTemplateId(value: string): value is GmatTemplateId { return (GMAT_TEMPLATE_IDS as readonly string[]).includes(value) }

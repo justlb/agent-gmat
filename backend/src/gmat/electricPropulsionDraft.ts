@@ -315,6 +315,13 @@ export async function setElectricPropulsionDraftValue(workspaceDir: string, draf
     values["initialOrbit.smaKm"] = Number((altitudeKm + EARTH_EQUATORIAL_RADIUS_KM).toFixed(9))
   } else if (requestedPath === "initialOrbit.epoch") {
     values[requestedPath] = /^\d{4}-\d{2}-\d{2}T/u.test(raw) ? utcGregorianToTaiModJulian(raw) : raw
+  } else if (["stationKeeping.minimumAltitudeKm", "stationKeeping.missionDays", "stationKeeping.throttleBias", "stationKeeping.throttleGain"].includes(requestedPath)) {
+    // Electrical LEO station keeping reuses the robust electric draft store.
+    // Keep its scenario-specific controls as numeric values; its renderer
+    // consumes them only for the electrical-LEO template.
+    const value = Number(raw)
+    if (!Number.isFinite(value)) throw new Error("station-keeping value must be a finite number")
+    values[requestedPath] = value
   } else {
     const field = fields.find(candidate => candidate.path === requestedPath)
     if (!field) throw new Error("unsupported electric-propulsion mission field")

@@ -27,6 +27,7 @@ export type MissionTemplateFrontendRuntime = {
   discuss: (draftId: string, message: string, workspaceDir?: string | null) => Promise<OrbitKeepingDraft>
   downloadFile: (file: MissionTemplateFile, workspaceDir?: string | null) => string
   execute: (draftId: string, options: MissionTemplateExecutionOptions) => Promise<OrbitKeepingGenerateResult>
+  prepare: (draftId: string, workspaceDir?: string | null) => Promise<OrbitKeepingGenerateResult>
   list: (workspaceDir?: string | null) => Promise<OrbitKeepingDraft[]>
   listFiles: (workspaceDir?: string | null) => Promise<MissionTemplateFile[]>
   runFullPipeline: (draftId: string, workspaceDir?: string | null) => Promise<OrbitKeepingGenerateResult>
@@ -72,6 +73,12 @@ function genericRuntime(template: GmatMissionTemplateId): MissionTemplateFronten
         manifestPath: '', result: execution.result, resultPath: '', runId: execution.runId,
         runPath: execution.runPath, scriptPath: '', timeSeriesPath: '', valuesPath: '',
       }
+    },
+    prepare: async (draftId, workspaceDir) => {
+      const output = await requestApiJson<{ generation: { changes?: OrbitKeepingGenerateResult['changes']; result: OrbitKeepingGenerateResult['result']; runId: string }; runPath: string }>(templateDraftPath(template, `/${encodeURIComponent(draftId)}/prepare`), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceDir: requireWorkspace(workspaceDir) }),
+      })
+      return { changes: output.generation.changes ?? [], draftId, latencyMs: 0, manifestPath: '', result: output.generation.result, resultPath: '', runId: output.generation.runId, runPath: output.runPath, scriptPath: '', timeSeriesPath: '', valuesPath: '' }
     },
     runFullPipeline: async (draftId, workspaceDir) => {
       const output = await requestApiJson<{ execution: { changes?: OrbitKeepingGenerateResult['changes']; result: OrbitKeepingGenerateResult['result']; runId: string; runPath?: string }; runPath?: string }>(templateDraftPath(template, `/${encodeURIComponent(draftId)}/run-full-pipeline`), {

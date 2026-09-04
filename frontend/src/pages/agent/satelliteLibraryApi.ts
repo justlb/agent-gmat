@@ -66,6 +66,11 @@ export async function listSimuCicGroundStations() {
   return (await request<{ stations: PredefinedGroundStation[] }>('/opalis/simu-cic/ground-stations')).stations
 }
 
+export type RFComlinkGroundStation = PredefinedGroundStation & { bands: string[] }
+export async function listRFComlinkGroundStations() {
+  return (await request<{ stations: RFComlinkGroundStation[] }>('/opalis/rf-comlink/ground-stations')).stations
+}
+
 export async function saveSimuCicConfiguration(configuration: Pick<SimuCicConfiguration, 'attitude_mode' | 'ground_station_ids'>, workspaceDir?: string | null) {
   return request<DigitalThreadResponse>('/digital-thread/satellite/simu-cic', {
     method: 'POST',

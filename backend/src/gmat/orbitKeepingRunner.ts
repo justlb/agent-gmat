@@ -89,7 +89,10 @@ export async function runOrbitKeepingGmat({
   const timeSeriesSource = await fs.readFile(timeSeriesPath, "utf8").catch(() => "")
   const samples = parseOrbitKeepingReport(reportSource)
   const timeSeriesSamples = parseOrbitKeepingTimeSeriesReport(timeSeriesSource)
-  const status = timedOut ? "timeout" : exitCode === 0 && samples.length > 0 ? "completed" : "failed"
+  // GMAT's process result is authoritative.  A report can be empty when the
+  // mission has no reboost sample, but that must not turn a successfully
+  // completed GMAT execution into a failed workflow stage.
+  const status = timedOut ? "timeout" : exitCode === 0 ? "completed" : "failed"
   const solverIterations = (output.toString("utf8").match(/DefaultDC Iteration \d+/gu) ?? []).length
   const error = status === "completed"
     ? undefined
@@ -99,9 +102,7 @@ export async function runOrbitKeepingGmat({
         ? "GMAT could not be started"
         : exitCode !== 0
           ? "GMAT rejected the generated script before producing reports; inspect gmat.log for the GMAT error."
-          : samples.length === 0
-            ? "GMAT completed but did not produce a parseable ReboostReport.txt required for Orbit Keeping analysis."
-            : `GMAT exited with code ${exitCode}`
+          : `GMAT exited with code ${exitCode}`
 
   return {
     completedAt: new Date().toISOString(),

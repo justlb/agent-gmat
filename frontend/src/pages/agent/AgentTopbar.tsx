@@ -57,12 +57,7 @@ type AgentTopbarProps = {
   portStatusError: string
   portStatusLoading: boolean
   onPortStatusRefresh: () => void
-  onProgressToggle: () => void
   onStopAndSummarize: () => void
-  progressOpen: boolean
-  progressPercent?: number
-  progressStatusLabel: string
-  progressTitle: string
   sessionStatus: WorkspaceSessionStatus
   sessionStatusLabel: string
   stopSummaryPending: boolean
@@ -83,12 +78,7 @@ export function AgentTopbar({
   portStatusError,
   portStatusLoading,
   onPortStatusRefresh,
-  onProgressToggle,
   onStopAndSummarize,
-  progressOpen,
-  progressPercent,
-  progressStatusLabel,
-  progressTitle,
   sessionStatus,
   sessionStatusLabel,
   stopSummaryPending,
@@ -148,20 +138,6 @@ export function AgentTopbar({
         </div>
       </div>
       <div className="agent-topbar-port-status">
-        <button
-          type="button"
-          className={`agent-status-pill agent-status-pill--progress agent-progress-pill ${progressOpen ? 'is-open' : ''}`}
-          aria-expanded={progressOpen}
-          aria-haspopup="dialog"
-          onClick={onProgressToggle}
-        >
-          <span className="agent-progress-orbit" aria-hidden="true" />
-          <span className="agent-progress-copy">
-            <strong>{progressTitle}</strong>
-            <small>{progressStatusLabel}</small>
-          </span>
-          {typeof progressPercent === 'number' ? <span className="agent-progress-value">{progressPercent}%</span> : null}
-        </button>
         <button
           type="button"
           className={`agent-port-card is-${portVariant} ${portPanelOpen ? 'is-open' : ''}`}

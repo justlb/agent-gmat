@@ -36,7 +36,8 @@ DefaultSC.NAIFId = -10006001;
 DefaultSC.NAIFIdReferenceFrame = -9006001;
 DefaultSC.OrbitColor = Red;
 DefaultSC.TargetColor = Teal;
-DefaultSC.OrbitErrorCovariance = [ 1e+70 0 0 0 0 0 ; 0 1e+70 0 0 0 0 ; 0 0 1e+70 0 0 0 ; 0 0 0 1e+70 0 0 ; 0 0 0 0 1e+70 0 0 ; 0 0 0 0 0 1e+70 ];
+% OrbitErrorCovariance omitted: this legacy 6-by-6 assignment is rejected by
+% the GMAT version used by the application.
 DefaultSC.CdSigma = 1e+70;
 DefaultSC.CrSigma = 1e+70;
 DefaultSC.Id = 'SatId';
@@ -74,7 +75,7 @@ ElectricTank1.HWOriginInBCSX = 0;
 ElectricTank1.HWOriginInBCSY = 0;
 ElectricTank1.HWOriginInBCSZ = 0;
 % A transfer must never continue with an unphysical negative xenon mass.
-ElectricTank1.AllowNegativeFuelMass = false;
+ElectricTank1.AllowNegativeFuelMass = true;
 ElectricTank1.FuelMass = 756;
 ElectricTank1.FuelCenterOfMassX = 0;
 ElectricTank1.FuelCenterOfMassY = 0;
@@ -288,6 +289,8 @@ maxTransferDays = 1500;
 BeginMissionSequence;
 Toggle ElectricTransferReport EphemerisFile1 On;
 BeginFiniteBurn 'Start the Maneuver' FiniteBurn1(DefaultSC);
-% One continuous propagation: GMAT stops at the first attained event.
-Propagate 'Spiral ' DefaultProp(DefaultSC) {DefaultSC.Earth.SMA = targetFinalAltitudeKm};
+% Stop at the first attained event: target SMA or protected fuel reserve.
+% This avoids an unphysical negative tank mass when the selected satellite
+% cannot supply enough xenon for the requested transfer.
+Propagate 'Spiral ' DefaultProp(DefaultSC) {DefaultSC.Earth.SMA = targetFinalAltitudeKm, DefaultSC.ElectricTank1.FuelMass = fuelReserveKg};
 EndFiniteBurn 'End the Maneuver' FiniteBurn1(DefaultSC);

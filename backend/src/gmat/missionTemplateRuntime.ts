@@ -13,8 +13,9 @@ import { generateElectricPropulsionMission } from "./electricPropulsion.service.
 import { generateElectricalLeoOrbitMaintenanceMission } from "./electricalLeoOrbitMaintenance.service.js"
 import { defaultElectricPropulsionTemplatePath } from "./electricPropulsionTemplate.js"
 import { extractElectricPropulsionValues } from "./electricPropulsionValues.js"
-import { defaultOrbitKeepingValuesPath, generateOrbitKeepingMission } from "./orbitKeeping.service.js"
-import { parseOrbitKeepingValues } from "./orbitKeepingValues.js"
+import { generateOrbitKeepingMission } from "./orbitKeeping.service.js"
+import { defaultOrbitKeepingTemplatePath } from "./orbitKeepingTemplate.js"
+import { extractOrbitKeepingValues } from "./orbitKeepingValues.js"
 import type { GmatTemplateId } from "./templateRegistry.js"
 import { appendChemical3dDraftConversation, confirmChemical3dDraft, createChemical3dDraft, discussChemical3dDraft, generateChemical3dMission, loadChemical3dDraft, recordChemical3dDraftRun, setChemical3dDraftValue } from "./chemical3dTransfer.js"
 
@@ -70,7 +71,7 @@ const runtimes: Record<GmatTemplateId, MissionTemplateRuntime> = {
     create: async (workspaceDir, initialValues, requiredPaths) => createOrbitKeepingDraft(workspaceDir, initialValues, requiredPaths),
     discuss: async ({ connection, draft, message, workspaceDir }) => discussOrbitKeepingDraft({ connection, draft: draft as unknown as Awaited<ReturnType<typeof loadOrbitKeepingDraft>>, message, workspaceDir }),
     execute: async ({ connection, draft, execution, workspaceDir }) => {
-      const values = parseOrbitKeepingValues(await fs.readFile(defaultOrbitKeepingValuesPath(), "utf8"))
+      const values = extractOrbitKeepingValues(await fs.readFile(defaultOrbitKeepingTemplatePath(), "utf8"))
       const result = await generateOrbitKeepingMission({ changes: draftToOrbitKeepingChanges(draft as unknown as Awaited<ReturnType<typeof loadOrbitKeepingDraft>>, values), connection, execution, request: `Confirmed GMAT mission draft ${draft.draftId}`, workspaceDir })
       return { changes: result.changes, result: result.result, runDir: result.runDir, runId: result.runId }
     },
@@ -98,7 +99,8 @@ const runtimes: Record<GmatTemplateId, MissionTemplateRuntime> = {
     create: async (workspaceDir, initialValues, requiredPaths) => createElectricPropulsionDraft(workspaceDir, initialValues, requiredPaths),
     discuss: async ({ connection, draft, message, workspaceDir }) => discussElectricPropulsionDraft({ connection, draft: draft as unknown as Awaited<ReturnType<typeof loadElectricPropulsionDraft>>, message, workspaceDir }),
     execute: async ({ draft, execution, workspaceDir }) => {
-      const result = await generateElectricalLeoOrbitMaintenanceMission({ changes: draftToElectricPropulsionChanges(draft as unknown as Awaited<ReturnType<typeof loadElectricPropulsionDraft>>, extractElectricPropulsionValues(await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8"))), execution, request: `Confirmed electrical LEO orbit-maintenance draft ${draft.draftId}`, workspaceDir })
+      const electricDraft = draft as unknown as Awaited<ReturnType<typeof loadElectricPropulsionDraft>>
+      const result = await generateElectricalLeoOrbitMaintenanceMission({ changes: draftToElectricPropulsionChanges(electricDraft, extractElectricPropulsionValues(await fs.readFile(defaultElectricPropulsionTemplatePath(), "utf8"))), execution, missionValues: electricDraft.values, request: `Confirmed electrical LEO orbit-maintenance draft ${draft.draftId}`, workspaceDir })
       return { changes: result.changes, result: result.result, runDir: result.runDir, runId: result.runId }
     },
     load: loadElectricPropulsionDraft,

@@ -20,6 +20,9 @@ import { missionTemplateRuntime, type MissionTemplateDraft } from "./missionTemp
 import { finalizeMissionRun } from "./missionRunLifecycle.js"
 import { allGmatTemplateDefinitions, gmatTemplateDefinition, isGmatTemplateId, type GmatTemplateId } from "./templateRegistry.js"
 import { listRunArtifactHistory } from "./artifactHistory.js"
+import { deferRunStage } from "../runs/runLifecycle.js"
+import { initializeRunWorkflowLog, loadRunWorkflowLog } from "../opalis/workflowRunLog.js"
+import { updateRunManifest } from "../runs/runManifest.js"
 
 type WorkspaceBody = { workspaceDir?: unknown }
 type TemplateParams = { template: string }
@@ -31,6 +34,31 @@ function resolveTemplate(value: string): GmatTemplateId {
 
 function resolveWorkspace(root: string, candidate: unknown) {
   return resolveMissionWorkspace(root, candidate, { requireExplicitWorkspace: true, requireMissionRun: true, resolveRelativeToRoot: true })
+}
+
+/** A dated run is immutable once it has been assigned to a scenario. Without
+ * this guard, changing the scenario in Mission V2 could overwrite its script,
+ * satellite snapshot and downstream artifacts in the same directory. */
+async function assertWorkspaceTemplate(workspaceDir: string, template: GmatTemplateId) {
+  const manifest = JSON.parse(await fs.readFile(path.join(workspaceDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
+  if (typeof manifest.templateId === "string" && manifest.templateId !== template) {
+    const workflow = await loadRunWorkflowLog(workspaceDir)
+    if (workflow.stages.gmat.status === "running" || workflow.stages.gmat.status === "completed") {
+      throw new Error(`this run already belongs to ${manifest.templateId}; create a New run before selecting ${template}`)
+    }
+    // A generated or failed draft has no valid completed trajectory. Clear
+    // only its known run-local outputs so it can be reused without stale
+    // scripts, reports or status records leaking into the new scenario.
+    const staleArtifacts = [
+      "EphemerisFile1.oem", "ElectricTransferReport.txt", "ReboostReport.txt", "OrbitAnalysisReport.txt",
+      "electric_propulsion_transfer.script", "electric_propulsion_transfer.values.yaml", "electric_propulsion_calibration.json", "electric_transfer_timeseries.json",
+      "chemical_hohmann_transfer.script", "chemical_hohmann_transfer.values.yaml",
+      "orbit_keeping.script", "orbit_keeping.values.yaml", "orbit_timeseries.json", "gmat.log", "gmat_result.json",
+    ]
+    await Promise.all(staleArtifacts.map(file => fs.rm(path.join(workspaceDir, file), { force: true }).catch(() => undefined)))
+    await updateRunManifest(workspaceDir, { templateId: null, status: "drafting", completedAt: null })
+    await initializeRunWorkflowLog(workspaceDir)
+  }
 }
 
 /** Older Orbit Keeping drafts preserve a legacy internal templateId. The
@@ -273,18 +301,49 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to confirm GMAT mission draft") }) }
   })
 
+  /** Writes the run-local script first; GMAT is not started by this route. */
+  fastify.post<{ Params: TemplateParams & { draftId: string }; Body: WorkspaceBody }>("/api/gmat/templates/:template/drafts/:draftId/prepare", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const template = resolveTemplate(req.params.template)
+      const workspaceDir = resolveWorkspace(root, req.body?.workspaceDir)
+      await assertWorkspaceTemplate(workspaceDir, template)
+      const runtime = missionTemplateRuntime(template)
+      const current = await runtime.load(workspaceDir, req.params.draftId)
+      const requiredPaths = (current as { digitalThreadRequiredPaths?: unknown }).digitalThreadRequiredPaths
+      const authoritative = Array.isArray(requiredPaths) && requiredPaths.length
+        ? (await digitalThreadGmatSeed(draftDigitalThreadWorkspaceDir(workspaceDir, template, current.draftId), template)).values
+        : undefined
+      const draft = current.confirmed ? current : await runtime.confirm(workspaceDir, current.draftId, authoritative)
+      if (draft.missing.length) throw new Error(`complete the mission scenario before generating its script: ${draft.missing.join(", ")}`)
+      await syncDigitalThreadFromGmatDraft(workspaceDir, draft)
+      const draftWorkspaceDir = draftDigitalThreadWorkspaceDir(workspaceDir, template, draft.draftId)
+      await syncMissionAnalysisRequestsToDraft(workspaceDir, draftWorkspaceDir)
+      await deferRunStage(workspaceDir, "gmat", "GMAT script generated. Review it in Documents, then launch GMAT.")
+      const generation = await runtime.execute({ connection: resolveModelBackend(config, "chatModel"), draft, workspaceDir })
+      if (generation.result.status !== "generated") throw new Error(generation.result.error || "GMAT script generation failed")
+      return reply.send({ draft: presentDraft(draft, template), generation, runPath: workspaceDir })
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to generate GMAT mission script") }) }
+  })
+
   fastify.post<{ Params: TemplateParams & { draftId: string }; Body: WorkspaceBody }>("/api/gmat/templates/:template/drafts/:draftId/execute", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()
     if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
     try {
       const template = resolveTemplate(req.params.template)
       const workspaceDir = resolveWorkspace(root, req.body?.workspaceDir)
+      await assertWorkspaceTemplate(workspaceDir, template)
       const runtime = missionTemplateRuntime(template)
       const draft = await runtime.load(workspaceDir, req.params.draftId)
       if (!draft.confirmed) throw new Error("confirm the GMAT mission draft before execution")
       const draftWorkspaceDir = draftDigitalThreadWorkspaceDir(workspaceDir, template, draft.draftId)
       await syncMissionAnalysisRequestsToDraft(workspaceDir, draftWorkspaceDir)
       const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftWorkspaceDir)
+      // A run becomes visible before GMAT starts.  The frontend can therefore
+      // show the generated script first, rather than claiming GMAT is running
+      // while the renderer is still writing files.
+      await deferRunStage(workspaceDir, "gmat", "Generating and saving the GMAT script.")
       const execution = await runtime.execute({ connection: resolveModelBackend(config, "chatModel"), draft, execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined, workspaceDir })
       const runPath = await finalizeMissionRun({ digitalThreadSnapshot, draftConversation: (draft as { conversation?: Array<{ assistant: string; user: string }> }).conversation ?? [], result: execution.result, root, runDir: execution.runDir, workspaceDir })
       const recordedDraft = await runtime.recordRun({ draft, execution, runPath, workspaceDir })
@@ -300,6 +359,7 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
     try {
       const template = resolveTemplate(req.params.template)
       const workspaceDir = resolveWorkspace(root, req.body?.workspaceDir)
+      await assertWorkspaceTemplate(workspaceDir, template)
       const runtime = missionTemplateRuntime(template)
       const current = await runtime.load(workspaceDir, req.params.draftId)
       const requiredPaths = (current as { digitalThreadRequiredPaths?: unknown }).digitalThreadRequiredPaths
@@ -312,6 +372,7 @@ export async function missionTemplatesRoutes(fastify: FastifyInstance, { config 
       const draftWorkspaceDir = draftDigitalThreadWorkspaceDir(workspaceDir, template, draft.draftId)
       await syncMissionAnalysisRequestsToDraft(workspaceDir, draftWorkspaceDir)
       const digitalThreadSnapshot = await captureDigitalThreadSnapshot(draftWorkspaceDir)
+      await deferRunStage(workspaceDir, "gmat", "Generating and saving the GMAT script.")
       const execution = await runtime.execute({ connection: resolveModelBackend(config, "chatModel"), draft, execution: config.tools.gmat.bin ? { bin: config.tools.gmat.bin, timeoutMs: config.tools.gmat.timeoutMs } : undefined, workspaceDir })
       const runPath = await finalizeMissionRun({ digitalThreadSnapshot, draftConversation: (draft as { conversation?: Array<{ assistant: string; user: string }> }).conversation ?? [], result: execution.result, root, runDir: execution.runDir, workspaceDir })
       const recordedDraft = await runtime.recordRun({ draft, execution, runPath, workspaceDir })

@@ -36,16 +36,29 @@ function normalizeElectricalLeoScript(source: string) {
     .replaceAll("ReportFile1", "ElectricTransferReport")
 }
 
+function applyElectricalLeoMissionValues(script: string, values: Record<string, string | number | null> | undefined) {
+  if (!values) return script
+  const replaceNumber = (source: string, assignment: string, value: unknown) => typeof value === "number" && Number.isFinite(value)
+    ? source.replace(new RegExp(`(^\\s*${assignment.replaceAll(".", "\\.")}\\s*=\\s*)[^;]+;`, "mu"), `$1${value};`)
+    : source
+  return replaceNumber(
+    replaceNumber(script, "MissionDays", values["stationKeeping.missionDays"]),
+    "ThrottleBias",
+    values["stationKeeping.throttleBias"],
+  ).replace(/(^\s*ThrottleGain\s*=\s*)[^;]+;/mu, (_match, prefix) => typeof values["stationKeeping.throttleGain"] === "number" ? `${prefix}${values["stationKeeping.throttleGain"]};` : _match)
+}
+
 export async function generateElectricalLeoOrbitMaintenanceMission(input: {
   changes: ElectricPropulsionValueChange[]
   execution?: { bin: string; timeoutMs: number }
+  missionValues?: Record<string, string | number | null>
   request: string
   workspaceDir: string
 }): Promise<GenerateElectricPropulsionMissionResult> {
   const definition = gmatTemplateDefinition("electrical-leo-orbit-maintenance")
   const sourcePath = path.join(definition.skillDirectory, definition.gmatReferenceScript)
   const source = await fs.readFile(sourcePath, "utf8")
-  const normalized = normalizeElectricalLeoScript(source)
+  const normalized = applyElectricalLeoMissionValues(normalizeElectricalLeoScript(source), input.missionValues)
   // Drafts currently use the transfer form, whose slot IDs encode its source
   // line numbers. Rebind edits by their stable GMAT assignment context before
   // rendering the normalized LEO script.

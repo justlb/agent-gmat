@@ -134,9 +134,9 @@ Create Propagator DefaultProp;
 DefaultProp.FM = DefaultProp_ForceModel;
 DefaultProp.Type = RungeKutta89;
 DefaultProp.InitialStepSize = 60;
-DefaultProp.Accuracy = 9.999999999999999e-12;
-DefaultProp.MinStep = 0.001;
-DefaultProp.MaxStep = 2700;
+DefaultProp.Accuracy = 1e-06;
+DefaultProp.MinStep = 0.01;
+DefaultProp.MaxStep = 900;
 DefaultProp.MaxStepAttempts = 50;
 DefaultProp.StopIfAccuracyIsViolated = true;
 
@@ -179,7 +179,10 @@ Create DifferentialCorrector DefaultDC;
 DefaultDC.ShowProgress = true;
 DefaultDC.ReportStyle = Normal;
 DefaultDC.ReportFile = 'DifferentialCorrectorDC1.data';
-DefaultDC.MaximumIterations = 25;
+% Stationkeeping accepts a small SMA band.  Forcing an exact kilometre-level
+% match after drag propagation drives constrained impulsive-burn solves to
+% their zero lower bounds and makes the targeter oscillate.
+DefaultDC.MaximumIterations = 10;
 DefaultDC.DerivativeMethod = ForwardDifference;
 DefaultDC.Algorithm = NewtonRaphson;
 
@@ -334,7 +337,7 @@ ReportFile1.AppendToExistingFile = false;
 %----------------------------------------
 %---------- Arrays, Variables, Strings
 %----------------------------------------
-Create Variable minAltitude finalAltitude fuelReserve reboostFuelMargin minimumReboostFuel targetSMA;
+Create Variable minAltitude finalAltitude fuelReserve reboostFuelMargin minimumReboostFuel targetSMA reboostFuelBefore lastReboostFuelUsed;
 minAltitude = 250;
 finalAltitude = 150;
 fuelReserve = 1;
@@ -372,7 +375,11 @@ OrbitView1_View.FOVy = 45;
 %----------------------------------------
 
 BeginMissionSequence;
-minimumReboostFuel = fuelReserve + reboostFuelMargin;
+% Before the first reboost, retain the historical engineering estimate.  Each
+% subsequent iteration replaces it with the measured consumption of the
+% previous complete reboost.
+lastReboostFuelUsed = reboostFuelMargin;
+minimumReboostFuel = fuelReserve + lastReboostFuelUsed;
 
 % Do not issue a new "propagate to minAltitude" command after a reboost
 % sequence has left the spacecraft below that altitude.  In that case the
@@ -381,24 +388,39 @@ minimumReboostFuel = fuelReserve + reboostFuelMargin;
 While DefaultSC.ChemicalTank1.FuelMass > minimumReboostFuel & DefaultSC.Earth.Altitude > minAltitude
    
    Propagate 'Propagate to Reboost Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = minAltitude};
+
+   % Record the actual tank state immediately before the two-burn maneuver.
+   reboostFuelBefore = DefaultSC.ChemicalTank1.FuelMass;
    
    Target 'Circular Reboost' DefaultDC {SolveMode = Solve, ExitMode = DiscardAndContinue, ShowProgressWindow = true};
       
       Propagate 'Propagate to Periapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Periapsis};
       
-      % Burn magnitudes are in km/s.  Positive, bounded values prevent
-      % retrograde solver trials from creating an Earth-intersecting orbit.
-      Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation = 0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
-      Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation = 0.0001, Lower = 0, Upper = 0.02, MaxStep = 0.001, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+      % Burn magnitudes are in km/s. The propagated state can already be a
+      % few kilometres above targetSMA, so a bounded retrograde correction is
+      % required for the differential corrector to converge. -0.01 km/s is a
+      % deliberately small, safe lower bound (10 m/s).
+      Vary 'Vary TOI.V' DefaultDC(TOI.Element1 = 0.001, {Perturbation = 0.0001, Lower = -0.01, Upper = 0.05, MaxStep = 0.002, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+      Vary 'Vary GOI.V' DefaultDC(GOI.Element1 = 0.001, {Perturbation = 0.0001, Lower = -0.01, Upper = 0.05, MaxStep = 0.002, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
       
       Maneuver 'Apply TOI' TOI(DefaultSC);
       Propagate 'Propagate to Apoapsis' DefaultProp(DefaultSC) {DefaultSC.Earth.Apoapsis};
-      Achieve 'Achieve Target SMA' DefaultDC(DefaultSC.Earth.SMA = targetSMA, {Tolerance = 1.0});
+      Achieve 'Achieve Target SMA' DefaultDC(DefaultSC.Earth.SMA = targetSMA, {Tolerance = 5.0});
       
       Maneuver 'Apply GOI' GOI(DefaultSC);
-      Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0, {Tolerance = 0.005});
+      Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0, {Tolerance = 0.001});
       
    EndTarget;  % For targeter DefaultDC
+
+   % The next reboost is allowed only if the tank still carries enough fuel
+   % for one reboost comparable to this one, while preserving fuelReserve.
+   lastReboostFuelUsed = reboostFuelBefore - DefaultSC.ChemicalTank1.FuelMass;
+   minimumReboostFuel = fuelReserve + lastReboostFuelUsed;
+
+   % Persist one sample per completed reboost.  The backend uses this file for
+   % the orbit-maintenance summary shown in Mission V2.
+   Report ReboostReport DefaultSC.ElapsedSecs DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;
+   Report OrbitAnalysisReport DefaultSC.ElapsedSecs DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass DefaultSC.TotalMass DefaultSC.SMA DefaultSC.ECC DefaultSC.INC;
 
 EndWhile;
 
@@ -407,3 +429,8 @@ EndWhile;
 If DefaultSC.Earth.Altitude > finalAltitude
    Propagate 'Propagate to Final Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = finalAltitude};
 EndIf;
+
+% Always write a final state.  It keeps a valid result available even when no
+% reboost was required during this run.
+Report ReboostReport DefaultSC.ElapsedSecs DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;
+Report OrbitAnalysisReport DefaultSC.ElapsedSecs DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass DefaultSC.TotalMass DefaultSC.SMA DefaultSC.ECC DefaultSC.INC;

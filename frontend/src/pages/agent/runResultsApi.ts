@@ -1,5 +1,6 @@
 import { joinApiPath } from '../../app/apiBase'
-import type { ResultWorkflow } from './MissionOverview'
+export const RESULT_STAGES = [['gmat', 'GMAT'], ['simu_cic', 'Simu-CIC'], ['opalis', 'OPALIS'], ['rf_comlink', 'RF-COMLINK']] as const
+export type ResultWorkflow = { stages: Partial<Record<(typeof RESULT_STAGES)[number][0], { status: string; message?: string | null }>> }
 
 export type ResultRun = { runId: string; runPath: string; templateId: string | null; name: string; createdAt: string | null; status: 'completed' | 'failed' | 'running' | 'partial' | 'not_started' | 'unknown'; workflow: ResultWorkflow | null }
 export type ResultTurn = { question: string; answer: string; askedAt?: string }
@@ -7,7 +8,7 @@ export type ResultSample = { elapsedDays: number; altitudeKm?: number; eccentric
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(joinApiPath(undefined, url), { cache: 'no-store', ...init })
-  const payload = await response.json() as T & { error?: string }
+  const payload = await response.json().catch(() => { throw new Error(`The run service is temporarily unavailable (HTTP ${response.status}). Please retry.`) }) as T & { error?: string }
   if (!response.ok) throw new Error(payload.error ?? 'Unable to load run results')
   return payload
 }

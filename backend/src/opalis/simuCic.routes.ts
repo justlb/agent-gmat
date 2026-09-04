@@ -9,6 +9,7 @@ import { toGmatNativePath } from "../gmat/orbitKeepingRunner.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage } from "../shared/index.js"
 import { PREDEFINED_GROUND_STATIONS } from "./groundStationCatalog.js"
+import { listRFComlinkGroundStations } from "../rfComlink/groundStationCatalog.js"
 import { loadRunDigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { writeSimuCicDefinition } from "./simuCicDefinition.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
@@ -281,6 +282,10 @@ export async function runSimuCicForRun(config: AppConfig, root: string, runDir: 
 }
 
 export async function simuCicRoutes(fastify: FastifyInstance, { config }: { config: AppConfig }) {
+  fastify.get('/api/opalis/rf-comlink/ground-stations', async (_req, reply) => {
+    try { return { stations: await listRFComlinkGroundStations() } }
+    catch { return reply.status(503).send({ error: 'RF-COMLINK ground-station database is unavailable. Check RF_COMLINK_HOME.' }) }
+  })
   fastify.get("/api/opalis/simu-cic/ground-stations", async () => ({
     stations: PREDEFINED_GROUND_STATIONS,
   }))

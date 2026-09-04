@@ -1,0 +1,137 @@
+
+********************************************
+***  GMAT Console Application
+********************************************
+
+General Mission Analysis Tool
+Console Based Version
+Build Date: Mar 26 2026  15:02:55
+
+
+GMAT working directory set to 'D:\STAGE\APP\gmat\bin\'
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Moderator is updating data files...
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Moderator is creating core engine...
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+*** Library "..\plugins\libPythonInterface_py312" did not open.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+*** Library "..\plugins\libMatlabInterface" did not open.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+*** Library "..\plugins\libFminconOptimizer" did not open.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Setting nutation file to D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\NUTATION.DAT
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Setting leap seconds file to D:\STAGE\APP\gmat\bin\..\data\time\tai-utc.dat
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+2026-09-04 14:42:34 GMAT Moderator successfully created core engine
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+Interpreting scripts from the file.
+***** file: D:\STAGE\agent-gmat-main\data\gmat-script-validation-20260904\orbit_keeping.script
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully interpreted the script
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+.................... Print out the whole sequence ........................................
+   Command::NoOp
+   Command::BeginMissionSequence
+   Command::GMAT
+   Command::GMAT
+   Command::While
+   ... branch 0::Propagate
+   ... branch 0::GMAT
+   ... branch 0::Target
+   ...... branch 0::Propagate
+   ...... branch 0::Vary
+   ...... branch 0::Vary
+   ...... branch 0::Maneuver
+   ...... branch 0::Propagate
+   ...... branch 0::Achieve
+   ...... branch 0::Maneuver
+   ...... branch 0::Achieve
+   ...... branch 0::EndTarget
+   ... branch 0::GMAT
+   ... branch 0::GMAT
+   ... branch 0::EndWhile
+   Command::If
+   ... branch 0::Propagate
+   ... branch 0::EndIf
+.................... End sequence ........................................................
+Running mission...
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:/STAGE/APP/gmat/bin/../data/planetary_ephem/spk/DE405AllPlanets.bsp has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\SPICEPlanetaryConstantsKernel.tpc has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\time\SPICELeapSecondKernel.tls has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\SPICEEarthPredictedKernel.bpc has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\SPICEEarthCurrentKernel.bpc has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\earth_latest_high_prec.bpc has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\SPICELunaCurrentKernel.bpc has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\SPICELunaFrameKernel.tf has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Subscriber Exception: **** ERROR **** Unable to create CCSDS EphemerisFile 'D:\STAGE\APP\gmat\bin\..\output\EphemerisFile1.oem'
+
+ This error occurred on line 387 of file: "D:\STAGE\agent-gmat-main\data\gmat-script-validation-20260904\orbit_keeping.script"
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+ *** Mission run failed.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+===> Total Run Time: 0.080 seconds
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+========================================
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+EXITing GmatConsole with exit code 1
+Console Application Execution Failed: Moderator::RunMission failed

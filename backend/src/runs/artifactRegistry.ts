@@ -23,8 +23,13 @@ export const RUN_ARTIFACTS = [
   { id: "gmat-ephemeris", tool: "gmat", category: "primary", kind: "ephemeris", contentType: "text/plain; charset=utf-8", relativePath: "EphemerisFile1.oem", primary: true },
   { id: "gmat-electric-script", tool: "gmat", category: "technical", kind: "script", contentType: "text/plain; charset=utf-8", relativePath: "electric_propulsion_transfer.script" },
   { id: "gmat-chemical-script", tool: "gmat", category: "technical", kind: "script", contentType: "text/plain; charset=utf-8", relativePath: "chemical_hohmann_transfer.script" },
+  { id: "gmat-orbit-keeping-script", tool: "gmat", category: "technical", kind: "script", contentType: "text/plain; charset=utf-8", relativePath: "orbit_keeping.script" },
   { id: "gmat-electric-values", tool: "gmat", category: "technical", kind: "values", contentType: "application/x-yaml; charset=utf-8", relativePath: "electric_propulsion_transfer.values.yaml" },
   { id: "gmat-chemical-values", tool: "gmat", category: "technical", kind: "values", contentType: "application/x-yaml; charset=utf-8", relativePath: "chemical_hohmann_transfer.values.yaml" },
+  { id: "gmat-orbit-keeping-values", tool: "gmat", category: "technical", kind: "values", contentType: "application/x-yaml; charset=utf-8", relativePath: "orbit_keeping.values.yaml" },
+  // GMAT creates this file at process start and appends diagnostics while the
+  // calculation runs.  It is intentionally available before completion.
+  { id: "gmat-log", tool: "gmat", category: "technical", kind: "log", contentType: "text/plain; charset=utf-8", relativePath: "gmat.log" },
   { id: "gmat-electric-report", tool: "gmat", category: "result", kind: "report", contentType: "text/plain; charset=utf-8", relativePath: "ElectricTransferReport.txt" },
   { id: "gmat-workflow", tool: "gmat", category: "result", kind: "result", contentType: "application/json; charset=utf-8", relativePath: "workflow-status.json" },
   { id: "consolidated-report", tool: "gmat", category: "result", kind: "result", contentType: "application/json; charset=utf-8", relativePath: "consolidated-run-report.json" },

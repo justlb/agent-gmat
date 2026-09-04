@@ -1,0 +1,68 @@
+********************************************************
+*** Targeter Text File
+*** 
+*** Using Differential Correction
+***
+*** 2 variables
+*** 2 goals
+***
+*** Variables:
+***    TOI.Element1
+***    GOI.Element1
+***    
+*** Goals:
+***    DefaultSC.Earth.SMA
+***    DefaultSC.Earth.ECC
+***    
+*** SolverMode:  Solve
+***    
+********************************************************
+
+Iteration 1
+Running Nominal Pass
+Variables:
+   TOI.Element1 = 0.001
+   GOI.Element1 = 0.001
+   
+Goals and achieved values:
+   DefaultSC.Earth.SMA  Desired: 6631.1363 Achieved: 6632.608220534026
+   Tolerance: 1
+   DefaultSC.Earth.ECC  Desired: 0 Achieved: 0.0005737043020360083
+   Tolerance: 0.005
+   
+********************************************************
+
+
+Jacobian (Sensitivity matrix):
+   1694.63470514529   -0.2608872374671063
+   0   0.2580251618647562
+
+
+Inverse Jacobian:
+   0.0005900976753065284   0.0005966431770990378
+   0   3.875591019003602
+
+
+New scaled variable estimates:
+   TOI.Element1 = 0.0001314231146352312
+   GOI.Element1 = 0
+   
+Iteration 2
+Running Nominal Pass
+Variables:
+   TOI.Element1 = 0.0001314231146352312
+   GOI.Element1 = 0
+   
+Goals and achieved values:
+   DefaultSC.Earth.SMA  Desired: 6631.1363 Achieved: 6631.145542081459
+   Tolerance: 1
+   DefaultSC.Earth.ECC  Desired: 0 Achieved: 0.0005428729393681535
+   Tolerance: 0.005
+   
+********************************************************
+
+
+********************************************************
+*** Targeting Completed in 2 iterations
+********************************************************
+

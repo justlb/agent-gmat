@@ -10,6 +10,7 @@ import path from "node:path"
 import { assertValidDigitalThreadDocument } from "../digitalThread/digitalThreadSchema.js"
 import { loadRunWorkflowLog } from "../opalis/workflowRunLog.js"
 import { loadOpalisResultSummary } from "../opalis/opalisResults.js"
+import { loadSimuCicResultMetrics } from "../opalis/simuCicResults.js"
 import { artifactDefinitionForPath, RUN_ARTIFACTS } from "./artifactRegistry.js"
 import type { MissionRunReference } from "./runWorkspace.js"
 import { loadRunManifest } from "./runManifest.js"
@@ -84,27 +85,35 @@ async function readRunDocument(runDir: string) {
 
 function metric(value: string, source: string) { return { source, value } }
 
-async function missionOverview(runDir: string, document: JsonRecord) {
-  const [opalis, gmatSource, electricSource] = await Promise.all([
+async function missionOverview(runDir: string, document: JsonRecord, gmatCompleted: boolean, simuCicStatus: string) {
+  const [opalis, gmatSource, electricSource, orbitSource, simuCicMetrics] = await Promise.all([
     loadOpalisResultSummary(runDir),
     fs.readFile(path.join(runDir, "gmat_result.json"), "utf8").then(value => JSON.parse(value) as JsonRecord).catch(() => ({} as JsonRecord)),
     fs.readFile(path.join(runDir, "electric_transfer_timeseries.json"), "utf8").then(value => JSON.parse(value) as unknown).catch(() => []),
+    fs.readFile(path.join(runDir, "orbit_timeseries.json"), "utf8").then(value => JSON.parse(value) as unknown).catch(() => []),
+    loadSimuCicResultMetrics(runDir, simuCicStatus),
   ])
+  // Configuration values are inputs, not GMAT results.  In particular, the
+  // requested propagation duration must never be shown as a computed lifetime
+  // while GMAT is still running.
   const propagation = atPath(document, "analysis_requests.gmat.chemical_hohmann_transfer.final_propagation_seconds")
-  const lifetimeDays = typeof propagation === "number" && propagation > 0 ? `${(propagation / 86400).toFixed(2)} days` : "Unavailable"
+  const lifetimeDays = !gmatCompleted ? "Waiting for GMAT" : typeof propagation === "number" && propagation > 0 ? `${(propagation / 86400).toFixed(2)} days` : "Unavailable"
   const electrical = !opalis ? "Waiting for results" : !opalis.simulationExecuted ? "Unavailable" : opalis.alerts.some(alert => alert.level === "warning") ? "Check required" : "OK"
   const gmat = record(gmatSource) ?? {}
-  const samples = Array.isArray(electricSource) ? electricSource.filter(record) : []
-  const altitudes = samples.map(sample => typeof sample?.altitudeKm === "number" ? sample.altitudeKm : null).filter((value): value is number => value !== null)
-  const fuelUsed = typeof gmat.fuelUsedBetweenReportsKg === "number" ? `${gmat.fuelUsedBetweenReportsKg.toFixed(3)} kg` : "Unavailable"
-  const averageAltitude = altitudes.length ? `${(altitudes.reduce((sum, value) => sum + value, 0) / altitudes.length).toFixed(1)} km` : "Unavailable"
+  const samples = [electricSource, orbitSource].flatMap(source => Array.isArray(source) ? source.filter(record) : [])
+  // Electric-transfer samples store the semi-major axis, while orbit-keeping
+  // samples store altitude directly.  Normalize both for the one overview.
+  const altitudes = samples.map(sample => typeof sample?.altitudeKm === "number"
+    ? sample.altitudeKm
+    : typeof sample?.semiMajorAxisKm === "number" ? sample.semiMajorAxisKm - 6378.1363 : null,
+  ).filter((value): value is number => value !== null && Number.isFinite(value))
+  const fuelUsed = !gmatCompleted ? "Waiting for GMAT" : typeof gmat.fuelUsedBetweenReportsKg === "number" ? `${gmat.fuelUsedBetweenReportsKg.toFixed(3)} kg` : "Unavailable"
+  const averageAltitude = !gmatCompleted ? "Waiting for GMAT" : altitudes.length ? `${(altitudes.reduce((sum, value) => sum + value, 0) / altitudes.length).toFixed(1)} km` : "Unavailable"
   return {
     lifetime: metric(lifetimeDays, "GMAT mission configuration"),
     fuelMassConsumed: metric(fuelUsed, "GMAT ElectricTransferReport"),
     averageAltitude: metric(averageAltitude, "GMAT ElectricTransferReport"),
-    contactTime: metric("Waiting for Simu-CIC", "CIC visibility file"),
-    latency: metric("Waiting for Simu-CIC", "CIC station-distance file"),
-    eclipseTime: metric("Waiting for Simu-CIC", "CIC eclipse file"),
+    ...simuCicMetrics,
     electricalConfiguration: metric(electrical, "OPALIS result"),
   }
 }
@@ -119,7 +128,7 @@ export async function buildRunViewModel(run: MissionRunReference) {
   const manifest = record(manifestSource)
   const templateId = typeof manifest?.templateId === "string" ? manifest.templateId : null
   const simuCic = record(record(document.analysis_requests)?.simu_cic) ?? { attitude_mode: "nadir_pointing", ground_station_ids: [], simultaneous_visibility_policy: null }
-  const overview = await missionOverview(run.runDir, document)
+  const overview = await missionOverview(run.runDir, document, workflow.stages.gmat.status === "completed", workflow.stages.simu_cic.status)
   const artifacts = (await Promise.all(RUN_ARTIFACTS.map(async artifact => {
     const stat = await fs.stat(path.join(run.runDir, artifact.relativePath)).catch(() => null)
     return stat?.isFile() ? { ...artifact, size: stat.size, updatedAt: stat.mtime.toISOString() } : null

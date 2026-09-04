@@ -306,6 +306,20 @@ export async function syncSimuCicRequestToRunSnapshot(runDir: string, sourceDocu
 export async function syncMissionAnalysisRequestsToDraft(workspaceDir: string, draftWorkspaceDir: string) {
   const source = await loadOrCreateDigitalThread(workspaceDir)
   const draft = await loadOrCreateDigitalThread(draftWorkspaceDir)
+  // A template draft is initially created with an empty digital thread.  Its
+  // GMAT values belong to the draft, whereas the selected spacecraft remains
+  // owned by the dated mission workspace.  Carry that definition over before
+  // the immutable run snapshot is captured; otherwise downstream OPALIS and
+  // RF-COMLINK see an empty satellite even though Mission V2 showed one.
+  const sourceSelection = asObject(source.digital_thread.satellite_definition)
+  const draftSelection = asObject(draft.digital_thread.satellite_definition)
+  if (typeof sourceSelection?.id === "string" && sourceSelection.id.trim() && typeof draftSelection?.id !== "string") {
+    draft.digital_thread.satellite_definition = JSON.parse(JSON.stringify(source.digital_thread.satellite_definition)) as JsonValue
+    draft.satellite = JSON.parse(JSON.stringify(source.satellite)) as DigitalThreadDocument["satellite"]
+    const values = asObject(draft.provenance.values) ?? {}
+    values["digital_thread.satellite_definition"] = { source: "mission_workspace", synchronized_at: new Date().toISOString() }
+    draft.provenance.values = values
+  }
   draft.analysis_requests.simu_cic = JSON.parse(JSON.stringify(source.analysis_requests.simu_cic)) as JsonValue
   draft.analysis_requests.rf_comlink = JSON.parse(JSON.stringify(source.analysis_requests.rf_comlink)) as JsonValue
   const provenance = asObject(draft.provenance.values) ?? {}

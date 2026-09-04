@@ -52,7 +52,8 @@ export async function listResultRuns(root: string, workspaceCandidate?: unknown)
       }
     }
   }
-  return runs.sort((a, b) => (b.createdAt ?? b.runId).localeCompare(a.createdAt ?? a.runId))
+  // Keep unreadable directories visible, but do not auto-select one ahead of a dated run.
+  return runs.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "") || b.runId.localeCompare(a.runId))
 }
 
 export async function loadResultConversation(runDir: string) {

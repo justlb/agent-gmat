@@ -132,7 +132,9 @@ const GMAT_TAI_MOD_JULIAN_MIN = 10_000
 const GMAT_TAI_MOD_JULIAN_MAX = 100_000
 // These mission policies are explicit, reviewable defaults rather than data
 // the assistant must collect before every GMAT run.
-const ASSUMED_MISSION_FIELD_PATHS = new Set(["stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm"])
+// These defaults are embedded in the reference script and are deliberately
+// optional in Mission v2.  A user can still override the epoch when needed.
+const ASSUMED_MISSION_FIELD_PATHS = new Set(["initialOrbit.epoch", "stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm"])
 /** Values embedded in the immutable reference script. A new draft starts here. */
 const TEMPLATE_DEFAULT_VALUES: DraftValues = {
   "endOfLife.finalAltitudeKm": 150,

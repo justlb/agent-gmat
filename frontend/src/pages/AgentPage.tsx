@@ -428,7 +428,6 @@ export default function AgentPage() {
     progressData,
     resetProgressData,
     workflowLoopProgressEntries,
-    workflowProgressSummary,
   } = useWorkspaceRuntimeData({
     activeContext,
     enableConversationLogs: conversationPanelOpen,
@@ -598,11 +597,8 @@ export default function AgentPage() {
   const visibleActiveView = activeView === 'model' && !showModelPreview ? 'workspace' : activeView
   const activeNavIndex = visibleActiveView ? navItems.findIndex(item => item.href === `#${visibleActiveView}`) : -1
   const progressUpdatedAt = formatProgressUpdatedAt(progressData, navigator.language || 'zh-CN', t)
-  const gmatActiveEntry = gmatWorkflowEntries?.find(entry => entry.status === 'running') ?? gmatWorkflowEntries?.find(entry => entry.status === 'failed')
   const simuCicCompleted = gmatWorkflowEntries?.some(entry => entry.key === 'run_simucic' && entry.status === 'completed') ?? false
   const rfComlinkPrepared = gmatWorkflowEntries?.some(entry => entry.key === 'prepare_rf_comlink' && entry.status === 'completed') ?? false
-  const progressPercent = gmatWorkflowEntries ? undefined : workflowProgressSummary.percentage
-  const progressStatusLabel = gmatWorkflowEntries ? `Mission workflow: ${gmatActiveEntry?.label ?? 'completed'}` : workflowProgressSummary.statusLabel || progressUpdatedAt
   const displayedProgressUpdatedAt = gmatWorkflowEntries?.find(entry => entry.status === 'running')?.updatedAt ?? progressUpdatedAt
   const displayedProgressTitle = gmatWorkflowEntries ? 'Mission workflow' : t('workspace.inspector.progressTitle')
   const displayedProgressEntries = gmatWorkflowEntries ?? workflowLoopProgressEntries
@@ -1087,12 +1083,7 @@ export default function AgentPage() {
         portStatusError={remoteToolPortError}
         portStatusLoading={remoteToolPortLoading}
         onPortStatusRefresh={() => refreshRemoteToolPortStatus({ force: true })}
-        onProgressToggle={() => setProgressPanelOpen(open => !open)}
         onStopAndSummarize={handleStopAndSummarize}
-        progressOpen={progressPanelOpen}
-        progressPercent={progressPercent}
-        progressStatusLabel={progressStatusLabel}
-        progressTitle={displayedProgressTitle}
         sessionStatus={displayedSessionStatus}
         sessionStatusLabel={sessionStatusLabel}
         stopSummaryPending={stopSummaryPending}

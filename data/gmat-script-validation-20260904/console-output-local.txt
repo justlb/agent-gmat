@@ -1,0 +1,473 @@
+
+********************************************
+***  GMAT Console Application
+********************************************
+
+General Mission Analysis Tool
+Console Based Version
+Build Date: Mar 26 2026  15:02:55
+
+
+GMAT working directory set to 'D:\STAGE\APP\gmat\bin\'
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Moderator is updating data files...
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Moderator is creating core engine...
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+*** Library "..\plugins\libPythonInterface_py312" did not open.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+*** Library "..\plugins\libMatlabInterface" did not open.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+*** Library "..\plugins\libFminconOptimizer" did not open.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Setting nutation file to D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\NUTATION.DAT
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Setting leap seconds file to D:\STAGE\APP\gmat\bin\..\data\time\tai-utc.dat
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+2026-09-04 14:44:35 GMAT Moderator successfully created core engine
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+Interpreting scripts from the file.
+***** file: D:\STAGE\agent-gmat-main\data\gmat-script-validation-20260904\orbit_keeping.local-output.script
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully interpreted the script
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+.................... Print out the whole sequence ........................................
+   Command::NoOp
+   Command::BeginMissionSequence
+   Command::GMAT
+   Command::GMAT
+   Command::While
+   ... branch 0::Propagate
+   ... branch 0::GMAT
+   ... branch 0::Target
+   ...... branch 0::Propagate
+   ...... branch 0::Vary
+   ...... branch 0::Vary
+   ...... branch 0::Maneuver
+   ...... branch 0::Propagate
+   ...... branch 0::Achieve
+   ...... branch 0::Maneuver
+   ...... branch 0::Achieve
+   ...... branch 0::EndTarget
+   ... branch 0::GMAT
+   ... branch 0::GMAT
+   ... branch 0::EndWhile
+   Command::If
+   ... branch 0::Propagate
+   ... branch 0::EndIf
+.................... End sequence ........................................................
+Running mission...
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Successfully set Planetary Source to use: DE405
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:/STAGE/APP/gmat/bin/../data/planetary_ephem/spk/DE405AllPlanets.bsp has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\SPICEPlanetaryConstantsKernel.tpc has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\time\SPICELeapSecondKernel.tls has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\SPICEEarthPredictedKernel.bpc has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\SPICEEarthCurrentKernel.bpc has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\earth_latest_high_prec.bpc has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\SPICELunaCurrentKernel.bpc has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+Kernel D:\STAGE\APP\gmat\bin\..\data\planetary_coeff\SPICELunaFrameKernel.tf has been loaded.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+********************************************************
+*** Performing Differential Correction (using "DefaultDC")
+*** 2 variables; 2 goals
+   Variables:  TOI.Element1, GOI.Element1
+   Goals:  DefaultSC.Earth.SMA, DefaultSC.Earth.ECC
+   SolverMode:  Solve
+********************************************************
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 1; Nominal Pass
+   Variables:  TOI.Element1 = 0.001, GOI.Element1 = 0.001
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6630.28320972  Variance: 0.853090279061
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 7.97008398789e-05  Variance: -7.97008398789e-05
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+*** Targeting Completed in 1 iterations.
+*** The Targeter converged!
+Final Variable values:
+   TOI.Element1 = 0.001
+   GOI.Element1 = 0.001
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+********************************************************
+*** Performing Differential Correction (using "DefaultDC")
+*** 2 variables; 2 goals
+   Variables:  TOI.Element1, GOI.Element1
+   Goals:  DefaultSC.Earth.SMA, DefaultSC.Earth.ECC
+   SolverMode:  Solve
+********************************************************
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 1; Nominal Pass
+   Variables:  TOI.Element1 = 0.001, GOI.Element1 = 0.001
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6631.20355416  Variance: -0.0672541605336
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000159626970449  Variance: -0.000159626970449
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+*** Targeting Completed in 1 iterations.
+*** The Targeter converged!
+Final Variable values:
+   TOI.Element1 = 0.001
+   GOI.Element1 = 0.001
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+********************************************************
+*** Performing Differential Correction (using "DefaultDC")
+*** 2 variables; 2 goals
+   Variables:  TOI.Element1, GOI.Element1
+   Goals:  DefaultSC.Earth.SMA, DefaultSC.Earth.ECC
+   SolverMode:  Solve
+********************************************************
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 1; Nominal Pass
+   Variables:  TOI.Element1 = 0.001, GOI.Element1 = 0.001
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6632.17606178  Variance: -1.03976177688
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000235664582425  Variance: -0.000235664582425
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Completed iteration 1, pert 1 (TOI.Element1 = 0.0011)
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Completed iteration 1, pert 2 (GOI.Element1 = 0.0011)
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 2; Nominal Pass
+   Variables:  TOI.Element1 = 0.00039960457676, GOI.Element1 = 0
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6631.13691426  Variance: -0.000614259633039
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000132406832551  Variance: -0.000132406832551
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+*** Targeting Completed in 2 iterations.
+*** The Targeter converged!
+Final Variable values:
+   TOI.Element1 = 0.00039960457676
+   GOI.Element1 = 0
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+********************************************************
+*** Performing Differential Correction (using "DefaultDC")
+*** 2 variables; 2 goals
+   Variables:  TOI.Element1, GOI.Element1
+   Goals:  DefaultSC.Earth.SMA, DefaultSC.Earth.ECC
+   SolverMode:  Solve
+********************************************************
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 1; Nominal Pass
+   Variables:  TOI.Element1 = 0.001, GOI.Element1 = 0.001
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6630.27267803  Variance: 0.863621969666
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000208494467237  Variance: -0.000208494467237
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+*** Targeting Completed in 1 iterations.
+*** The Targeter converged!
+Final Variable values:
+   TOI.Element1 = 0.001
+   GOI.Element1 = 0.001
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+********************************************************
+*** Performing Differential Correction (using "DefaultDC")
+*** 2 variables; 2 goals
+   Variables:  TOI.Element1, GOI.Element1
+   Goals:  DefaultSC.Earth.SMA, DefaultSC.Earth.ECC
+   SolverMode:  Solve
+********************************************************
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 1; Nominal Pass
+   Variables:  TOI.Element1 = 0.001, GOI.Element1 = 0.001
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6631.16830246  Variance: -0.0320024631628
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000277979110312  Variance: -0.000277979110312
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+*** Targeting Completed in 1 iterations.
+*** The Targeter converged!
+Final Variable values:
+   TOI.Element1 = 0.001
+   GOI.Element1 = 0.001
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+********************************************************
+*** Performing Differential Correction (using "DefaultDC")
+*** 2 variables; 2 goals
+   Variables:  TOI.Element1, GOI.Element1
+   Goals:  DefaultSC.Earth.SMA, DefaultSC.Earth.ECC
+   SolverMode:  Solve
+********************************************************
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 1; Nominal Pass
+   Variables:  TOI.Element1 = 0.001, GOI.Element1 = 0.001
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6632.12808581  Variance: -0.991785807301
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000343865427569  Variance: -0.000343865427569
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+*** Targeting Completed in 1 iterations.
+*** The Targeter converged!
+Final Variable values:
+   TOI.Element1 = 0.001
+   GOI.Element1 = 0.001
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+********************************************************
+*** Performing Differential Correction (using "DefaultDC")
+*** 2 variables; 2 goals
+   Variables:  TOI.Element1, GOI.Element1
+   Goals:  DefaultSC.Earth.SMA, DefaultSC.Earth.ECC
+   SolverMode:  Solve
+********************************************************
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 1; Nominal Pass
+   Variables:  TOI.Element1 = 0.001, GOI.Element1 = 0.001
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6633.16256416  Variance: -2.02626415743
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000408147046113  Variance: -0.000408147046113
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Completed iteration 1, pert 1 (TOI.Element1 = 0.0011)
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Completed iteration 1, pert 2 (GOI.Element1 = 0.0011)
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 2; Nominal Pass
+   Variables:  TOI.Element1 = 0, GOI.Element1 = 0
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6631.4608379  Variance: -0.324537897463
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000410353157775  Variance: -0.000410353157775
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+*** Targeting Completed in 2 iterations.
+*** The Targeter converged!
+Final Variable values:
+   TOI.Element1 = 0
+   GOI.Element1 = 0
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+********************************************************
+*** Performing Differential Correction (using "DefaultDC")
+*** 2 variables; 2 goals
+   Variables:  TOI.Element1, GOI.Element1
+   Goals:  DefaultSC.Earth.SMA, DefaultSC.Earth.ECC
+   SolverMode:  Solve
+********************************************************
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 1; Nominal Pass
+   Variables:  TOI.Element1 = 0.001, GOI.Element1 = 0.001
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6630.66362351  Variance: 0.47267648705
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000476771769018  Variance: -0.000476771769018
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+*** Targeting Completed in 1 iterations.
+*** The Targeter converged!
+Final Variable values:
+   TOI.Element1 = 0.001
+   GOI.Element1 = 0.001
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+********************************************************
+*** Performing Differential Correction (using "DefaultDC")
+*** 2 variables; 2 goals
+   Variables:  TOI.Element1, GOI.Element1
+   Goals:  DefaultSC.Earth.SMA, DefaultSC.Earth.ECC
+   SolverMode:  Solve
+********************************************************
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 1; Nominal Pass
+   Variables:  TOI.Element1 = 0.001, GOI.Element1 = 0.001
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6631.63173617  Variance: -0.495436165332
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000534219942301  Variance: -0.000534219942301
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+*** Targeting Completed in 1 iterations.
+*** The Targeter converged!
+Final Variable values:
+   TOI.Element1 = 0.001
+   GOI.Element1 = 0.001
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+********************************************************
+*** Performing Differential Correction (using "DefaultDC")
+*** 2 variables; 2 goals
+   Variables:  TOI.Element1, GOI.Element1
+   Goals:  DefaultSC.Earth.SMA, DefaultSC.Earth.ECC
+   SolverMode:  Solve
+********************************************************
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 1; Nominal Pass
+   Variables:  TOI.Element1 = 0.001, GOI.Element1 = 0.001
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6632.60822053  Variance: -1.47192053403
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000573704302036  Variance: -0.000573704302036
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Completed iteration 1, pert 1 (TOI.Element1 = 0.0011)
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Completed iteration 1, pert 2 (GOI.Element1 = 0.0011)
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+DefaultDC Iteration 2; Nominal Pass
+   Variables:  TOI.Element1 = 0.000131423114635, GOI.Element1 = 0
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+   Goals and achieved values:
+      DefaultSC.Earth.SMA  Desired: 6631.1363  Achieved: 6631.14554208  Variance: -0.00924208145898
+      DefaultSC.Earth.ECC  Desired: 0  Achieved: 0.000542872939368  Variance: -0.000542872939368
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+*** Targeting Completed in 2 iterations.
+*** The Targeter converged!
+Final Variable values:
+   TOI.Element1 = 0.000131423114635
+   GOI.Element1 = 0
+
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+Mission run completed.
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+===> Total Run Time: 0.763 seconds
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+========================================
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory
+
+
+*** GMAT Integration test (Console version) successful! ***
+
+Moderator is deleting core engine...
+**** ERROR **** Error setting the log file to "D:\STAGE\APP\gmat\bin\..\output\GmatLog.txt"
+So setting it to "GmatLog.txt" in the executable directory

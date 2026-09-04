@@ -119,6 +119,13 @@ function applySatelliteElectricPropulsionCalibration(script: string, calibration
   }, script)
 }
 
+/** GMAT 2026 rejects the legacy 6×6 covariance assignment shipped in the
+ * historical examples.  It is not used by these deterministic propagations,
+ * so omit it from the run-local script while retaining the source template. */
+function removeUnsupportedOrbitErrorCovariance(script: string) {
+  return script.replace(/^\s*DefaultSC\.OrbitErrorCovariance\s*=.*?;\s*\r?\n/gmu, "")
+}
+
 function enableEphemerisOutput(script: string) {
   if (!script.includes("Create EphemerisFile EphemerisFile1;")) {
     throw new Error("electric-propulsion template does not expose EphemerisFile1")
@@ -127,7 +134,9 @@ function enableEphemerisOutput(script: string) {
   if (!script.includes(marker)) throw new Error("electric-propulsion template does not expose its mission sequence")
   const legacyPropagation = script.includes("While 'Raise to target altitude' DefaultSC.Earth.Altitude < targetFinalAltitudeKm")
     && script.includes("Propagate 'Propagate one output step' DefaultProp(DefaultSC);")
-  const continuousPropagation = script.includes("Propagate 'Spiral ' DefaultProp(DefaultSC) {DefaultSC.Earth.SMA = targetFinalAltitudeKm};")
+  // The transfer stops at either the target SMA or its protected fuel reserve.
+  // Accept both the original one-event sequence and the guarded sequence.
+  const continuousPropagation = /Propagate 'Spiral '\s+DefaultProp\(DefaultSC\)\s+\{DefaultSC\.Earth\.SMA\s*=\s*targetFinalAltitudeKm(?:\s*,\s*DefaultSC\.ElectricTank1\.FuelMass\s*=\s*fuelReserveKg)?\};/u.test(script)
   const stationKeepingPropagation = script.includes("While 'Continuous circular LEO electric orbit keeping' DefaultSC.ElapsedDays < MissionDays")
   if (!legacyPropagation && !continuousPropagation && !stationKeepingPropagation) throw new Error("electric-propulsion template does not expose its supported propagation sequence")
   const withSubscriber = script.includes("Toggle EphemerisFile1 On;") || script.includes("Toggle ElectricTransferReport EphemerisFile1 On;")
@@ -243,7 +252,7 @@ export async function generateElectricPropulsionMission({ changes, workspaceDir,
   const manifestPath = path.join(runDir, "run_manifest.json")
   const calibration = await loadSatelliteElectricPropulsionCalibration(workspaceDir)
   const renderedScript = applySatelliteElectricPropulsionCalibration(
-    enableEphemerisOutput(renderElectricPropulsionValues(template, renderedValues)),
+    removeUnsupportedOrbitErrorCovariance(enableEphemerisOutput(renderElectricPropulsionValues(template, renderedValues))),
     calibration,
   )
   await Promise.all([

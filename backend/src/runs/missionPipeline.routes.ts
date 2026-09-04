@@ -1,3 +1,6 @@
+import fs from "node:fs/promises"
+import path from "node:path"
+
 import type { FastifyInstance, FastifyRequest } from "fastify"
 
 import { getRequestUserWorkspaceRoot, runWithRequestContext } from "../server/requestContext.js"
@@ -9,6 +12,28 @@ import { acquireMissionPipelineLock, releaseMissionPipelineLock } from "./missio
 
 type Body = { runPath?: unknown }
 type StageResult = { error?: string; ok: boolean }
+
+const CIC_CONSUMER_INPUTS = [
+  "Sat_SUN_ANGLE_SA_1.TXT", "Sat_SATELLITE_ECLIPSE.TXT", "Sat_EARTH_ANGLE_SA_1.TXT", "Sat_SATELLITE_ALTITUDE.TXT",
+  "Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT", "Sat_GEOGRAPHICAL_COORDINATES.TXT",
+  "Sat_SATELLITE_DIRECTION-GROUND_STATION_1_FRAME.TXT",
+] as const
+
+/** Simu-CIC's GUI can expose its process completion before Windows has
+ * flushed the last CIC files.  OPALIS and RF-COMLINK consume those files
+ * immediately, so the orchestrator waits for the complete shared set rather
+ * than turning a transient write into two downstream failures. */
+async function waitForCicConsumerInputs(runDir: string, timeoutMs = 10_000) {
+  const cicDir = path.join(runDir, "opalis", "02-simu-cic", "02-fichiers-cic", "Sat")
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const entries = await fs.readdir(cicDir, { withFileTypes: true }).catch(() => [])
+    const names = new Set(entries.filter(entry => entry.isFile()).map(entry => entry.name))
+    if (CIC_CONSUMER_INPUTS.every(name => names.has(name))) return true
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  return false
+}
 
 export type StartMissionPipelineInput = {
   fastify: FastifyInstance
@@ -59,6 +84,16 @@ export async function startMissionPipeline({ fastify, headers, root, runDir, run
           if (workflow.stages.simu_cic.status === "not_started") {
             await failRunStage(runDir, "simu_cic", `Pipeline could not start Simu-CIC: ${simuCic.error ?? "unknown dispatch error"}`)
           }
+          return
+        }
+        // Simu-CIC is the producer of the shared CIC inputs. Do not dispatch
+        // either consumer merely because the HTTP call returned: its persisted
+        // lifecycle state must explicitly confirm completion first.
+        const afterSimuCic = await loadRunWorkflowLog(runDir)
+        if (afterSimuCic.stages.simu_cic.status !== "completed") return
+        if (!await waitForCicConsumerInputs(runDir)) {
+          const message = "Simu-CIC completed without making all CIC inputs available to OPALIS and RF-COMLINK."
+          await Promise.all([failRunStage(runDir, "opalis", message), failRunStage(runDir, "rf_comlink", message)])
           return
         }
         const [opalis, rfComlink] = await Promise.all([call("/api/opalis/run-scenario"), call("/api/rf-comlink/run")])
