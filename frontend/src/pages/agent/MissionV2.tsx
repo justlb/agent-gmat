@@ -88,7 +88,7 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
   const compatibleStations = stations.filter(station => bands.every(band => station.bands.includes(band)))
   useEffect(() => {
     if (stations.length && stationId && !compatibleStations.some(station => station.id === stationId)) setStationId('')
-  }, [stationId, compatibleStations])
+  }, [stationId, compatibleStations, stations.length])
   const template = templates.find(item => item.id === templateId)
   const requiredPaths = new Set(templateId === 'electric-propulsion-transfer'
     ? ['initialOrbit.altitudeKm', 'initialOrbit.eccentricity', 'initialOrbit.inclinationDeg', 'transfer.finalAltitudeKm']

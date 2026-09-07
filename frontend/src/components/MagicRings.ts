@@ -1,4 +1,4 @@
-import { createElement, useEffect, useRef } from 'react';
+import { createElement, useCallback, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 import './MagicRings.css';
@@ -111,19 +111,30 @@ export default function MagicRings({
   clickBurst = false,
 }: MagicRingsProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const propsRef = useRef<Required<MagicRingsProps> | null>(null);
+  const propsRef = useRef<Required<MagicRingsProps>>({
+    color, colorTwo, speed, ringCount, attenuation, lineThickness,
+    baseRadius, radiusStep, scaleRate, opacity, blur, noiseAmount,
+    rotation, ringGap, fadeIn, fadeOut, followMouse, mouseInfluence,
+    hoverScale, parallax, clickBurst,
+  });
   const mouseRef = useRef([0, 0]);
   const smoothMouseRef = useRef([0, 0]);
   const hoverAmountRef = useRef(0);
   const isHoveredRef = useRef(false);
   const burstRef = useRef(0);
 
-  propsRef.current = {
-    color, colorTwo, speed, ringCount, attenuation, lineThickness,
-    baseRadius, radiusStep, scaleRate, opacity, blur, noiseAmount,
-    rotation, ringGap, fadeIn, fadeOut, followMouse, mouseInfluence,
-    hoverScale, parallax, clickBurst,
-  };
+  const setMount = useCallback((node: HTMLDivElement | null) => {
+    mountRef.current = node;
+  }, []);
+
+  useEffect(() => {
+    propsRef.current = {
+      color, colorTwo, speed, ringCount, attenuation, lineThickness,
+      baseRadius, radiusStep, scaleRate, opacity, blur, noiseAmount,
+      rotation, ringGap, fadeIn, fadeOut, followMouse, mouseInfluence,
+      hoverScale, parallax, clickBurst,
+    };
+  }, [attenuation, baseRadius, blur, clickBurst, color, colorTwo, fadeIn, fadeOut, followMouse, hoverScale, lineThickness, mouseInfluence, noiseAmount, opacity, parallax, radiusStep, ringCount, ringGap, rotation, scaleRate, speed]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -265,7 +276,7 @@ export default function MagicRings({
   }, []);
 
   return createElement('div', {
-    ref: mountRef,
+    ref: setMount,
     className: 'magic-rings-container',
     style: blur > 0 ? { filter: `blur(${blur}px)` } : undefined,
   });

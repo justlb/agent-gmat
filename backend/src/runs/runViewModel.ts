@@ -9,9 +9,9 @@ import path from "node:path"
 
 import { assertValidDigitalThreadDocument } from "../digitalThread/digitalThreadSchema.js"
 import { loadRunWorkflowLog } from "../opalis/workflowRunLog.js"
-import { loadOpalisResultSummary } from "../opalis/opalisResults.js"
+import { loadOpalisResultSummary, opalisAssessment } from "../opalis/opalisResults.js"
 import { loadSimuCicResultMetrics } from "../opalis/simuCicResults.js"
-import { artifactDefinitionForPath, RUN_ARTIFACTS } from "./artifactRegistry.js"
+import { RUN_ARTIFACTS } from "./artifactRegistry.js"
 import type { MissionRunReference } from "./runWorkspace.js"
 import { loadRunManifest } from "./runManifest.js"
 
@@ -98,7 +98,6 @@ async function missionOverview(runDir: string, document: JsonRecord, gmatComplet
   // while GMAT is still running.
   const propagation = atPath(document, "analysis_requests.gmat.chemical_hohmann_transfer.final_propagation_seconds")
   const lifetimeDays = !gmatCompleted ? "Waiting for GMAT" : typeof propagation === "number" && propagation > 0 ? `${(propagation / 86400).toFixed(2)} days` : "Unavailable"
-  const electrical = !opalis ? "Waiting for results" : !opalis.simulationExecuted ? "Unavailable" : opalis.alerts.some(alert => alert.level === "warning") ? "Check required" : "OK"
   const gmat = record(gmatSource) ?? {}
   const samples = [electricSource, orbitSource].flatMap(source => Array.isArray(source) ? source.filter(record) : [])
   // Electric-transfer samples store the semi-major axis, while orbit-keeping
@@ -114,7 +113,7 @@ async function missionOverview(runDir: string, document: JsonRecord, gmatComplet
     fuelMassConsumed: metric(fuelUsed, "GMAT ElectricTransferReport"),
     averageAltitude: metric(averageAltitude, "GMAT ElectricTransferReport"),
     ...simuCicMetrics,
-    electricalConfiguration: metric(electrical, "OPALIS result"),
+    electricalConfiguration: opalisAssessment(opalis),
   }
 }
 

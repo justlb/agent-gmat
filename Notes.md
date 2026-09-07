@@ -83,7 +83,6 @@ open_codex_web/
 │   ├── remote_gui_desktop.sh        # Xvfb/openbox/x11vnc/noVNC 管理
 │   ├── remote_gui_freecad_rpc.sh    # FreeCAD RPC 管理
 │   └── remote_gui_runtime.sh        # 远程 GUI start/stop/status 编排
-└── package-lock.json
 ```
 
 项目根目录 `config.json` 是运行配置主文件；`start_open_codex_web.sh` 是推荐启动脚本。

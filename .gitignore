@@ -37,3 +37,4 @@ codex_agent
 
 __pycache__/
 *.py[cod]
+*.tsbuildinfo

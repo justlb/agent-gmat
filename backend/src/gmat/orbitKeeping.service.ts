@@ -2,7 +2,6 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { stringify } from "yaml"
 
-import { getBackendRoot } from "../config.js"
 import { gmatTemplateDefinition } from "./templateRegistry.js"
 import type { ResolvedModelBackend } from "../modelBackends/modelBackends.js"
 import { assertOrbitKeepingSimulationSafety } from "./orbitKeepingDraft.js"
@@ -12,7 +11,7 @@ import { defaultOrbitKeepingTemplatePath } from "./orbitKeepingTemplate.js"
 import { isMissionRunWorkspace } from "../digitalThread/digitalThreadStore.js"
 import { beginRunStage, invalidateDownstreamFromGmat } from "../runs/runLifecycle.js"
 import { updateRunManifest } from "../runs/runManifest.js"
-import { applyOrbitKeepingValueChanges, extractOrbitKeepingValues, parseOrbitKeepingValues, renderOrbitKeepingValues, type OrbitKeepingValueChange } from "./orbitKeepingValues.js"
+import { applyOrbitKeepingValueChanges, extractOrbitKeepingValues, renderOrbitKeepingValues, type OrbitKeepingValueChange } from "./orbitKeepingValues.js"
 
 function enableEphemerisOutput(script: string) {
   if (!script.includes("Create EphemerisFile EphemerisFile1;")) {

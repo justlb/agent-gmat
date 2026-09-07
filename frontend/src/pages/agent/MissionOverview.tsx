@@ -4,7 +4,7 @@ const rows = [
   ['lifetime', 'Lifetime', 'gmat'], ['fuelMassConsumed', 'Fuel mass consumed', 'gmat'],
   ['averageAltitude', 'Average altitude', 'gmat'], ['contactTime', 'Contact time with GS', 'simu_cic'],
   ['latency', 'Latency (one-way / round-trip)', 'simu_cic'], ['eclipseTime', 'Eclipse time', 'simu_cic'],
-  ['electricalConfiguration', 'Electrical configuration OK?', 'opalis'],
+  ['electricalConfiguration', 'Electrical assessment', 'opalis'],
 ] as const
 
 /** Shared by New simulation and Results so the same run evidence has the same presentation. */
@@ -24,7 +24,7 @@ export function MissionOverview({ overview, stages = {}, saved = false }: {
       const fallback = finished ? 'Unavailable' : status === 'running' ? `${tool} running` : `Waiting for ${tool}`
       // Missing evidence is not "waiting" after a stage has finished or failed.
       const value = reported && !(finished && reported.value.startsWith('Waiting')) ? reported.value : fallback
-      return <div key={key} className={`metric-${status}`}><label>{label}</label><b title={reported?.source}>{value}</b><small>{status.replaceAll('_', ' ')}</small></div>
+      return <div key={key} className={`metric-${status}`}><label>{label}</label><b title={reported?.source}>{value}</b>{reported?.detail ? <small>{reported.detail}</small> : null}<small>{tool} calculation: {status.replaceAll('_', ' ')}</small></div>
     })}</div>
   </section>
 }

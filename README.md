@@ -2,6 +2,10 @@
 
 Open Codex Web 是一个由 React 前端和 Fastify 后端组成的 Codex 工程工作台。项目通过根目录下的 `config.json` 读取模型、服务端口、工作区、语音和远程工具配置。
 
+项目交接请先阅读英文版[交接指南](docs/HANDOVER.md)。
+
+项目模块边界、数据保留规则和英文注释约定见 [docs/CODE_STRUCTURE.md](docs/CODE_STRUCTURE.md)。
+
 ## 配置文件
 
 项目不会自动创建真实配置。第一次启动前，请复制示例配置：

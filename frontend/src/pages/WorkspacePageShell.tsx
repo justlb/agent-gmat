@@ -100,7 +100,6 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     handleSelectWorkspaceSession,
     handleStopAskUser,
     handleSubmit,
-    isMobile: _isMobile,
     pendingAskUser,
     reloadSessions,
     running,
@@ -239,7 +238,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
     if (workspaceRefreshNonce > 0) params.set("workspaceVersion", String(workspaceRefreshNonce))
     const query = params.toString()
     return query ? `/viewer?${query}` : "/viewer"
-  }, [activeContext, canUseDefaultModelPreview, externalModelViewerUrl, progressVariant, workspaceRefreshNonce])
+  }, [activeContext, canUseDefaultModelPreview, externalModelViewerUrl, workspaceRefreshNonce])
   const cadHref = getRemoteToolUrl("cad", remoteToolHost)
   const paraviewHref = getRemoteToolUrl("paraview", remoteToolHost)
   const comsolHref = getRemoteToolUrl("comsol", remoteToolHost)
@@ -313,7 +312,7 @@ export function WorkspaceAppleContent({ apiBase, enableGncConfig = false, inspec
 
     submitWithContext(activeContext)
     window.setTimeout(() => setProgressRefreshNonce(value => value + 1), 150)
-  }, [activeContext, handleSubmit, refreshWorkspaceViews, resetProgressData, workspaces])
+  }, [activeContext, apiBase, handleSubmit, refreshWorkspaceViews, resetProgressData, setBranchManifest, workspaces])
 
   const handleStopAndSummarize = useCallback(async () => {
     if (!activeSessionId || stopSummaryPending) return

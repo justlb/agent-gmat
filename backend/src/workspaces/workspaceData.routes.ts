@@ -19,6 +19,9 @@ import {
 } from "./workspaceQuery.js"
 import { resolveWorkspaceTemplateRoot } from "./workspacePaths.js"
 
+// Resolve bundled lookup files from the repository, independent of the process cwd.
+const WORKSPACE_DATA_ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url))
+
 type WorkspaceQuery = {
   versionId?: string
   workspaceDir?: string
@@ -309,9 +312,6 @@ type ThermalDbIndex = {
   byModel: Map<string, ThermalDbRecord | null>
   sourcePath: string
 }
-
-const WORKSPACE_DATA_ROUTES_DIR = path.dirname(fileURLToPath(import.meta.url))
-const APP_ROOT_DIR = path.resolve(WORKSPACE_DATA_ROUTES_DIR, "..", "..", "..")
 
 type CatchSupportingTableBody = {
   rows?: unknown
@@ -1563,7 +1563,7 @@ export function registerWorkspaceDataRoutes(fastify: FastifyInstance, { config }
     }
   )
 
-  fastify.get<{ Querystring: WorkspaceQuery }>("/api/workspace/compliance/manufacturer-full-names", async (req, reply) => {
+  fastify.get<{ Querystring: WorkspaceQuery }>("/api/workspace/compliance/manufacturer-full-names", async (_req, reply) => {
     try {
       reply.header("Cache-Control", "no-cache")
       return reply.send({ full_names: await readManufacturerFullNameOptions(config.compliance.database) })

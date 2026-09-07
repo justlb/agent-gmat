@@ -1,0 +1,2 @@
+# Keep source and documentation line endings stable on Windows and Linux.
+* text=auto eol=lf

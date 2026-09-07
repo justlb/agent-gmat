@@ -58,16 +58,6 @@ export type OrbitKeepingFile = {
   size: number
 }
 
-export type OrbitKeepingTimeSeriesSample = {
-  altitudeKm: number
-  eccentricity: number
-  epochA1ModJulian: number
-  fuelMassKg: number
-  inclinationDeg: number
-  semiMajorAxisKm: number
-  totalMassKg: number
-}
-
 export type OrbitKeepingRunConversationTurn = { answer: string; askedAt: string; question: string }
 
 export async function getOrbitKeepingRunConversation(runPath: string, apiBase?: string) {
@@ -76,14 +66,6 @@ export async function getOrbitKeepingRunConversation(runPath: string, apiBase?: 
   if (!response.ok) throw new Error(await getResponseErrorMessage(response))
   const payload = await response.json() as { conversation?: OrbitKeepingRunConversationTurn[] }
   return Array.isArray(payload.conversation) ? payload.conversation : []
-}
-
-export async function getOrbitKeepingTimeSeries(runPath: string, apiBase?: string) {
-  const url = `${joinApiPath(apiBase, '/gmat/orbit-keeping/timeseries')}?${new URLSearchParams({ runPath }).toString()}`
-  const response = await fetch(url, { cache: 'no-store' })
-  if (!response.ok) throw new Error(await getResponseErrorMessage(response))
-  const payload = await response.json() as { samples?: OrbitKeepingTimeSeriesSample[] }
-  return Array.isArray(payload.samples) ? payload.samples : []
 }
 
 /** Executes an already confirmed draft and forwards each real backend stage. */

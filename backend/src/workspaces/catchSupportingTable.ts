@@ -295,12 +295,6 @@ function num(value: unknown): number | null {
   return /\bmw\b/iu.test(text) ? parsed / 1000 : parsed
 }
 
-function numericValue(value: number, kind: NumberKind = "float") {
-  const boxed = new Number(value)
-  markNumberKind(boxed, "value", kind)
-  return value
-}
-
 function power(value: unknown): number | null {
   if (typeof value === "string" && value.includes("=")) {
     const values = Array.from(value.matchAll(/[-+]?\d+(?:\.\d+)?/gu), match => Number.parseFloat(match[0]))

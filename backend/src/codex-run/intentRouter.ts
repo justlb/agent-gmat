@@ -187,14 +187,12 @@ function getResponseOutputText(payload: unknown) {
 }
 
 async function createRoutingResponse({
-  config,
   logger,
   modelBackend,
   prompt,
   requestId,
   signal,
 }: {
-  config: AppConfig
   logger: Logger
   modelBackend: ResolvedModelBackend
   prompt: string
@@ -299,7 +297,6 @@ export async function routeManagedRunIntent(
     ].join("\n")
     const responseText = await withTimeout(
       createRoutingResponse({
-        config,
         logger,
         modelBackend,
         prompt,

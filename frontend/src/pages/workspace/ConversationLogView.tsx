@@ -195,7 +195,8 @@ export function ConversationLogView({ session }: { session: Record<string, unkno
     .sort((left, right) => right.timestamp - left.timestamp || right.index - left.index)
     .slice(0, MAX_RENDERED_SESSIONS), [session])
   const [selectedSessionIndex, setSelectedSessionIndex] = useState(0)
-  useEffect(() => setSelectedSessionIndex(0), [sessions.length, sessions[0]?.timestamp])
+  const newestSessionTimestamp = sessions[0]?.timestamp
+  useEffect(() => setSelectedSessionIndex(0), [newestSessionTimestamp, sessions.length])
   const selected = sessions[Math.min(selectedSessionIndex, Math.max(0, sessions.length - 1))]
   const turns = useMemo(() => (
     selected ? getTurnViews(selected.item, selected.index, false) : []

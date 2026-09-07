@@ -32,10 +32,6 @@ function resolveOrbitKeepingDraftArtifact(workspaceDir: string, draftId: string,
   return path.join(path.resolve(workspaceDir), "gmat", "drafts", draftId, fileName)
 }
 
-function getOrbitKeepingOutputDir(userWorkspaceRoot: string) {
-  return path.join(path.resolve(userWorkspaceRoot), "gmat", "orbit-keeping")
-}
-
 function orbitKeepingFileKind(fileName: string): OrbitKeepingFileKind | null {
   if (fileName.endsWith(".script")) return "script"
   if (fileName.endsWith(".values.yaml")) return "values"

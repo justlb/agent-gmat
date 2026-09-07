@@ -1281,7 +1281,7 @@ export function ComplianceCheckPanel(props: ComplianceCheckPanelProps) {
   const [savingCompliance, setSavingCompliance] = useState("")
   const [manufacturerFullNames, setManufacturerFullNames] = useState<string[]>([])
   const [finalGenerated, setFinalGenerated] = useState(false)
-  const query = useMemo(() => buildWorkspaceQuery(props), [props.versionId, props.workspaceDir, props.workspaceId])
+  const query = buildWorkspaceQuery(props)
   const themeVars = props.theme === "light" ? lightThemeVars : darkThemeVars
 
   const loadAll = useCallback(() => {
@@ -2052,7 +2052,6 @@ function SmallBarChart({ compact = false, items }: { compact?: boolean; items: P
 function PercentDonut({ centerLabel, items }: { centerLabel: string; items: PercentItem[] }) {
   const radius = 34
   const circumference = 2 * Math.PI * radius
-  let offset = 0
   const normalizedItems = items.filter(item => item.value > 0)
 
   if (normalizedItems.length === 0) return <div style={moduleEmptyStyle}>暂无数据</div>
@@ -2061,10 +2060,11 @@ function PercentDonut({ centerLabel, items }: { centerLabel: string; items: Perc
     <div style={percentDonutWrapStyle}>
       <svg aria-hidden="true" height="104" viewBox="0 0 104 104" width="104">
         <circle cx="52" cy="52" fill="none" r={radius} stroke={HUD_LINE} strokeWidth="12" />
-        {normalizedItems.map(item => {
+        {normalizedItems.map((item, index) => {
           const length = (item.value / 100) * circumference
-          const dashOffset = -offset
-          offset += length
+          const dashOffset = -normalizedItems
+            .slice(0, index)
+            .reduce((sum, previous) => sum + (previous.value / 100) * circumference, 0)
           return (
             <circle
               key={item.label}

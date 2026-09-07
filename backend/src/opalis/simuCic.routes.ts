@@ -51,11 +51,6 @@ function guiBinFor(scilabBin: string | null) {
   return scilabBin ? path.join(path.dirname(scilabBin), "WScilex.exe") : "WScilex.exe"
 }
 
-function headlessBinFor(scilabBin: string | null) {
-  if (!scilabBin) return "WScilex-cli.exe"
-  return path.join(path.dirname(scilabBin), "WScilex-cli.exe")
-}
-
 function nativePath(filePath: string) {
   return toGmatNativePath(filePath)
 }

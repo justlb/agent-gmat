@@ -40,6 +40,23 @@ type RowView = {
   subsystemRow: boolean
 }
 
+function buildRowViews(rows: CatchTableRow[], baselineByKey: Map<string, CatchTableRow>) {
+  let currentSubsystem = "未分组"
+  return rows.map((row, index) => {
+    const subsystemRow = isSubsystemRow(row)
+    const baseline = baselineByKey.get(rowKey(row))
+    if (subsystemRow) currentSubsystem = String(row["产品名称"] ?? "未分组")
+    return {
+      baseline,
+      changed: isRowChanged(row, baseline),
+      index,
+      row,
+      subsystem: currentSubsystem,
+      subsystemRow,
+    }
+  })
+}
+
 function buildQuery(activeContext: WorkspaceVersionContext) {
   const params = new URLSearchParams()
   if (activeContext.versionDir) params.set("workspaceDir", activeContext.versionDir)
@@ -117,7 +134,7 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
   const [subsystemFilter, setSubsystemFilter] = useState("全部")
   const [changedOnly, setChangedOnly] = useState(false)
 
-  const query = useMemo(() => buildQuery(activeContext), [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId])
+  const query = useMemo(() => buildQuery(activeContext), [activeContext])
   const baselineByKey = useMemo(() => new Map(baselineRows.map(row => [rowKey(row), row])), [baselineRows])
 
   const loadTable = useCallback(() => {
@@ -144,22 +161,7 @@ export function CatchSupportingTableEditor({ activeContext, apiBase, onSaved }: 
     loadTable()
   }, [loadTable])
 
-  const rowViews = useMemo<RowView[]>(() => {
-    let currentSubsystem = "未分组"
-    return rows.map((row, index) => {
-      const subsystemRow = isSubsystemRow(row)
-      const baseline = baselineByKey.get(rowKey(row))
-      if (subsystemRow) currentSubsystem = String(row["产品名称"] ?? "未分组")
-      return {
-        baseline,
-        changed: isRowChanged(row, baseline),
-        index,
-        row,
-        subsystem: currentSubsystem,
-        subsystemRow,
-      }
-    })
-  }, [baselineByKey, rows])
+  const rowViews = useMemo<RowView[]>(() => buildRowViews(rows, baselineByKey), [baselineByKey, rows])
 
   const subsystemOptions = useMemo(() => {
     const options = new Set<string>()

@@ -403,7 +403,7 @@ export default function AgentPage() {
     } finally {
       setStopSummaryPending(false)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, activeSession?.threadId, latestManagedStatus, modelBackend, refreshWorkspaceViews, showSpeechText, speakText, stopSummaryPending, workspaceAppState])
+  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, activeContext.workspaceName, activeSession?.threadId, latestManagedStatus, modelBackend, refreshWorkspaceViews, setLatestManagedStatus, setManagedVoiceRunning, showSpeechText, speakText, stopSummaryPending, workspaceAppState])
   const {
     cancelRecording,
     clearRecorderDisplay,
@@ -804,7 +804,7 @@ export default function AgentPage() {
         setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'draft_llm', 'failed') : entries)
       })
       .finally(() => setGmatGenerating(false))
-  }, [activeContext.versionDir, activeGmatDraft, activeGmatRun, activePlanningRun, chatMode, clearAgentSpeechDisplay, gmatWorkspaceDir, missionValuesChangeRequested, refreshWorkspaceViews, runCodex, showSpeechText, textComposerBusy, textInput])
+  }, [activeContext.versionDir, activeGmatDraft, activeGmatRun, activePlanningRun, chatMode, clearAgentSpeechDisplay, gmatWorkspaceDir, missionValuesChangeRequested, refreshWorkspaceViews, showSpeechText, textComposerBusy, textInput])
   const handleExecuteGmatDraft = useCallback(() => {
     if (!activeGmatDraft || gmatGenerating) return
     if (chatMode === 'general') {
@@ -852,7 +852,7 @@ export default function AgentPage() {
       })
       .catch(reason => { setManagedRunError(reason instanceof Error ? reason.message : 'GMAT draft execution failed'); setGmatWorkflowEntries(entries => entries ? setGmatWorkflowStatus(entries, 'run_gmat', 'failed') : entries) })
       .finally(() => setGmatGenerating(false))
-  }, [activeGmatDraft, gmatGenerating, gmatWorkspaceDir, refreshWorkspaceViews, showSpeechText])
+  }, [activeGmatDraft, chatMode, gmatGenerating, gmatWorkspaceDir, refreshWorkspaceViews, showSpeechText])
   const handleNewGmatDraft = useCallback(() => {
     if (gmatGenerating) return
     setActiveGmatRun(null)
@@ -898,7 +898,7 @@ export default function AgentPage() {
     refresh()
     const timer = window.setInterval(refresh, 1500)
     return () => window.clearInterval(timer)
-  }, [activeGmatRun?.runPath])
+  }, [activeGmatRun])
   const displayedSessionStatus = managedVoiceRunning || latestManagedStatus?.status === 'running'
     ? 'running'
     : latestManagedStatus?.status === 'completed' || latestManagedStatus?.status === 'partial'

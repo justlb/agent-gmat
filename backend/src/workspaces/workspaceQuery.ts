@@ -4,6 +4,11 @@ import { resolveRunWorkspaceContext } from "../manifests/store.js"
 import { isPathInside } from "../shared/index.js"
 import { getWorkspaceRoot, resolveWorkspaceDir } from "./workspaceManager.js"
 
+/**
+ * Resolves a user-provided workspace selector without letting an HTTP request
+ * escape the current user's workspace root.
+ */
+
 export type ResolvedQueryWorkspaceContext = {
   versionId: string | null
   workspaceDir: string

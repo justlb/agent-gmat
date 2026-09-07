@@ -2,7 +2,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { type DigitalThreadDocument, type JsonValue, loadOrCreateDigitalThread, saveDigitalThread } from "./digitalThreadStore.js"
+import { type JsonValue, loadOrCreateDigitalThread, saveDigitalThread } from "./digitalThreadStore.js"
 
 type JsonRecord = { [key: string]: JsonValue }
 export type SatelliteDefinition = { id: string; version: string; name: string; description: string; capabilities: string[]; mission_templates: string[]; satellite: JsonRecord; analysis_requests?: JsonRecord }

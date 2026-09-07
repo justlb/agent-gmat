@@ -294,7 +294,7 @@ export function useManagedAgentRun({
     } finally {
       if (!backgroundRunStarted && isCurrentWorkspaceRun()) setManagedVoiceRunning(false)
     }
-  }, [activeContext, refreshWorkspaceViews, resetProgressDataRef, setBranchManifest, setProgressRefreshNonce, showRunError, showSpeechText, speakText, workspaceAppState, workspaces])
+  }, [activeContext, modelBackend, refreshWorkspaceViews, resetProgressDataRef, setBranchManifest, setProgressRefreshNonce, showRunError, showSpeechText, speakText, workspaceAppState, workspaces])
 
   return {
     activeWorkspaceSpeechKey,

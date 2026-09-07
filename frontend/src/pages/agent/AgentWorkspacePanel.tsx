@@ -97,7 +97,6 @@ function getWorkspacePanelTitle(activeView: AgentWorkspaceView | null, showCompl
 export function AgentWorkspacePanel({
   activeGmatRunPath,
   activeGmatRunId,
-  activeGmatRunTemplate: _activeGmatRunTemplate,
   activeContext,
   activeManifestVersion,
   activeTool,
@@ -122,7 +121,6 @@ export function AgentWorkspacePanel({
   selectedFileLoading,
   selectedFilePath,
   selectedFilePreview,
-  setActiveTool: _setActiveTool,
   setSelectedBomId,
   requestDeleteVersion,
   refreshWorkspaceViews,
@@ -132,7 +130,6 @@ export function AgentWorkspacePanel({
   showModelPreview,
   switchActiveWorkspace,
   t,
-  toolUrls: _toolUrls,
   versionAction,
   versionDeleteTarget,
   versionError,
@@ -140,12 +137,7 @@ export function AgentWorkspacePanel({
   workspaceChanging,
   workspaceItems,
   workspaceRefreshNonce = 0,
-  satelliteRefreshNonce: _satelliteRefreshNonce = 0,
   missionWorkspaceDir,
-  planningDiscussion: _planningDiscussion,
-  onMissionSatelliteSelected: _onMissionSatelliteSelected,
-  missionTemplate: _missionTemplate,
-  onMissionTemplateSelected: _onMissionTemplateSelected,
   onStartMission,
 }: AgentWorkspacePanelProps) {
   const panelClassName = [

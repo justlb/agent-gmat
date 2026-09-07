@@ -178,7 +178,7 @@ export function useWorkspaceAppState({ apiBase, homePath }: WorkspaceAppStateOpt
 
   useEffect(() => {
     updateBrowserPath(activeSessionId, !activeSessionId, homePath)
-  }, [])
+  }, [activeSessionId, homePath])
 
   useEffect(() => {
     if (runningSessionIdRef.current) return

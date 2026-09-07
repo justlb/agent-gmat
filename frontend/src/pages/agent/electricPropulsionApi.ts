@@ -5,19 +5,6 @@ import type { OrbitKeepingDraft, OrbitKeepingGenerateResult, OrbitKeepingProgres
 export type ElectricPropulsionDraft = OrbitKeepingDraft
 export type ElectricPropulsionGenerateResult = OrbitKeepingGenerateResult
 export type ElectricPropulsionProgressEvent = OrbitKeepingProgressEvent
-export type ElectricPropulsionTimeSeriesSample = {
-  argPeriapsisDeg: number
-  eccentricity: number
-  elapsedDays: number
-  fuelMassKg: number
-  inclinationDeg: number
-  massFlowRateKgPerSec?: number
-  powerAvailableKw: number
-  raanDeg: number
-  semiMajorAxisKm: number
-  totalMassKg: number
-  trueAnomalyDeg: number
-}
 export type ElectricPropulsionFile = {
   artifactId: string
   fileName: string
@@ -80,12 +67,4 @@ export async function getElectricPropulsionRunConversation(runPath: string) {
   if (!response.ok) throw new Error(await errorMessage(response))
   const payload = await response.json() as { conversation?: Array<{ answer: string; askedAt: string; question: string }> }
   return Array.isArray(payload.conversation) ? payload.conversation : []
-}
-
-export async function getElectricPropulsionTimeSeries(runPath: string) {
-  const url = `${joinApiPath(undefined, `${base}/timeseries`)}?${new URLSearchParams({ runPath }).toString()}`
-  const response = await fetch(url, { cache: 'no-store' })
-  if (!response.ok) throw new Error(await errorMessage(response))
-  const payload = await response.json() as { samples?: ElectricPropulsionTimeSeriesSample[] }
-  return Array.isArray(payload.samples) ? payload.samples : []
 }

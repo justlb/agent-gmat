@@ -122,7 +122,7 @@ export function useWorkspaceRuntimeData({
       controller?.abort()
       window.clearInterval(intervalId)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, progressRefreshNonce, running, sessionId, workspaceRefreshNonce])
+  }, [activeContext, apiBase, progressRefreshNonce, running, sessionId, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
@@ -158,7 +158,7 @@ export function useWorkspaceRuntimeData({
       controller?.abort()
       window.clearInterval(intervalId)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, enableStageLogs, workspaceRefreshNonce])
+  }, [activeContext, apiBase, enableStageLogs, workspaceRefreshNonce])
 
   useEffect(() => {
     let cancelled = false
@@ -198,7 +198,7 @@ export function useWorkspaceRuntimeData({
       controller?.abort()
       if (intervalId) window.clearInterval(intervalId)
     }
-  }, [activeContext.versionDir, activeContext.versionId, activeContext.workspaceId, apiBase, enableConversationLogRefresh, enableConversationLogs, workspaceRefreshNonce])
+  }, [activeContext, apiBase, enableConversationLogRefresh, enableConversationLogs, workspaceRefreshNonce])
 
   const runLogEntries = useMemo(() => (
     enableRunLogEntries ? getRunLogEntries(visibleTurns, visibleCurrentEvents, t) : []

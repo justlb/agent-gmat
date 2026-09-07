@@ -12,6 +12,7 @@ export function getEventErrorMessage(event: ThreadEvent): string | null {
   return null
 }
 
-export function shouldSuppressEvent(_event: ThreadEvent) {
+export function shouldSuppressEvent(event: ThreadEvent) {
+  void event
   return false
 }

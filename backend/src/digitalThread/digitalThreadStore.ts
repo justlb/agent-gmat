@@ -19,7 +19,6 @@ export type DigitalThreadDocument = { [key: string]: JsonValue } & {
   provenance: { [key: string]: JsonValue }
 }
 
-const CURRENT_SCHEMA_VERSION = 1
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(SOURCE_DIR, "../../..")
 const TEMPLATE_PATH = path.join(PROJECT_ROOT, "data", "templates", "satellite.digital-thread.template.json")

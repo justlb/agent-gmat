@@ -51,14 +51,6 @@ function firstNumber(document: DigitalThreadDocument, ...fieldPaths: string[]) {
   return null
 }
 
-function firstString(document: DigitalThreadDocument, ...fieldPaths: string[]) {
-  for (const fieldPath of fieldPaths) {
-    const value = stringAt(document, fieldPath)
-    if (value !== null) return value
-  }
-  return null
-}
-
 function taiEpochAt(document: DigitalThreadDocument, ...fieldPaths: string[]) {
   for (const fieldPath of fieldPaths) {
     const value = getAtPath(document, fieldPath)

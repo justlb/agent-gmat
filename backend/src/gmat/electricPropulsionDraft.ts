@@ -96,10 +96,6 @@ export const ELECTRIC_PROPULSION_TRANSFER_CONTRACT = {
 } as const
 
 const fields = ELECTRIC_PROPULSION_TRANSFER_CONTRACT.fields as readonly FieldDefinition[]
-const MISSION_FIELD_PATHS = new Set([
-  "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg",
-  "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg", "transfer.finalAltitudeKm",
-])
 const GMAT_TAI_MOD_JULIAN_MIN = 10_000
 const GMAT_TAI_MOD_JULIAN_MAX = 100_000
 const CARTESIAN_STATE_PATHS = ["initialState.xKm", "initialState.yKm", "initialState.zKm", "initialState.vxKmPerSec", "initialState.vyKmPerSec", "initialState.vzKmPerSec"] as const

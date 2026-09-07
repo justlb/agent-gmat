@@ -202,10 +202,6 @@ function latestMode(modeRows: TelemetryRow[]) {
   return mode || "Earth-Pointing (Nominal)"
 }
 
-function nextMode(_modeRows: TelemetryRow[]) {
-  return "N/A"
-}
-
 function finalTime(rows: TelemetryRow[]) {
   const value = rows.length > 0 ? num(rows[rows.length - 1], "Sc_Time") : null
   return value ?? 0
@@ -229,7 +225,7 @@ function GncDashboardSummary({
 }) {
   const duration = finalTime(scRows)
   const activeMode = latestMode(modeRows)
-  const transition = nextMode(modeRows)
+  const transition = "N/A"
   return (
     <section className="gnc-summary-strip" aria-label="GNC overview">
       <article className="gnc-summary-card">

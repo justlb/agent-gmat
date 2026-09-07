@@ -89,27 +89,6 @@ export async function cancelGmatCalculations(runPath?: string) {
   return response.json() as Promise<{ cancelled: number }>
 }
 
-export type OpalisResultSummary = {
-  alerts: Array<{ level: 'info' | 'warning'; message: string }>
-  computedDurationSeconds: number | null
-  finalSocPercent: number | null
-  initialSocPercent: number | null
-  maxDepthOfDischargePercent: number | null
-  resultRows: number | null
-  simulationExecuted: boolean
-  solarArrayEnergy: number | null
-  solarSections: number | null
-  stopCondition: string | null
-}
-
-export async function getOpalisResults(runPath: string) {
-  const query = new URLSearchParams({ runPath }).toString()
-  const response = await fetch(`${joinApiPath(undefined, '/opalis/results')}?${query}`, { cache: 'no-store' })
-  if (!response.ok) throw new Error(await responseError(response))
-  const payload = await response.json() as { result: OpalisResultSummary }
-  return payload.result
-}
-
 export async function openPreparedOpalisScenario(runPath: string) {
   const response = await fetch(joinApiPath(undefined, "/opalis/open-prepared-scenario"), {
     method: "POST",

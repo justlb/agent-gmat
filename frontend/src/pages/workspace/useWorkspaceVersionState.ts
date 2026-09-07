@@ -74,7 +74,7 @@ export function useWorkspaceVersionState({
       })
       .catch(err => setVersionError(err instanceof Error ? err.message : "版本切换失败"))
       .finally(() => setVersionAction(null))
-  }, [activeContext.manifestRoot, activeContext.workspaceId, apiBase, onRefreshWorkspaceViews, onReloadSessions, refreshManifest, versionWorkspaceKey])
+  }, [activeContext.manifestRoot, activeContext.workspaceId, apiBase, onRefreshWorkspaceViews, onReloadSessions, versionWorkspaceKey])
 
   const branchVersion = useCallback((
     baseVersionId: string,

@@ -28,6 +28,31 @@ function percent(value: unknown) {
   return numeric === null ? null : numeric * 100
 }
 
+/** An executed calculation is not, by itself, an electrical design validation. */
+export function opalisAssessment(summary: OpalisResultSummary | null) {
+  const source = 'opalis/03-opalis/02-resultats/calculated-opalis.json'
+  if (!summary) return { value: 'Waiting for results', source }
+  if (!summary.simulationExecuted) return { value: 'Calculation not executed', source }
+  const details = [
+    summary.finalSocPercent === null ? 'Final battery charge unavailable.' : `Final battery charge: ${summary.finalSocPercent.toFixed(1)}%.`,
+    summary.computedDurationSeconds === null ? '' : `Computed duration: ${(summary.computedDurationSeconds / 60).toFixed(1)} min.`,
+  ]
+  let value: string
+  if (summary.stopCondition === 'eBattMin reached') {
+    value = 'Battery minimum reached — simulation stopped'
+    if (summary.finalSocPercent !== null && summary.finalSocPercent < 20) details.push('Final charge is also below the 20% warning threshold.')
+  } else if (summary.finalSocPercent !== null && summary.finalSocPercent < 20) {
+    value = 'Low final battery charge — below 20%'
+    if (summary.stopCondition) details.push(`Stop condition: ${summary.stopCondition}.`)
+  } else if (summary.stopCondition === 'Simulation Time' && summary.finalSocPercent !== null) {
+    value = 'Completed — no detected battery warning'
+  } else {
+    value = 'Electrical result requires review'
+    details.push(summary.stopCondition ? `Stop condition: ${summary.stopCondition}.` : 'Stop condition unavailable.')
+  }
+  return { value, source, detail: details.filter(Boolean).join(' ') }
+}
+
 export async function loadOpalisResultSummary(runDir: string): Promise<OpalisResultSummary | null> {
   const source = await fs.readFile(path.join(runDir, "opalis", "03-opalis", "02-resultats", "calculated-opalis.json"), "utf8").catch(() => null)
   if (!source) return null

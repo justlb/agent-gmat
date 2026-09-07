@@ -2,6 +2,10 @@
 
 Open Codex Web is a Codex engineering workspace built with a React frontend and a Fastify backend. Runtime settings are loaded from the root `config.json`, including OpenAI/Codex settings, ports, workspace paths, speech services, and remote tool endpoints.
 
+For operational ownership transfer, start with [the handover guide](docs/HANDOVER.md).
+
+See [docs/CODE_STRUCTURE.md](docs/CODE_STRUCTURE.md) for module boundaries, data-retention rules, and the English commenting convention.
+
 ## Configuration File
 
 The project does not create a real config automatically. Before the first run, copy the example file:

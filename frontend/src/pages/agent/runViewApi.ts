@@ -21,7 +21,7 @@ export type RunView = {
   artifacts: RunViewArtifact[]
   document: Record<string, unknown>
   missionValues: Record<string, string | number | null>
-  overview: Record<string, { source: string; value: string }>
+  overview: Record<string, { source: string; value: string; detail?: string }>
   runId: string
   runPath: string
   satelliteAssumptions: Array<{ label: string; value: string }>
