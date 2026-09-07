@@ -6,7 +6,6 @@
   "draft_directory": ["gmat", "chemical-hohmann-transfer", "drafts"],
   "chat_mode": "gmat-chemical-hohmann",
   "gmat_reference_script": "references/chemical_hohmann_transfer.script",
-  "gmat_example_script": "references/chemical_2D_transfer_example.script",
   "artifacts": [
     { "path": "chemical_hohmann_transfer.script", "kind": "script" },
     { "path": "chemical_hohmann_transfer.values.yaml", "kind": "values" },

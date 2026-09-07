@@ -60,6 +60,33 @@ export function askResultAssistant(runPath: string, message: string) {
   })
 }
 
+export type ComparisonRow = {
+  runId: string | null
+  template: string | null
+  satelliteName: string | null
+  gmatStatus: string
+  finalAltitudeKm: number | null
+  finalFuelMassKg: number | null
+  fuelUsedKg: number | null
+  blockerCount: number
+  warningCount: number
+  infoCount: number
+}
+
+export type MultiRunAnalysisResult = {
+  answer: string
+  runIds: (string | null)[]
+  comparison: ComparisonRow[]
+}
+
+export function askMultiRunAssistant(runPaths: string[], message: string) {
+  return request<MultiRunAnalysisResult>('/runs/analysis/multi', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ runPaths, message }),
+  })
+}
+
 export async function getResultSamples(runPath: string) {
   const { samples } = await request<{ samples: Array<Record<string, unknown>> }>(`/runs/timeseries?${new URLSearchParams({ runPath })}`)
   const firstEpoch = samples.find(sample => typeof sample.epochA1ModJulian === 'number')?.epochA1ModJulian as number | undefined

@@ -1,0 +1,399 @@
+% 
+%
+%  LEO electric-propulsion orbit keeping
+%
+
+
+%----------------------------------------
+%---------- Spacecraft
+%----------------------------------------
+
+Create Spacecraft LEO_EP;
+LEO_EP.DateFormat = TAIModJulian;
+LEO_EP.Epoch = '31262.66709490726';
+LEO_EP.CoordinateSystem = EarthMJ2000Eq;
+LEO_EP.DisplayStateType = Keplerian;
+LEO_EP.SMA = 6878.136300000001;
+LEO_EP.ECC = 2.452184832079697e-16;
+LEO_EP.INC = 0;
+LEO_EP.RAAN = 0;
+LEO_EP.AOP = 0;
+LEO_EP.TA = 0;
+LEO_EP.DryMass = 500;
+LEO_EP.Cd = 2.2;
+LEO_EP.Cr = 1.4;
+LEO_EP.DragArea = 8;
+LEO_EP.SRPArea = 4;
+LEO_EP.SPADDragScaleFactor = 1;
+LEO_EP.SPADSRPScaleFactor = 1;
+LEO_EP.AtmosDensityScaleFactor = 1;
+LEO_EP.ExtendedMassPropertiesModel = 'None';
+LEO_EP.Tanks = {XenonTank};
+LEO_EP.Thrusters = {ReboostThruster};
+LEO_EP.PowerSystem = SolarArray;
+LEO_EP.NAIFId = -10021001;
+LEO_EP.NAIFIdReferenceFrame = -9021001;
+LEO_EP.OrbitColor = Red;
+LEO_EP.TargetColor = Teal;
+LEO_EP.OrbitErrorCovariance = [ 1e+70 0 0 0 0 0 ; 0 1e+70 0 0 0 0 ; 0 0 1e+70 0 0 0 ; 0 0 0 1e+70 0 0 ; 0 0 0 0 1e+70 0 ; 0 0 0 0 0 1e+70 ];
+LEO_EP.CdSigma = 1e+70;
+LEO_EP.CrSigma = 1e+70;
+LEO_EP.Id = 'SatId';
+LEO_EP.Attitude = CoordinateSystemFixed;
+LEO_EP.SPADSRPInterpolationMethod = Bilinear;
+LEO_EP.SPADSRPScaleFactorSigma = 1e+70;
+LEO_EP.SPADDragInterpolationMethod = Bilinear;
+LEO_EP.SPADDragScaleFactorSigma = 1e+70;
+LEO_EP.AtmosDensityScaleFactorSigma = 1e+70;
+LEO_EP.ModelFile = 'aura.3ds';
+LEO_EP.ModelOffsetX = 0;
+LEO_EP.ModelOffsetY = 0;
+LEO_EP.ModelOffsetZ = 0;
+LEO_EP.ModelRotationX = 0;
+LEO_EP.ModelRotationY = 0;
+LEO_EP.ModelRotationZ = 0;
+LEO_EP.ModelScale = 1;
+LEO_EP.AttitudeDisplayStateType = 'Quaternion';
+LEO_EP.AttitudeRateDisplayStateType = 'AngularVelocity';
+LEO_EP.AttitudeCoordinateSystem = EarthMJ2000Eq;
+LEO_EP.EulerAngleSequence = '321';
+
+%----------------------------------------
+%---------- Hardware Components
+%----------------------------------------
+
+Create ElectricTank XenonTank;
+XenonTank.DirectionX = 0;
+XenonTank.DirectionY = 0;
+XenonTank.DirectionZ = 1;
+XenonTank.SecondDirectionX = 0;
+XenonTank.SecondDirectionY = -1;
+XenonTank.SecondDirectionZ = 0;
+XenonTank.HWOriginInBCSX = 0;
+XenonTank.HWOriginInBCSY = 0;
+XenonTank.HWOriginInBCSZ = 0;
+XenonTank.AllowNegativeFuelMass = false;
+XenonTank.FuelMass = 80;
+XenonTank.FuelCenterOfMassX = 0;
+XenonTank.FuelCenterOfMassY = 0;
+XenonTank.FuelCenterOfMassZ = 0;
+XenonTank.FuelMomentOfInertiaXX = 99;
+XenonTank.FuelMomentOfInertiaXY = 0;
+XenonTank.FuelMomentOfInertiaXZ = 0;
+XenonTank.FuelMomentOfInertiaYY = 99;
+XenonTank.FuelMomentOfInertiaYZ = 0;
+XenonTank.FuelMomentOfInertiaZZ = 99;
+
+% Tangential VNB thrust raises SMA and restores altitude.
+Create ElectricThruster ReboostThruster;
+ReboostThruster.HWOriginInBCSX = 0;
+ReboostThruster.HWOriginInBCSY = 0;
+ReboostThruster.HWOriginInBCSZ = 0;
+ReboostThruster.CoordinateSystem = Local;
+ReboostThruster.Origin = Earth;
+ReboostThruster.Axes = VNB;
+ReboostThruster.ThrustDirection1 = 1;
+ReboostThruster.ThrustDirection2 = 0;
+ReboostThruster.ThrustDirection3 = 0;
+ReboostThruster.DutyCycle = 1;
+ReboostThruster.ThrustScaleFactor = 1;
+ReboostThruster.DecrementMass = true;
+ReboostThruster.Tank = {XenonTank};
+ReboostThruster.MixRatio = [ 1 ];
+ReboostThruster.GravitationalAccel = 9.806649999999999;
+ReboostThruster.ThrustModel = ConstantThrustAndIsp;
+ReboostThruster.MaximumUsablePower = 2;
+ReboostThruster.MinimumUsablePower = 0.1;
+ReboostThruster.ThrustCoeff1 = -5.19082;
+ReboostThruster.ThrustCoeff2 = 2.96519;
+ReboostThruster.ThrustCoeff3 = -14.4789;
+ReboostThruster.ThrustCoeff4 = 54.05382;
+ReboostThruster.ThrustCoeff5 = -0.00100092;
+ReboostThruster.MassFlowCoeff1 = -0.004776;
+ReboostThruster.MassFlowCoeff2 = 0.05717;
+ReboostThruster.MassFlowCoeff3 = -0.09956;
+ReboostThruster.MassFlowCoeff4 = 0.03211;
+ReboostThruster.MassFlowCoeff5 = 2.13781;
+ReboostThruster.FixedEfficiency = 0.7;
+ReboostThruster.Isp = 1800;
+% Millinewton-class thrust is appropriate for continuous LEO drag compensation.
+% Two-mN maximum is the validated nominal configuration.  A separate
+% propulsion-sizing study is required for high solar-activity conditions.
+ReboostThruster.ConstantThrust = 0.002;
+
+Create SolarPowerSystem SolarArray;
+SolarArray.EpochFormat = 'UTCGregorian';
+SolarArray.InitialEpoch = ''10 Aug 2026 03:59:59.999'';
+SolarArray.InitialMaxPower = 3;
+SolarArray.AnnualDecayRate = 2;
+SolarArray.Margin = 15;
+SolarArray.BusCoeff1 = 0.5;
+SolarArray.BusCoeff2 = 0;
+SolarArray.BusCoeff3 = 0;
+SolarArray.ShadowModel = 'DualCone';
+SolarArray.ShadowBodies = {'Earth'};
+SolarArray.SolarCoeff1 = 1.32077;
+SolarArray.SolarCoeff2 = -0.10848;
+SolarArray.SolarCoeff3 = -0.11665;
+SolarArray.SolarCoeff4 = 0.10843;
+SolarArray.SolarCoeff5 = -0.01279;
+
+
+%----------------------------------------
+%---------- ForceModels
+%----------------------------------------
+
+Create ForceModel LEO_ForceModel;
+LEO_ForceModel.CentralBody = Earth;
+LEO_ForceModel.PrimaryBodies = {Earth};
+LEO_ForceModel.SRP = Off;
+LEO_ForceModel.RelativisticCorrection = Off;
+LEO_ForceModel.ErrorControl = RSSStep;
+LEO_ForceModel.GravityField.Earth.Degree = 4;
+LEO_ForceModel.GravityField.Earth.Order = 4;
+LEO_ForceModel.GravityField.Earth.StmLimit = 100;
+LEO_ForceModel.GravityField.Earth.PotentialFile = 'JGM2.cof';
+LEO_ForceModel.GravityField.Earth.TideModel = 'None';
+LEO_ForceModel.Drag.AtmosphereModel = MSISE90;
+LEO_ForceModel.Drag.HistoricWeatherSource = 'ConstantFluxAndGeoMag';
+LEO_ForceModel.Drag.PredictedWeatherSource = 'ConstantFluxAndGeoMag';
+LEO_ForceModel.Drag.CSSISpaceWeatherFile = 'SpaceWeather-All-v1.2.txt';
+LEO_ForceModel.Drag.SchattenFile = 'SchattenPredict.txt';
+LEO_ForceModel.Drag.F107 = 150;
+LEO_ForceModel.Drag.F107A = 150;
+LEO_ForceModel.Drag.MagneticIndex = 3;
+LEO_ForceModel.Drag.SchattenErrorModel = 'Nominal';
+LEO_ForceModel.Drag.SchattenTimingModel = 'NominalCycle';
+LEO_ForceModel.Drag.DragModel = 'Spherical';
+
+%----------------------------------------
+%---------- Propagators
+%----------------------------------------
+
+Create Propagator LEO_Prop;
+LEO_Prop.FM = LEO_ForceModel;
+LEO_Prop.Type = RungeKutta89;
+LEO_Prop.InitialStepSize = 60;
+LEO_Prop.Accuracy = 1e-08;
+LEO_Prop.MinStep = 0.01;
+LEO_Prop.MaxStep = 900;
+LEO_Prop.MaxStepAttempts = 50;
+LEO_Prop.StopIfAccuracyIsViolated = true;
+
+%----------------------------------------
+%---------- Burns
+%----------------------------------------
+
+Create FiniteBurn ReboostBurn;
+ReboostBurn.Thrusters = {ReboostThruster};
+ReboostBurn.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
+
+%----------------------------------------
+%---------- Subscribers
+%----------------------------------------
+
+
+% Same displays as the chemical orbit-keeping scenario: altitude,
+% propellant mass, and a 3D orbit view.
+Create XYPlot AltitudePlot;
+AltitudePlot.SolverIterations = Current;
+AltitudePlot.UpperLeft = [ 0.001401869158878505 0 ];
+AltitudePlot.Size = [ 0.2953271028037383 0.4302925989672978 ];
+AltitudePlot.RelativeZOrder = 819;
+AltitudePlot.Maximized = false;
+AltitudePlot.XVariable = LEO_EP.ElapsedDays;
+AltitudePlot.YVariables = {LEO_EP.Earth.Altitude};
+AltitudePlot.ShowGrid = true;
+AltitudePlot.ShowPlot = true;
+
+Create XYPlot FuelPlot;
+FuelPlot.SolverIterations = Current;
+FuelPlot.UpperLeft = [ 0.001401869158878505 0.4483648881239243 ];
+FuelPlot.Size = [ 0.2953271028037383 0.4302925989672978 ];
+FuelPlot.RelativeZOrder = 824;
+FuelPlot.Maximized = false;
+FuelPlot.XVariable = LEO_EP.ElapsedDays;
+FuelPlot.YVariables = {LEO_EP.XenonTank.FuelMass};
+FuelPlot.ShowGrid = true;
+FuelPlot.ShowPlot = true;
+
+% Raw osculating element and GMAT's Brouwer-Lyddane short-period mean.
+Create XYPlot EccentricityMeanPlot;
+EccentricityMeanPlot.SolverIterations = Current;
+EccentricityMeanPlot.UpperLeft = [ 0.3107476635514019 0 ];
+EccentricityMeanPlot.Size = [ 0.2953271028037383 0.4302925989672978 ];
+EccentricityMeanPlot.RelativeZOrder = 829;
+EccentricityMeanPlot.Maximized = false;
+EccentricityMeanPlot.XVariable = LEO_EP.ElapsedDays;
+EccentricityMeanPlot.YVariables = {LEO_EP.Earth.ECC, LEO_EP.BrouwerShortECC};
+EccentricityMeanPlot.ShowGrid = true;
+EccentricityMeanPlot.ShowPlot = true;
+
+Create XYPlot InclinationMeanPlot;
+InclinationMeanPlot.SolverIterations = Current;
+InclinationMeanPlot.UpperLeft = [ 0.3107476635514019 0.4483648881239243 ];
+InclinationMeanPlot.Size = [ 0.2953271028037383 0.4302925989672978 ];
+InclinationMeanPlot.RelativeZOrder = 834;
+InclinationMeanPlot.Maximized = false;
+InclinationMeanPlot.XVariable = LEO_EP.ElapsedDays;
+InclinationMeanPlot.YVariables = {LEO_EP.EarthMJ2000Eq.INC, LEO_EP.BrouwerShortINC};
+InclinationMeanPlot.ShowGrid = true;
+InclinationMeanPlot.ShowPlot = true;
+
+Create OpenFramesInterface OrbitView;
+OrbitView.SolverIterations = Current;
+OrbitView.UpperLeft = [ 0.6224299065420561 0.0783132530120482 ];
+OrbitView.Size = [ 0.458411214953271 0.7977624784853701 ];
+OrbitView.RelativeZOrder = 951;
+OrbitView.Maximized = false;
+OrbitView.Add = {LEO_EP, Earth};
+OrbitView.View = {OrbitView_Frame};
+OrbitView.CoordinateSystem = EarthMJ2000Eq;
+OrbitView.DrawObject = [ true true ];
+OrbitView.DrawTrajectory = [ true true ];
+OrbitView.DrawAxes = [ false false ];
+OrbitView.DrawXYPlane = [ false false ];
+OrbitView.DrawLabel = [ true true ];
+OrbitView.DrawUsePropLabel = [ false false ];
+OrbitView.DrawCenterPoint = [ true true ];
+OrbitView.DrawEndPoints = [ true true ];
+OrbitView.DrawVelocity = [ false false ];
+OrbitView.DrawGrid = [ false false ];
+OrbitView.DrawLineWidth = [ 2 2 ];
+OrbitView.DrawMarkerSize = [ 10 10 ];
+OrbitView.DrawFontSize = [ 20 20 ];
+OrbitView.Axes = On;
+OrbitView.AxesLength = 12756.2726;
+OrbitView.AxesLabels = On;
+OrbitView.FrameLabel = Off;
+OrbitView.XYPlane = On;
+OrbitView.EclipticPlane = Off;
+OrbitView.EnableStars = On;
+OrbitView.StarCatalog = 'inp_StarsHYGv3.txt';
+OrbitView.StarCount = 40000;
+OrbitView.MinStarMag = -2;
+OrbitView.MaxStarMag = 6;
+OrbitView.MinStarPixels = 1;
+OrbitView.MaxStarPixels = 10;
+OrbitView.MinStarDimRatio = 0.5;
+OrbitView.ShowPlot = true;
+OrbitView.ShowToolbar = true;
+OrbitView.SolverIterLastN = 1;
+OrbitView.ShowVR = false;
+OrbitView.PlaybackTimeScale = 3600;
+OrbitView.MultisampleAntiAliasing = On;
+OrbitView.MSAASamples = 2;
+OrbitView.DrawFontPosition = {'Top-Right', 'Top-Right'};
+
+Create ReportFile ReportFile1;
+ReportFile1.SolverIterations = Current;
+ReportFile1.UpperLeft = [ 0 0 ];
+ReportFile1.Size = [ 0 0 ];
+ReportFile1.RelativeZOrder = 0;
+ReportFile1.Maximized = false;
+ReportFile1.Filename = 'ReportFile1.txt';
+ReportFile1.Precision = 16;
+ReportFile1.Add = {LEO_EP.ElapsedSecs, LEO_EP.Earth.Altitude, LEO_EP.XenonTank.FuelMass};
+ReportFile1.WriteHeaders = true;
+ReportFile1.LeftJustify = On;
+ReportFile1.ZeroFill = Off;
+ReportFile1.FixedWidth = true;
+ReportFile1.Delimiter = ' ';
+ReportFile1.ColumnWidth = 23;
+ReportFile1.WriteReport = true;
+ReportFile1.AppendToExistingFile = false;
+
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.UpperLeft = [ 0 0 ];
+EphemerisFile1.Size = [ 0 0 ];
+EphemerisFile1.RelativeZOrder = 0;
+EphemerisFile1.Maximized = false;
+EphemerisFile1.Spacecraft = LEO_EP;
+EphemerisFile1.Filename = 'EphemerisFile1.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.OutputFormat = LittleEndian;
+EphemerisFile1.IncludeCovariance = None;
+EphemerisFile1.WriteEphemeris = true;
+
+%----------------------------------------
+%---------- Arrays, Variables, Strings
+%----------------------------------------
+Create Variable MissionDays FuelReserveKg TargetSMA FilteredSMA SmaError LowSmaBand HighSmaBand ThrottleBias ThrottleGain BaseThrottle;
+
+
+
+%----------------------------------------
+%---------- User Objects
+%----------------------------------------
+
+Create OpenFramesView OrbitView_Frame;
+OrbitView_Frame.ViewFrame = CoordinateSystem;
+OrbitView_Frame.ViewTrajectory = Off;
+OrbitView_Frame.InertialFrame = Off;
+OrbitView_Frame.SetDefaultLocation = On;
+OrbitView_Frame.DefaultEye = [ 30000 0 0 ];
+OrbitView_Frame.DefaultCenter = [ 0 0 0 ];
+OrbitView_Frame.DefaultUp = [ 0 0 1 ];
+OrbitView_Frame.SetCurrentLocation = On;
+OrbitView_Frame.CurrentEye = [ 29442.71428942798 5585.998556288158 1386.793207461151 ];
+OrbitView_Frame.CurrentCenter = [ -3.637978807091713e-12 4.547473508864641e-12 6.821210263296962e-12 ];
+OrbitView_Frame.CurrentUp = [ 0.04055708208138858 -0.4368606514301105 0.8986144302898231 ];
+OrbitView_Frame.FOVy = 45;
+
+
+%----------------------------------------
+%---------- Mission Sequence
+%----------------------------------------
+
+
+BeginMissionSequence;
+
+MissionDays = 3;
+% Control once per orbit at periapsis, so orbital elements are sampled at
+% the same phase rather than at arbitrary daily true anomalies.
+FuelReserveKg = 2;
+TargetSMA = LEO_EP.BrouwerShortSMA;
+FilteredSMA = TargetSMA;
+LowSmaBand = 0.5;
+HighSmaBand = 0.5;
+% Calibrated around the nominal drag level; the command is continuous and
+% bounded to the available 0--100% throttle range.
+ThrottleBias = 0.87;
+ThrottleGain = 0.15;
+BaseThrottle = ThrottleBias;
+LEO_EP.ReboostThruster.ThrustScaleFactor = ThrottleBias;
+
+
+% Continuous low thrust is enabled only when the commanded throttle is
+% positive.  Explicitly closing the finite burn at zero command prevents a
+% non-physical xenon mass flow while the thruster is off.
+While 'Continuous circular LEO electric orbit keeping' LEO_EP.ElapsedDays < MissionDays & LEO_EP.XenonTank.FuelMass > FuelReserveKg
+   Propagate 'Coast one orbit to periapsis' LEO_Prop(LEO_EP) {LEO_EP.Earth.Periapsis};
+   FilteredSMA = 0.9 * FilteredSMA + 0.1 * LEO_EP.BrouwerShortSMA;
+   SmaError = TargetSMA - FilteredSMA;
+   BaseThrottle = ThrottleBias + ThrottleGain * SmaError;
+   If 'Limit low electric throttle' BaseThrottle < 0
+      BaseThrottle = 0;
+   EndIf;
+   If 'Limit high electric throttle' BaseThrottle > 1
+      BaseThrottle = 1;
+   EndIf;
+   LEO_EP.ReboostThruster.ThrustScaleFactor = BaseThrottle;
+   If 'Electric thrust enabled' BaseThrottle > 0
+      BeginFiniteBurn 'Continuous electric drag compensation' ReboostBurn(LEO_EP);
+      Propagate 'Continuous thrust from periapsis to apoapsis' LEO_Prop(LEO_EP) {LEO_EP.Earth.Apoapsis};
+      Propagate 'Continuous thrust from apoapsis to periapsis' LEO_Prop(LEO_EP) {LEO_EP.Earth.Periapsis};
+      EndFiniteBurn 'End continuous electric drag compensation' ReboostBurn(LEO_EP);
+   Else
+      Propagate 'Coast from periapsis to apoapsis' LEO_Prop(LEO_EP) {LEO_EP.Earth.Apoapsis};
+      Propagate 'Coast from apoapsis to periapsis' LEO_Prop(LEO_EP) {LEO_EP.Earth.Periapsis};
+   EndIf;
+
+EndWhile;

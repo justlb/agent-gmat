@@ -42,6 +42,7 @@ function missionValues(document: JsonRecord, templateId: string | null) {
     "initialOrbit.altitudeKm": initialAltitude,
     "initialOrbit.eccentricity": atPath(document, "satellite.orbit.keplerian_elements.eccentricity"),
     "initialOrbit.inclinationDeg": atPath(document, "satellite.orbit.keplerian_elements.inclination_deg"),
+    "spacecraft.dryMassKg": atPath(document, "satellite.bus.physical.mass_kg.dry"),
   }
   if (templateId === "electric-propulsion-transfer") values["transfer.finalAltitudeKm"] = atPath(document, "analysis_requests.gmat.electric_propulsion_transfer.target_final_altitude_km")
   if (templateId === "orbit-keeping") {

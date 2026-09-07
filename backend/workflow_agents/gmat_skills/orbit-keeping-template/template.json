@@ -37,7 +37,8 @@
       { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg" },
       { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg" },
       { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg" },
-      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg" }
+      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg" },
+      { "label": "Mission duration limit (optional)", "path": "stationKeeping.missionDayLimit", "unit": "days" }
     ]
   },
   "mission_inputs": {

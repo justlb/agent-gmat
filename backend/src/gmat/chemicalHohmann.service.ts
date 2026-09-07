@@ -7,7 +7,6 @@ import { beginRunStage, invalidateDownstreamFromGmat } from "../runs/runLifecycl
 import { updateRunManifest } from "../runs/runManifest.js"
 import { runManagedProcess } from "./externalProcess.js"
 import { snapshotRunArtifacts } from "./artifactHistory.js"
-import { keplerianToCartesian } from "./orbitCoordinates.js"
 import type { ChemicalHohmannDraft } from "./chemicalHohmannDraft.js"
 import { defaultChemicalHohmannTemplatePath } from "./chemicalHohmannTemplate.js"
 import { toGmatNativePath } from "./orbitKeepingRunner.js"
@@ -74,22 +73,19 @@ function replaceSingle(script: string, matcher: RegExp, replacement: string, lab
 
 /**
  * Deterministically renders only the documented values from satellite.json
- * and the mission draft. The tutorial source remains immutable.
+ * and the mission draft. Line endings are normalized so templates edited in
+ * any editor keep matching the line-anchored slot expressions below.
  */
 export function renderChemicalHohmannScript(template: string, values: ChemicalHohmannRenderValues) {
-  const cartesian = keplerianToCartesian({
-    semiMajorAxisKm: finiteNumber(values, "initialOrbit.smaKm"),
-    eccentricity: finiteNumber(values, "initialOrbit.eccentricity"),
-    inclinationDeg: finiteNumber(values, "initialOrbit.inclinationDeg"),
-    raanDeg: values["initialOrbit.raanDeg"] ?? 0,
-    argPeriapsisDeg: values["initialOrbit.argPeriapsisDeg"] ?? 0,
-    trueAnomalyDeg: values["initialOrbit.trueAnomalyDeg"] ?? 0,
-  })
-  let rendered = template
+  let rendered = template.replace(/\r\n?/gu, "\n")
   for (const [property, value] of Object.entries({
     "DefaultSC.Epoch": `'${numericEpoch(values)}'`,
-    "DefaultSC.X": String(cartesian.xKm), "DefaultSC.Y": String(cartesian.yKm), "DefaultSC.Z": String(cartesian.zKm),
-    "DefaultSC.VX": String(cartesian.vxKmPerSec), "DefaultSC.VY": String(cartesian.vyKmPerSec), "DefaultSC.VZ": String(cartesian.vzKmPerSec),
+    "DefaultSC.SMA": String(finiteNumber(values, "initialOrbit.smaKm")),
+    "DefaultSC.ECC": String(finiteNumber(values, "initialOrbit.eccentricity")),
+    "DefaultSC.INC": String(finiteNumber(values, "initialOrbit.inclinationDeg")),
+    "DefaultSC.RAAN": String(values["initialOrbit.raanDeg"] ?? 0),
+    "DefaultSC.AOP": String(values["initialOrbit.argPeriapsisDeg"] ?? 0),
+    "DefaultSC.TA": String(values["initialOrbit.trueAnomalyDeg"] ?? 0),
     "DefaultSC.DryMass": String(finiteNumber(values, "spacecraft.dryMassKg")),
     "DefaultSC.Cd": String(finiteNumber(values, "spacecraft.dragCoefficient")),
     "DefaultSC.DragArea": String(finiteNumber(values, "spacecraft.dragAreaM2")),
@@ -103,36 +99,51 @@ export function renderChemicalHohmannScript(template: string, values: ChemicalHo
   return rendered
 }
 
-/** The tutorial itself stays byte-for-byte intact in references/. This run
- * extension is inserted only in the generated script so downstream Simu-CIC
- * receives the OEM trajectory required by the digital thread. */
-function addHohmannEphemerisWriter(script: string, outputPath: string) {
+/** The reference script stays byte-for-byte intact in references/. When the
+ * template does not declare the OEM subscriber (tutorial-style source), the
+ * run extension is inserted here so downstream Simu-CIC receives the OEM
+ * trajectory required by the digital thread. Templates that already declare
+ * EphemerisFile1 only get their output redirected into the run directory. */
+export function addHohmannEphemerisWriter(script: string, outputPath: string) {
   const nativeOutput = toGmatNativePath(outputPath).replace(/\\/gu, "/")
-  const block = [
-    "Create EphemerisFile EphemerisFile1;",
-    "EphemerisFile1.Spacecraft = DefaultSC;",
-    `EphemerisFile1.Filename = '${nativeOutput}';`,
-    "EphemerisFile1.FileFormat = CCSDS-OEM;",
-    "EphemerisFile1.EpochFormat = UTCGregorian;",
-    "EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;",
-    "EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;",
-    "EphemerisFile1.StepSize = IntegratorSteps;",
-    "EphemerisFile1.Interpolator = Lagrange;",
-    "EphemerisFile1.InterpolationOrder = 7;",
-    "EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;",
-    "EphemerisFile1.OutputFormat = LittleEndian;",
-    "EphemerisFile1.IncludeCovariance = None;",
-    "EphemerisFile1.WriteEphemeris = true;",
-    "",
-  ].join("\n")
   if (!/^BeginMissionSequence;$/mu.test(script)) throw new Error("chemical Hohmann template does not expose BeginMissionSequence")
-  // Creating an EphemerisFile object only declares the subscriber. GMAT does
-  // not write samples until it is explicitly enabled in the mission sequence.
-  // This mirrors the proven orbit-keeping and electric-transfer pipelines.
-  const withSubscriber = script.replace(
-    /^BeginMissionSequence;$/mu,
-    `${block}BeginMissionSequence;\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;`,
-  )
+  let withSubscriber = script
+  if (/^Create EphemerisFile EphemerisFile1;$/mu.test(withSubscriber)) {
+    withSubscriber = replaceSingle(withSubscriber, /^EphemerisFile1\.Filename\s*=\s*[^;]+;$/mu, `EphemerisFile1.Filename = '${nativeOutput}';`, "EphemerisFile1 filename")
+  } else {
+    const block = [
+      "Create EphemerisFile EphemerisFile1;",
+      "EphemerisFile1.Spacecraft = DefaultSC;",
+      `EphemerisFile1.Filename = '${nativeOutput}';`,
+      "EphemerisFile1.FileFormat = CCSDS-OEM;",
+      "EphemerisFile1.EpochFormat = UTCGregorian;",
+      "EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;",
+      "EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;",
+      "EphemerisFile1.StepSize = IntegratorSteps;",
+      "EphemerisFile1.Interpolator = Lagrange;",
+      "EphemerisFile1.InterpolationOrder = 7;",
+      "EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;",
+      "EphemerisFile1.OutputFormat = LittleEndian;",
+      "EphemerisFile1.IncludeCovariance = None;",
+      "EphemerisFile1.WriteEphemeris = true;",
+      "",
+    ].join("\n")
+    // Creating an EphemerisFile object only declares the subscriber. GMAT does
+    // not write samples until it is explicitly enabled in the mission sequence.
+    // This mirrors the proven orbit-keeping and electric-transfer pipelines.
+    withSubscriber = withSubscriber.replace(
+      /^BeginMissionSequence;$/mu,
+      `${block}BeginMissionSequence;\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;`,
+    )
+  }
+  // A declared subscriber that is never toggled on would silently produce an
+  // empty OEM, so the mission sequence must enable it exactly once.
+  if (!/^Toggle[^\n]*EphemerisFile1[^\n]*On;$/mu.test(withSubscriber)) {
+    withSubscriber = withSubscriber.replace(
+      /^BeginMissionSequence;$/mu,
+      "BeginMissionSequence;\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;",
+    )
+  }
   // The tutorial's last propagation is a single "propagate to epoch" command.
   // GMAT's console can complete that command without emitting subscriber
   // samples, leaving a zero-byte OEM. Use the same one-integrator-step loop

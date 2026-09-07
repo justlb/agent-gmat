@@ -17,7 +17,7 @@ const REFERENCE_TEMPLATES = [
   {
     id: "orbit-keeping",
     path: defaultOrbitKeepingTemplatePath,
-    sha256: "da8ecc5676b8b159cc73cab84d076b0c6c130bbdffe39c4bed2547e75af99e2e",
+    sha256: "e966bf098498daf09db2750d17b01bc47b83707d549c3e4f928279dc8924717b",
     render: (template: string) => renderOrbitKeepingValues(template, extractOrbitKeepingValues(template)),
   },
   {
@@ -25,7 +25,7 @@ const REFERENCE_TEMPLATES = [
     path: defaultElectricPropulsionTemplatePath,
     // Approved electric-transfer reference after the calibrated propulsion
     // parameters were updated and validated manually in GMAT.
-    sha256: "06291cf6b3ab56415257fcecba353786c85b5ffa08c1b3d0ac0933ac6326b2b6",
+    sha256: "4bcc4011f989de86440ce2ae0a78cd456fffc01f9c07eab54c6d49aa94a3108b",
     render: (template: string) => renderElectricPropulsionValues(template, extractElectricPropulsionValues(template)),
   },
 ] as const

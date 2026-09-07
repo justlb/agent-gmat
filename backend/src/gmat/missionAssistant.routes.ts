@@ -24,6 +24,7 @@ import { loadRFComlinkResultSummary } from "../rfComlink/rfComlinkResults.js"
 import { appendMissionTemplateDraftConversation } from "./missionTemplateRuntime.js"
 import { isGmatTemplateId } from "./templateRegistry.js"
 import { analyzeRunWithAnalysisContext } from "../analysis/runAnalysisLlm.js"
+import { analyzeMultipleRuns } from "../analysis/multiRunAnalysisLlm.js"
 
 type Intent = "analysis" | "change" | "knowledge" | "advice" | "simu-cic"
 type Body = { allowMissionChanges?: unknown; draftId?: unknown; message?: unknown; runPath?: unknown; workspaceDir?: unknown }
@@ -104,6 +105,27 @@ export async function missionAssistantRoutes(fastify: FastifyInstance, { config 
       await fs.access(path.join(run.runDir, "run_manifest.json"))
       return await analyzeRunWithAnalysisContext({ connection: resolveModelBackend(config, "chatModel"), question, runDir: run.runDir, refreshContext: true })
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "run analysis failed") }) }
+  })
+  fastify.post<{ Body: { runPaths?: unknown; message?: unknown } }>("/api/runs/analysis/multi", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    const rawPaths = req.body?.runPaths
+    if (!Array.isArray(rawPaths) || rawPaths.length < 2 || rawPaths.length > 5) {
+      return reply.status(400).send({ error: "runPaths must be an array of 2 to 5 run paths" })
+    }
+    const question = typeof req.body?.message === "string" ? req.body.message.trim() : ""
+    if (!question || question.length > 12000) return reply.status(400).send({ error: "message must contain between 1 and 12000 characters" })
+    const resolvedRuns = rawPaths
+      .map((p: unknown) => typeof p === "string" ? resolveMissionRun(root, p) : null)
+    if (resolvedRuns.some(run => !run)) return reply.status(400).send({ error: "one or more run paths are invalid" })
+    try {
+      const result = await analyzeMultipleRuns({
+        connection: resolveModelBackend(config, "chatModel"),
+        question,
+        runDirs: resolvedRuns.map(run => run!.runDir),
+      })
+      return reply.send(result)
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "multi-run analysis failed") }) }
   })
   fastify.post<{ Body: Body }>("/api/gmat/assistant", async (req, reply) => {
     const root = getRequestUserWorkspaceRoot()

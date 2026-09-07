@@ -1,0 +1,372 @@
+% Parameterized electric-propulsion end-of-life mission from GEO.
+% MissionMode = 0 : transfer to a graveyard orbit above GEO.
+% MissionMode = 1 : Earth escape, stopped once the requested positive C3 is reached.
+% This is an engineering-analysis model.  It does not replace collision-risk,
+% disposal-regulation, power/eclipse, or ground-operations analyses.
+
+
+%----------------------------------------
+%---------- Spacecraft
+%----------------------------------------
+
+Create Spacecraft GEO_ESC;
+GEO_ESC.DateFormat = TAIModJulian;
+GEO_ESC.Epoch = '21545';
+GEO_ESC.CoordinateSystem = EarthMJ2000Eq;
+GEO_ESC.DisplayStateType = Keplerian;
+GEO_ESC.SMA = 42164.17;
+GEO_ESC.ECC = 0;
+GEO_ESC.INC = 0;
+GEO_ESC.RAAN = 0;
+GEO_ESC.AOP = 0;
+GEO_ESC.TA = 0;
+GEO_ESC.DryMass = 1800;
+GEO_ESC.Cd = 2.2;
+GEO_ESC.Cr = 1.4;
+GEO_ESC.DragArea = 20;
+GEO_ESC.SRPArea = 35;
+GEO_ESC.SPADDragScaleFactor = 1;
+GEO_ESC.SPADSRPScaleFactor = 1;
+GEO_ESC.AtmosDensityScaleFactor = 1;
+GEO_ESC.ExtendedMassPropertiesModel = 'None';
+GEO_ESC.Tanks = {ElectricPropellantTank_ESC};
+GEO_ESC.Thrusters = {EP_Prograde};
+GEO_ESC.PowerSystem = GEO_SolarArray_ESC;
+GEO_ESC.NAIFId = -10005001;
+GEO_ESC.NAIFIdReferenceFrame = -9005001;
+GEO_ESC.OrbitColor = Red;
+GEO_ESC.TargetColor = Teal;
+GEO_ESC.OrbitErrorCovariance = [ 1e+70 0 0 0 0 0 ; 0 1e+70 0 0 0 0 ; 0 0 1e+70 0 0 0 ; 0 0 0 1e+70 0 0 ; 0 0 0 0 1e+70 0 ; 0 0 0 0 0 1e+70 ];
+GEO_ESC.CdSigma = 1e+70;
+GEO_ESC.CrSigma = 1e+70;
+GEO_ESC.Id = 'SatId';
+GEO_ESC.Attitude = CoordinateSystemFixed;
+GEO_ESC.SPADSRPInterpolationMethod = Bilinear;
+GEO_ESC.SPADSRPScaleFactorSigma = 1e+70;
+GEO_ESC.SPADDragInterpolationMethod = Bilinear;
+GEO_ESC.SPADDragScaleFactorSigma = 1e+70;
+GEO_ESC.AtmosDensityScaleFactorSigma = 1e+70;
+GEO_ESC.ModelFile = 'aura.3ds';
+GEO_ESC.ModelOffsetX = 0;
+GEO_ESC.ModelOffsetY = 0;
+GEO_ESC.ModelOffsetZ = 0;
+GEO_ESC.ModelRotationX = 0;
+GEO_ESC.ModelRotationY = 0;
+GEO_ESC.ModelRotationZ = 0;
+GEO_ESC.ModelScale = 1;
+GEO_ESC.AttitudeDisplayStateType = 'Quaternion';
+GEO_ESC.AttitudeRateDisplayStateType = 'AngularVelocity';
+GEO_ESC.AttitudeCoordinateSystem = EarthMJ2000Eq;
+GEO_ESC.EulerAngleSequence = '321';
+
+%----------------------------------------
+%---------- Hardware Components
+%----------------------------------------
+
+Create ElectricTank ElectricPropellantTank_ESC;
+ElectricPropellantTank_ESC.DirectionX = 0;
+ElectricPropellantTank_ESC.DirectionY = 0;
+ElectricPropellantTank_ESC.DirectionZ = 1;
+ElectricPropellantTank_ESC.SecondDirectionX = 0;
+ElectricPropellantTank_ESC.SecondDirectionY = -1;
+ElectricPropellantTank_ESC.SecondDirectionZ = 0;
+ElectricPropellantTank_ESC.HWOriginInBCSX = 0;
+ElectricPropellantTank_ESC.HWOriginInBCSY = 0;
+ElectricPropellantTank_ESC.HWOriginInBCSZ = 0;
+ElectricPropellantTank_ESC.AllowNegativeFuelMass = false;
+ElectricPropellantTank_ESC.FuelMass = 400;
+ElectricPropellantTank_ESC.FuelCenterOfMassX = 0;
+ElectricPropellantTank_ESC.FuelCenterOfMassY = 0;
+ElectricPropellantTank_ESC.FuelCenterOfMassZ = 0;
+ElectricPropellantTank_ESC.FuelMomentOfInertiaXX = 99;
+ElectricPropellantTank_ESC.FuelMomentOfInertiaXY = 0;
+ElectricPropellantTank_ESC.FuelMomentOfInertiaXZ = 0;
+ElectricPropellantTank_ESC.FuelMomentOfInertiaYY = 99;
+ElectricPropellantTank_ESC.FuelMomentOfInertiaYZ = 0;
+ElectricPropellantTank_ESC.FuelMomentOfInertiaZZ = 99;
+
+Create SolarPowerSystem GEO_SolarArray_ESC;
+GEO_SolarArray_ESC.EpochFormat = 'UTCGregorian';
+GEO_SolarArray_ESC.InitialEpoch = '01 Jan 2000 11:59:28.000';
+GEO_SolarArray_ESC.InitialMaxPower = 30;
+GEO_SolarArray_ESC.AnnualDecayRate = 0.5;
+GEO_SolarArray_ESC.Margin = 0.2;
+GEO_SolarArray_ESC.BusCoeff1 = 0.5;
+GEO_SolarArray_ESC.BusCoeff2 = 0;
+GEO_SolarArray_ESC.BusCoeff3 = 0;
+% Eclipse power management is mission-specific.  This first-order transfer
+% model assumes thrust availability is maintained through eclipse (battery).
+GEO_SolarArray_ESC.ShadowModel = 'None';
+GEO_SolarArray_ESC.ShadowBodies = {'Earth'};
+GEO_SolarArray_ESC.SolarCoeff1 = 1.32077;
+GEO_SolarArray_ESC.SolarCoeff2 = -0.10848;
+GEO_SolarArray_ESC.SolarCoeff3 = -0.11665;
+GEO_SolarArray_ESC.SolarCoeff4 = 0.10843;
+GEO_SolarArray_ESC.SolarCoeff5 = -0.01279;
+
+% A 1-N, 1800-s electric thruster cluster.  ConstantThrust is expressed in N.
+Create ElectricThruster EP_Prograde;
+EP_Prograde.HWOriginInBCSX = 0;
+EP_Prograde.HWOriginInBCSY = 0;
+EP_Prograde.HWOriginInBCSZ = 0;
+EP_Prograde.CoordinateSystem = Local;
+EP_Prograde.Origin = Earth;
+EP_Prograde.Axes = VNB;
+EP_Prograde.ThrustDirection1 = 1;
+EP_Prograde.ThrustDirection2 = 0;
+EP_Prograde.ThrustDirection3 = 0;
+EP_Prograde.DutyCycle = 1;
+EP_Prograde.ThrustScaleFactor = 1;
+EP_Prograde.DecrementMass = true;
+EP_Prograde.Tank = {ElectricPropellantTank_ESC};
+EP_Prograde.MixRatio = [ 1 ];
+EP_Prograde.GravitationalAccel = 9.806649999999999;
+EP_Prograde.ThrustModel = ConstantThrustAndIsp;
+EP_Prograde.MaximumUsablePower = 25;
+EP_Prograde.MinimumUsablePower = 0.01;
+EP_Prograde.ThrustCoeff1 = -5.19082;
+EP_Prograde.ThrustCoeff2 = 2.96519;
+EP_Prograde.ThrustCoeff3 = -14.4789;
+EP_Prograde.ThrustCoeff4 = 54.05382;
+EP_Prograde.ThrustCoeff5 = -0.00100092;
+EP_Prograde.MassFlowCoeff1 = -0.004776;
+EP_Prograde.MassFlowCoeff2 = 0.05717;
+EP_Prograde.MassFlowCoeff3 = -0.09956;
+EP_Prograde.MassFlowCoeff4 = 0.03211;
+EP_Prograde.MassFlowCoeff5 = 2.13781;
+EP_Prograde.FixedEfficiency = 0.7;
+EP_Prograde.Isp = 1800;
+EP_Prograde.ConstantThrust = 1;
+
+%----------------------------------------
+%---------- ForceModels
+%----------------------------------------
+
+Create ForceModel GEO_ESC_FM;
+GEO_ESC_FM.CentralBody = Earth;
+GEO_ESC_FM.PrimaryBodies = {Earth};
+GEO_ESC_FM.PointMasses = {Sun, Luna};
+GEO_ESC_FM.Drag = None;
+GEO_ESC_FM.SRP = On;
+GEO_ESC_FM.RelativisticCorrection = Off;
+GEO_ESC_FM.ErrorControl = RSSStep;
+GEO_ESC_FM.GravityField.Earth.Degree = 8;
+GEO_ESC_FM.GravityField.Earth.Order = 8;
+GEO_ESC_FM.GravityField.Earth.StmLimit = 100;
+GEO_ESC_FM.GravityField.Earth.PotentialFile = 'JGM2.cof';
+GEO_ESC_FM.GravityField.Earth.TideModel = 'SolidAndPole';
+GEO_ESC_FM.SRP.Flux = 1367;
+GEO_ESC_FM.SRP.SRPModel = Spherical;
+GEO_ESC_FM.SRP.Nominal_Sun = 149597870.691;
+
+%----------------------------------------
+%---------- Propagators
+%----------------------------------------
+
+Create Propagator GEO_ESC_Prop;
+GEO_ESC_Prop.FM = GEO_ESC_FM;
+GEO_ESC_Prop.Type = RungeKutta89;
+GEO_ESC_Prop.InitialStepSize = 60;
+GEO_ESC_Prop.Accuracy = 9.999999999999999e-12;
+GEO_ESC_Prop.MinStep = 0.001;
+GEO_ESC_Prop.MaxStep = 300;
+GEO_ESC_Prop.MaxStepAttempts = 50;
+GEO_ESC_Prop.StopIfAccuracyIsViolated = true;
+
+%----------------------------------------
+%---------- Burns
+%----------------------------------------
+
+Create FiniteBurn ElectricSpiral;
+ElectricSpiral.Thrusters = {EP_Prograde};
+ElectricSpiral.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
+
+%----------------------------------------
+%---------- Subscribers
+%----------------------------------------
+
+
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.Spacecraft = GEO_ESC;
+EphemerisFile1.Filename = 'EphemerisFile1.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.WriteEphemeris = true;
+
+Create ReportFile GEO_ESC_Report;
+GEO_ESC_Report.SolverIterations = Current;
+GEO_ESC_Report.UpperLeft = [ 0 0 ];
+GEO_ESC_Report.Size = [ 0 0 ];
+GEO_ESC_Report.RelativeZOrder = 0;
+GEO_ESC_Report.Maximized = false;
+GEO_ESC_Report.Filename = 'GEO_Electric_EndOfLife_Report.txt';
+GEO_ESC_Report.Precision = 12;
+% SMA, perigee and apogee describe the orbit.  RMAG was intentionally omitted:
+% it is only the instantaneous spacecraft-to-Earth distance and oscillates.
+GEO_ESC_Report.Add = {GEO_ESC.UTCGregorian, GEO_ESC.ElapsedDays, GEO_ESC.Earth.SMA, GEO_ESC.Earth.RadPer, GEO_ESC.Earth.RadApo, GEO_ESC.Earth.ECC, GEO_ESC.Earth.C3Energy, GEO_ESC.TotalMass};
+GEO_ESC_Report.WriteHeaders = true;
+GEO_ESC_Report.LeftJustify = On;
+GEO_ESC_Report.ZeroFill = Off;
+GEO_ESC_Report.FixedWidth = true;
+GEO_ESC_Report.Delimiter = ' ';
+GEO_ESC_Report.ColumnWidth = 20;
+GEO_ESC_Report.WriteReport = true;
+GEO_ESC_Report.AppendToExistingFile = false;
+
+Create OpenFramesInterface GEO_ESC_View;
+GEO_ESC_View.SolverIterations = Current;
+GEO_ESC_View.UpperLeft = [ 0 0 ];
+GEO_ESC_View.Size = [ 0.599644128113879 0.5991735537190083 ];
+GEO_ESC_View.RelativeZOrder = 193;
+GEO_ESC_View.Maximized = false;
+GEO_ESC_View.Add = {Earth, GEO_ESC, Luna};
+GEO_ESC_View.View = {GEO_ESC_View_View};
+GEO_ESC_View.CoordinateSystem = EarthMJ2000Eq;
+GEO_ESC_View.DrawObject = [ true true true ];
+GEO_ESC_View.DrawTrajectory = [ true true true ];
+GEO_ESC_View.DrawAxes = [ false false false ];
+GEO_ESC_View.DrawXYPlane = [ false false false ];
+GEO_ESC_View.DrawLabel = [ true true true ];
+GEO_ESC_View.DrawUsePropLabel = [ false false false ];
+GEO_ESC_View.DrawCenterPoint = [ true true true ];
+GEO_ESC_View.DrawEndPoints = [ true true true ];
+GEO_ESC_View.DrawVelocity = [ false false false ];
+GEO_ESC_View.DrawGrid = [ false false false ];
+GEO_ESC_View.DrawLineWidth = [ 2 2 2 ];
+GEO_ESC_View.DrawMarkerSize = [ 10 10 10 ];
+GEO_ESC_View.DrawFontSize = [ 20 20 20 ];
+GEO_ESC_View.Axes = On;
+GEO_ESC_View.AxesLength = 12756.2726;
+GEO_ESC_View.AxesLabels = On;
+GEO_ESC_View.FrameLabel = Off;
+GEO_ESC_View.XYPlane = On;
+GEO_ESC_View.EclipticPlane = Off;
+GEO_ESC_View.EnableStars = On;
+GEO_ESC_View.StarCatalog = 'inp_StarsHYGv3.txt';
+GEO_ESC_View.StarCount = 40000;
+GEO_ESC_View.MinStarMag = -2;
+GEO_ESC_View.MaxStarMag = 6;
+GEO_ESC_View.MinStarPixels = 1;
+GEO_ESC_View.MaxStarPixels = 10;
+GEO_ESC_View.MinStarDimRatio = 0.5;
+GEO_ESC_View.ShowPlot = true;
+GEO_ESC_View.ShowToolbar = true;
+GEO_ESC_View.SolverIterLastN = 0;
+GEO_ESC_View.ShowVR = false;
+GEO_ESC_View.PlaybackTimeScale = 3600;
+GEO_ESC_View.MultisampleAntiAliasing = On;
+GEO_ESC_View.MSAASamples = 2;
+GEO_ESC_View.DrawFontPosition = {'Top-Right', 'Top-Right', 'Top-Right'};
+
+Create XYPlot GEO_ESC_OrbitElementsPlot;
+GEO_ESC_OrbitElementsPlot.SolverIterations = Current;
+GEO_ESC_OrbitElementsPlot.UpperLeft = [ 0.002224199288256228 0 ];
+GEO_ESC_OrbitElementsPlot.Size = [ 0.5 0.4504132231404959 ];
+GEO_ESC_OrbitElementsPlot.RelativeZOrder = 176;
+GEO_ESC_OrbitElementsPlot.Maximized = false;
+GEO_ESC_OrbitElementsPlot.XVariable = GEO_ESC.ElapsedDays;
+GEO_ESC_OrbitElementsPlot.YVariables = {GEO_ESC.Earth.SMA, GEO_ESC.Earth.RadPer, GEO_ESC.Earth.RadApo};
+GEO_ESC_OrbitElementsPlot.ShowGrid = true;
+GEO_ESC_OrbitElementsPlot.ShowPlot = true;
+
+Create XYPlot GEO_ESC_C3Plot;
+GEO_ESC_C3Plot.SolverIterations = Current;
+GEO_ESC_C3Plot.UpperLeft = [ 0.002224199288256228 0.4545454545454545 ];
+GEO_ESC_C3Plot.Size = [ 0.5 0.4504132231404959 ];
+GEO_ESC_C3Plot.RelativeZOrder = 188;
+GEO_ESC_C3Plot.Maximized = false;
+GEO_ESC_C3Plot.XVariable = GEO_ESC.ElapsedDays;
+GEO_ESC_C3Plot.YVariables = {GEO_ESC.Earth.C3Energy};
+GEO_ESC_C3Plot.ShowGrid = true;
+GEO_ESC_C3Plot.ShowPlot = true;
+
+%----------------------------------------
+%---------- Arrays, Variables, Strings
+%----------------------------------------
+Create Variable MissionMode GraveyardAltitude GraveyardRadius IADCBaseAltitude EscapeC3 MaxCemeteryDays MaxEscapeDays FuelReserveKg DisposalTargetReached DisposalLimitReached DisposalRadiusToleranceKm DisposalC3Tolerance GraveyardRadiusAcceptance EscapeC3Acceptance;
+
+
+%----------------------------------------
+%---------- User Objects
+%----------------------------------------
+
+Create OpenFramesView GEO_ESC_View_View;
+GEO_ESC_View_View.ViewFrame = CoordinateSystem;
+GEO_ESC_View_View.ViewTrajectory = Off;
+GEO_ESC_View_View.InertialFrame = Off;
+GEO_ESC_View_View.SetDefaultLocation = On;
+GEO_ESC_View_View.DefaultEye = [ 300000 0 200000 ];
+GEO_ESC_View_View.DefaultCenter = [ 0 0 0 ];
+GEO_ESC_View_View.DefaultUp = [ 0 0 1 ];
+GEO_ESC_View_View.SetCurrentLocation = On;
+GEO_ESC_View_View.CurrentEye = [ 58184.87893193849 86.79678395014732 140972.863022415 ];
+GEO_ESC_View_View.CurrentCenter = [ 7.275957614183426e-12 7.418066161335446e-12 -2.91038304567337e-11 ];
+GEO_ESC_View_View.CurrentUp = [ -0.9180325938264871 0.117047819187546 0.3788350098600335 ];
+GEO_ESC_View_View.FOVy = 45;
+
+%----------------------------------------
+%---------- Mission Sequence
+%----------------------------------------
+
+
+BeginMissionSequence;
+
+% --------------------------- USER PARAMETERS ---------------------------
+% 0 = graveyard orbit, 1 = true Earth escape.
+MissionMode = 1;
+% Stop before depletion; reaching this reserve means the requested disposal target was not achieved.
+FuelReserveKg = 0.01;
+% Positive Earth-relative C3 (km^2/s^2) means an unbound Earth trajectory.
+EscapeC3 = 0.01;
+MaxCemeteryDays = 20;
+MaxEscapeDays = 300;
+% ----------------------------------------------------------------------
+
+% IADC disposal rule (km): 235 + 1000 * Cr * (A/m).
+% A is the SRP reference area (m^2), m the dry mass (kg).  The resulting
+% altitude is the required minimum perigee altitude above GEO.
+IADCBaseAltitude = 235;
+GraveyardAltitude = IADCBaseAltitude + 1000 * GEO_ESC.Cr * GEO_ESC.SRPArea / GEO_ESC.DryMass;
+GraveyardRadius = 42164.17 + GraveyardAltitude;
+% Avoid classifying a numerical stop-point roundoff as a disposal failure.
+DisposalRadiusToleranceKm = 0.1;
+DisposalC3Tolerance = 1e-5;
+GraveyardRadiusAcceptance = GraveyardRadius - DisposalRadiusToleranceKm;
+EscapeC3Acceptance = EscapeC3 - DisposalC3Tolerance;
+Toggle EphemerisFile1 On;
+DisposalTargetReached = 0;
+DisposalLimitReached = 0;
+Report GEO_ESC_Report GEO_ESC.UTCGregorian GEO_ESC.ElapsedDays GEO_ESC.Earth.SMA GEO_ESC.Earth.RadPer GEO_ESC.Earth.RadApo GEO_ESC.Earth.ECC GEO_ESC.Earth.C3Energy GEO_ESC.TotalMass DisposalTargetReached DisposalLimitReached;
+
+If 'Select end-of-life mode' MissionMode < 0.5
+   % Continuous prograde thrust raises the GEO orbit.  The first condition
+   % reached ends the burn, so MaxCemeteryDays is a safety limit.
+   BeginFiniteBurn 'Raise to graveyard orbit' ElectricSpiral(GEO_ESC);
+   Propagate 'Electric spiral until perigee clears GEO' GEO_ESC_Prop(GEO_ESC) {GEO_ESC.Earth.RadPer = GraveyardRadius, GEO_ESC.ElapsedDays = MaxCemeteryDays, GEO_ESC.ElectricPropellantTank_ESC.FuelMass = FuelReserveKg};
+   EndFiniteBurn 'Stop at graveyard altitude' ElectricSpiral(GEO_ESC);
+   If 'Graveyard target reached' GEO_ESC.Earth.RadPer >= GraveyardRadiusAcceptance
+      DisposalTargetReached = 1;
+   Else
+      DisposalLimitReached = 1;
+   EndIf;
+Else
+   % C3 > 0 is the physical Earth-escape condition.  This remains an
+   % Earth-centred model; a planetary destination would need a new design.
+   BeginFiniteBurn 'Spiral to Earth escape energy' ElectricSpiral(GEO_ESC);
+   Propagate 'Electric spiral until positive C3' GEO_ESC_Prop(GEO_ESC) {GEO_ESC.Earth.C3Energy = EscapeC3, GEO_ESC.ElapsedDays = MaxEscapeDays, GEO_ESC.ElectricPropellantTank_ESC.FuelMass = FuelReserveKg};
+   EndFiniteBurn 'Stop after Earth escape criterion' ElectricSpiral(GEO_ESC);
+   If 'Escape target reached' GEO_ESC.Earth.C3Energy >= EscapeC3Acceptance
+      DisposalTargetReached = 1;
+   Else
+      DisposalLimitReached = 1;
+   EndIf;
+EndIf;
+
+Report GEO_ESC_Report GEO_ESC.UTCGregorian GEO_ESC.ElapsedDays GEO_ESC.Earth.SMA GEO_ESC.Earth.RadPer GEO_ESC.Earth.RadApo GEO_ESC.Earth.ECC GEO_ESC.Earth.C3Energy GEO_ESC.TotalMass DisposalTargetReached DisposalLimitReached;
+Toggle EphemerisFile1 Off;

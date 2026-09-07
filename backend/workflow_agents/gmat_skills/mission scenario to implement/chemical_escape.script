@@ -1,0 +1,392 @@
+% Parameterized chemical end-of-life mission from GEO.
+% MissionMode = 0 IADC-style graveyard transfer with Hohmann circularization.
+% MissionMode = 1 direct Earth escape with a positive Earth-relative C3.
+
+
+%----------------------------------------
+%---------- Spacecraft
+%----------------------------------------
+
+Create Spacecraft GEO_CHEM;
+GEO_CHEM.DateFormat = UTCGregorian;
+GEO_CHEM.Epoch = '01 Jan 2000 11:59:28.000';
+GEO_CHEM.CoordinateSystem = EarthMJ2000Eq;
+GEO_CHEM.DisplayStateType = Keplerian;
+GEO_CHEM.SMA = 42164.17;
+GEO_CHEM.ECC = 0;
+GEO_CHEM.INC = 0;
+GEO_CHEM.RAAN = 0;
+GEO_CHEM.AOP = 0;
+GEO_CHEM.TA = 0;
+GEO_CHEM.DryMass = 1800;
+GEO_CHEM.Cd = 2.2;
+GEO_CHEM.Cr = 1.4;
+GEO_CHEM.DragArea = 20;
+GEO_CHEM.SRPArea = 35;
+GEO_CHEM.SPADDragScaleFactor = 1;
+GEO_CHEM.SPADSRPScaleFactor = 1;
+GEO_CHEM.AtmosDensityScaleFactor = 1;
+GEO_CHEM.ExtendedMassPropertiesModel = 'None';
+GEO_CHEM.Tanks = {ChemicalTank_EOL};
+GEO_CHEM.NAIFId = -10009001;
+GEO_CHEM.NAIFIdReferenceFrame = -9009001;
+GEO_CHEM.OrbitColor = Red;
+GEO_CHEM.TargetColor = Teal;
+GEO_CHEM.OrbitErrorCovariance = [ 1e+70 0 0 0 0 0 ; 0 1e+70 0 0 0 0 ; 0 0 1e+70 0 0 0 ; 0 0 0 1e+70 0 0 ; 0 0 0 0 1e+70 0 ; 0 0 0 0 0 1e+70 ];
+GEO_CHEM.CdSigma = 1e+70;
+GEO_CHEM.CrSigma = 1e+70;
+GEO_CHEM.Id = 'SatId';
+GEO_CHEM.Attitude = CoordinateSystemFixed;
+GEO_CHEM.SPADSRPInterpolationMethod = Bilinear;
+GEO_CHEM.SPADSRPScaleFactorSigma = 1e+70;
+GEO_CHEM.SPADDragInterpolationMethod = Bilinear;
+GEO_CHEM.SPADDragScaleFactorSigma = 1e+70;
+GEO_CHEM.AtmosDensityScaleFactorSigma = 1e+70;
+GEO_CHEM.ModelFile = 'aura.3ds';
+GEO_CHEM.ModelOffsetX = 0;
+GEO_CHEM.ModelOffsetY = 0;
+GEO_CHEM.ModelOffsetZ = 0;
+GEO_CHEM.ModelRotationX = 0;
+GEO_CHEM.ModelRotationY = 0;
+GEO_CHEM.ModelRotationZ = 0;
+GEO_CHEM.ModelScale = 1;
+GEO_CHEM.AttitudeDisplayStateType = 'Quaternion';
+GEO_CHEM.AttitudeRateDisplayStateType = 'AngularVelocity';
+GEO_CHEM.AttitudeCoordinateSystem = EarthMJ2000Eq;
+GEO_CHEM.EulerAngleSequence = '321';
+
+%----------------------------------------
+%---------- Hardware Components
+%----------------------------------------
+
+Create ChemicalTank ChemicalTank_EOL;
+ChemicalTank_EOL.DirectionX = 0;
+ChemicalTank_EOL.DirectionY = 0;
+ChemicalTank_EOL.DirectionZ = 1;
+ChemicalTank_EOL.SecondDirectionX = 0;
+ChemicalTank_EOL.SecondDirectionY = -1;
+ChemicalTank_EOL.SecondDirectionZ = 0;
+ChemicalTank_EOL.HWOriginInBCSX = 0;
+ChemicalTank_EOL.HWOriginInBCSY = 0;
+ChemicalTank_EOL.HWOriginInBCSZ = 0;
+ChemicalTank_EOL.AllowNegativeFuelMass = false;
+% Sized to allow the default direct-Earth-escape case as well as disposal.
+ChemicalTank_EOL.FuelMass = 1200;
+ChemicalTank_EOL.FuelCenterOfMassX = 0;
+ChemicalTank_EOL.FuelCenterOfMassY = 0;
+ChemicalTank_EOL.FuelCenterOfMassZ = 0;
+ChemicalTank_EOL.FuelMomentOfInertiaXX = 99;
+ChemicalTank_EOL.FuelMomentOfInertiaXY = 0;
+ChemicalTank_EOL.FuelMomentOfInertiaXZ = 0;
+ChemicalTank_EOL.FuelMomentOfInertiaYY = 99;
+ChemicalTank_EOL.FuelMomentOfInertiaYZ = 0;
+ChemicalTank_EOL.FuelMomentOfInertiaZZ = 99;
+ChemicalTank_EOL.Pressure = 1500;
+ChemicalTank_EOL.Temperature = 20;
+ChemicalTank_EOL.RefTemperature = 20;
+ChemicalTank_EOL.Volume = 1.5;
+ChemicalTank_EOL.FuelDensity = 1260;
+ChemicalTank_EOL.PressureModel = PressureRegulated;
+
+%----------------------------------------
+%---------- ForceModels
+%----------------------------------------
+
+Create ForceModel GEO_CHEM_FM;
+GEO_CHEM_FM.CentralBody = Earth;
+GEO_CHEM_FM.PrimaryBodies = {Earth};
+GEO_CHEM_FM.PointMasses = {Sun, Luna};
+GEO_CHEM_FM.Drag = None;
+GEO_CHEM_FM.SRP = On;
+GEO_CHEM_FM.RelativisticCorrection = Off;
+GEO_CHEM_FM.ErrorControl = RSSStep;
+GEO_CHEM_FM.GravityField.Earth.Degree = 8;
+GEO_CHEM_FM.GravityField.Earth.Order = 8;
+GEO_CHEM_FM.GravityField.Earth.StmLimit = 100;
+GEO_CHEM_FM.GravityField.Earth.PotentialFile = 'JGM2.cof';
+GEO_CHEM_FM.GravityField.Earth.TideModel = 'SolidAndPole';
+GEO_CHEM_FM.SRP.Flux = 1367;
+GEO_CHEM_FM.SRP.SRPModel = Spherical;
+GEO_CHEM_FM.SRP.Nominal_Sun = 149597870.691;
+
+%----------------------------------------
+%---------- Propagators
+%----------------------------------------
+
+Create Propagator GEO_CHEM_Prop;
+GEO_CHEM_Prop.FM = GEO_CHEM_FM;
+GEO_CHEM_Prop.Type = RungeKutta89;
+GEO_CHEM_Prop.InitialStepSize = 60;
+GEO_CHEM_Prop.Accuracy = 9.999999999999999e-12;
+GEO_CHEM_Prop.MinStep = 0.1;
+GEO_CHEM_Prop.MaxStep = 900;
+GEO_CHEM_Prop.MaxStepAttempts = 50;
+GEO_CHEM_Prop.StopIfAccuracyIsViolated = true;
+
+%----------------------------------------
+%---------- Burns
+%----------------------------------------
+
+% VNB Element1 is the prograde tangential component, in kms.
+Create ImpulsiveBurn RaiseGraveyard;
+RaiseGraveyard.CoordinateSystem = Local;
+RaiseGraveyard.Origin = Earth;
+RaiseGraveyard.Axes = VNB;
+RaiseGraveyard.Element1 = 0;
+RaiseGraveyard.Element2 = 0;
+RaiseGraveyard.Element3 = 0;
+RaiseGraveyard.DecrementMass = true;
+RaiseGraveyard.Tank = {ChemicalTank_EOL};
+RaiseGraveyard.Isp = 320;
+RaiseGraveyard.GravitationalAccel = 9.806649999999999;
+
+Create ImpulsiveBurn CircularizeGraveyard;
+CircularizeGraveyard.CoordinateSystem = Local;
+CircularizeGraveyard.Origin = Earth;
+CircularizeGraveyard.Axes = VNB;
+CircularizeGraveyard.Element1 = 0;
+CircularizeGraveyard.Element2 = 0;
+CircularizeGraveyard.Element3 = 0;
+CircularizeGraveyard.DecrementMass = true;
+CircularizeGraveyard.Tank = {ChemicalTank_EOL};
+CircularizeGraveyard.Isp = 320;
+CircularizeGraveyard.GravitationalAccel = 9.806649999999999;
+
+Create ImpulsiveBurn EscapeBurn;
+EscapeBurn.CoordinateSystem = Local;
+EscapeBurn.Origin = Earth;
+EscapeBurn.Axes = VNB;
+EscapeBurn.Element1 = 0;
+EscapeBurn.Element2 = 0;
+EscapeBurn.Element3 = 0;
+EscapeBurn.DecrementMass = true;
+EscapeBurn.Tank = {ChemicalTank_EOL};
+EscapeBurn.Isp = 320;
+EscapeBurn.GravitationalAccel = 9.806649999999999;
+
+%----------------------------------------
+%---------- Solvers
+%----------------------------------------
+
+% Differential corrector used by Target blocks to solve maneuver magnitudes.
+Create DifferentialCorrector GEO_CHEM_DC;
+GEO_CHEM_DC.ShowProgress = false;
+GEO_CHEM_DC.ReportStyle = Normal;
+GEO_CHEM_DC.ReportFile = 'GEO_Chemical_EndOfLife_Target.data';
+GEO_CHEM_DC.MaximumIterations = 25;
+GEO_CHEM_DC.DerivativeMethod = ForwardDifference;
+GEO_CHEM_DC.Algorithm = NewtonRaphson;
+
+%----------------------------------------
+%---------- Subscribers
+%----------------------------------------
+
+Create ReportFile GEO_CHEM_Summary;
+GEO_CHEM_Summary.SolverIterations = Current;
+GEO_CHEM_Summary.UpperLeft = [ 0 0 ];
+GEO_CHEM_Summary.Size = [ 0 0 ];
+GEO_CHEM_Summary.RelativeZOrder = 0;
+GEO_CHEM_Summary.Maximized = false;
+GEO_CHEM_Summary.Filename = 'GEO_Chemical_EndOfLife_Summary.txt';
+GEO_CHEM_Summary.Precision = 12;
+GEO_CHEM_Summary.Add = {MissionMode, GEO_CHEM.ElapsedDays, InitialFuelMass, FinalFuelMass, PropellantUsed, DeltaV, GEO_CHEM.Earth.SMA, GEO_CHEM.Earth.RadPer, GEO_CHEM.Earth.RadApo, GEO_CHEM.Earth.ECC, GEO_CHEM.Earth.C3Energy};
+GEO_CHEM_Summary.WriteHeaders = true;
+GEO_CHEM_Summary.LeftJustify = On;
+GEO_CHEM_Summary.ZeroFill = Off;
+GEO_CHEM_Summary.FixedWidth = true;
+GEO_CHEM_Summary.Delimiter = ' ';
+GEO_CHEM_Summary.ColumnWidth = 22;
+GEO_CHEM_Summary.WriteReport = true;
+GEO_CHEM_Summary.AppendToExistingFile = false;
+
+Create XYPlot GEO_CHEM_OrbitPlot;
+GEO_CHEM_OrbitPlot.SolverIterations = Current;
+GEO_CHEM_OrbitPlot.UpperLeft = [ 0.009696186166774402 0.00968783638320775 ];
+GEO_CHEM_OrbitPlot.Size = [ 0.4699418228829993 0.2798708288482239 ];
+GEO_CHEM_OrbitPlot.RelativeZOrder = 434;
+GEO_CHEM_OrbitPlot.Maximized = false;
+GEO_CHEM_OrbitPlot.XVariable = GEO_CHEM.ElapsedDays;
+GEO_CHEM_OrbitPlot.YVariables = {GEO_CHEM.Earth.SMA, GEO_CHEM.Earth.RadPer, GEO_CHEM.Earth.RadApo};
+GEO_CHEM_OrbitPlot.ShowGrid = true;
+GEO_CHEM_OrbitPlot.ShowPlot = true;
+
+Create XYPlot GEO_CHEM_EccentricityPlot;
+GEO_CHEM_EccentricityPlot.SolverIterations = Current;
+GEO_CHEM_EccentricityPlot.UpperLeft = [ 0.009696186166774402 0.3089343379978471 ];
+GEO_CHEM_EccentricityPlot.Size = [ 0.4699418228829993 0.2798708288482239 ];
+GEO_CHEM_EccentricityPlot.RelativeZOrder = 439;
+GEO_CHEM_EccentricityPlot.Maximized = false;
+GEO_CHEM_EccentricityPlot.XVariable = GEO_CHEM.ElapsedDays;
+GEO_CHEM_EccentricityPlot.YVariables = {GEO_CHEM.Earth.ECC};
+GEO_CHEM_EccentricityPlot.ShowGrid = true;
+GEO_CHEM_EccentricityPlot.ShowPlot = true;
+
+Create XYPlot GEO_CHEM_C3Plot;
+GEO_CHEM_C3Plot.SolverIterations = Current;
+GEO_CHEM_C3Plot.UpperLeft = [ 0.009696186166774402 0.6092572658772875 ];
+GEO_CHEM_C3Plot.Size = [ 0.4699418228829993 0.2798708288482239 ];
+GEO_CHEM_C3Plot.RelativeZOrder = 444;
+GEO_CHEM_C3Plot.Maximized = false;
+GEO_CHEM_C3Plot.XVariable = GEO_CHEM.ElapsedDays;
+GEO_CHEM_C3Plot.YVariables = {GEO_CHEM.Earth.C3Energy};
+GEO_CHEM_C3Plot.ShowGrid = true;
+GEO_CHEM_C3Plot.ShowPlot = true;
+
+Create XYPlot GEO_CHEM_MassPlot;
+GEO_CHEM_MassPlot.SolverIterations = Current;
+GEO_CHEM_MassPlot.UpperLeft = [ 0.4996767937944409 0.6092572658772875 ];
+GEO_CHEM_MassPlot.Size = [ 0.4699418228829993 0.2798708288482239 ];
+GEO_CHEM_MassPlot.RelativeZOrder = 449;
+GEO_CHEM_MassPlot.Maximized = false;
+GEO_CHEM_MassPlot.XVariable = GEO_CHEM.ElapsedDays;
+GEO_CHEM_MassPlot.YVariables = {GEO_CHEM.TotalMass};
+GEO_CHEM_MassPlot.ShowGrid = true;
+GEO_CHEM_MassPlot.ShowPlot = true;
+
+Create OpenFramesInterface GEO_CHEM_View;
+GEO_CHEM_View.SolverIterations = Current;
+GEO_CHEM_View.UpperLeft = [ 0.4996767937944409 0.00968783638320775 ];
+GEO_CHEM_View.Size = [ 0.4692954104718811 0.5586652314316469 ];
+GEO_CHEM_View.RelativeZOrder = 454;
+GEO_CHEM_View.Maximized = false;
+GEO_CHEM_View.Add = {Earth, GEO_CHEM, Luna};
+GEO_CHEM_View.View = {GEO_CHEM_View_View};
+GEO_CHEM_View.CoordinateSystem = EarthMJ2000Eq;
+GEO_CHEM_View.DrawObject = [ true true true ];
+GEO_CHEM_View.DrawTrajectory = [ true true true ];
+GEO_CHEM_View.DrawAxes = [ false false false ];
+GEO_CHEM_View.DrawXYPlane = [ false false false ];
+GEO_CHEM_View.DrawLabel = [ true true true ];
+GEO_CHEM_View.DrawUsePropLabel = [ false false false ];
+GEO_CHEM_View.DrawCenterPoint = [ true true true ];
+GEO_CHEM_View.DrawEndPoints = [ true true true ];
+GEO_CHEM_View.DrawVelocity = [ false false false ];
+GEO_CHEM_View.DrawGrid = [ false false false ];
+GEO_CHEM_View.DrawLineWidth = [ 2 2 2 ];
+GEO_CHEM_View.DrawMarkerSize = [ 10 10 10 ];
+GEO_CHEM_View.DrawFontSize = [ 20 20 20 ];
+GEO_CHEM_View.Axes = On;
+GEO_CHEM_View.AxesLength = 12756.2726;
+GEO_CHEM_View.AxesLabels = On;
+GEO_CHEM_View.FrameLabel = Off;
+GEO_CHEM_View.XYPlane = On;
+GEO_CHEM_View.EclipticPlane = Off;
+GEO_CHEM_View.EnableStars = On;
+GEO_CHEM_View.StarCatalog = 'inp_StarsHYGv3.txt';
+GEO_CHEM_View.StarCount = 40000;
+GEO_CHEM_View.MinStarMag = -2;
+GEO_CHEM_View.MaxStarMag = 6;
+GEO_CHEM_View.MinStarPixels = 1;
+GEO_CHEM_View.MaxStarPixels = 10;
+GEO_CHEM_View.MinStarDimRatio = 0.5;
+GEO_CHEM_View.ShowPlot = true;
+GEO_CHEM_View.ShowToolbar = true;
+GEO_CHEM_View.SolverIterLastN = 1;
+GEO_CHEM_View.ShowVR = false;
+GEO_CHEM_View.PlaybackTimeScale = 3600;
+GEO_CHEM_View.MultisampleAntiAliasing = On;
+GEO_CHEM_View.MSAASamples = 2;
+GEO_CHEM_View.DrawFontPosition = {'Top-Right', 'Top-Right', 'Top-Right'};
+
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.UpperLeft = [ 0 0 ];
+EphemerisFile1.Size = [ 0 0 ];
+EphemerisFile1.RelativeZOrder = 0;
+EphemerisFile1.Maximized = false;
+EphemerisFile1.Spacecraft = GEO_CHEM;
+EphemerisFile1.Filename = 'EphemerisFile1.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.OutputFormat = LittleEndian;
+EphemerisFile1.IncludeCovariance = None;
+EphemerisFile1.WriteEphemeris = true;
+
+%----------------------------------------
+%---------- Arrays, Variables, Strings
+%----------------------------------------
+Create Variable MissionMode IADCBaseAltitude GraveyardAltitude GraveyardRadius EscapeC3 GEO_Radius InitialTotalMass FinalTotalMass InitialFuelMass FinalFuelMass;
+Create Variable PropellantUsed DeltaV PostManeuverCoastDays VisualizationCoastSeconds;
+
+
+%----------------------------------------
+%---------- User Objects
+%----------------------------------------
+
+Create OpenFramesView GEO_CHEM_View_View;
+GEO_CHEM_View_View.ViewFrame = CoordinateSystem;
+GEO_CHEM_View_View.ViewTrajectory = Off;
+GEO_CHEM_View_View.InertialFrame = Off;
+GEO_CHEM_View_View.SetDefaultLocation = On;
+GEO_CHEM_View_View.DefaultEye = [ 90000 0 60000 ];
+GEO_CHEM_View_View.DefaultCenter = [ 0 0 0 ];
+GEO_CHEM_View_View.DefaultUp = [ 0 0 1 ];
+GEO_CHEM_View_View.SetCurrentLocation = Off;
+GEO_CHEM_View_View.FOVy = 45;
+
+
+%----------------------------------------
+%---------- Mission Sequence
+%----------------------------------------
+
+
+BeginMissionSequence;
+Toggle EphemerisFile1 On;
+
+% --------------------------- USER PARAMETERS ---------------------------
+% To use a GSO, edit SMAECCINCRAANAOPTA directly in Create Spacecraft.
+% 0 = graveyard orbit, 1 = true Earth escape.
+MissionMode = 0;
+EscapeC3 = 0.01;
+PostManeuverCoastDays = 2;
+VisualizationCoastSeconds = 86400 * PostManeuverCoastDays;
+% ----------------------------------------------------------------------
+
+% IADC graveyard altitude (km) 235 + 1000  Cr  SRPArea  DryMass.
+IADCBaseAltitude = 235;
+GraveyardAltitude = IADCBaseAltitude + 1000 * GEO_CHEM.Cr * GEO_CHEM.SRPArea / GEO_CHEM.DryMass;
+GEO_Radius = GEO_CHEM.Earth.SMA;
+% For GEO or GSO, disposal is above the actual initial apogee plus IADC clearance.
+GraveyardRadius = GEO_CHEM.Earth.RadApo + GraveyardAltitude;
+
+InitialTotalMass = GEO_CHEM.TotalMass;
+InitialFuelMass = InitialTotalMass - GEO_CHEM.DryMass;
+
+If 'Select chemical end-of-life mode' MissionMode < 0.5
+   % First Target set transfer apogee to the desired disposal radius.
+   Target 'Target chemical transfer apogee' GEO_CHEM_DC {SolveMode = Solve, ExitMode = DiscardAndContinue, ShowProgressWindow = true};
+      Vary GEO_CHEM_DC(RaiseGraveyard.Element1 = 0.01, {Perturbation = 0.00001, Lower = 0, Upper = 0.1, MaxStep = 9.999999e300, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+      Maneuver 'Inject Hohmann transfer to graveyard' RaiseGraveyard(GEO_CHEM);
+      Propagate 'Coast to transfer apogee' GEO_CHEM_Prop(GEO_CHEM) {GEO_CHEM.Earth.Apoapsis};
+      Achieve GEO_CHEM_DC(GEO_CHEM.Earth.RadApo = GraveyardRadius, {Tolerance = 0.01});
+   EndTarget;  % For targeter GEO_CHEM_DC
+   % Second Target at that apogee, circularize to the same radius.
+   Target 'Target chemical graveyard circularization' GEO_CHEM_DC {SolveMode = Solve, ExitMode = DiscardAndContinue, ShowProgressWindow = true};
+      Vary GEO_CHEM_DC(CircularizeGraveyard.Element1 = 0.01, {Perturbation = 0.00001, Lower = 0, Upper = 0.1, MaxStep = 9.999999e300, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+      Maneuver 'Circularize chemical graveyard orbit' CircularizeGraveyard(GEO_CHEM);
+      Achieve GEO_CHEM_DC(GEO_CHEM.Earth.SMA = GraveyardRadius, {Tolerance = 0.01});
+   EndTarget;  % For targeter GEO_CHEM_DC
+Else
+   % Direct Earth escape with requested positive C3 in km^2s^2.
+   Target 'Target direct chemical Earth escape' GEO_CHEM_DC {SolveMode = Solve, ExitMode = DiscardAndContinue, ShowProgressWindow = true};
+      Vary GEO_CHEM_DC(EscapeBurn.Element1 = 1.3, {Perturbation = 0.0001, Lower = 0, Upper = 3, MaxStep = 9.999999e300, AdditiveScaleFactor = 0.0, MultiplicativeScaleFactor = 1.0});
+      Maneuver 'Direct chemical Earth escape' EscapeBurn(GEO_CHEM);
+      Achieve GEO_CHEM_DC(GEO_CHEM.Earth.C3Energy = EscapeC3, {Tolerance = 0.000001});
+   EndTarget;  % For targeter GEO_CHEM_DC
+EndIf;
+
+% Retain two final orbits in the plots, so the solved circular disposal orbit
+% (or the initial escape arc) remains directly visible in GMAT.
+Propagate 'Coast for visualization of final trajectory' GEO_CHEM_Prop(GEO_CHEM) {GEO_CHEM.ElapsedSecs = VisualizationCoastSeconds};
+
+FinalTotalMass = GEO_CHEM.TotalMass;
+FinalFuelMass = FinalTotalMass - GEO_CHEM.DryMass;
+PropellantUsed = InitialFuelMass - FinalFuelMass;
+DeltaV = 0;
+DeltaV = RaiseGraveyard.Element1 + CircularizeGraveyard.Element1 + EscapeBurn.Element1;
+Report GEO_CHEM_Summary MissionMode GEO_CHEM.ElapsedDays InitialFuelMass FinalFuelMass PropellantUsed DeltaV GEO_CHEM.Earth.SMA GEO_CHEM.Earth.RadPer GEO_CHEM.Earth.RadApo GEO_CHEM.Earth.ECC GEO_CHEM.Earth.C3Energy;

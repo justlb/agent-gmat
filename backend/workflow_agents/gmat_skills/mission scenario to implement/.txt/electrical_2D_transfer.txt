@@ -1,0 +1,417 @@
+%
+%  Script: Tut_ElectricPropulsionModelling
+%
+%  Script for use with the "Electric Propulsion" Users Guide tutorial.
+%
+
+%----------------------------------------
+%---------- Spacecraft
+%----------------------------------------
+
+Create Spacecraft DefaultSC;
+
+DefaultSC.DateFormat = TAIModJulian;
+DefaultSC.Epoch = '31262.66709490726';
+DefaultSC.CoordinateSystem = EarthMJ2000Eq;
+DefaultSC.DisplayStateType = Keplerian;
+DefaultSC.SMA = 6678.1363;
+DefaultSC.ECC = 1.279570234560536e-16;
+DefaultSC.INC = 0;
+DefaultSC.RAAN = 0;
+DefaultSC.AOP = 0;
+DefaultSC.TA = 0;
+DefaultSC.DryMass = 850;
+DefaultSC.Cd = 2.2;
+DefaultSC.Cr = 1.8;
+DefaultSC.DragArea = 15;
+DefaultSC.SRPArea = 1;
+DefaultSC.SPADDragScaleFactor = 1;
+DefaultSC.SPADSRPScaleFactor = 1;
+DefaultSC.AtmosDensityScaleFactor = 1;
+DefaultSC.ExtendedMassPropertiesModel = 'None';
+DefaultSC.Tanks = {ElectricTank1};
+DefaultSC.Thrusters = {ElectricThruster1};
+DefaultSC.PowerSystem = SolarPowerSystem1;
+DefaultSC.NAIFId = -10006001;
+DefaultSC.NAIFIdReferenceFrame = -9006001;
+DefaultSC.OrbitColor = Red;
+DefaultSC.TargetColor = Teal;
+DefaultSC.OrbitErrorCovariance = [ 1e+70 0 0 0 0 0 ; 0 1e+70 0 0 0 0 ; 0 0 1e+70 0 0 0 ; 0 0 0 1e+70 0 0 ; 0 0 0 0 1e+70 0 ; 0 0 0 0 0 1e+70 ];
+DefaultSC.CdSigma = 1e+70;
+DefaultSC.CrSigma = 1e+70;
+DefaultSC.Id = 'SatId';
+DefaultSC.Attitude = CoordinateSystemFixed;
+DefaultSC.SPADSRPInterpolationMethod = Bilinear;
+DefaultSC.SPADSRPScaleFactorSigma = 1e+70;
+DefaultSC.SPADDragInterpolationMethod = Bilinear;
+DefaultSC.SPADDragScaleFactorSigma = 1e+70;
+DefaultSC.AtmosDensityScaleFactorSigma = 1e+70;
+DefaultSC.ModelFile = 'aura.3ds';
+DefaultSC.ModelOffsetX = 0;
+DefaultSC.ModelOffsetY = 0;
+DefaultSC.ModelOffsetZ = 0;
+DefaultSC.ModelRotationX = 0;
+DefaultSC.ModelRotationY = 0;
+DefaultSC.ModelRotationZ = 0;
+DefaultSC.ModelScale = 1;
+DefaultSC.AttitudeDisplayStateType = 'Quaternion';
+DefaultSC.AttitudeRateDisplayStateType = 'AngularVelocity';
+DefaultSC.AttitudeCoordinateSystem = EarthMJ2000Eq;
+DefaultSC.EulerAngleSequence = '321';
+
+
+%----------------------------------------
+%---------- Hardware Components
+%----------------------------------------
+
+Create ElectricTank ElectricTank1;
+ElectricTank1.DirectionX = 0;
+ElectricTank1.DirectionY = 0;
+ElectricTank1.DirectionZ = 1;
+ElectricTank1.SecondDirectionX = 0;
+ElectricTank1.SecondDirectionY = -1;
+ElectricTank1.SecondDirectionZ = 0;
+ElectricTank1.HWOriginInBCSX = 0;
+ElectricTank1.HWOriginInBCSY = 0;
+ElectricTank1.HWOriginInBCSZ = 0;
+
+% A transfer must never continue with an unphysical negative xenon mass.
+ElectricTank1.AllowNegativeFuelMass = false;
+ElectricTank1.FuelMass = 756;
+ElectricTank1.FuelCenterOfMassX = 0;
+ElectricTank1.FuelCenterOfMassY = 0;
+ElectricTank1.FuelCenterOfMassZ = 0;
+ElectricTank1.FuelMomentOfInertiaXX = 99;
+ElectricTank1.FuelMomentOfInertiaXY = 0;
+ElectricTank1.FuelMomentOfInertiaXZ = 0;
+ElectricTank1.FuelMomentOfInertiaYY = 99;
+ElectricTank1.FuelMomentOfInertiaYZ = 0;
+ElectricTank1.FuelMomentOfInertiaZZ = 99;
+
+Create ElectricThruster ElectricThruster1;
+ElectricThruster1.HWOriginInBCSX = 0;
+ElectricThruster1.HWOriginInBCSY = 0;
+ElectricThruster1.HWOriginInBCSZ = 0;
+
+ElectricThruster1.CoordinateSystem = Local;
+ElectricThruster1.Origin = Earth;
+ElectricThruster1.Axes = VNB;
+ElectricThruster1.ThrustDirection1 = 1;
+ElectricThruster1.ThrustDirection2 = 0;
+ElectricThruster1.ThrustDirection3 = 0;
+ElectricThruster1.DutyCycle = 1;
+ElectricThruster1.ThrustScaleFactor = 1;
+ElectricThruster1.DecrementMass = true;
+ElectricThruster1.Tank = {ElectricTank1};
+ElectricThruster1.MixRatio = [ 1 ];
+ElectricThruster1.GravitationalAccel = 9.81;
+% The former fitted mass-flow polynomial consumed up to 1.34 g/s at roughly
+% 11 kW, which is incompatible with Isp = 4200 s by more than two orders of
+% magnitude.  Use an explicit, power-compatible constant-thrust model.
+ElectricThruster1.ThrustModel = ConstantThrustAndIsp;
+ElectricThruster1.MaximumUsablePower = 12;
+ElectricThruster1.MinimumUsablePower = 0.01;
+ElectricThruster1.ThrustCoeff1 = -5.19082;
+ElectricThruster1.ThrustCoeff2 = 2.96519;
+ElectricThruster1.ThrustCoeff3 = -14.4789;
+ElectricThruster1.ThrustCoeff4 = 54.05382;
+ElectricThruster1.ThrustCoeff5 = -0.00100092;
+ElectricThruster1.MassFlowCoeff1 = -0.004776;
+ElectricThruster1.MassFlowCoeff2 = 0.05717;
+ElectricThruster1.MassFlowCoeff3 = -0.09956;
+ElectricThruster1.MassFlowCoeff4 = 0.03211;
+ElectricThruster1.MassFlowCoeff5 = 2.13781;
+ElectricThruster1.FixedEfficiency = 0.7;
+ElectricThruster1.Isp = 4200;
+% 0.25 N at 4200 s needs about 7.36 kW at 70% efficiency, below the
+% approximately 11.2 kW available in the validated run.
+ElectricThruster1.ConstantThrust = 0.25;
+
+Create SolarPowerSystem SolarPowerSystem1;
+
+SolarPowerSystem1.EpochFormat = 'UTCGregorian';
+SolarPowerSystem1.InitialEpoch = ''10 Aug 2026 03:59:59.999'';
+SolarPowerSystem1.InitialMaxPower = 15;
+SolarPowerSystem1.AnnualDecayRate = 5;
+SolarPowerSystem1.Margin = 15;
+SolarPowerSystem1.BusCoeff1 = 1.5;
+SolarPowerSystem1.BusCoeff2 = 0;
+SolarPowerSystem1.BusCoeff3 = 0;
+SolarPowerSystem1.ShadowModel = 'DualCone';
+SolarPowerSystem1.ShadowBodies = {'Earth'};
+SolarPowerSystem1.SolarCoeff1 = 1.32077;
+SolarPowerSystem1.SolarCoeff2 = -0.10848;
+SolarPowerSystem1.SolarCoeff3 = -0.11665;
+SolarPowerSystem1.SolarCoeff4 = 0.10843;
+SolarPowerSystem1.SolarCoeff5 = -0.01279;
+
+
+
+%----------------------------------------
+%---------- ForceModels
+%----------------------------------------
+
+Create ForceModel DefaultProp_ForceModel;
+
+DefaultProp_ForceModel.CentralBody = Earth;
+DefaultProp_ForceModel.PrimaryBodies = {Earth};
+% Retain the requested high-fidelity perturbations while using relaxed
+% integration tolerances for a fast engineering-level estimate.
+DefaultProp_ForceModel.PointMasses = {Sun, Luna};
+DefaultProp_ForceModel.Drag.AtmosphereModel = MSISE90;
+DefaultProp_ForceModel.Drag.F107 = 150;
+DefaultProp_ForceModel.Drag.F107A = 150;
+DefaultProp_ForceModel.Drag.MagneticIndex = 3;
+DefaultProp_ForceModel.SRP = Off;
+DefaultProp_ForceModel.RelativisticCorrection = On;
+DefaultProp_ForceModel.ErrorControl = RSSStep;
+DefaultProp_ForceModel.GravityField.Earth.Degree = 4;
+DefaultProp_ForceModel.GravityField.Earth.Order = 4;
+DefaultProp_ForceModel.GravityField.Earth.StmLimit = 100;
+DefaultProp_ForceModel.GravityField.Earth.PotentialFile = 'JGM2.cof';
+DefaultProp_ForceModel.GravityField.Earth.TideModel = 'None';
+
+%----------------------------------------
+%---------- Propagators
+%----------------------------------------
+
+Create Propagator DefaultProp;
+
+DefaultProp.FM = DefaultProp_ForceModel;
+DefaultProp.Type = RungeKutta89;
+% Validated long-transfer settings: six times fewer outer-loop samples than
+% the former 60 s setup, while RungeKutta89 adapts internally near eclipses
+% and perturbations.
+% Fast, engineering-level propagation for a multi-week low-thrust spiral.
+% The integrator starts with a 30-minute step and may adapt up to two hours
+% when the dynamics are smooth.
+DefaultProp.InitialStepSize = 21600;
+DefaultProp.Accuracy = 1e-05;
+DefaultProp.MinStep = 0;
+DefaultProp.MaxStep = 86400;
+DefaultProp.MaxStepAttempts = 50;
+DefaultProp.StopIfAccuracyIsViolated = true;
+
+%----------------------------------------
+%---------- Burns
+%----------------------------------------
+
+Create ImpulsiveBurn DefaultIB;
+
+DefaultIB.CoordinateSystem = Local;
+DefaultIB.Origin = Earth;
+DefaultIB.Axes = VNB;
+DefaultIB.Element1 = 0;
+DefaultIB.Element2 = 0;
+DefaultIB.Element3 = 0;
+DefaultIB.DecrementMass = false;
+DefaultIB.Tank = {ElectricTank1};
+DefaultIB.Isp = 300;
+DefaultIB.GravitationalAccel = 9.81;
+
+Create FiniteBurn FiniteBurn1;
+FiniteBurn1.Thrusters = {ElectricThruster1};
+FiniteBurn1.ThrottleLogicAlgorithm = 'MaxNumberOfThrusters';
+
+%----------------------------------------
+%---------- Subscribers
+%----------------------------------------
+
+Create OpenFramesInterface OFI_DefaultOrbitView;
+
+OFI_DefaultOrbitView.SolverIterations = Current;
+OFI_DefaultOrbitView.UpperLeft = [ 0.9333333333333333 0 ];
+OFI_DefaultOrbitView.Size = [ 1.145333333333333 0.5351027397260274 ];
+OFI_DefaultOrbitView.RelativeZOrder = 334;
+OFI_DefaultOrbitView.Maximized = false;
+
+OFI_DefaultOrbitView.Add = {DefaultSC, Earth};
+OFI_DefaultOrbitView.View = {DefaultOrbit_View};
+
+OFI_DefaultOrbitView.CoordinateSystem = EarthMJ2000Eq;
+OFI_DefaultOrbitView.DrawObject = [ true true ];
+OFI_DefaultOrbitView.DrawTrajectory = [ true true ];
+OFI_DefaultOrbitView.DrawAxes = [ false false ];
+OFI_DefaultOrbitView.DrawXYPlane = [ false false ];
+OFI_DefaultOrbitView.DrawLabel = [ true true ];
+OFI_DefaultOrbitView.DrawUsePropLabel = [ false false ];
+OFI_DefaultOrbitView.DrawCenterPoint = [ true true ];
+OFI_DefaultOrbitView.DrawEndPoints = [ true true ];
+OFI_DefaultOrbitView.DrawVelocity = [ false false ];
+OFI_DefaultOrbitView.DrawGrid = [ false false ];
+OFI_DefaultOrbitView.DrawLineWidth = [ 2 2 ];
+OFI_DefaultOrbitView.DrawMarkerSize = [ 10 10 ];
+OFI_DefaultOrbitView.DrawFontSize = [ 20 20 ];
+
+OFI_DefaultOrbitView.Axes = On;
+OFI_DefaultOrbitView.AxesLength = 12756.2726;
+OFI_DefaultOrbitView.AxesLabels = On;
+OFI_DefaultOrbitView.FrameLabel = Off;
+OFI_DefaultOrbitView.XYPlane = On;
+OFI_DefaultOrbitView.EclipticPlane = Off;
+OFI_DefaultOrbitView.EnableStars = On;
+OFI_DefaultOrbitView.StarCatalog = 'inp_StarsHYGv3.txt';
+OFI_DefaultOrbitView.StarCount = 40000;
+OFI_DefaultOrbitView.MinStarMag = -2;
+OFI_DefaultOrbitView.MaxStarMag = 6;
+OFI_DefaultOrbitView.MinStarPixels = 1;
+OFI_DefaultOrbitView.MaxStarPixels = 10;
+OFI_DefaultOrbitView.MinStarDimRatio = 0.5;
+OFI_DefaultOrbitView.ShowPlot = true;
+OFI_DefaultOrbitView.ShowToolbar = true;
+OFI_DefaultOrbitView.SolverIterLastN = 1;
+OFI_DefaultOrbitView.ShowVR = false;
+OFI_DefaultOrbitView.PlaybackTimeScale = 3600;
+OFI_DefaultOrbitView.MultisampleAntiAliasing = On;
+OFI_DefaultOrbitView.MSAASamples = 2;
+OFI_DefaultOrbitView.DrawFontPosition = {'Top-Right', 'Top-Right'};
+
+Create GroundTrack DefaultGroundTrackPlot;
+
+DefaultGroundTrackPlot.SolverIterations = Current;
+DefaultGroundTrackPlot.UpperLeft = [ 0 0.535958904109589 ];
+DefaultGroundTrackPlot.Size = [ 0.9386666666666666 0.5873287671232876 ];
+DefaultGroundTrackPlot.RelativeZOrder = 337;
+DefaultGroundTrackPlot.Maximized = false;
+DefaultGroundTrackPlot.CentralBody = Earth;
+DefaultGroundTrackPlot.TextureMap = 'ModifiedBlueMarble.jpg';
+DefaultGroundTrackPlot.Add = {DefaultSC};
+DefaultGroundTrackPlot.DataCollectFrequency = 1;
+DefaultGroundTrackPlot.UpdatePlotFrequency = 50;
+DefaultGroundTrackPlot.NumPointsToRedraw = 0;
+DefaultGroundTrackPlot.MaxPlotPoints = 20000;
+DefaultGroundTrackPlot.ShowPlot = true;
+
+Create XYPlot PowerVsTime;
+
+PowerVsTime.SolverIterations = Current;
+PowerVsTime.UpperLeft = [ 0.9333333333333333 0.5393835616438356 ];
+PowerVsTime.Size = [ 1.116444444444444 0.4589041095890411 ];
+PowerVsTime.RelativeZOrder = 331;
+PowerVsTime.Maximized = false;
+PowerVsTime.XVariable = DefaultSC.A1ModJulian;
+PowerVsTime.YVariables = {DefaultSC.SolarPowerSystem1.TotalPowerAvailable};
+PowerVsTime.ShowGrid = true;
+PowerVsTime.ShowPlot = true;
+
+% Lightweight diagnostics kept on during the transfer.  Unlike GroundTrack
+% and the 3-D view, these two scalar plots do not retain the full trajectory.
+Create XYPlot TransferSmaVsTime;
+TransferSmaVsTime.SolverIterations = Current;
+TransferSmaVsTime.UpperLeft = [ 0.03 0.02 ];
+TransferSmaVsTime.Size = [ 0.90 0.44 ];
+TransferSmaVsTime.RelativeZOrder = 345;
+TransferSmaVsTime.Maximized = false;
+TransferSmaVsTime.XVariable = DefaultSC.ElapsedDays;
+TransferSmaVsTime.YVariables = {DefaultSC.SMA};
+TransferSmaVsTime.ShowGrid = true;
+TransferSmaVsTime.ShowPlot = true;
+
+Create XYPlot TransferFuelVsTime;
+TransferFuelVsTime.SolverIterations = Current;
+TransferFuelVsTime.UpperLeft = [ 0.03 0.50 ];
+TransferFuelVsTime.Size = [ 0.90 0.44 ];
+TransferFuelVsTime.RelativeZOrder = 346;
+TransferFuelVsTime.Maximized = false;
+TransferFuelVsTime.XVariable = DefaultSC.ElapsedDays;
+TransferFuelVsTime.YVariables = {DefaultSC.ElectricTank1.FuelMass};
+TransferFuelVsTime.ShowGrid = true;
+TransferFuelVsTime.ShowPlot = true;
+
+% Application instrumentation: this is the only subscriber added to the
+% tutorial so the frontend can parse results and display its diagnostics.
+Create ReportFile ElectricTransferReport;
+ElectricTransferReport.SolverIterations = Current;
+ElectricTransferReport.UpperLeft = [ 0 0 ];
+ElectricTransferReport.Size = [ 0 0 ];
+ElectricTransferReport.RelativeZOrder = 0;
+ElectricTransferReport.Maximized = false;
+ElectricTransferReport.Filename = 'ElectricTransferReport.txt';
+ElectricTransferReport.Precision = 16;
+ElectricTransferReport.Add = {DefaultSC.ElapsedDays, DefaultSC.SMA, DefaultSC.ECC, DefaultSC.INC, DefaultSC.RAAN, DefaultSC.AOP, DefaultSC.TA, DefaultSC.ElectricTank1.FuelMass, DefaultSC.TotalMass, DefaultSC.SolarPowerSystem1.ThrustPowerAvailable, DefaultSC.ElectricThruster1.MassFlowRate};
+ElectricTransferReport.WriteHeaders = true;
+ElectricTransferReport.LeftJustify = On;
+ElectricTransferReport.ZeroFill = Off;
+ElectricTransferReport.FixedWidth = true;
+ElectricTransferReport.Delimiter = ' ';
+ElectricTransferReport.ColumnWidth = 23;
+ElectricTransferReport.WriteReport = true;
+ElectricTransferReport.AppendToExistingFile = false;
+
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.UpperLeft = [ 0 0 ];
+EphemerisFile1.Size = [ 0 0 ];
+EphemerisFile1.RelativeZOrder = 0;
+EphemerisFile1.Maximized = false;
+EphemerisFile1.Spacecraft = DefaultSC;
+EphemerisFile1.Filename = 'EphemerisFile1.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.OutputFormat = LittleEndian;
+EphemerisFile1.IncludeCovariance = None;
+EphemerisFile1.WriteEphemeris = true;
+
+%----------------------------------------
+%---------- Arrays, Variables, Strings
+%----------------------------------------
+Create Variable targetFinalAltitudeKm targetFinalSmaKm fuelReserveKg maxTransferDays;
+% The initial circular orbit is approximately 300 km high.  The target must
+% therefore be higher than that altitude for the finite burn to be exercised.
+targetFinalAltitudeKm = 35786;
+% Altitude at an arbitrary propagated anomaly can reach the target while the
+% perigee remains below it.  Use perigee radius as the orbit-wide completion
+% condition, with a fixed Earth equatorial radius in kilometres.
+targetFinalSmaKm = 0;
+% Keep a non-zero reserve and impose a mission-duration bound.  Both are
+% independent stop conditions and prevent an invalid fuel-mass step.
+fuelReserveKg = 1;
+maxTransferDays = 1500;
+
+
+%----------------------------------------
+%---------- User Objects
+%----------------------------------------
+
+Create OpenFramesView DefaultOrbit_View;
+
+DefaultOrbit_View.ViewFrame = CoordinateSystem;
+DefaultOrbit_View.ViewTrajectory = Off;
+DefaultOrbit_View.InertialFrame = Off;
+DefaultOrbit_View.SetDefaultLocation = On;
+
+DefaultOrbit_View.DefaultEye = [ 30000 0 0 ];
+DefaultOrbit_View.DefaultCenter = [ 0 0 0 ];
+DefaultOrbit_View.DefaultUp = [ 0 0 1 ];
+DefaultOrbit_View.SetCurrentLocation = Off;
+DefaultOrbit_View.FOVy = 45;
+
+
+%----------------------------------------
+%---------- Mission Sequence
+%----------------------------------------
+BeginMissionSequence;
+
+targetFinalSmaKm = 6378.1363 + targetFinalAltitudeKm;
+
+Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;
+
+% Disable high-volume subscribers during the long spiral.  The ground track
+% has no data-size cap and was the dominant runtime/memory cost.
+Toggle OFI_DefaultOrbitView Off;
+Toggle DefaultGroundTrackPlot Off;
+Toggle PowerVsTime Off;
+Toggle ElectricTransferReport Off;
+Toggle EphemerisFile1 Off;
+BeginFiniteBurn 'Start the Maneuver' FiniteBurn1(DefaultSC);
+% One continuous propagation: GMAT stops at the first attained event.
+Propagate 'Spiral from 300 km LEO to GEO SMA' DefaultProp(DefaultSC) {DefaultSC.Earth.SMA = targetFinalSmaKm, DefaultSC.ElectricTank1.FuelMass = fuelReserveKg, DefaultSC.ElapsedDays = maxTransferDays};
+EndFiniteBurn 'End the Maneuver' FiniteBurn1(DefaultSC);
+
+Toggle ElectricTransferReport On;
+Report ElectricTransferReport DefaultSC.ElapsedDays DefaultSC.SMA DefaultSC.ECC DefaultSC.INC DefaultSC.RAAN DefaultSC.AOP DefaultSC.TA DefaultSC.ElectricTank1.FuelMass DefaultSC.TotalMass DefaultSC.SolarPowerSystem1.ThrustPowerAvailable DefaultSC.ElectricThruster1.MassFlowRate;

@@ -1,3 +1,4 @@
+import type { RunView } from './runViewApi'
 import type { ResultSample } from './runResultsApi'
 
 type Metric =
@@ -25,12 +26,23 @@ const METRICS: Record<Metric, { label: string; unit: string }> = {
 
 const RESULT_METRICS: Metric[] = [
   'altitudeKm',
-  'semiMajorAxisKm',
-  'eccentricity',
   'fuelMassKg',
-  'powerAvailableKw',
   'massFlowRateKgPerSec',
 ]
+
+// Threshold lines drawn on time-series charts. `transform` converts raw missionValues to chart units.
+const THRESHOLDS: Partial<Record<Metric, { key: string; label: string; transform?: (v: number) => number }[]>> = {
+  altitudeKm: [
+    { key: 'initialOrbit.altitudeKm', label: 'Base altitude' },
+    { key: 'stationKeeping.targetSmaKm', label: 'Target altitude', transform: sma => sma - 6378.1363 },
+    { key: 'stationKeeping.minimumAltitudeKm', label: 'Reboost threshold' },
+    { key: 'endOfLife.finalAltitudeKm', label: 'Final altitude' },
+    { key: 'transfer.finalAltitudeKm', label: 'Target altitude' },
+  ],
+  fuelMassKg: [
+    { key: 'stationKeeping.fuelReserveKg', label: 'Fuel reserve' },
+  ],
+}
 
 function hasMetric(sample: ResultSample, metric: Metric): sample is ResultSample & Record<Metric, number> {
   return typeof sample[metric] === 'number' && Number.isFinite(sample[metric])
@@ -59,7 +71,23 @@ function metricRange(samples: ResultSample[], metric: Metric) {
   )
 }
 
-function LineChart({ metric, series }: { metric: Metric; series: ChartSeries[] }) {
+/** Parse overview scalar values like "12.50 min" or "Beijing: 12.50 min; Svalbard: 8.30 min" into structured data. */
+function parsePerStation(value: string): { station: string; minutes: number }[] {
+  // Format: "Station1: 12.50 min; Station2: 8.30 min" or just "12.50 min"
+  if (!value) return []
+  const parts = value.split(';').map(s => s.trim())
+  return parts.map(part => {
+    const match = part.match(/^(?:(.+?):\s*)?([\d.]+)\s*min$/u)
+    if (!match) return null
+    return { station: match[1] ?? 'Contact', minutes: parseFloat(match[2]) }
+  }).filter((x): x is { station: string; minutes: number } => x !== null)
+}
+
+function LineChart({ metric, series, thresholds = [] }: {
+  metric: Metric
+  series: ChartSeries[]
+  thresholds?: { value: number; label: string; color: string }[]
+}) {
   const width = 760
   const height = 300
   const margin = { bottom: 58, left: 74, right: 24, top: 26 }
@@ -74,15 +102,15 @@ function LineChart({ metric, series }: { metric: Metric; series: ChartSeries[] }
     return <p className="gmat-analysis-note">This GMAT report does not contain {METRICS[metric].label.toLowerCase()} samples.</p>
   }
 
-  const { xMin, xMax, yMin, yMax } = samples.reduce(
-    (range, sample) => ({
-      xMin: Math.min(range.xMin, sample.elapsedDays),
-      xMax: Math.max(range.xMax, sample.elapsedDays),
-      yMin: Math.min(range.yMin, sample[metric]),
-      yMax: Math.max(range.yMax, sample[metric]),
-    }),
-    { xMin: Infinity, xMax: -Infinity, yMin: Infinity, yMax: -Infinity },
-  )
+  // Compute Y range including thresholds so they're always visible.
+  const dataMin = Math.min(...samples.map(s => s[metric]))
+  const dataMax = Math.max(...samples.map(s => s[metric]))
+  const thresholdValues = thresholds.map(t => t.value)
+  const yMin = Math.min(dataMin, ...thresholdValues)
+  const yMax = Math.max(dataMax, ...thresholdValues)
+
+  const xMin = Math.min(...samples.map(s => s.elapsedDays))
+  const xMax = Math.max(...samples.map(s => s.elapsedDays))
   const xSpan = xMax - xMin || 1
   const ySpan = yMax - yMin || 1
   const x = (value: number) => margin.left + ((value - xMin) / xSpan) * chartWidth
@@ -99,6 +127,13 @@ function LineChart({ metric, series }: { metric: Metric; series: ChartSeries[] }
       </g>
       <line x1={margin.left} x2={margin.left} y1={margin.top} y2={height - margin.bottom} />
       <line x1={margin.left} x2={width - margin.right} y1={height - margin.bottom} y2={height - margin.bottom} />
+      {/* Threshold lines */}
+      {thresholds.map(t => (
+        <g key={t.label}>
+          <line x1={margin.left} x2={width - margin.right} y1={y(t.value)} y2={y(t.value)} stroke={t.color} strokeWidth="2" strokeDasharray="8 4" />
+          <text x={width - margin.right - 4} y={y(t.value) - 5} textAnchor="end" fill={t.color} fontSize="10" fontWeight="700">{t.label}: {axisValue(t.value)} {unit}</text>
+        </g>
+      ))}
       {yTicks.map(tick => <text key={`yl-${tick}`} textAnchor="end" x={margin.left - 8} y={y(tick) + 4}>{axisValue(tick)}</text>)}
       {xTicks.map(tick => <text key={`xl-${tick}`} textAnchor="middle" x={x(tick)} y={height - margin.bottom + 20}>{axisValue(tick)}</text>)}
       <text textAnchor="middle" x={margin.left + chartWidth / 2} y={height - 10}>Elapsed time (days)</text>
@@ -117,34 +152,179 @@ function LineChart({ metric, series }: { metric: Metric; series: ChartSeries[] }
   </>
 }
 
-/** Renders immutable time-series artifacts only; it never triggers a new GMAT calculation. */
-export function ResultCharts({ samples, comparison = [], label, comparisonLabel }: {
-  samples: ResultSample[]
-  comparison?: ResultSample[]
-  label: string
-  comparisonLabel?: string
-}) {
-  const series: ChartSeries[] = [
-    { color: '#60a5fa', label, samples },
-    ...(comparisonLabel ? [{ color: '#f59e0b', label: comparisonLabel, samples: comparison }] : []),
-  ]
+// --- Bar chart components ---
 
-  if (!samples.length) {
+function BarChart({ title, subtitle, bars, unit, color = '#60a5fa' }: {
+  title: string
+  subtitle: string
+  bars: { label: string; value: number; color?: string }[]
+  unit: string
+  color?: string
+}) {
+  if (!bars.length || bars.every(b => b.value === 0)) {
+    return <p className="results-notice">No {title.toLowerCase()} data available for this run.</p>
+  }
+  const maxVal = Math.max(...bars.map(b => b.value))
+  const width = 760
+  const barHeight = 22
+  const gap = 6
+  const labelWidth = 140
+  const chartWidth = width - labelWidth - 60
+  const totalHeight = bars.length * (barHeight + gap) + 40
+
+  return <section className="results-bar-chart">
+    <strong>{title}</strong>
+    <span>{subtitle}</span>
+    <svg viewBox={`0 0 ${width} ${totalHeight}`} className="gmat-analysis-chart" role="img" aria-label={title}>
+      {bars.map((bar, i) => {
+        const barY = i * (barHeight + gap) + 10
+        const barW = maxVal > 0 ? (bar.value / maxVal) * chartWidth : 0
+        const barColor = bar.color ?? color
+        return <g key={bar.label}>
+          <text x={0} y={barY + barHeight / 2 + 4} fontSize="11" fill="#9fb3cb">{bar.label}</text>
+          <rect x={labelWidth} y={barY} width={chartWidth} height={barHeight} fill="rgba(56,189,248,.07)" rx="3" />
+          <rect x={labelWidth} y={barY} width={barW} height={barHeight} fill={barColor} rx="3" />
+          <text x={labelWidth + barW + 8} y={barY + barHeight / 2 + 4} fontSize="11" fill={barColor} fontWeight="700">{axisValue(bar.value)} {unit}</text>
+        </g>
+      })}
+    </svg>
+  </section>
+}
+
+/** Fuel budget bar chart: consumed vs remaining vs reserve, per run. */
+function FuelBudgetChart({ runs, views, seriesColors }: {
+  runs: { runId: string; runPath: string }[]
+  views: Record<string, RunView | null>
+  seriesColors: string[]
+}) {
+  const bars: { label: string; value: number; color?: string }[] = []
+  for (let i = 0; i < runs.length; i++) {
+    const run = runs[i]
+    const overview = views[run.runPath]?.overview
+    const missionValues = views[run.runPath]?.missionValues
+    if (!overview || !missionValues) continue
+
+    // Fuel consumed: parse from overview.fuelMassConsumed (e.g. "3.20 kg")
+    const consumedStr = overview.fuelMassConsumed?.value ?? ''
+    const consumedMatch = consumedStr.match(/([\d.]+)\s*kg/u)
+    const consumed = consumedMatch ? parseFloat(consumedMatch[1]) : 0
+
+    // Initial fuel from missionValues
+    const initialFuel = typeof missionValues['spacecraft.initialFuelMassKg'] === 'number'
+      ? missionValues['spacecraft.initialFuelMassKg']
+      : null
+    const remaining = initialFuel !== null ? Math.max(0, initialFuel - consumed) : 0
+    const reserve = typeof missionValues['stationKeeping.fuelReserveKg'] === 'number'
+      ? missionValues['stationKeeping.fuelReserveKg']
+      : 0
+
+    const color = seriesColors[i % seriesColors.length]
+    bars.push({ label: `${run.runId} consumed`, value: consumed, color })
+    bars.push({ label: `${run.runId} remaining`, value: remaining, color })
+    if (reserve > 0) bars.push({ label: `${run.runId} reserve`, value: reserve, color: '#f87171' })
+  }
+
+  if (!bars.length) return null
+  return <BarChart title="Fuel budget" subtitle="Consumed vs remaining vs reserve per run" bars={bars} unit="kg" />
+}
+
+/** Eclipse duration bar chart per run. */
+function EclipseChart({ runs, views, seriesColors }: {
+  runs: { runId: string; runPath: string }[]
+  views: Record<string, RunView | null>
+  seriesColors: string[]
+}) {
+  const bars: { label: string; value: number; color?: string }[] = []
+  for (let i = 0; i < runs.length; i++) {
+    const run = runs[i]
+    const overview = views[run.runPath]?.overview
+    if (!overview?.eclipseTime) continue
+    const match = overview.eclipseTime.value.match(/([\d.]+)\s*min/u)
+    if (!match) continue
+    bars.push({ label: run.runId, value: parseFloat(match[1]), color: seriesColors[i % seriesColors.length] })
+  }
+  if (!bars.length) return null
+  return <BarChart title="Eclipse duration" subtitle="Cumulative Earth eclipse time per run" bars={bars} unit="min" />
+}
+
+/** Contact time per station bar chart. Supports multi-station values. */
+function ContactTimeChart({ runs, views, seriesColors }: {
+  runs: { runId: string; runPath: string }[]
+  views: Record<string, RunView | null>
+  seriesColors: string[]
+}) {
+  const bars: { label: string; value: number; color?: string }[] = []
+  for (let i = 0; i < runs.length; i++) {
+    const run = runs[i]
+    const overview = views[run.runPath]?.overview
+    if (!overview?.contactTime) continue
+    const stations = parsePerStation(overview.contactTime.value)
+    for (const s of stations) {
+      bars.push({ label: `${run.runId} · ${s.station}`, value: s.minutes, color: seriesColors[i % seriesColors.length] })
+    }
+  }
+  if (!bars.length) return null
+  return <BarChart title="Ground station contact time" subtitle="Cumulative visibility time per station per run" bars={bars} unit="min" />
+}
+
+const SERIES_COLORS = ['#60a5fa', '#f59e0b', '#34d399', '#f87171', '#c084fc']
+const THRESHOLD_COLORS = { base: '#34d399', target: '#fbbf24', danger: '#f87171', final: '#c084fc' }
+
+/** Renders immutable time-series artifacts only; it never triggers a new GMAT calculation. */
+export function ResultCharts({ series, runs, views }: {
+  series: { label: string; samples: ResultSample[]; color?: string }[]
+  runs?: { runId: string; runPath: string }[]
+  views?: Record<string, RunView | null>
+}) {
+  const colored = series.map((entry, index) => ({
+    ...entry,
+    color: entry.color ?? SERIES_COLORS[index % SERIES_COLORS.length],
+  }))
+
+  if (!colored.some(entry => entry.samples.length)) {
     return <p className="results-notice">No saved GMAT time-series data for this run. Its summary and discussion remain available.</p>
   }
 
+  const primary = colored.find(entry => entry.samples.length)?.samples ?? []
+  const missionValues = runs && views ? views[runs[0]?.runPath]?.missionValues : null
+
+  // Build threshold lines for metrics that support them.
+  const buildThresholds = (metric: Metric): { value: number; label: string; color: string }[] => {
+    const config = THRESHOLDS[metric]
+    if (!config || !missionValues) return []
+    return config.map(t => {
+      const raw = missionValues[t.key]
+      if (typeof raw !== 'number' || raw === 0) return null
+      const value = t.transform ? t.transform(raw) : raw
+      const color = t.key.includes('initial') ? THRESHOLD_COLORS.base
+        : t.key.includes('target') ? THRESHOLD_COLORS.target
+        : t.key.includes('minimum') ? THRESHOLD_COLORS.danger
+        : THRESHOLD_COLORS.final
+      return { value, label: t.label, color }
+    }).filter((x): x is { value: number; label: string; color: string } => x !== null)
+  }
+
+  // Has at least one bar chart to show?
+  const hasBarCharts = runs && views && runs.length > 0
+
   return <div className="gmat-analysis-panel results-charts">
-    {RESULT_METRICS.filter(metric => samples.some(sample => hasMetric(sample, metric))).map(metric => {
-      const range = metricRange(samples, metric)!
+    {RESULT_METRICS.filter(metric => primary.some(sample => hasMetric(sample, metric))).map(metric => {
+      const range = metricRange(primary, metric)!
       return <section key={metric}>
         <strong>{METRICS[metric].label} vs elapsed time</strong>
         <span>Saved GMAT output · elapsed time in days</span>
-        <LineChart metric={metric} series={series} />
+        <LineChart metric={metric} series={colored} thresholds={buildThresholds(metric)} />
         <div className="gmat-analysis-metrics">
           <span>Minimum: {axisValue(range.minimum)} {METRICS[metric].unit}</span>
           <span>Maximum: {axisValue(range.maximum)} {METRICS[metric].unit}</span>
         </div>
       </section>
     })}
+    {/* Bar charts — only when runs/views are provided */}
+    {hasBarCharts && runs && views ? <>
+      <FuelBudgetChart runs={runs} views={views} seriesColors={SERIES_COLORS} />
+      <EclipseChart runs={runs} views={views} seriesColors={SERIES_COLORS} />
+      <ContactTimeChart runs={runs} views={views} seriesColors={SERIES_COLORS} />
+    </> : null}
   </div>
 }

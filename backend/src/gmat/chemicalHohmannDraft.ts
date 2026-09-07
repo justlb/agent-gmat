@@ -155,11 +155,21 @@ export async function setChemicalHohmannDraftValue(workspaceDir: string, draft: 
     if (!Number.isFinite(altitude) || altitude < 0) throw new Error("initial altitude must be a non-negative number in km")
     values["initialOrbit.altitudeKm"] = altitude
     values["initialOrbit.smaKm"] = Number((EARTH_EQUATORIAL_RADIUS_KM + altitude).toFixed(9))
+  } else if (requestedPath === "initialOrbit.smaKm") {
+    const semiMajorAxis = Number(raw)
+    if (!Number.isFinite(semiMajorAxis) || semiMajorAxis <= EARTH_EQUATORIAL_RADIUS_KM) throw new Error(`initial SMA must be a finite number greater than Earth's equatorial radius (${EARTH_EQUATORIAL_RADIUS_KM} km)`)
+    values["initialOrbit.smaKm"] = semiMajorAxis
+    values["initialOrbit.altitudeKm"] = Number((semiMajorAxis - EARTH_EQUATORIAL_RADIUS_KM).toFixed(9))
   } else if (requestedPath === "transfer.targetAltitudeKm") {
     const altitude = Number(raw)
     if (!Number.isFinite(altitude) || altitude < 0) throw new Error("target altitude must be a non-negative number in km")
     values["transfer.targetAltitudeKm"] = altitude
     values["transfer.targetRadiusKm"] = Number((EARTH_EQUATORIAL_RADIUS_KM + altitude).toFixed(9))
+  } else if (requestedPath === "transfer.targetRadiusKm") {
+    const radius = Number(raw)
+    if (!Number.isFinite(radius) || radius <= EARTH_EQUATORIAL_RADIUS_KM) throw new Error(`target radius must be a finite number greater than Earth's equatorial radius (${EARTH_EQUATORIAL_RADIUS_KM} km)`)
+    values["transfer.targetRadiusKm"] = radius
+    values["transfer.targetAltitudeKm"] = Number((radius - EARTH_EQUATORIAL_RADIUS_KM).toFixed(9))
   } else if (requestedPath === "initialOrbit.utcGregorian") {
     values["initialOrbit.epoch"] = utcGregorianToTaiModJulian(raw)
   } else {

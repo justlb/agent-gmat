@@ -117,6 +117,7 @@ export const ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT = {
     { context: "targetSMA", label: "Target semi-major axis", min: 6378.2, path: "stationKeeping.targetSmaKm", required: false, unit: "km" },
     { context: "fuelReserve", label: "Fuel reserve", min: 0, path: "stationKeeping.fuelReserveKg", required: false, unit: "kg" },
     { context: "finalAltitude", label: "Final altitude", min: 150, path: "endOfLife.finalAltitudeKm", required: false, unit: "km" },
+    { context: "timelimit", label: "Mission duration limit", min: 1, max: 3650, path: "stationKeeping.missionDayLimit", required: false, unit: "days" },
   ] satisfies FieldDefinition[],
 } as const
 
@@ -126,7 +127,7 @@ const fields = ORBIT_KEEPING_EARTH_KEPLERIAN_CONTRACT.fields as readonly FieldDe
 const MISSION_FIELD_PATHS = new Set([
   "initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg",
   "initialOrbit.raanDeg", "initialOrbit.argPeriapsisDeg", "initialOrbit.trueAnomalyDeg",
-  "stationKeeping.minimumAltitudeKm", "stationKeeping.targetSmaKm", "stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm", "spacecraft.initialFuelMassKg",
+  "stationKeeping.minimumAltitudeKm", "stationKeeping.targetSmaKm", "stationKeeping.fuelReserveKg", "stationKeeping.missionDayLimit", "endOfLife.finalAltitudeKm", "spacecraft.initialFuelMassKg",
 ])
 const GMAT_TAI_MOD_JULIAN_MIN = 10_000
 const GMAT_TAI_MOD_JULIAN_MAX = 100_000
@@ -134,7 +135,7 @@ const GMAT_TAI_MOD_JULIAN_MAX = 100_000
 // the assistant must collect before every GMAT run.
 // These defaults are embedded in the reference script and are deliberately
 // optional in Mission v2.  A user can still override the epoch when needed.
-const ASSUMED_MISSION_FIELD_PATHS = new Set(["initialOrbit.epoch", "stationKeeping.fuelReserveKg", "endOfLife.finalAltitudeKm"])
+const ASSUMED_MISSION_FIELD_PATHS = new Set(["initialOrbit.epoch", "stationKeeping.fuelReserveKg", "stationKeeping.missionDayLimit", "endOfLife.finalAltitudeKm"])
 /** Values embedded in the immutable reference script. A new draft starts here. */
 const TEMPLATE_DEFAULT_VALUES: DraftValues = {
   "endOfLife.finalAltitudeKm": 150,
@@ -152,6 +153,7 @@ const TEMPLATE_DEFAULT_VALUES: DraftValues = {
   "spacecraft.initialFuelMassKg": 10,
   "stationKeeping.fuelReserveKg": 1,
   "stationKeeping.minimumAltitudeKm": 250,
+  "stationKeeping.missionDayLimit": 100,
   "stationKeeping.targetSmaKm": 6631.1363,
 }
 const CARTESIAN_STATE_PATHS = ["initialState.xKm", "initialState.yKm", "initialState.zKm", "initialState.vxKmPerSec", "initialState.vyKmPerSec", "initialState.vzKmPerSec"] as const
