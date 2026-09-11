@@ -207,13 +207,17 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
         parameters: inputs.output,
         output,
       }
-      const consolidated = await writeConsolidatedRunReport(runDir)
       await completeRunStage(runDir, "opalis", "OPALIS calculation completed.")
+      const consolidated = await writeConsolidatedRunReport(runDir)
       await appendRunConversation(runDir, { answer: `OPALIS calculation completed. Results saved to ${result.summary}.`, askedAt: new Date().toISOString(), channel: "opalis", question: "Run OPALIS calculation" })
       return reply.send({ ...result, consolidatedReport: path.relative(root, consolidated.output) })
     } catch (error) {
-      if (opalisStarted) await failRunStage(runDir, "opalis", getErrorMessage(error, "failed to run OPALIS scenario")).catch(() => undefined)
-      return reply.status(422).send({ error: getErrorMessage(error, "failed to run OPALIS scenario") })
+      const message = getErrorMessage(error, "failed to run OPALIS scenario")
+      if (opalisStarted) {
+        await failRunStage(runDir, "opalis", message).catch(() => undefined)
+        await writeConsolidatedRunReport(runDir).catch(() => undefined)
+      }
+      return reply.status(422).send({ error: message })
     } finally { releaseMissionPipelineLock(runDir, "opalis") }
   })
 

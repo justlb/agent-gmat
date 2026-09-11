@@ -1,6 +1,6 @@
 # Frontend Structure
 
-This document describes the role of every directory and top-level file inside
+This document is a navigation aid for every directory and top-level file inside
 `frontend/`. The frontend is a React 19 + TypeScript application built with
 Vite. It presents the mission workspace, the agent-driven mission editor,
 saved simulation results, and engineering visualizations. **It never executes
@@ -12,7 +12,7 @@ backend.
 | Category | Items |
 | --- | --- |
 | Live source code | `src/` |
-| Tests | `tests/` |
+| Tests | `tests/` (use `npm test`; counts change over time) |
 | Generated (gitignored) | `dist/`, `node_modules/` |
 | Manifest & config | `package.json`, `package-lock.json`, `vite.config.ts`, `vitest.config.ts`, `tsconfig*.json`, `eslint.config.js`, `components.json` |
 | Static assets | `public/` |
@@ -96,9 +96,9 @@ and `devPerformancePrelude.ts` (dev-only performance instrumentation).
 
 `app.css` (Tailwind-based global stylesheet).
 
-### `tests/` — Unit and component tests (17 files)
+### `tests/` — Unit and component tests
 
-Tests run with **Vitest** (`npm test`). Arranged by source area:
+Tests run with **Vitest** (`npm test`) and are arranged by source area.
 `app/` (apiClient, sessionUtils), `components/` (bomData, outputMarkdown),
 `hooks/` (useWorkspaceAppState), `pages/agent/` (gmatMissionTemplates,
 missionInputValue, MissionOverview, missionValuesApi, orbitKeepingApi,

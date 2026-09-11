@@ -1,9 +1,9 @@
 # Backend Structure
 
-This document describes the role of every directory and top-level file inside
-`backend/`. It is intended to help a new maintainer (or a defense jury)
-understand what is live code, what is generated, and what is supporting
-material.
+This document is a navigation aid for `backend/`, not an API contract. For
+current behaviour, consult the module README next to the implementation and
+the matching tests. Counts and generated contents are intentionally not listed
+because they change between revisions.
 
 ## Quick map
 
@@ -31,25 +31,24 @@ boundaries documented in [CODE_STRUCTURE.md](../docs/CODE_STRUCTURE.md):
 | `gmat` | Mission templates, draft state, GMAT script generation, slot extraction/substitution, and the mission assistant routes. |
 | `digitalThread` | Immutable satellite definitions, selected mission state, conversion to tool inputs, and the provenance store that records the source of every value. |
 | `opalis` | Simu-CIC and OPALIS preparation, execution, normalized outputs, and workflow state. |
-| `rfComlink` | RF-COMLINK scenario preparation, result parsing, and engineering analysis. |
+| `rfComlink` | RF-COMLINK scenario preparation, saved-result inventory, and run-scoped analysis. It does not yet expose deterministic link-budget metrics. |
 | `runs` | Dated mission-run paths, artifact registry, run lifecycle, the canonical run view, and the pipeline orchestration that chains GMAT -> Simu-CIC -> OPALIS + RF-COMLINK. |
 | `analysis` | The AI analysis assistant: builds the compact `run-analysis-context.json`, the disciplined single-run LLM prompt, and the multi-run comparison LLM prompt. |
 | `workspaces` | User workspace isolation, uploaded files, persisted UI data, and workspace routes. |
 | `manifests` | Template and workspace manifest registration, versioning, and storage. |
 | `codex-run` | Managed Codex SDK execution, streaming events, the responses-compatible API, input files, and the ask-user protocol. |
 | `server` | Application entry (`index.ts`), `routes.ts` that registers every Fastify route plugin, and request context/auth helpers. |
-| `sessions`, `system`, `shared`, `modelBackends`, `artifacts`, `gnc_config`, `vts`, `cosyvoice`, `funasr` | Supporting modules (sessions store, auth/health/skills, shared helpers, model backend resolution, image artifacts, GNC config, and currently-empty stubs for VTS/CosyVoice/FunASR). |
+| `sessions`, `system`, `shared`, `modelBackends`, `gnc_config`, `vts` | Supporting modules: sessions, auth/health/skills, shared helpers, model backend resolution, GNC configuration, and legacy VTS placeholder. |
 
-### `tests/` — Regression suite (96 files)
+### `tests/` — Regression suite
 
 Tests written with `node:test`. They are **never executed at runtime**; they run
 only via `npm test` (or the targeted variants like `test:gmat:baseline`,
 `test:stability`). They protect the live modules in `src/` against regressions
 and validate GMAT templates by hash.
 
-> Note: three test files (`api/cosyvoice`, `api/funasr`, `vts/`) reference
-> source modules whose code has been removed; they are orphans and should be
-> deleted so `npm test` stays green.
+Use `npm test` or the named targeted scripts in `package.json`; do not assume
+that a directory count or an old campaign report reflects the current suite.
 
 ### `dist/` — Compiled output (generated, gitignored)
 
@@ -86,8 +85,7 @@ These files are read by the backend at runtime; they are not executed directly.
 
 ### `node_modules/` — Installed dependencies (generated, gitignored)
 
-147 packages installed by `npm install` (Fastify, `pg`, `undici`, `yaml`,
-`@openai/codex-sdk`, `exceljs`, `pinyin-pro`, etc.). Never edited by hand.
+Installed by `npm install`. Never edited by hand.
 
 ### `experiments/` — Scratch space for prototypes
 

@@ -427,11 +427,6 @@ While DefaultSC.ChemicalTank1.FuelMass > minimumReboostFuel & DefaultSC.Earth.Al
 
 EndWhile;
 
-% Controlled end-of-life descent.  This propagation terminates at the
-% requested altitude (150 km by default), before the atmospheric model fails.
-If DefaultSC.Earth.Altitude > finalAltitude
-   Propagate 'Propagate to Final Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = finalAltitude};
-EndIf;
 
 % Always write a final state.  It keeps a valid result available even when no
 % reboost was required during this run.

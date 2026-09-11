@@ -83,6 +83,16 @@ function parsePerStation(value: string): { station: string; minutes: number }[] 
   }).filter((x): x is { station: string; minutes: number } => x !== null)
 }
 
+/** Parses normalized Simu-CIC values written by the backend, for example
+ * "kourou: 4.20 min/rev". These values make runs of different duration comparable. */
+function parsePerRevolution(value: string): { station: string; minutes: number }[] {
+  if (!value) return []
+  return value.split(';').map(part => {
+    const match = part.trim().match(/^(?:(.+?):\s*)?([\d.]+)\s*min\/rev$/u)
+    return match ? { station: match[1] ?? 'Mission', minutes: parseFloat(match[2]) } : null
+  }).filter((item): item is { station: string; minutes: number } => item !== null)
+}
+
 function LineChart({ metric, series, thresholds = [] }: {
   metric: Metric
   series: ChartSeries[]
@@ -267,6 +277,32 @@ function ContactTimeChart({ runs, views, seriesColors }: {
   return <BarChart title="Ground station contact time" subtitle="Cumulative visibility time per station per run" bars={bars} unit="min" />
 }
 
+/** Normalizes total Simu-CIC eclipse time by the GMAT OEM revolution count. */
+function EclipsePerRevolutionChart({ runs, views, seriesColors }: {
+  runs: { runId: string; runPath: string }[]
+  views: Record<string, RunView | null>
+  seriesColors: string[]
+}) {
+  const bars = runs.flatMap((run, index) => {
+    const value = views[run.runPath]?.overview.eclipseTimePerRevolution?.value ?? ''
+    const parsed = parsePerRevolution(value)[0]
+    return parsed ? [{ label: run.runId, value: parsed.minutes, color: seriesColors[index % seriesColors.length] }] : []
+  })
+  return bars.length ? <BarChart title="Eclipse time per revolution" subtitle="Simu-CIC eclipse duration ÷ estimated GMAT revolutions" bars={bars} unit="min/rev" /> : null
+}
+
+/** Shows each station's visibility time per GMAT revolution, so mission length
+ * cannot dominate the comparison. */
+function ContactTimePerRevolutionChart({ runs, views, seriesColors }: {
+  runs: { runId: string; runPath: string }[]
+  views: Record<string, RunView | null>
+  seriesColors: string[]
+}) {
+  const bars = runs.flatMap((run, index) => parsePerRevolution(views[run.runPath]?.overview.contactTimePerRevolution?.value ?? '')
+    .map(station => ({ label: `${run.runId} · ${station.station}`, value: station.minutes, color: seriesColors[index % seriesColors.length] })))
+  return bars.length ? <BarChart title="Ground-station contact per revolution" subtitle="Simu-CIC visibility duration ÷ estimated GMAT revolutions" bars={bars} unit="min/rev" /> : null
+}
+
 const SERIES_COLORS = ['#60a5fa', '#f59e0b', '#34d399', '#f87171', '#c084fc']
 const THRESHOLD_COLORS = { base: '#34d399', target: '#fbbf24', danger: '#f87171', final: '#c084fc' }
 
@@ -325,6 +361,8 @@ export function ResultCharts({ series, runs, views }: {
       <FuelBudgetChart runs={runs} views={views} seriesColors={SERIES_COLORS} />
       <EclipseChart runs={runs} views={views} seriesColors={SERIES_COLORS} />
       <ContactTimeChart runs={runs} views={views} seriesColors={SERIES_COLORS} />
+      <EclipsePerRevolutionChart runs={runs} views={views} seriesColors={SERIES_COLORS} />
+      <ContactTimePerRevolutionChart runs={runs} views={views} seriesColors={SERIES_COLORS} />
     </> : null}
   </div>
 }

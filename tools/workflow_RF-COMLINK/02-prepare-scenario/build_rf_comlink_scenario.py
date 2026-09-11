@@ -122,8 +122,8 @@ def rf_comlink_cic(source: Path, destination: Path) -> Path:
     """Convert Simu-CIC's MJD timestamps to RF-COMLINK's UTC CIC dates.
 
     Simu-CIC writes valid CIC v3 with a two-field MJD date. RF-COMLINK's
-    reader rejects that variant ("unable to define date format") and expects
-    an ISO-8601 UTC date at the beginning of each data line.
+    scenario importer expects ISO-8601 UTC dates at the beginning of each
+    data line; the application itself writes result CIC files with MJD dates.
     """
     lines: list[str] = []
     origin = datetime(1858, 11, 17, tzinfo=timezone.utc)
@@ -264,6 +264,7 @@ def update_link(
     # manifests.
     antenna = link.get("spacecraftAntenna") or link.get("spacecraft_antenna") or {}
     propagation = link.get("propagation") or {}
+    run_geometry = link.get("run_geometry") or {}
     direction = link.get("direction")
 
     text(root, "Name", link.get("name"))
@@ -351,6 +352,11 @@ def update_link(
             set_distribution(reception, "FigureOfMeritRef", antenna.get("figure_of_merit_db_per_k"))
             set_distribution(reception, "FigureOfMerit", antenna.get("figure_of_merit_db_per_k"))
 
+    system_temperature = run_geometry.get("system_temperature_k")
+    if reception is not None and isinstance(system_temperature, (int, float)) and system_temperature > 0:
+        text(reception, "SystemTemperatureManual", "true")
+        set_distribution(reception, "SystemTemperature", system_temperature)
+
     propagation_node = root.find("Propagation")
     if propagation_node is not None:
         if "atmospheric_loss_db" in propagation:
@@ -358,6 +364,10 @@ def update_link(
             text(propagation_node, "IsAtmosphericLossManual", "true")
         if "weather_unavailability_percent" in propagation:
             text(propagation_node, "WeatherIndisponibility", propagation.get("weather_unavailability_percent"))
+        if isinstance(run_geometry.get("mean_range_km"), (int, float)):
+            text(propagation_node, "Range", run_geometry["mean_range_km"])
+        if isinstance(run_geometry.get("mean_elevation_deg"), (int, float)):
+            text(propagation_node, "Elevation", run_geometry["mean_elevation_deg"])
         distance, visibility, direction = cic
         set_file_reference(propagation_node, "RangeFile", distance, ephemeris_dir)
         set_file_reference(propagation_node, "VisibilityFile", visibility, ephemeris_dir)
@@ -402,6 +412,7 @@ def main() -> int:
         station = manifest.get("selected_ground_station_id")
         run_dir = args.inputs.parents[2]
         cic = cic_sources(run_dir, manifest.get("cic_inputs", []))
+        geometry = manifest.get("run_geometry") or {}
         data_handling = manifest.get("data_handling") or {}
         if not isinstance(data_handling, dict):
             raise SystemExit("RF-COMLINK data_handling must be an object")
@@ -411,7 +422,12 @@ def main() -> int:
             # Database entries are band-specific, so resolve each link rather
             # than incorrectly reusing the first link's S/X-band equipment.
             station_record = find_ground_station_database_record(args.template, station, (link.get("system") or {}).get("frequency_band"))
-            update_link(file, link, station, station_record, cic, ephemeris_dir, data_handling, payload_profile)
+            link_geometry = {
+                "mean_range_km": geometry.get("mean_range_km"),
+                "mean_elevation_deg": geometry.get("mean_elevation_deg"),
+                "system_temperature_k": (geometry.get("system_temperature_k_by_link") or {}).get(link.get("id")),
+            }
+            update_link(file, {**link, "run_geometry": link_geometry}, station, station_record, cic, ephemeris_dir, data_handling, payload_profile)
         # The official empty scenario contains three placeholder links.  A
         # run must expose only the links declared by its satellite.json.
         for file in files[len(links):]:

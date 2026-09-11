@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ResultCharts } from './ResultCharts'
 import { ResultsDiscussion } from './ResultsDiscussion'
-import { getRunView, type RunView } from './runViewApi'
+import { getRunView, runArtifactDownloadUrl, type RFComlinkBudgetCases, type RunView, type RunViewArtifact } from './runViewApi'
 import { getResultSamples, listResultRuns, RESULT_STAGES, type ResultRun, type ResultSample } from './runResultsApi'
 import './ResultsPage.css'
 
@@ -20,6 +20,8 @@ const SERIES_COLORS = ['#60a5fa', '#f59e0b', '#34d399', '#f87171', '#c084fc']
 
 const CHEMICAL_TEMPLATES = new Set(['orbit-keeping', 'chemical-hohmann-transfer', 'chemical-3d-transfer'])
 const ELECTRIC_TEMPLATES = new Set(['electric-propulsion-transfer', 'electrical-leo-orbit-maintenance'])
+
+const DURATION_TEMPLATE_IDS = new Set(['orbit-keeping', 'electrical-leo-orbit-maintenance', 'electric-propulsion-transfer', 'chemical-hohmann-transfer', 'chemical-3d-transfer'])
 
 type StatusFilter = 'all' | 'completed' | 'incomplete'
 type ScenarioFilter = 'all' | 'chemical' | 'electric'
@@ -48,7 +50,8 @@ const PARAM_LABELS: Record<string, { label: string; unit?: string }> = {
 
 // Result metric rows (same keys as the old MissionOverview component).
 const RESULT_ROWS: { key: string; label: string; stage: string }[] = [
-  { key: 'lifetime', label: 'Lifetime', stage: 'gmat' },
+  { key: 'simulatedMissionDuration', label: 'Simulated mission duration', stage: 'gmat' },
+  { key: 'terminationCondition', label: 'GMAT termination condition', stage: 'gmat' },
   { key: 'fuelMassConsumed', label: 'Fuel consumed', stage: 'gmat' },
   { key: 'averageAltitude', label: 'Avg altitude', stage: 'gmat' },
   { key: 'contactTime', label: 'Contact time', stage: 'simu_cic' },
@@ -103,6 +106,9 @@ function collectParamKeys(runs: ResultRun[], views: Record<string, RunView | nul
 /** Single unified table replacing MissionOverview + ComparisonTable. */
 function UnifiedRunTable({ runs, views }: { runs: ResultRun[]; views: Record<string, RunView | null> }) {
   const paramKeys = collectParamKeys(runs, views)
+  const hasDuration = runs.some(run => DURATION_TEMPLATE_IDS.has(run.templateId ?? ''))
+  const resultRows = RESULT_ROWS
+    .filter(row => !['simulatedMissionDuration', 'terminationCondition'].includes(row.key) || hasDuration)
 
   const renderParamValue = (run: ResultRun, key: string) => {
     const mv = views[run.runPath]?.missionValues
@@ -151,7 +157,7 @@ function UnifiedRunTable({ runs, views }: { runs: ResultRun[]; views: Record<str
           <tr className="section-row">
             <td colSpan={runs.length + 1}>Results</td>
           </tr>
-          {RESULT_ROWS.map(row => (
+          {resultRows.map(row => (
             <tr key={row.key}>
               <td className="row-label">{row.label}</td>
               {runs.map(run => <td key={run.runPath} title={STAGE_LABELS[row.stage]}>{renderResultValue(run, row)}</td>)}
@@ -159,6 +165,129 @@ function UnifiedRunTable({ runs, views }: { runs: ResultRun[]; views: Record<str
           ))}
         </tbody>
       </table>
+    </div>
+  </section>
+}
+
+/** Shows the provenance and method stored with each overview value. The raw
+ * artifacts remain downloadable immediately below this section. */
+function CalculationDetails({ runs, views }: { runs: ResultRun[]; views: Record<string, RunView | null> }) {
+  const entries = runs.flatMap(run => Object.entries(views[run.runPath]?.overview ?? {})
+    .filter(([, metric]) => metric.detail)
+    .map(([key, metric]) => ({ key, metric, runId: run.runId })))
+  if (!entries.length) return null
+
+  return <details className="results-calculation-details">
+    <summary>Calculation details and evidence</summary>
+    <p>Each value below is computed from the named saved artifact. Download that artifact from Generated files to inspect its raw samples.</p>
+    <dl>
+      {entries.map(({ key, metric, runId }) => <div key={`${runId}-${key}`}>
+        <dt>{runId} · {key}</dt>
+        <dd><strong>{metric.value}</strong><span>{metric.detail}</span><small>Source: {metric.source}</small></dd>
+      </div>)}
+    </dl>
+  </details>
+}
+
+const ARTIFACT_TOOL_LABELS: Record<RunViewArtifact['tool'], string> = {
+  gmat: 'GMAT',
+  'simu-cic': 'Simu-CIC',
+  opalis: 'OPALIS',
+  'rf-comlink': 'RF-COMLINK',
+}
+
+const ARTIFACT_CATEGORY_LABELS: Record<RunViewArtifact['category'], string> = {
+  primary: 'Main outputs',
+  result: 'Results',
+  technical: 'Technical files',
+}
+
+function formatFileSize(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes < 0) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`
+}
+
+function formatNumber(value: number | null, digits = 2) { return value === null ? '—' : value.toFixed(digits) }
+function formatRate(value: number | null) {
+  if (value === null) return '—'
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)} Mbps`
+  if (value >= 1_000) return `${(value / 1_000).toFixed(2)} kbps`
+  return `${value.toFixed(0)} bps`
+}
+function formatCases(value: RFComlinkBudgetCases | null) {
+  if (!value) return '—'
+  return [value.nominal, value.three_sigma, value.worst_case_rss].map(item => item === undefined ? '—' : item.toFixed(2)).join(' / ')
+}
+
+/** RF-COMLINK publishes one independent link budget per report. These values
+ * remain separate so an uplink and two downlinks are never averaged together. */
+function RFComlinkBudgets({ runs, views }: { runs: ResultRun[]; views: Record<string, RunView | null> }) {
+  const entries = runs.flatMap(run => (views[run.runPath]?.rfComlink?.linkBudgets ?? []).map(link => ({ link, run })))
+  if (!entries.length) return null
+  return <section className="results-rf-budgets">
+    <span>RF-COMLINK RESULTS</span>
+    <h2>Link budget</h2>
+    <p>Pass/fail uses the worst-case RSS data-recovery margin. Cases are shown as nominal / 3σ / worst-case RSS.</p>
+    <div className="results-unified-scroll">
+      <table>
+        <thead><tr>
+          {runs.length > 1 ? <th>Run</th> : null}<th>Link</th><th>Status</th><th>Type</th><th>Frequency</th><th>Binary rate</th><th>Range</th><th>Elevation</th><th>Tsys</th><th>Required Eb/N₀</th><th>C/N₀ (dBHz)</th><th>Achieved Eb/N₀ (dB)</th><th>Recovery margin (dB)</th>
+        </tr></thead>
+        <tbody>{entries.map(({ run, link }) => <tr key={`${run.runPath}-${link.source_report}`}>
+          {runs.length > 1 ? <td>{run.runId}</td> : null}<td>{link.link_name}</td><td><strong className={`results-rf-status is-${link.status}`}>{link.status.toUpperCase()}</strong></td><td>{link.link_type ?? '—'}</td><td>{link.frequency_mhz === null ? '—' : `${formatNumber(link.frequency_mhz, 0)} MHz`}</td><td>{formatRate(link.binary_rate_bps)}</td><td>{link.range_km === null ? '—' : `${formatNumber(link.range_km)} km`}</td><td>{link.elevation_deg === null ? '—' : `${formatNumber(link.elevation_deg)}°`}</td><td>{link.system_temperature_k === null ? '—' : `${formatNumber(link.system_temperature_k, 0)} K`}</td><td>{link.required_ebn0_db === null ? '—' : `${formatNumber(link.required_ebn0_db)} dB`}</td><td>{formatCases(link.received_cn0_dbhz)}</td><td>{formatCases(link.achieved_ebn0_db)}</td><td>{formatCases(link.data_recovery_margin_db)}</td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+  </section>
+}
+
+/** Lists every generated file of the selected runs, grouped per run, with a
+ * download link. The file inventory comes from the backend artifact registry
+ * (only files that actually exist in the run directory are listed). */
+function RunArtifacts({ runs, views }: { runs: ResultRun[]; views: Record<string, RunView | null> }) {
+  return <section className="results-artifacts">
+    <span>GENERATED FILES</span>
+    <h2>Download artifacts</h2>
+    <div className="results-artifacts-runs">
+      {runs.map((run, index) => {
+        const artifacts = views[run.runPath]?.artifacts ?? []
+        const color = SERIES_COLORS[index % SERIES_COLORS.length]
+        const groups: Array<RunViewArtifact['category']> = ['primary', 'result', 'technical']
+        return <details key={run.runPath} className="results-artifact-run" open={runs.length === 1}>
+          <summary style={{ borderBottomColor: color }}>
+            <span className="results-artifact-run-id" style={{ color }}>{run.runId}</span>
+            <span className="results-artifact-count">{artifacts.length} file{artifacts.length === 1 ? '' : 's'}</span>
+          </summary>
+          {artifacts.length === 0
+            ? <p className="results-notice">No generated file for this run yet.</p>
+            : groups.map(category => {
+              const group = artifacts.filter(artifact => artifact.category === category)
+              if (!group.length) return null
+              return <div key={category} className="results-artifact-group">
+                <h3>{ARTIFACT_CATEGORY_LABELS[category]}</h3>
+                <ul>
+                  {group.map(artifact => {
+                    const fileName = artifact.relativePath.split('/').pop() ?? artifact.relativePath
+                    return <li key={artifact.relativePath}>
+                      <a
+                        href={runArtifactDownloadUrl(run.runPath, artifact.relativePath)}
+                        download={fileName}
+                        title={artifact.relativePath}
+                      >
+                        <span className="artifact-tool">{ARTIFACT_TOOL_LABELS[artifact.tool]}</span>
+                        <span className="artifact-name">{fileName}</span>
+                        <span className="artifact-path">{artifact.relativePath}</span>
+                        <span className="artifact-size">{formatFileSize(artifact.size)}</span>
+                      </a>
+                    </li>
+                  })}
+                </ul>
+              </div>
+            })}
+        </details>
+      })}
     </div>
   </section>
 }
@@ -182,7 +311,8 @@ function MultiRunResults({ runs, refresh }: { runs: ResultRun[]; refresh: string
         const next: Record<string, RunView | null> = {}
         let hasError = false
         for (let i = 0; i < results.length; i++) {
-          if (results[i].status === 'fulfilled') next[runs[i].runPath] = results[i].value
+          const result = results[i]
+          if (result.status === 'fulfilled') next[runs[i].runPath] = result.value
           else { hasError = true; next[runs[i].runPath] = null }
         }
         setViews(next)
@@ -241,9 +371,12 @@ function MultiRunResults({ runs, refresh }: { runs: ResultRun[]; refresh: string
     </details>
     {error ? <p className="results-error" role="alert">{error}</p> : null}
     <UnifiedRunTable runs={runs} views={views} />
+    <RFComlinkBudgets runs={runs} views={views} />
+    <CalculationDetails runs={runs} views={views} />
     {loading ? <p className="results-notice">Loading saved graphs…</p> : null}
     {chartError ? <p className="results-error" role="alert">{chartError}</p> : null}
     {!loading && !chartError ? <ResultCharts series={chartSeries} runs={runs} views={views} /> : null}
+    <RunArtifacts runs={runs} views={views} />
   </>
 }
 

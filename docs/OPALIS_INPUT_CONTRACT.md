@@ -1,132 +1,132 @@
-# Contrat d'entree OPALIS
+# OPALIS Input Contract
 
-Ce document definit les seules sources autorisees pour une execution OPALIS.
-Une execution est associee a **une run GMAT** et ne melange jamais des donnees
-d'une autre run ou d'un autre satellite.
+This document defines the only authorised sources for an OPALIS execution.
+An execution is associated with **one GMAT run** and never mixes data
+from another run or another satellite.
 
 ```text
-satellite.json de la run ─┐
-                           ├─> adaptateur OPALIS ─> parametres statiques du cas .opalis
-CIC/Sat de Simu-CIC ──────┘                         + flux dynamiques
+satellite.json from the run ─┐
+                             ├─> OPALIS adapter ─> static parameters of the .opalis case
+CIC/Sat from Simu-CIC ───────┘                     + dynamic fluxes
 ```
 
-## 1. Source dynamique : fichiers CIC de Simu-CIC
+## 1. Dynamic source: CIC files from Simu-CIC
 
-Le dossier d'entree est obligatoirement celui produit pour la run :
+The input directory must be the one produced for the run:
 
 ```text
 <run>/opalis/02-simu-cic/02-fichiers-cic/Sat/
 ```
 
-Ces fichiers ne sont pas remplaces par des valeurs de `satellite.json`. Ils
-decrivent la geometrie et varient avec le temps.
+These files are not replaced by values from `satellite.json`. They
+describe geometry and vary over time.
 
-| Donnee OPALIS | Fichier CIC attendu | Statut |
+| OPALIS data | Expected CIC file | Status |
 |---|---|---|
-| angle Soleil de chaque section | `Sat_SUN_ANGLE_SA_<n>.TXT` | requis ; repli explicite SA_1 autorise |
-| eclipse Terre | `Sat_SATELLITE_ECLIPSE.TXT` | requis |
-| eclipse Lune | `Sat_SATELLITE_ECLIPSE_MOON.TXT` | facultatif |
-| angle Terre de chaque section | `Sat_EARTH_ANGLE_SA_<n>.TXT` | requis ; repli explicite SA_1 autorise |
-| altitude | `Sat_SATELLITE_ALTITUDE.TXT` | requis |
-| direction Terre dans le repere satellite | `Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT` | requis |
-| direction Soleil | `Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT`, sinon `Sat_SUN_DIRECTION-ORBITAL_FRAME.TXT` | requis |
-| coordonnees geographiques | `Sat_GEOGRAPHICAL_COORDINATES.TXT` | requis |
+| Sun angle per section | `Sat_SUN_ANGLE_SA_<n>.TXT` | required; explicit SA_1 fallback allowed |
+| Earth eclipse | `Sat_SATELLITE_ECLIPSE.TXT` | required |
+| Moon eclipse | `Sat_SATELLITE_ECLIPSE_MOON.TXT` | optional |
+| Earth angle per section | `Sat_EARTH_ANGLE_SA_<n>.TXT` | required; explicit SA_1 fallback allowed |
+| altitude | `Sat_SATELLITE_ALTITUDE.TXT` | required |
+| Earth direction in satellite frame | `Sat_EARTH_DIRECTION-SATELLITE_FRAME.TXT` | required |
+| Sun direction | `Sat_SUN_DIRECTION-SATELLITE_FRAME.TXT`, otherwise `Sat_SUN_DIRECTION-ORBITAL_FRAME.TXT` | required |
+| geographical coordinates | `Sat_GEOGRAPHICAL_COORDINATES.TXT` | required |
 
-Le pipeline existant produit un `FLOWS-SA-<n>.TXT` pour chaque section solaire
-OPALIS a partir de ces fichiers. Le manifeste doit signaler tout repli de
-geometrie de SA_1 vers une autre section.
+The existing pipeline produces a `FLOWS-SA-<n>.TXT` for each OPALIS
+solar section from these files. The manifest must report any geometry
+fallback from SA_1 to another section.
 
-## 2. Source statique : satellite.json
+## 2. Static source: satellite.json
 
-Le fichier retenu est le snapshot de la run :
+The file used is the run snapshot:
 
 ```text
 <run>/satellite.json
 ```
 
-Pour les runs anciennes, `satellite.digital-thread.json` est accepte comme
-compatibilite de lecture. La bibliotheque satellite elle-meme ne constitue pas
-une entree directe : ses valeurs doivent deja avoir ete copiees dans le
-`satellite.json` de la run.
+For older runs, `satellite.digital-thread.json` is accepted as a
+read-compatibility fallback. The satellite library itself is not
+a direct input: its values must already have been copied into the
+run's `satellite.json`.
 
-Les champs ci-dessous sont les entrees OPALIS. Ils reconstruisent toutes les
-valeurs du premier onglet du cas `.opalis` a partir de `empty.opalis`; les
-fichiers embarques, flux et resultats du cas de reference sont exclus. Les
-valeurs sont configurees une fois avant le calcul et tracees dans
-`opalis-parameters.json`.
+The fields below are the OPALIS inputs. They reconstruct all
+values from the first tab of the `.opalis` case starting from
+`empty.opalis`; embedded files, fluxes, and reference-case results
+are excluded. Values are configured once before computation and
+traced in `opalis-parameters.json`.
 
-| Donnee | Chemin dans satellite.json | Unite | Requis | Cible OPALIS attendue |
+| Data | Path in satellite.json | Unit | Required | Expected OPALIS target |
 |---|---|---:|---|---|
-| nom du satellite | `satellite.identity.name` | texte | non | `SimulationModel.PowerProfil.SatelliteName` |
-| pas de reference | `satellite.bus.opalis.simulation.reference_time_step_s` | s | oui | `SimulationModel.SimulationTiming.Timestep` |
-| duree de reference | `satellite.bus.opalis.simulation.reference_duration_s` | s | oui | `SimulationModel.SimulationTiming.Simultime` |
-| mode alimentation | `satellite.bus.opalis.model.power_supply` | texte | oui | `SimulationModel.GlobalArchitecture.VSupply` |
-| type de regulation | `satellite.bus.opalis.model.regulation_type` | texte | oui | `SimulationModel.GlobalArchitecture.RegulType` |
-| resistance distribution | `satellite.bus.opalis.model.distribution_resistance_ohm` | ohm | oui | `SimulationModel.GlobalArchitecture.RDistribution` |
-| tension initiale batterie | `satellite.bus.opalis.battery.initial_voltage_v` | V | oui | `SimulationModel.SimulationInitialisation.VBatt` |
-| etat de charge initial | `satellite.bus.opalis.battery.initial_state_of_charge` | 0–1 | oui | `SimulationModel.SimulationInitialisation.SocBattery` |
-| energie batterie | `satellite.bus.opalis.battery.energy_wh` | Wh | oui | `SimulationModel.Battery.Energy` |
-| nombre de cellules paralleles | `satellite.bus.opalis.battery.cells_parallel` | entier | oui | `SimulationModel.Battery.NParallel` |
-| nombre de cellules serie | `satellite.bus.opalis.battery.cells_series` | entier | oui | `SimulationModel.Battery.NSerie` |
-| charge de distribution | `satellite.bus.opalis.power_distribution.constant_load_w` | W | oui | `SimulationModel.DistributionLines[0].PConstant` |
-| marge de distribution | `satellite.bus.opalis.power_distribution.margin_w` | W ou % selon mode | oui | `SimulationModel.DistributionLines[0].PMargin` |
-| mode de consommation | `satellite.bus.opalis.power_distribution.consumption_mode` | texte | oui | `SimulationModel.DistributionLines[0].PowerConsumptionMode` |
-| constante solaire | `satellite.bus.opalis.environment.solar_constant_w_m2` | W/m² | oui | `SimulationModel.SolarGenerator.SolarConstant` |
-| albedo | `satellite.bus.opalis.environment.albedo_w_m2` | W/m² | oui | `SimulationModel.SolarGenerator.Albedo` |
-| rayonnement Terre | `satellite.bus.opalis.environment.earth_radiation_w_m2` | W/m² | oui | `SimulationModel.SolarGenerator.PEarth` |
-| surface section n | `satellite.bus.opalis.solar_generator.sections[n].area_m2` | m² | oui | `SimulationModel.SolarGenerator.Sections[n].SectionArea` |
-| filling factor section n | `satellite.bus.opalis.solar_generator.sections[n].filling_factor` | 0–1 | oui | `SimulationModel.SolarGenerator.Sections[n].FillingFactor` |
-| cellules serie section n | `satellite.bus.opalis.solar_generator.sections[n].cells_series` | entier | oui | `SimulationModel.SolarGenerator.Sections[n].NSsection` |
-| cellules paralleles section n | `satellite.bus.opalis.solar_generator.sections[n].cells_parallel` | entier | oui | `SimulationModel.SolarGenerator.Sections[n].NPsection` |
+| satellite name | `satellite.identity.name` | text | no | `SimulationModel.PowerProfil.SatelliteName` |
+| reference time step | `satellite.bus.opalis.simulation.reference_time_step_s` | s | yes | `SimulationModel.SimulationTiming.Timestep` |
+| reference duration | `satellite.bus.opalis.simulation.reference_duration_s` | s | yes | `SimulationModel.SimulationTiming.Simultime` |
+| power supply mode | `satellite.bus.opalis.model.power_supply` | text | yes | `SimulationModel.GlobalArchitecture.VSupply` |
+| regulation type | `satellite.bus.opalis.model.regulation_type` | text | yes | `SimulationModel.GlobalArchitecture.RegulType` |
+| distribution resistance | `satellite.bus.opalis.model.distribution_resistance_ohm` | ohm | yes | `SimulationModel.GlobalArchitecture.RDistribution` |
+| initial battery voltage | `satellite.bus.opalis.battery.initial_voltage_v` | V | yes | `SimulationModel.SimulationInitialisation.VBatt` |
+| initial state of charge | `satellite.bus.opalis.battery.initial_state_of_charge` | 0–1 | yes | `SimulationModel.SimulationInitialisation.SocBattery` |
+| battery energy | `satellite.bus.opalis.battery.energy_wh` | Wh | yes | `SimulationModel.Battery.Energy` |
+| parallel cell count | `satellite.bus.opalis.battery.cells_parallel` | integer | yes | `SimulationModel.Battery.NParallel` |
+| series cell count | `satellite.bus.opalis.battery.cells_series` | integer | yes | `SimulationModel.Battery.NSerie` |
+| distribution load | `satellite.bus.opalis.power_distribution.constant_load_w` | W | yes | `SimulationModel.DistributionLines[0].PConstant` |
+| distribution margin | `satellite.bus.opalis.power_distribution.margin_w` | W or % depending on mode | yes | `SimulationModel.DistributionLines[0].PMargin` |
+| consumption mode | `satellite.bus.opalis.power_distribution.consumption_mode` | text | yes | `SimulationModel.DistributionLines[0].PowerConsumptionMode` |
+| solar constant | `satellite.bus.opalis.environment.solar_constant_w_m2` | W/m² | yes | `SimulationModel.SolarGenerator.SolarConstant` |
+| albedo | `satellite.bus.opalis.environment.albedo_w_m2` | W/m² | yes | `SimulationModel.SolarGenerator.Albedo` |
+| Earth radiation | `satellite.bus.opalis.environment.earth_radiation_w_m2` | W/m² | yes | `SimulationModel.SolarGenerator.PEarth` |
+| section n area | `satellite.bus.opalis.solar_generator.sections[n].area_m2` | m² | yes | `SimulationModel.SolarGenerator.Sections[n].SectionArea` |
+| section n filling factor | `satellite.bus.opalis.solar_generator.sections[n].filling_factor` | 0–1 | yes | `SimulationModel.SolarGenerator.Sections[n].FillingFactor` |
+| section n series cells | `satellite.bus.opalis.solar_generator.sections[n].cells_series` | integer | yes | `SimulationModel.SolarGenerator.Sections[n].NSsection` |
+| section n parallel cells | `satellite.bus.opalis.solar_generator.sections[n].cells_parallel` | integer | yes | `SimulationModel.SolarGenerator.Sections[n].NPsection` |
 
-La geometrie generaliste `electrical_subsystem.solar_panels.total_area_m2` ne
-sert pas a configurer OPALIS : seule la somme des
-`satellite.bus.opalis.solar_generator.sections[*].area_m2` est utilisee. Les
-deux grandeurs peuvent differer (surface projetee GMAT contre surface active
-des faces/panneaux OPALIS).
+The generic geometry `electrical_subsystem.solar_panels.total_area_m2`
+is not used to configure OPALIS: only the sum of
+`satellite.bus.opalis.solar_generator.sections[*].area_m2` is used.
+The two quantities may differ (projected GMAT area vs. active face/panel
+OPALIS area).
 
-Les proprietes manquantes dans une definition satellite doivent rester `null`.
-L'adaptateur bloque alors OPALIS et affiche le chemin manquant ; il ne doit pas
-inventer une valeur depuis un template.
+Missing properties in a satellite definition must remain `null`.
+The adapter then blocks OPALIS and displays the missing path; it must
+not invent a value from a template.
 
-## 3. Proprietes possedees par le template
+## 3. Properties owned by the template
 
-Le template `.opalis` reste proprietaire de l'architecture non decrite par le
-satellite : modele thermique, type de regulateur, donnees de cellule detaillees,
-resistances, limites de courant, et profil de puissance dynamique. L'adaptateur
-ne les ecrase pas.
+The `.opalis` template remains the owner of architecture not described
+by the satellite: thermal model, regulator type, detailed cell data,
+resistances, current limits, and dynamic power profile. The adapter
+does not override them.
 
-Le point de depart est `D:/STAGE/APP/opalis-2.4.0/Example/empty.opalis`,
-reference par `satellite.bus.opalis.model.template_id = "empty.opalis"`.
-L'adaptateur devra renseigner toutes les proprietes statiques du premier onglet
-de ce fichier avant de charger les CIC. Il ne copie jamais les fichiers
-embarques (`ephemeris/*`), `results.xml`, `charts.xml`, ni les resultats des
-cas de reference.
+The starting point is `D:/STAGE/APP/opalis-2.4.0/Example/empty.opalis`,
+referenced by `satellite.bus.opalis.model.template_id = "empty.opalis"`.
+The adapter must populate all static properties from the first tab
+of this file before loading CIC files. It never copies embedded
+files (`ephemeris/*`), `results.xml`, `charts.xml`, or reference-case
+results.
 
-`SimulationModel.InterpolateEphemeris=true` est impose par le workflow, pas par
-le satellite : il definit la maniere dont OPALIS lit les flux CIC.
+`SimulationModel.InterpolateEphemeris=true` is imposed by the workflow,
+not by the satellite: it defines how OPALIS reads CIC fluxes.
 
-> Note API : le XML OPALIS serialize l'element sous le nom `SolarCell`, mais
-> l'API .NET expose la propriete comme `Cell`. Les chemins du manifeste
-> utilisent donc `SimulationModel.SolarGenerator.Sections[n].Cell.*`.
+> API note: OPALIS XML serialises the element under the name `SolarCell`,
+> but the .NET API exposes the property as `Cell`. Manifest paths
+> therefore use `SimulationModel.SolarGenerator.Sections[n].Cell.*`.
 
-## 4. Fichier d'entree resolu
+## 4. Resolved input file
 
-Avant OPALIS, le backend devra produire ce fichier immuable dans le dossier de
-la run :
+Before OPALIS, the backend must produce this immutable file in the
+run directory:
 
 ```text
 <run>/opalis/02-opalis-input/opalis-parameters.json
 ```
 
-Il contiendra au minimum :
+It must contain at minimum:
 
 ```json
 {
   "schema_version": 1,
   "source_satellite": "satellite.json",
   "source_cic_directory": "opalis/02-simu-cic/02-fichiers-cic/Sat",
-  "template": "<template OPALIS choisi>",
+  "template": "<chosen OPALIS template>",
   "parameters": [
     {
       "source_path": "satellite.bus.electrical_subsystem.solar_panels.albedo_w_m2",
@@ -139,21 +139,23 @@ Il contiendra au minimum :
 }
 ```
 
-Ce fichier est l'interface entre TypeScript et Python. Le pipeline Python ne
-devra donc plus recevoir une suite de `--set` decidee a la main par le frontend.
+This file is the interface between TypeScript and Python. The Python
+pipeline must therefore no longer receive a series of `--set` flags
+decided manually by the frontend.
 
-## 5. Regles de validation avant lancement
+## 5. Pre-launch validation rules
 
-OPALIS peut etre lance seulement si :
+OPALIS may be launched only if:
 
-1. le dossier CIC de la meme run existe et contient tous les fichiers requis ;
-2. `satellite.json` de la meme run existe ;
-3. toutes les entrees statiques obligatoires sont numeriques, finies et dans
-   leurs plages physiques ;
-4. le nombre de sections dans `opalis_sections` est compatible avec le template
-   OPALIS ;
-5. la somme des surfaces de section correspond a `total_area_m2` ;
-6. le fichier `opalis-parameters.json` est sauvegarde avant l'execution.
+1. the CIC directory from the same run exists and contains all required files;
+2. `satellite.json` from the same run exists;
+3. all mandatory static inputs are numeric, finite, and within their
+   physical ranges;
+4. the number of sections in `opalis_sections` is compatible with the
+   OPALIS template;
+5. the sum of section areas matches `total_area_m2`;
+6. the `opalis-parameters.json` file is saved before execution.
 
-La prochaine etape implementera ce contrat dans un adaptateur TypeScript et
-verifiera les chemins exacts contre le nouveau template OPALIS.
+When changing this contract, update the TypeScript adapter, the Python
+pipeline, and their focused tests together. Verify exact paths against the
+configured OPALIS template; never infer them from a previous run.

@@ -41,7 +41,7 @@ export type ChemicalHohmannGenerationResult = {
 }
 
 const CHEMICAL_HOHMANN_MUTABLE_ARTIFACTS = [
-  "EphemerisFile1.oem", "chemical_hohmann_transfer.script", "chemical_hohmann_transfer.values.yaml", "gmat.log", "gmat_result.json", "run_manifest.json", "satellite.json",
+  "EphemerisFile1.oem", "ReportFile1.txt", "chemical_hohmann_timeseries.json", "chemical_hohmann_transfer.script", "chemical_hohmann_transfer.values.yaml", "gmat.log", "gmat_result.json", "run_manifest.json", "satellite.json",
 ]
 
 /** Freezes the active Hohmann workspace after every execution. */
@@ -104,10 +104,23 @@ export function renderChemicalHohmannScript(template: string, values: ChemicalHo
  * run extension is inserted here so downstream Simu-CIC receives the OEM
  * trajectory required by the digital thread. Templates that already declare
  * EphemerisFile1 only get their output redirected into the run directory. */
-export function addHohmannEphemerisWriter(script: string, outputPath: string) {
+export function addHohmannEphemerisWriter(script: string, outputPath: string, reportPath?: string) {
   const nativeOutput = toGmatNativePath(outputPath).replace(/\\/gu, "/")
   if (!/^BeginMissionSequence;$/mu.test(script)) throw new Error("chemical Hohmann template does not expose BeginMissionSequence")
   let withSubscriber = script
+  // Redirect the report file into the run directory so downstream parsing can
+  // find it. GMAT writes relative paths to its own working directory otherwise.
+  if (reportPath && /^ReportFile1\.Filename\s*=\s*[^;]+;$/mu.test(withSubscriber)) {
+    const nativeReport = toGmatNativePath(reportPath).replace(/\\/gu, "/")
+    withSubscriber = replaceSingle(withSubscriber, /^ReportFile1\.Filename\s*=\s*[^;]+;$/mu, `ReportFile1.Filename = '${nativeReport}';`, "ReportFile1 filename")
+  }
+  // The differential corrector also writes an iteration report. GMAT resolves
+  // a relative path against its installation directory, which can be read-only.
+  // Keep that solver artifact with the run so the Hohmann targeter can execute.
+  if (/^DC1\.ReportFile\s*=\s*[^;]+;$/mu.test(withSubscriber)) {
+    const solverReport = toGmatNativePath(path.join(path.dirname(outputPath), "DifferentialCorrectorDC1.data")).replace(/\\/gu, "/")
+    withSubscriber = replaceSingle(withSubscriber, /^DC1\.ReportFile\s*=\s*[^;]+;$/mu, `DC1.ReportFile = '${solverReport}';`, "DC1 solver report filename")
+  }
   if (/^Create EphemerisFile EphemerisFile1;$/mu.test(withSubscriber)) {
     withSubscriber = replaceSingle(withSubscriber, /^EphemerisFile1\.Filename\s*=\s*[^;]+;$/mu, `EphemerisFile1.Filename = '${nativeOutput}';`, "EphemerisFile1 filename")
   } else {
@@ -144,6 +157,25 @@ export function addHohmannEphemerisWriter(script: string, outputPath: string) {
       "BeginMissionSequence;\n\n% Application instrumentation: activate the downstream OEM subscriber.\nToggle EphemerisFile1 On;",
     )
   }
+  const reportCommand = "Report ReportFile1 DefaultSC.ElapsedSecs DefaultSC.Earth.Altitude DefaultSC.ChemicalTank1.FuelMass;"
+  const hasReportFile = /^Create ReportFile ReportFile1;$/mu.test(withSubscriber)
+  // GMAT's ReportFile subscriber does not emit rows reliably from a solved
+  // Target block. Explicit Report commands create the chart data product at
+  // the initial state, the converged transfer state, and every output step.
+  if (hasReportFile && !/^Report ReportFile1 DefaultSC\.ElapsedSecs DefaultSC\.Earth\.Altitude DefaultSC\.ChemicalTank1\.FuelMass;$/mu.test(withSubscriber)) {
+    withSubscriber = replaceSingle(
+      withSubscriber,
+      /^Toggle(?=[^\n]*\bReportFile1\b)[^\n]*\bOn;$/mu,
+      `$&\n${reportCommand}`,
+      "ReportFile1 activation",
+    )
+    withSubscriber = replaceSingle(
+      withSubscriber,
+      /^EndTarget;[^\n]*$/mu,
+      `$&\n${reportCommand}`,
+      "Hohmann target completion",
+    )
+  }
   // The tutorial's last propagation is a single "propagate to epoch" command.
   // GMAT's console can complete that command without emitting subscriber
   // samples, leaving a zero-byte OEM. Use the same one-integrator-step loop
@@ -155,8 +187,23 @@ export function addHohmannEphemerisWriter(script: string, outputPath: string) {
   return withSubscriber.replace(finalPropagation, [
     `While 'Sample post-transfer trajectory for OEM output' DefaultSC.ElapsedSecs < ${match[1]}`,
     "   Propagate 'Propagate one output step' DefaultProp(DefaultSC);",
+    ...(hasReportFile ? [`   ${reportCommand}`] : []),
     "EndWhile;",
   ].join("\n"))
+}
+
+/** Parses the 3-column GMAT ReportFile1 (ElapsedSecs, Altitude, FuelMass) into
+ * the unified time-series format consumed by the results frontend. */
+export function parseChemicalHohmannReport(source: string) {
+  const samples: Array<{ elapsedDays: number; altitudeKm: number; fuelMassKg: number }> = []
+  for (const line of source.split(/\r?\n/u)) {
+    const values = line.trim().split(/\s+/u).map(Number)
+    // GMAT can emit scientific notation, so validate parsed values rather than
+    // filtering characters before Number has a chance to interpret them.
+    if (values.length !== 3 || values.some(value => !Number.isFinite(value))) continue
+    samples.push({ elapsedDays: values[0] / 86_400, altitudeKm: values[1], fuelMassKg: values[2] })
+  }
+  return samples
 }
 
 export async function generateChemicalHohmannMission({ draft, workspaceDir, templatePath = defaultChemicalHohmannTemplatePath(), execution }: { draft: ChemicalHohmannDraft; workspaceDir: string; templatePath?: string; execution?: { bin: string; timeoutMs: number } }): Promise<ChemicalHohmannGenerationResult> {
@@ -167,7 +214,9 @@ export async function generateChemicalHohmannMission({ draft, workspaceDir, temp
   const [template] = await Promise.all([fs.readFile(templatePath, "utf8"), fs.mkdir(runDir, { recursive: true })])
   const values = draft.values as ChemicalHohmannRenderValues
   const ephemerisPath = path.join(runDir, "EphemerisFile1.oem")
-  const script = addHohmannEphemerisWriter(renderChemicalHohmannScript(template, values), ephemerisPath)
+  const reportPath = path.join(runDir, "ReportFile1.txt")
+  const timeSeriesPath = path.join(runDir, "chemical_hohmann_timeseries.json")
+  const script = addHohmannEphemerisWriter(renderChemicalHohmannScript(template, values), ephemerisPath, reportPath)
   const scriptPath = path.join(runDir, "chemical_hohmann_transfer.script")
   const valuesPath = path.join(runDir, "chemical_hohmann_transfer.values.yaml")
   const resultPath = path.join(runDir, "gmat_result.json")
@@ -189,10 +238,19 @@ export async function generateChemicalHohmannMission({ draft, workspaceDir, temp
     const status = timedOut ? "timeout" : exitCode === 0 && oemWasWritten ? "completed" : "failed"
     executionResult = { durationMs: Date.now() - started, exitCode, status, ...(status === "completed" ? {} : { error: timedOut ? `GMAT timed out after ${execution.timeoutMs} ms` : exitCode === null ? "GMAT could not be started" : exitCode === 0 ? "GMAT completed but did not produce EphemerisFile1.oem" : `GMAT exited with code ${exitCode}` }) }
   }
-  const result: ChemicalHohmannGenerationResult["result"] & { reportSampleCount: number; timeSeriesSampleCount: number } = { status: executionResult?.status ?? "generated", reportSampleCount: 0, timeSeriesSampleCount: 0, ...(executionResult?.error ? { error: executionResult.error } : {}), ...(executionResult ? { executionDurationMs: executionResult.durationMs } : {}) }
-  const manifest = { schemaVersion: 1, runId, tool: "GMAT", templateId: "chemical-hohmann-transfer", status: result.status, request: "Deterministic chemical Hohmann transfer", createdAt, completedAt: executionResult ? new Date().toISOString() : null, inputs: { script: path.basename(scriptPath), values: path.basename(valuesPath) }, outputs: { result: path.basename(resultPath), report: null, ephemeris: executionResult?.status === "completed" ? path.basename(ephemerisPath) : null, log: executionResult ? path.basename(logPath) : null } }
+  // Parse the GMAT report into a time-series JSON so the results frontend can
+  // display altitude/fuel graphs without coupling to the GMAT report format.
+  const reportSamples = executionResult?.status === "completed"
+    ? parseChemicalHohmannReport(await fs.readFile(reportPath, "utf8").catch(() => ""))
+    : []
+  const missingReportError = executionResult?.status === "completed" && reportSamples.length === 0
+    ? "GMAT completed but did not produce a parseable ReportFile1.txt time series."
+    : undefined
+  const result: ChemicalHohmannGenerationResult["result"] & { reportSampleCount: number; timeSeriesSampleCount: number } = { status: missingReportError ? "failed" : executionResult?.status ?? "generated", reportSampleCount: reportSamples.length, timeSeriesSampleCount: reportSamples.length, ...(missingReportError ? { error: missingReportError } : executionResult?.error ? { error: executionResult.error } : {}), ...(executionResult ? { executionDurationMs: executionResult.durationMs } : {}) }
+  const manifest = { schemaVersion: 1, runId, tool: "GMAT", templateId: "chemical-hohmann-transfer", status: result.status, request: "Deterministic chemical Hohmann transfer", createdAt, completedAt: executionResult ? new Date().toISOString() : null, inputs: { script: path.basename(scriptPath), values: path.basename(valuesPath) }, outputs: { result: path.basename(resultPath), report: reportSamples.length ? path.basename(reportPath) : null, ephemeris: result.status === "completed" ? path.basename(ephemerisPath) : null, log: executionResult ? path.basename(logPath) : null } }
   await Promise.all([
     fs.writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8"),
+    fs.writeFile(timeSeriesPath, `${JSON.stringify(reportSamples, null, 2)}\n`, "utf8"),
     updateRunManifest(runDir, manifest),
   ])
   await invalidateDownstreamFromGmat(runDir)

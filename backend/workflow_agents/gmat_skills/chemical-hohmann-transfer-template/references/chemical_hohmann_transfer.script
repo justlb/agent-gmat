@@ -34,8 +34,8 @@ DefaultSC.NAIFId = -123456789;
 DefaultSC.NAIFIdReferenceFrame = -123456789;
 DefaultSC.OrbitColor = Red;
 DefaultSC.TargetColor = Teal;
-% OrbitErrorCovariance omitted: this legacy 6-by-6 assignment is rejected by
-% the GMAT version used by the application.
+% OrbitErrorCovariance is omitted because this legacy 6-by-6 assignment is
+% rejected by the GMAT version used by the application.
 DefaultSC.CdSigma = 1e+70;
 DefaultSC.CrSigma = 1e+70;
 DefaultSC.Id = 'SatId';

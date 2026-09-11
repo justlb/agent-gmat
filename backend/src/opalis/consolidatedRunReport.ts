@@ -2,30 +2,39 @@ import fs from "node:fs/promises"
 import path from "node:path"
 
 import { loadOpalisResultSummary } from "./opalisResults.js"
+import { loadSimuCicResultSummary } from "./simuCicResults.js"
+import { loadRFComlinkResultSummary } from "../rfComlink/rfComlinkResults.js"
 import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
+import { loadRunWorkflowLog } from "./workflowRunLog.js"
 
 export async function writeConsolidatedRunReport(runDir: string) {
   const readJson = async (fileName: string) => JSON.parse(await fs.readFile(path.join(runDir, fileName), "utf8").catch(() => "null")) as unknown
-  const [manifest, gmatResult, satellite, opalis] = await Promise.all([
-    readJson("run_manifest.json"), readJson("gmat_result.json"), readJson("satellite.json"), loadOpalisResultSummary(runDir),
+  const [manifest, gmatResult, satellite, opalis, simuCic, rfComlink, workflow] = await Promise.all([
+    readJson("run_manifest.json"),
+    readJson("gmat_result.json"),
+    readJson("satellite.json"),
+    loadOpalisResultSummary(runDir),
+    loadSimuCicResultSummary(runDir),
+    loadRFComlinkResultSummary(runDir),
+    loadRunWorkflowLog(runDir),
   ])
-  const simuCicDefinition = await readJson(path.join("opalis", "02-simu-cic", "simucic.definition.json"))
-  const cicRoot = path.join(runDir, "opalis", "02-simu-cic")
-  const cicEntries = await fs.readdir(cicRoot, { recursive: true }).catch(() => [])
-  const cicFiles = cicEntries
-    .filter((entry): entry is string => typeof entry === "string")
-    .filter(entry => /\.(?:CIC|sce|txt)$/iu.test(entry))
-    .map(entry => path.join("opalis", "02-simu-cic", entry).split(path.sep).join("/"))
   const analysis = await writeRunAnalysisContext(runDir)
   const report = {
     generated_at: new Date().toISOString(),
-    schema_version: 1,
+    schema_version: 2,
     source_of_truth: "satellite.json",
     gmat: gmatResult,
     manifest,
     opalis,
+    // Keep the consolidated export compact. The raw, extracted RF reports are
+    // still available in rf-comlink-results.json for independent review.
+    rf_comlink: rfComlink && {
+      ...rfComlink,
+      reports: rfComlink.reports.map(report => ({ character_count: report.text.length, path: report.path })),
+    },
     satellite,
-    simu_cic: { definition: simuCicDefinition, generated_files: cicFiles },
+    simu_cic: simuCic,
+    workflow,
     analysis_context: "run-analysis-context.json",
   }
   const output = path.join(runDir, "consolidated-run-report.json")

@@ -50,18 +50,27 @@ function verdictCounts(context: RunAnalysisContext) {
 
 function buildComparisonRow(context: RunAnalysisContext): ComparisonRow {
   const counts = verdictCounts(context)
-  const gmat = isRecord(context.results?.gmat) ? context.results.gmat : {}
-  const gmatMetrics = isRecord(gmat.metrics) ? gmat.metrics : {}
-  const satellite = isRecord(context.configuration?.satellite) ? context.configuration.satellite : {}
+  const gmat: JsonRecord = isRecord(context.results?.gmat) ? context.results.gmat : {}
+  const gmatMetrics: JsonRecord = isRecord(gmat.metrics) ? gmat.metrics : {}
+  const satellite: JsonRecord = isRecord(context.configuration?.satellite) ? context.configuration.satellite : {}
   const name = satellite.name
+  const request = isRecord(context.configuration?.gmat) ? context.configuration.gmat : {}
+  const orbitKeeping = isRecord(request.orbit_keeping) ? request.orbit_keeping : {}
+  const initialOrbitKeepingFuel = finiteNumber(orbitKeeping.initial_fuel_mass_kg)
+  const finalFuel = finiteNumber(gmatMetrics.finalFuelMassKg)
+  // The first orbit-keeping report is emitted after its first reboost. Its
+  // report-to-report delta is not total mission consumption.
+  const fuelUsed = context.run.template === "orbit-keeping" && initialOrbitKeepingFuel !== null && finalFuel !== null
+    ? initialOrbitKeepingFuel - finalFuel
+    : finiteNumber(gmatMetrics.fuelUsedBetweenReportsKg)
   return {
     runId: context.run.id,
     template: context.run.template,
     satelliteName: typeof name === "string" ? name : null,
     gmatStatus: typeof gmat.status === "string" ? gmat.status : "unknown",
     finalAltitudeKm: finiteNumber(gmatMetrics.finalAltitudeKm),
-    finalFuelMassKg: finiteNumber(gmatMetrics.finalFuelMassKg),
-    fuelUsedKg: finiteNumber(gmatMetrics.fuelUsedBetweenReportsKg),
+    finalFuelMassKg: finalFuel,
+    fuelUsedKg: fuelUsed,
     blockerCount: counts.blockers,
     warningCount: counts.warnings,
     infoCount: counts.infos,

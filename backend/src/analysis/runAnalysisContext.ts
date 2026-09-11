@@ -9,6 +9,13 @@ const OUTPUT = "run-analysis-context.json"
 
 type JsonRecord = Record<string, unknown>
 
+const TIME_SERIES_SOURCE_BY_TEMPLATE: Record<string, string> = {
+  "chemical-hohmann-transfer": "chemical_hohmann_timeseries.json",
+  "electric-propulsion-transfer": "electric_transfer_timeseries.json",
+  "electrical-leo-orbit-maintenance": "electric_transfer_timeseries.json",
+  "orbit-keeping": "orbit_timeseries.json",
+}
+
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value && typeof value === "object" && !Array.isArray(value))
 }
@@ -106,12 +113,13 @@ export type RunAnalysisContext = {
  * It intentionally contains engineering metrics and source references, not
  * unbounded tool logs, so it is suitable for an LLM prompt. */
 export async function writeRunAnalysisContext(runDir: string) {
-  const [manifest, gmatResult, satellite, orbitSeries, electricSeries, simuCicDefinition, workflow, opalis, rf, cicOutputs] = await Promise.all([
+  const [manifest, gmatResult, satellite, orbitSeries, electricSeries, chemicalSeries, simuCicDefinition, workflow, opalis, rf, cicOutputs] = await Promise.all([
     readJson(path.join(runDir, "run_manifest.json")),
     readJson(path.join(runDir, "gmat_result.json")),
     readJson(path.join(runDir, "satellite.json")),
     readJson(path.join(runDir, "orbit_timeseries.json")),
     readJson(path.join(runDir, "electric_transfer_timeseries.json")),
+    readJson(path.join(runDir, "chemical_hohmann_timeseries.json")),
     readJson(path.join(runDir, "opalis", "02-simu-cic", "simucic.definition.json")),
     loadRunWorkflowLog(runDir),
     loadOpalisResultSummary(runDir),
@@ -121,7 +129,21 @@ export async function writeRunAnalysisContext(runDir: string) {
   const manifestRecord = isRecord(manifest) ? manifest : {}
   const gmatRecord = isRecord(gmatResult) ? gmatResult : {}
   const gmatStatus = typeof gmatRecord.status === "string" ? gmatRecord.status : "not_available"
-  const timeSeries = summarizeTimeSeries(orbitSeries) ?? summarizeTimeSeries(electricSeries)
+  const timeSeriesCandidates = [
+    { source: "orbit_timeseries.json", summary: summarizeTimeSeries(orbitSeries) },
+    { source: "electric_transfer_timeseries.json", summary: summarizeTimeSeries(electricSeries) },
+    { source: "chemical_hohmann_timeseries.json", summary: summarizeTimeSeries(chemicalSeries) },
+  ]
+  const declaredTimeSeriesSource = typeof manifestRecord.templateId === "string"
+    ? TIME_SERIES_SOURCE_BY_TEMPLATE[manifestRecord.templateId]
+    : null
+  // Prefer the artifact declared by the run. The fallback only supports legacy
+  // runs that predate a manifest and prevents stale files from changing facts.
+  const selectedTimeSeries = declaredTimeSeriesSource
+    ? timeSeriesCandidates.find(candidate => candidate.source === declaredTimeSeriesSource && candidate.summary)
+    : timeSeriesCandidates.find(candidate => candidate.summary)
+  const timeSeries = selectedTimeSeries?.summary ?? null
+  const timeSeriesSource = selectedTimeSeries?.source ?? null
   const rfEvidence = rf ? rf.reports.flatMap(report => linesWithNumbers(report.text, report.path)) : []
   const verdicts: RunAnalysisContext["verdicts"] = []
   if (gmatStatus === "failed" || gmatStatus === "timeout") verdicts.push({ level: "blocker", tool: "GMAT", message: String(gmatRecord.error ?? `GMAT ${gmatStatus}.`), source_file: "gmat_result.json" })
@@ -138,9 +160,9 @@ export async function writeRunAnalysisContext(runDir: string) {
     results: {
       gmat: {
         status: gmatStatus,
-        metrics: scalarMetrics(gmatResult, ["executionDurationMs", "reportSampleCount", "timeSeriesSampleCount", "finalAltitudeKm", "finalFuelMassKg", "fuelUsedBetweenReportsKg", "maximumReportedThrustPowerKw", "minimumUsablePowerKw", "powerEligibleSampleCount", "error"]),
+        metrics: scalarMetrics(gmatResult, ["executionDurationMs", "reportSampleCount", "timeSeriesSampleCount", "finalAltitudeKm", "finalElapsedSeconds", "finalFuelMassKg", "fuelUsedBetweenReportsKg", "maximumReportedThrustPowerKw", "minimumUsablePowerKw", "powerEligibleSampleCount", "error"]),
         time_series: timeSeries,
-        sources: ["gmat_result.json", timeSeries ? (orbitSeries ? "orbit_timeseries.json" : "electric_transfer_timeseries.json") : null].filter(Boolean),
+        sources: ["gmat_result.json", timeSeries ? timeSeriesSource : null].filter(Boolean),
       },
       simu_cic: {
         workflow_status: workflow.stages.simu_cic.status,
@@ -154,6 +176,8 @@ export async function writeRunAnalysisContext(runDir: string) {
         workflow_status: workflow.stages.rf_comlink.status,
         report_count: rf.reports.length,
         link_files: rf.link_files,
+        link_budgets: rf.link_budgets,
+        metrics: rf.indicators,
         indicators: rfEvidence,
         source: "rf-comlink/03-results/rf-comlink-results.json",
       } : { workflow_status: workflow.stages.rf_comlink.status, available: false },

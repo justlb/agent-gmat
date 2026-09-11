@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { joinApiPath } from '../../app/apiBase'
 import { listMissionTemplateDefinitions, type MissionTemplateDefinition } from './missionTemplateCatalogApi'
 import { missionTemplateRuntime } from './missionTemplateRuntime'
-import { createPlanningRun } from './planningRunApi'
-import { getRunView, type RunViewArtifact, type RunView } from './runViewApi'
+import { createPlanningRun, duplicatePlanningRun } from './planningRunApi'
+import { getRunView, type RunView } from './runViewApi'
 import { listSatelliteDefinitions, listRFComlinkGroundStations, saveSimuCicConfiguration, selectSatelliteDefinition, type RFComlinkGroundStation, type SatelliteDefinition } from './satelliteLibraryApi'
 import type { GmatMissionTemplateId } from './gmatMissionTemplates'
 import { MissionOverview } from './MissionOverview'
@@ -25,7 +25,7 @@ function runPathForWorkspace(workspace: string) {
 }
 
 export function MissionV2({ onStartMission, workspaceDir }: Props) {
-  const restored = useRef(false)
+  const [stateRestored, setStateRestored] = useState(false)
   const [satellites, setSatellites] = useState<SatelliteDefinition[]>([])
   const [templates, setTemplates] = useState<MissionTemplateDefinition[]>([])
   const [stations, setStations] = useState<RFComlinkGroundStation[]>([])
@@ -36,10 +36,10 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
   const [draftId, setDraftId] = useState('')
   const [values, setValues] = useState<Record<string, string | number | null>>({})
   const [running, setRunning] = useState(false)
+  const [runLaunched, setRunLaunched] = useState(false)
   const [scriptReady, setScriptReady] = useState(false)
   const [pipeline, setPipeline] = useState<PipelineStatus>(initialPipeline)
   const [runPath, setRunPath] = useState('')
-  const [artifacts, setArtifacts] = useState<RunViewArtifact[]>([])
   const [overview, setOverview] = useState<RunView['overview'] | null>(null)
   const [message, setMessage] = useState('Choose a satellite to begin.')
 
@@ -47,7 +47,7 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
     try {
       const saved = sessionStorage.getItem('mission-v2-state-v2')
       if (saved) {
-        const state = JSON.parse(saved) as Partial<{ satelliteId: string; templateId: GmatMissionTemplateId; stationId: string; activeWorkspace: string; draftId: string; values: Record<string, string | number | null>; runPath: string }>
+        const state = JSON.parse(saved) as Partial<{ satelliteId: string; templateId: GmatMissionTemplateId; stationId: string; activeWorkspace: string; draftId: string; values: Record<string, string | number | null>; runPath: string; runLaunched: boolean }>
         if (state.satelliteId) setSatelliteId(state.satelliteId)
         if (state.templateId) setTemplateId(state.templateId)
         if (state.stationId) setStationId(state.stationId)
@@ -55,14 +55,15 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
         if (state.draftId) setDraftId(state.draftId)
         if (state.values) setValues(state.values)
         if (state.runPath) setRunPath(state.runPath)
+        if (state.runLaunched) setRunLaunched(state.runLaunched)
       }
     } catch { /* a malformed browser cache must never block the page */ }
-    restored.current = true
+    setStateRestored(true)
   }, [])
   useEffect(() => {
-    if (!restored.current) return
-    sessionStorage.setItem('mission-v2-state-v2', JSON.stringify({ satelliteId, templateId, stationId, activeWorkspace, draftId, values, runPath }))
-  }, [satelliteId, templateId, stationId, activeWorkspace, draftId, values, runPath])
+    if (!stateRestored) return
+    sessionStorage.setItem('mission-v2-state-v2', JSON.stringify({ satelliteId, templateId, stationId, activeWorkspace, draftId, values, runPath, runLaunched }))
+  }, [stateRestored, satelliteId, templateId, stationId, activeWorkspace, draftId, values, runPath, runLaunched])
 
   useEffect(() => {
     void Promise.all([listSatelliteDefinitions(), listMissionTemplateDefinitions()])
@@ -78,7 +79,7 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
   useEffect(() => {
     if (!runPath) return
     let cancelled = false
-    const refresh = async () => { try { const response = await fetch(joinApiPath(undefined, '/opalis/workflow-status'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runPath }) }); const body = await response.json() as { workflow?: { stages?: PipelineStatus } }; const view = await getRunView(runPath); if (!cancelled) { if (body.workflow?.stages) setPipeline(body.workflow.stages); setArtifacts(view.artifacts); setOverview(view.overview) } } catch { /* retain the last persisted state while polling */ } }
+    const refresh = async () => { try { const response = await fetch(joinApiPath(undefined, '/opalis/workflow-status'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runPath }) }); const body = await response.json() as { workflow?: { stages?: PipelineStatus } }; const view = await getRunView(runPath); if (!cancelled) { if (body.workflow?.stages) setPipeline(body.workflow.stages); setOverview(view.overview); setValues(current => { const saved = Object.entries(view.missionValues).filter(([, value]) => value !== null); return saved.some(([path, value]) => current[path] !== value) ? { ...current, ...Object.fromEntries(saved) } : current }) } } catch { /* retain the last persisted state while polling */ } }
     void refresh(); const timer = window.setInterval(() => void refresh(), 1500)
     return () => { cancelled = true; window.clearInterval(timer) }
   }, [runPath])
@@ -122,8 +123,8 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
       const generation = await missionTemplateRuntime(templateId).prepare(draftId, current)
       const preparedRunPath = runPathForWorkspace(generation.runPath)
       const view = await getRunView(preparedRunPath)
-      setRunPath(preparedRunPath); setArtifacts(view.artifacts); setOverview(view.overview); setScriptReady(true)
-      setMessage('GMAT script saved in Run artifacts. GMAT will now start from this file.')
+      setRunPath(preparedRunPath); setOverview(view.overview); setScriptReady(true)
+      setMessage('GMAT script saved for this run. It will be available from Results after computation.')
       // Give React a paint opportunity: the user sees the downloaded artifact
       // before the following request starts the external GMAT process.
       await new Promise<void>(resolve => window.setTimeout(resolve, 350))
@@ -135,7 +136,7 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
     // Materialize the run-local script and make it available in Documents
     // before the request below starts GMAT.
     if (!templateId || !draftId || !stationId || !compatibleStations.some(station => station.id === stationId)) { setMessage('Choose a ground station and complete the mission inputs first.'); return }
-    setRunning(true); setMessage('Launching GMAT from the reviewed script…')
+    setRunning(true); setRunLaunched(true); setMessage('Launching GMAT from the reviewed script…')
     try { const current = await ensureWorkspace(); await saveSimuCicConfiguration({ attitude_mode: 'ground_station_tracking', ground_station_ids: [stationId] }, current); setRunPath(runPathForWorkspace(current)); const execution = await missionTemplateRuntime(templateId).runFullPipeline(draftId, current); setRunPath(execution.runPath); setMessage('Pipeline started. The workflow status is persisted while calculations run.') } catch (error) { setPipeline(current => ({ ...current, gmat: { status: 'failed', detail: error instanceof Error ? error.message : 'GMAT could not start' } })); setMessage(error instanceof Error ? error.message : 'Pipeline could not start') } finally { setRunning(false) }
   }
   const createNewRun = async () => {
@@ -144,22 +145,136 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
       // run for ordinary form actions. The New run button must instead call
       // the creation endpoint directly, otherwise it reopens that old run.
       const created = await createPlanningRun()
-      setActiveWorkspace(created.workspaceDir); setDraftId(''); setRunPath(''); setArtifacts([]); setOverview(null); setPipeline(initialPipeline); setValues({}); setSatelliteId(''); setTemplateId(''); setStationId(''); setScriptReady(false); setMessage('New run created. Choose a satellite to begin.')
+      setActiveWorkspace(created.workspaceDir); setDraftId(''); setRunPath(''); setRunLaunched(false); setOverview(null); setPipeline(initialPipeline); setValues({}); setSatelliteId(''); setTemplateId(''); setStationId(''); setScriptReady(false); setMessage('New run created. Choose a satellite to begin.')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Failed to create a new run') }
+  }
+  const createNewRunSameValues = async () => {
+    const sourceRunPath = runPath || (activeWorkspace ? runPathForWorkspace(activeWorkspace) : '')
+    if (!sourceRunPath) { setMessage('Choose a saved run before duplicating its values.'); return }
+    setRunning(true)
+    try {
+      const duplicated = await duplicatePlanningRun(sourceRunPath)
+      const duplicatedTemplate = duplicated.templateId as GmatMissionTemplateId | null
+      if (!duplicatedTemplate || !templates.some(item => item.id === duplicatedTemplate)) throw new Error('The source run has no supported mission scenario.')
+      const draft = await missionTemplateRuntime(duplicatedTemplate).create(duplicated.planningRun.workspaceDir)
+      setActiveWorkspace(duplicated.planningRun.workspaceDir)
+      setSatelliteId(duplicated.satelliteId ?? '')
+      setTemplateId(duplicatedTemplate)
+      setStationId(duplicated.groundStationId ?? '')
+      setDraftId(draft.draftId)
+      setValues(draft.values)
+      setRunPath('')
+      setRunLaunched(false)
+      setOverview(null)
+      setPipeline(initialPipeline)
+      setScriptReady(false)
+      setMessage(`New editable draft created from run ${duplicated.sourceRunId}.`)
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Failed to duplicate the mission run') }
+    finally { setRunning(false) }
   }
   const physical = satellite?.satellite ?? {}
   const currentRun = runPath.split('/').filter(Boolean).at(-1) ?? (draftId ? `Draft ${draftId.slice(-8)}` : 'No run selected')
-  const artifactDownloadUrl = (file: RunViewArtifact) => `${joinApiPath(undefined, '/digital-thread/mission-run/download')}?${new URLSearchParams({ workspaceDir: runPath, file: file.relativePath }).toString()}`
-  const artifactGroups = [
-    ['GMAT scripts', (file: RunViewArtifact) => file.relativePath.endsWith('.script')],
-    ['YAML parameters', (file: RunViewArtifact) => file.relativePath.endsWith('.yaml') || file.relativePath.endsWith('.yml')],
-    ['JSON data', (file: RunViewArtifact) => file.relativePath.endsWith('.json')],
-    ['Logs', (file: RunViewArtifact) => file.relativePath.endsWith('.log')],
-    ['Simulation results', (file: RunViewArtifact) => !file.relativePath.endsWith('.script') && !file.relativePath.endsWith('.yaml') && !file.relativePath.endsWith('.yml') && !file.relativePath.endsWith('.json') && !file.relativePath.endsWith('.log')],
-  ].map(([label, matches]) => ({ label: label as string, files: artifacts.filter(matches as (file: RunViewArtifact) => boolean) })).filter(group => group.files.length)
-  return <div className="mission-v2-shell"><header className="mission-v2-current-run"><span>CURRENT RUN</span><strong>{currentRun}</strong><small>{pipeline.gmat.status === 'failed' || pipeline.simu_cic.status === 'failed' || pipeline.opalis.status === 'failed' || pipeline.rf_comlink.status === 'failed' ? 'Failed' : running || Object.values(pipeline).some(stage => stage.status === 'running') ? 'Running' : Object.values(pipeline).every(stage => stage.status === 'completed') ? 'Succeeded' : 'Ready'}</small><button type="button" onClick={() => void createNewRun()}>New run</button></header><div className="mission-v2-grid">
-    <section className="mission-v2-left"><section className="mission-v2-card mission-v2-select"><span>STEP 1 OF 3</span><h3>Choose mission</h3><label>Satellite<select value={satelliteId} onChange={event => void chooseSatellite(event.target.value)}><option value="">Choose a satellite…</option>{satellites.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Mission scenario<select disabled={!satelliteId} value={templateId} onChange={event => void chooseTemplate(event.target.value)}><option value="">Choose a satellite first…</option>{available.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Ground station<select value={stationId} onChange={event => setStationId(event.target.value)}><option value="">Choose a ground station…</option>{compatibleStations.map(item => <option key={item.id} value={item.id}>{item.name} · {item.bands.join("/")}</option>)}</select></label><small>Stations present in RF-COMLINK for the satellite’s frequency bands. Availability does not guarantee visibility or a successful link budget.</small><small>{message}</small></section>{template ? <><section className="mission-v2-card"><span>STEP 2 OF 3</span><h3>Required mission inputs</h3><div className="mission-v2-inputs">{requiredFields.map(field => <label key={field.path}>{field.label}{field.unit ? ` (${field.unit})` : ''}<input value={missionInputValue(values, field)} placeholder={field.unit ? `Enter ${field.unit}` : 'Enter value'} onChange={event => setValues(current => ({ ...current, [field.path]: event.target.value }))} onBlur={event => void update(field.path, event.target.value)} /></label>)}</div></section><details open className="mission-v2-card mission-v2-optional"><summary>Optional mission inputs</summary><p>Pre-filled defaults. Change only if needed.</p><div className="mission-v2-inputs">{optionalFields.map(field => <label key={field.path}>{field.label}{field.unit ? ` (${field.unit})` : ''}<input value={missionInputValue(values, field)} placeholder={field.unit ? `Enter ${field.unit}` : 'Enter value'} onChange={event => setValues(current => ({ ...current, [field.path]: event.target.value }))} onBlur={event => void update(field.path, event.target.value)} /></label>)}</div></details><button className="mission-v2-run" disabled={running} type="button" onClick={() => void run()}>{running ? 'Starting calculation…' : 'Run complete mission pipeline'}</button><section className="mission-v2-card mission-v2-progress"><span>MISSION WORKFLOW</span>{PIPELINE_STAGES.map(([key, label]) => <div key={key}><b>{label}</b><strong className={`is-${pipeline[key].status}`}>{pipeline[key].status.replaceAll('_', ' ')}</strong>{pipeline[key].detail ? <small>{pipeline[key].detail}</small> : null}</div>)}</section></> : null}</section>
-    <main className="mission-v2-center">{satellite ? <section className="mission-v2-card"><span>SPACECRAFT DEFINITION · {satellite.id}@{satellite.version}</span><h2>{satellite.name}</h2><p>{satellite.description}</p><div className="mission-v2-facts"><b>Dry mass<br />{String(numberAt(physical, 'bus.physical.mass_kg.dry') ?? '—')} kg</b><b>Wet mass<br />{String(numberAt(physical, 'bus.physical.mass_kg.wet_at_launch') ?? '—')} kg</b><b>Propellant capacity<br />{String(numberAt(physical, 'bus.physical.mass_kg.propellant') ?? '—')} kg</b></div><dl className="mission-v2-definition"><dt>Drag model</dt><dd>{String(numberAt(physical, 'bus.physical.drag_area_m2') ?? '—')} m² · Cd {String(numberAt(physical, 'bus.physical.drag_coefficient') ?? '—')}</dd><dt>Propulsion</dt><dd>{String(numberAt(physical, 'bus.propulsion_subsystem.type') ?? '—')}</dd><dt>Specific impulse</dt><dd>{String(numberAt(physical, 'bus.propulsion_subsystem.specific_impulse_seconds') ?? '—')} s</dd><dt>Main thrust</dt><dd>{String(firstValue(physical, 'bus.propulsion_subsystem.nominal_thrust_newtons', 'bus.propulsion_subsystem.main_engine_thrust_n'))} N</dd><dt>Solar array</dt><dd>{String(firstValue(physical, 'bus.electrical_subsystem.solar_panels.total_area_m2', 'bus.electrical_subsystem.solar_array.area_m2'))} m² · {String(firstValue(physical, 'bus.electrical_subsystem.solar_panels.total_power_generated_watts', 'bus.electrical_subsystem.solar_array.maximum_power_w'))} W</dd><dt>Battery</dt><dd>{String(firstValue(physical, 'bus.electrical_subsystem.batteries.chemistry', 'bus.electrical_subsystem.battery.technology'))} · {String(firstValue(physical, 'bus.electrical_subsystem.batteries.energy_wh', 'bus.electrical_subsystem.battery.capacity_wh'))} Wh</dd><dt>Bus load</dt><dd>{String(numberAt(physical, 'bus.electrical_subsystem.spacecraft_bus_load_kw') ?? '—')} kW</dd><dt>Reference orbit</dt><dd>SMA {String(numberAt(physical, 'orbit.keplerian_elements.semi_major_axis_km') ?? '—')} km · ECC {String(numberAt(physical, 'orbit.keplerian_elements.eccentricity') ?? '—')} · INC {String(numberAt(physical, 'orbit.keplerian_elements.inclination_deg') ?? '—')}°</dd></dl><button type="button">Download complete reference JSON</button></section> : null}</main>
-    <aside className="mission-v2-results"><MissionOverview overview={overview} stages={pipeline} /><section className="mission-v2-card mission-v2-files"><span>GENERATED FILES</span><h2>Run artifacts</h2>{artifactGroups.length ? artifactGroups.map(group => <section className="mission-v2-file-group" key={group.label}><h3>{group.label}</h3>{group.files.map(file => <a download href={artifactDownloadUrl(file)} key={file.id}><b>{file.relativePath.split('/').at(-1)}</b><small>{file.tool} · {Math.max(1, Math.round(file.size / 1024))} KB</small></a>)}</section>) : <small>Files appear here as each tool completes.</small>}</section></aside>
-  </div></div>
+  const runStatus = pipeline.gmat.status === 'failed' || pipeline.simu_cic.status === 'failed' || pipeline.opalis.status === 'failed' || pipeline.rf_comlink.status === 'failed'
+    ? 'Failed'
+    : running || Object.values(pipeline).some(stage => stage.status === 'running')
+      ? 'Running'
+      : Object.values(pipeline).every(stage => stage.status === 'completed')
+        ? 'Succeeded'
+        : 'Ready'
+
+  return <div className="mission-v2-shell">
+    <header className="mission-v2-current-run">
+      <span>Current run</span>
+      <strong>{currentRun}</strong>
+      <small>{runStatus}</small>
+      <button type="button" disabled={running || !runPath} onClick={() => void createNewRunSameValues()}>New run same values</button>
+      <button type="button" onClick={() => void createNewRun()}>New run</button>
+    </header>
+    <div className="mission-v2-grid">
+      <section className="mission-v2-left">
+        <section className="mission-v2-card mission-v2-select">
+          <span>Step 1 of 3</span>
+          <h3>Choose mission</h3>
+          <label>Satellite
+            <select disabled={runLaunched} value={satelliteId} onChange={event => void chooseSatellite(event.target.value)}>
+              <option value="">Choose a satellite…</option>
+              {satellites.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <label>Mission scenario
+            <select disabled={runLaunched || !satelliteId} value={templateId} onChange={event => void chooseTemplate(event.target.value)}>
+              <option value="">Choose a satellite first…</option>
+              {available.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <label>Ground station
+            <select disabled={runLaunched} value={stationId} onChange={event => setStationId(event.target.value)}>
+              <option value="">Choose a ground station…</option>
+              {compatibleStations.map(item => <option key={item.id} value={item.id}>{item.name} · {item.bands.join('/')}</option>)}
+            </select>
+          </label>
+          <small className="mission-v2-help">Stations are filtered by RF-COMLINK frequency-band compatibility.</small>
+          <small className="mission-v2-message">{message}</small>
+        </section>
+        {template ? <>
+          <section className="mission-v2-card mission-v2-required">
+            <span>Step 2 of 3</span>
+            <h3>Required mission inputs</h3>
+            <div className="mission-v2-inputs">
+              {requiredFields.map(field => <label key={field.path}>{field.label}{field.unit ? ` (${field.unit})` : ''}
+                <input disabled={runLaunched} value={missionInputValue(values, field)} placeholder={field.unit ? `Enter ${field.unit}` : 'Enter value'} onChange={event => setValues(current => ({ ...current, [field.path]: event.target.value }))} onBlur={event => void update(field.path, event.target.value)} />
+              </label>)}
+            </div>
+          </section>
+          <details className="mission-v2-card mission-v2-optional">
+            <summary>Optional mission inputs</summary>
+            <p>Pre-filled defaults. Change only if needed.</p>
+            <div className="mission-v2-inputs">
+              {optionalFields.map(field => <label key={field.path}>{field.label}{field.unit ? ` (${field.unit})` : ''}
+                <input disabled={runLaunched} value={missionInputValue(values, field)} placeholder={field.unit ? `Enter ${field.unit}` : 'Enter value'} onChange={event => setValues(current => ({ ...current, [field.path]: event.target.value }))} onBlur={event => void update(field.path, event.target.value)} />
+              </label>)}
+            </div>
+          </details>
+          <button className="mission-v2-run" disabled={running || runLaunched} type="button" onClick={() => void run()}>
+            {running ? 'Starting calculation…' : runLaunched ? 'Run locked — create a New run to modify' : 'Run complete mission pipeline'}
+          </button>
+          <section className="mission-v2-card mission-v2-progress">
+            <span>Mission workflow</span>
+            {PIPELINE_STAGES.map(([key, label]) => <div key={key}>
+              <b>{label}</b>
+              <strong className={`is-${pipeline[key].status}`}>{pipeline[key].status.replaceAll('_', ' ')}</strong>
+              {pipeline[key].detail ? <small>{pipeline[key].detail}</small> : null}
+            </div>)}
+          </section>
+        </> : null}
+      </section>
+      <section className="mission-v2-insights">
+        <main className="mission-v2-center">
+          {satellite ? <section className="mission-v2-card mission-v2-spacecraft">
+            <span>Spacecraft definition · {satellite.id}@{satellite.version}</span>
+            <h2>{satellite.name}</h2>
+            <p>{satellite.description}</p>
+            <div className="mission-v2-facts">
+              <b>Dry mass<em>{String(numberAt(physical, 'bus.physical.mass_kg.dry') ?? '—')} kg</em></b>
+              <b>Wet mass<em>{String(numberAt(physical, 'bus.physical.mass_kg.wet_at_launch') ?? '—')} kg</em></b>
+              <b>Propellant<em>{String(numberAt(physical, 'bus.physical.mass_kg.propellant') ?? '—')} kg</em></b>
+            </div>
+            <dl className="mission-v2-definition">
+              <dt>Drag model</dt><dd>{String(numberAt(physical, 'bus.physical.drag_area_m2') ?? '—')} m² · Cd {String(numberAt(physical, 'bus.physical.drag_coefficient') ?? '—')}</dd>
+              <dt>Propulsion</dt><dd>{String(numberAt(physical, 'bus.propulsion_subsystem.type') ?? '—')}</dd>
+              <dt>Specific impulse</dt><dd>{String(numberAt(physical, 'bus.propulsion_subsystem.specific_impulse_seconds') ?? '—')} s</dd>
+              <dt>Main thrust</dt><dd>{String(firstValue(physical, 'bus.propulsion_subsystem.nominal_thrust_newtons', 'bus.propulsion_subsystem.main_engine_thrust_n'))} N</dd>
+              <dt>Solar array</dt><dd>{String(firstValue(physical, 'bus.electrical_subsystem.solar_panels.total_area_m2', 'bus.electrical_subsystem.solar_array.area_m2'))} m² · {String(firstValue(physical, 'bus.electrical_subsystem.solar_panels.total_power_generated_watts', 'bus.electrical_subsystem.solar_array.maximum_power_w'))} W</dd>
+              <dt>Battery</dt><dd>{String(firstValue(physical, 'bus.electrical_subsystem.batteries.chemistry', 'bus.electrical_subsystem.battery.technology'))} · {String(firstValue(physical, 'bus.electrical_subsystem.batteries.energy_wh', 'bus.electrical_subsystem.battery.capacity_wh'))} Wh</dd>
+              <dt>Bus load</dt><dd>{String(numberAt(physical, 'bus.electrical_subsystem.spacecraft_bus_load_kw') ?? '—')} kW</dd>
+              <dt>Reference orbit</dt><dd>SMA {String(numberAt(physical, 'orbit.keplerian_elements.semi_major_axis_km') ?? '—')} km · ECC {String(numberAt(physical, 'orbit.keplerian_elements.eccentricity') ?? '—')} · INC {String(numberAt(physical, 'orbit.keplerian_elements.inclination_deg') ?? '—')}°</dd>
+            </dl>
+          </section> : null}
+        </main>
+        <aside className="mission-v2-results">
+          <MissionOverview compact overview={overview} stages={pipeline} />
+        </aside>
+      </section>
+    </div>
+  </div>
 }

@@ -1,44 +1,48 @@
-# MVP-1 — Connectivité LLM
+# MVP-1 — LLM connectivity
 
-Statut : terminé
+> **Status: historical MVP record.** It documents one connectivity probe, not
+> the current availability of the configured model service. Use `/api/health`
+> or the project launcher for an operational health check.
 
-## Objectif
+Status: completed at the time of the MVP
 
-Vérifier qu'une requête minimale atteint le modèle configuré et retourne du texte exploitable, sans démarrer le backend, un agent ou une chaîne GMAT.
+## Objective
 
-## Implémentation
+Verify that a minimal request reaches the configured model and returns usable text, without starting the backend, an agent, or a GMAT pipeline.
 
-Le script `scripts/check_chat_model_endpoint.mjs` :
+## Implementation
 
-- lit `chatModel` depuis `config.json` ou les variables d'environnement prévues par le projet ;
-- envoie exactement une requête `POST` vers l'API Responses ;
-- limite la réponse à 16 tokens ;
-- ne tente ni `/models`, ni retry, ni correction ;
-- n'affiche jamais la clé API ;
-- retourne un code de sortie non nul en cas d'erreur.
+The script `scripts/check_chat_model_endpoint.mjs`:
 
-Commande depuis la racine du projet, sous WSL :
+- reads `chatModel` from `config.json` or the environment variables provided by the project;
+- sends exactly one `POST` request to the Responses API;
+- limits the response to 16 tokens;
+- does not attempt `/models`, retries, or corrections;
+- never displays the API key;
+- returns a non-zero exit code on error.
+
+Command from the project root, under WSL:
 
 ```bash
 node scripts/check_chat_model_endpoint.mjs --json
 ```
 
-Une configuration extérieure peut être utilisée temporairement sans être copiée :
+An external configuration can be used temporarily without being copied:
 
 ```bash
-node scripts/check_chat_model_endpoint.mjs --config /chemin/vers/config.json --json
+node scripts/check_chat_model_endpoint.mjs --config /path/to/config.json --json
 ```
 
-## Vérifications
+## Verifications
 
-- quatre tests unitaires passent ;
-- le test compte une seule requête sur le chemin de succès ;
-- le test compte une seule requête sur le chemin d'erreur ;
-- le résultat ne contient pas la clé API ;
-- un probe réel a retourné `GMAT_PROBE_OK` en un seul appel.
+- four unit tests pass;
+- the test counts a single request on the success path;
+- the test counts a single request on the error path;
+- the result does not contain the API key;
+- a real probe returned `GMAT_PROBE_OK` in a single call.
 
-La configuration utilisée pour le probe réel est restée locale et n'est pas versionnée.
+The configuration used for the real probe remained local and is not versioned.
 
 ## Conclusion
 
-La connexion au LLM est opérationnelle. Le MVP suivant peut construire et tester le rendu déterministe du template orbit-keeping sans aucun appel LLM.
+The LLM connection is operational. The next MVP can build and test the deterministic rendering of the orbit-keeping template without any LLM call.

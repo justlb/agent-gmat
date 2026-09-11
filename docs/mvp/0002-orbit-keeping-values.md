@@ -1,18 +1,23 @@
-# MVP-2b — Valeurs orbit-keeping et rendu déterministe
+# MVP-2b — Orbit-keeping values and deterministic rendering
 
-Statut : terminé
+> **Status: superseded.** This MVP record describes the Handlebars-based
+> 193-slot pipeline. The current project replaces Handlebars with slot-based
+> auto-extraction directly from .script files. The historical record is
+> preserved below.
 
-Le script GMAT de référence reste immuable. Le fichier `orbit_keeping.values.yaml` contient 193 emplacements de valeurs avec leur contexte GMAT. Le renderer accepte uniquement ce même ensemble d'emplacements et rejette un YAML incomplet, invalide ou dont le contexte ne correspond plus au template.
+Status: completed
 
-## Essai manuel sous WSL
+The reference GMAT script remains immutable. The `orbit_keeping.values.yaml` file contains 193 value slots with their GMAT context. The renderer accepts only that same set of slots and rejects incomplete, invalid, or context-mismatched YAML.
 
-Copier les valeurs de référence avant modification :
+## Manual trial under WSL
+
+Copy the reference values before modification:
 
 ```bash
 cp workflow_agents/gmat_skills/orbit-keeping-template/references/orbit_keeping.values.yaml /tmp/orbit-keeping.values.yaml
 ```
 
-Modifier des champs `value` dans la copie, puis rendre le script :
+Modify `value` fields in the copy, then render the script:
 
 ```bash
 node --import tsx scripts/render_orbit_keeping_values.mts \
@@ -20,4 +25,4 @@ node --import tsx scripts/render_orbit_keeping_values.mts \
   --output /tmp/mission.script
 ```
 
-Le renderer ne contacte aucun LLM et n'exécute pas GMAT.
+The renderer does not contact any LLM and does not execute GMAT.

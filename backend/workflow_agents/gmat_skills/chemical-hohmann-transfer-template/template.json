@@ -10,6 +10,8 @@
     { "path": "chemical_hohmann_transfer.script", "kind": "script" },
     { "path": "chemical_hohmann_transfer.values.yaml", "kind": "values" },
     { "path": "gmat_result.json", "kind": "result" },
+    { "path": "ReportFile1.txt", "kind": "report" },
+    { "path": "chemical_hohmann_timeseries.json", "kind": "timeseries" },
     { "path": "run-analysis-context.json", "kind": "result" },
     { "path": "run_manifest.json", "kind": "manifest" },
     { "path": "satellite.json", "kind": "digital-thread", "primary": true },
