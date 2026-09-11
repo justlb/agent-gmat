@@ -91,10 +91,10 @@ For the engineering workflow, see [Use the Project](tutorials/USE_THE_PROJECT.md
 - Simu-CIC contact, propagation-latency, and eclipse summaries are calculated
   from saved CIC samples. Their approximation and units are defined in
   [Results calculation contract](RESULTS_CALCULATION_CONTRACT.md).
-- RF-COMLINK currently saves an inventory of extracted HTML reports and link
-  files. It does not yet deterministically expose RF margins, Eb/N0,
-  availability, or data-volume figures in the overview. Empty reports must be
-  treated as unavailable evidence, even if the stage says `completed`.
+- RF-COMLINK saves the calculated `.rfcl` package, extracted reports, and
+  parsed link-budget indicators for each configured link. Empty reports or a
+  missing link-budget table remain unavailable evidence, even if the stage is
+  marked `completed`.
 - The Results discussion explains saved evidence; it must never launch a tool
   or modify a completed run.
 
