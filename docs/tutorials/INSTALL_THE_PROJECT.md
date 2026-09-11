@@ -106,6 +106,18 @@ At minimum, configure:
 `config.json` contains local paths and credentials. Do not commit it, send it
 by email, or add it to GitHub.
 
+### Install with Codex or ChatGPT
+
+You can give this guide and the repository URL to Codex or ChatGPT on the
+target computer. It can clone the repository, install WSL dependencies, create
+the local `config.json`, install JavaScript packages, start the application,
+and run the verification steps.
+
+You must still provide the local paths, API credentials, and licences for
+GMAT, Simu-CIC, OPALIS, and RF-COMLINK. Review and approve commands that
+install software or change system settings. Never paste real credentials into
+the public repository or a shared prompt.
+
 ## 5. Install the JavaScript dependencies
 
 The launcher installs dependencies automatically. You can also install them
