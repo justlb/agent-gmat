@@ -1,99 +1,166 @@
-# Install the Project
+# Install the Project on a New Computer
 
-## 1. System prerequisites
+This guide installs a local development copy of the project on Windows with
+WSL2. It explains how to obtain the source from GitHub, configure the local
+environment, start the application, and check that the installation works.
+
+## 1. Obtain access to the GitHub repository
+
+The source code is hosted at [github.com/justlb/agent-gmat](https://github.com/justlb/agent-gmat).
+
+1. Sign in to GitHub with the account that has access to the repository.
+2. Open the repository page and select **Code**.
+3. Copy the HTTPS clone URL:
+
+   ```text
+   https://github.com/justlb/agent-gmat.git
+   ```
+
+If GitHub shows a 404 page or does not allow cloning, the repository owner must
+grant your GitHub account access before you continue.
+
+## 2. Install the prerequisites
 
 ### Windows
-- Windows 10/11 with WSL2 installed
-- GMAT (General Mission Analysis Tool) installed, with `GmatConsole.exe` accessible
-- Python 3 installed in WSL
-- tmux installed in WSL: `sudo apt install tmux`
-- lsof installed in WSL: `sudo apt install lsof`
+
+Install the following software:
+
+- Windows 10 or Windows 11 with WSL2 and Ubuntu;
+- [Git for Windows](https://git-scm.com/download/win);
+- GMAT, including `GmatConsole.exe` and `GMAT.exe`;
+- Scilab and OPALIS for the Simu-CIC and electrical analyses;
+- RF-COMLINK for radio-link calculations.
+
+The scientific tools must be installed on Windows because the application
+starts their Windows executables. Keep their installation paths available for
+the configuration step.
 
 ### WSL (Ubuntu)
-- Node.js via nvm:
+
+Open an Ubuntu terminal and install the required command-line tools:
+
+```bash
+sudo apt update
+sudo apt install -y git tmux lsof python3
+```
+
+Install the current Node.js LTS release through nvm:
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
 source ~/.nvm/nvm.sh
 nvm install --lts
+node --version
+npm --version
 ```
 
-## 2. Clone the project
+Close and reopen the Ubuntu terminal if the `nvm` command is not yet found.
+
+## 3. Clone the repository
+
+Choose a directory on a local Windows drive. The example below uses `D:` and
+clones the repository from WSL:
 
 ```bash
-git clone <repo-url> /mnt/d/STAGE/agent-gmat-main
+mkdir -p /mnt/d/STAGE
+git clone https://github.com/justlb/agent-gmat.git /mnt/d/STAGE/agent-gmat-main
 cd /mnt/d/STAGE/agent-gmat-main
+git status
 ```
 
-## 3. Create configuration
-
-Copy the example and edit it:
+`git status` should report the active branch and a clean working tree. To
+update an existing checkout later, use:
 
 ```bash
+cd /mnt/d/STAGE/agent-gmat-main
+git pull
+```
+
+## 4. Create the local configuration
+
+Create the local configuration file from the tracked example:
+
+```bash
+cd /mnt/d/STAGE/agent-gmat-main
 cp config.example.json config.json
 ```
 
-Fields you **must** fill in:
+Open `config.json` and replace every placeholder value (`"xxx"`, example IP
+addresses, and example paths) with values for the new computer.
 
-| Field | Description | Example |
+At minimum, configure:
+
+| Setting | Purpose | Example |
 |---|---|---|
-| `server.port` | Backend port | 3002 |
-| `server.host` | Backend host | 0.0.0.0 |
-| `frontend.port` | Frontend HTTP port | 5174 |
-| `frontend.httpsPort` | Frontend HTTPS port | 5175 |
-| `frontend.publicHost` | Accessible IP | your local IP |
-| `tmux.backendSession` | Backend tmux session name | ocw-backend |
-| `tmux.frontendSession` | Frontend tmux session name | ocw-frontend |
-| `workspace.templateDir` | Example data directory | /mnt/d/STAGE/agent-gmat-main/data/input_data |
-| `workspace.usersRoot` | User workspace root | /mnt/d/STAGE/agent-gmat-main/data/user |
-| `chatModel.apiKey` | LLM API key | (per your environment) |
-| `chatModel.baseUrl` | LLM endpoint URL | http://10.110.34.83:4000/v1 |
-| `chatModel.model` | LLM model name | Qwen3.6 |
-| `tools.gmat.bin` | GMAT console path | /mnt/d/path/to/GMAT/bin/GmatConsole.exe |
-| `tools.gmat.timeoutMs` | GMAT timeout in ms | 600000 (10 min) |
+| `server.port` | Backend port | `3002` |
+| `frontend.port` / `frontend.httpsPort` | Frontend ports | `5174` / `5175` |
+| `frontend.publicHost` | IP address used to open the frontend | Your local IP address |
+| `tmux.backendSession` / `tmux.frontendSession` | Names for the local services | `agent-gmat-backend`, `agent-gmat-frontend` |
+| `workspace.templateDir` | Repository example data | `/mnt/d/STAGE/agent-gmat-main/data/input_data` |
+| `workspace.usersRoot` | Local user-run data directory | `/mnt/d/STAGE/agent-gmat-main/data/user` |
+| `tools.gmat.bin` | Windows GMAT console executable, visible from WSL | `/mnt/c/Program Files/GMAT/bin/GmatConsole.exe` |
+| `tools.gmat.guiBin` | Windows GMAT graphical executable, visible from WSL | `/mnt/c/Program Files/GMAT/bin/GMAT.exe` |
+| `openai` / `chatModel` | API endpoint, model, and API key for assistant features | Credentials supplied by the project owner |
 
-Do not commit `config.json` with real keys, passwords, or private paths.
+`config.json` contains local paths and credentials. Do not commit it, send it
+by email, or add it to GitHub.
 
-## 4. Install dependencies
+## 5. Install the JavaScript dependencies
 
-The startup script does this automatically, but to verify manually:
+The launcher installs dependencies automatically. You can also install them
+explicitly to diagnose a setup issue:
 
 ```bash
-cd /mnt/d/STAGE/agent-gmat-main/backend && npm install
-cd /mnt/d/STAGE/agent-gmat-main/frontend && npm install
+cd /mnt/d/STAGE/agent-gmat-main/backend
+npm install
+
+cd ../frontend
+npm install
 ```
 
-## 5. Start the project
+## 6. Start the application
+
+From WSL, run:
 
 ```bash
 cd /mnt/d/STAGE/agent-gmat-main
 python3 scripts/start_local_web.py
 ```
 
-## 6. Verify
+The launcher starts the backend and frontend in tmux sessions and releases
+stale project ports before starting them again.
 
-- Open `https://127.0.0.1:<httpsPort>` in a browser
-- Accept the self-signed development certificate
-- The Mission Studio page should load
-- Backend health check: `http://127.0.0.1:<port>/api/health`
+## 7. Verify the installation
 
-## 7. Optional external tools
+1. Open `https://127.0.0.1:<frontend.httpsPort>` in a browser. For the example
+   configuration, this is `https://127.0.0.1:5175`.
+2. Accept the self-signed development certificate when the browser asks.
+3. Confirm that **New simulation** opens and the satellite library is visible.
+4. Check the backend health endpoint at
+   `http://127.0.0.1:<server.port>/api/health`.
+5. Run one small mission only after GMAT, Simu-CIC, OPALIS, and RF-COMLINK have
+   been configured on the computer.
 
-| Tool | Configuration | Required for |
+## 8. External-tool checks
+
+| Tool | Used for | Check before the first run |
 |---|---|---|
-| GMAT | `tools.gmat.bin` | Orbit simulation runs |
-| Scilab | Installed on Windows | Simu-CIC (attitude) |
-| OPALIS | Installed on Windows | Communication link analysis |
-| RF-COMLINK | Installed on Windows | Radio frequency link analysis |
+| GMAT | Orbit propagation and transfer calculations | `tools.gmat.bin` points to an existing `GmatConsole.exe` |
+| Scilab / Simu-CIC | Attitude, contact, eclipse, and geometry data | Scilab and the Simu-CIC workflow are installed on Windows |
+| OPALIS | Electrical-power analysis | OPALIS opens on Windows |
+| RF-COMLINK | Telecommand and telemetry link budgets | RF-COMLINK opens on Windows and its station database is available |
 
-Without these tools, the frontend works but GMAT simulations will fail.
+The frontend can open without these tools, but a complete mission pipeline
+requires all four.
 
-## Common issues
+## Troubleshooting
 
-| Symptom | Fix |
+| Symptom | Resolution |
 |---|---|
-| `lsof: command not found` | `sudo apt install lsof` |
-| tmux session port still occupied | Run `start_local_web.py` again — it cleans up stale ports |
-| GMAT fails to launch | Verify `tools.gmat.bin` points to a valid Windows `.exe` path from WSL (`/mnt/c/...`) |
-| Certificate warning in browser | Accept the self-signed dev certificate — it is expected |
-| `nvm: command not found` | Restart your WSL shell after installing nvm |
+| `git clone` asks for credentials or is denied | Sign in to GitHub with an authorised account, or ask the repository owner for access. |
+| `nvm: command not found` | Close and reopen the Ubuntu terminal, then run `source ~/.nvm/nvm.sh`. |
+| `lsof: command not found` | Run `sudo apt install lsof`. |
+| The launcher reports an occupied port | Run `python3 scripts/start_local_web.py` again; it removes stale project listeners. |
+| GMAT does not start | Verify that the WSL path in `tools.gmat.bin` maps to the installed Windows executable. |
+| Browser certificate warning | Accept the self-signed certificate for this local development instance. |
+| RF-COMLINK or OPALIS fails during a run | Confirm that the tool is installed on Windows and that its configured executable path is correct. |
