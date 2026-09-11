@@ -85,8 +85,8 @@ cd /mnt/d/STAGE/agent-gmat-main
 cp config.example.json config.json
 ```
 
-Open `config.json` and replace every placeholder value (`REPLACE_WITH_...` and
-`/path/to/...`) with values for the new computer.
+Open `config.json` and replace every placeholder value (`"xxx"`, example IP
+addresses, and example paths) with values for the new computer.
 
 At minimum, configure:
 

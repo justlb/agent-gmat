@@ -66,7 +66,9 @@ function get(config, field) {
 }
 
 function isPlaceholder(value) {
-  return typeof value === "string" && value.trim().toLowerCase() === "xxx"
+  if (typeof value !== "string") return false
+  const normalized = value.trim().toLowerCase()
+  return normalized === "xxx" || normalized.startsWith("replace_with_") || normalized.includes("/path/to/")
 }
 
 function walkPlaceholders(value, prefix, issues) {
@@ -82,7 +84,7 @@ function walkPlaceholders(value, prefix, issues) {
     return
   }
   if (isPlaceholder(value)) {
-    add(issues, "error", prefix, "仍是占位值 xxx，请按本机环境填写")
+    add(issues, "error", prefix, "Placeholder value detected; replace it with a local setting.")
   }
 }
 

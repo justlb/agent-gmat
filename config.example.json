@@ -1,39 +1,24 @@
 {
   "openai": {
-    "apiKey": "xxx",
-    "_apiKeyComment": "填写 OpenAI 后端或兼容网关的 API Key",
-    "baseUrl": "https://token.satlab.sbs/v1",
+    "apiKey": "REPLACE_WITH_OPENAI_API_KEY",
+    "_apiKeyComment": "Used by the optional assistant. Keep the real key only in the ignored config.json file.",
+    "baseUrl": "https://api.openai.com/v1",
     "model": "gpt-5.5"
   },
   "chatModel": {
-    "apiKey": "xxx",
-    "_apiKeyComment": "填写默认内网模型服务的 API Key",
-    "baseUrl": "http://10.110.34.83:4000/v1",
-    "model": "Qwen3.6"
+    "apiKey": "REPLACE_WITH_CHAT_MODEL_API_KEY",
+    "_apiKeyComment": "The Mission Studio chat service may use a separate OpenAI-compatible endpoint.",
+    "baseUrl": "https://REPLACE_WITH_CHAT_MODEL_ENDPOINT/v1",
+    "model": "REPLACE_WITH_CHAT_MODEL_NAME",
+    "responsesCompat": false
   },
-  "server": {
-    "port": 3002,
-    "host": "0.0.0.0"
-  },
-  "tmux": {
-    "backendSession": "xxx",
-    "_backendSessionComment": "填写后端 tmux 会话名，例如 ocw-main-backend",
-    "frontendSession": "xxx",
-    "_frontendSessionComment": "填写前端 tmux 会话名，例如 ocw-main-frontend"
-  },
-  "frontend": {
-    "host": "0.0.0.0",
-    "publicHost": "10.110.10.11",
-    "port": 5174,
-    "httpsPort": 5175,
-    "strictPort": true
-  },
+  "server": { "port": 3002, "host": "0.0.0.0" },
+  "tmux": { "backendSession": "agent-gmat-backend", "frontendSession": "agent-gmat-frontend" },
+  "frontend": { "host": "0.0.0.0", "publicHost": "127.0.0.1", "port": 5174, "httpsPort": 5175, "strictPort": true },
   "workspace": {
-    "templateDir": "xxx",
-    "_templateDirComment": "填写示例输入/工作区模板目录，例如 /data/lbk/codex_web/open_codex_web/data/input_data",
-    "usersRoot": "xxx",
-    "_usersRootComment": "填写用户工作区根目录，例如 /data/lbk/codex_web/data/users",
-    "filesystemGroup": "xieteam",
+    "templateDir": "/mnt/d/path/to/agent-gmat-main/data/input_data",
+    "usersRoot": "/mnt/d/path/to/agent-gmat-main/data/user",
+    "filesystemGroup": "",
     "rpcHost": "localhost",
     "rpcPort": 9877,
     "componentInfoMaxStepSizeMb": 6.5,
@@ -44,99 +29,48 @@
   },
   "compliance": {
     "database": {
-      "host": "10.110.10.101",
-      "port": "5432",
-      "user": "postgres",
-      "password": "xxx",
-      "_passwordComment": "填写 PostgreSQL 数据库密码",
-      "catalog": {
-        "db": "components_db",
-        "recallLimitPerComponent": 80
-      },
-      "reliability": {
-        "db": "satllm_db",
-        "schema": "staging",
-        "limitPerComponent": 5
-      }
+      "host": null,
+      "port": 5432,
+      "user": null,
+      "password": null,
+      "catalog": { "db": null, "recallLimitPerComponent": 80 },
+      "reliability": { "db": null, "schema": "public", "limitPerComponent": 5 }
     }
   },
   "codex": {
-    "modelProvider": "nexahub",
-    "modelProviderName": "NexaHub",
+    "modelProvider": "openai",
+    "modelProviderName": "OpenAI",
     "wireApi": "responses",
     "supportsWebsockets": false,
-    "modelReasoningEffort": "high",
+    "modelReasoningEffort": "medium",
     "approvalPolicy": "never",
     "sandboxMode": "workspace-write",
-    "sandboxWorkspaceWriteNetworkAccess": true,
+    "sandboxWorkspaceWriteNetworkAccess": false,
     "skipGitRepoCheck": true
   },
   "tools": {
-    "remoteDesktopLauncher": "/usr/local/bin/start-remote-cad-desktop",
-    "cad": {
-      "displayNum": ":1",
-      "launcher": "/usr/local/bin/start-freecad-remote",
-      "bin": "/usr/bin/freecad",
-      "vncPort": 5901,
-      "noVncPort": 6080
-    },
-    "paraview": {
-      "displayNum": ":2",
-      "launcher": "/usr/local/bin/start-paraview-remote",
-      "vncPort": 5902,
-      "noVncPort": 6081
-    },
-    "comsol": {
-      "displayNum": ":32",
-      "launcher": "/usr/local/bin/start-comsol-remote",
-      "sudo": "sudo",
-      "vncPort": 5932,
-      "noVncPort": 6082
-    },
-    "gnc": {
-      "url": "http://localhost:8765/"
-    },
+    "_remoteToolsComment": "Remote CAD tools are inactive in the GMAT workflow. Replace these no-op launchers only if you enable them with scripts/start_local_web.py --with-remote-gui.",
+    "remoteDesktopLauncher": "/bin/true",
+    "cad": { "displayNum": ":1", "launcher": "/bin/true", "bin": null, "vncPort": 5901, "noVncPort": 6080 },
+    "paraview": { "displayNum": ":2", "launcher": "/bin/true", "vncPort": 5902, "noVncPort": 6081 },
+    "comsol": { "displayNum": ":32", "launcher": "/bin/true", "sudo": "sudo", "vncPort": 5932, "noVncPort": 6082 },
     "gmat": {
-      "bin": "/mnt/c/path/to/GMAT/bin/GmatConsole.exe",
-      "guiBin": "/mnt/c/path/to/GMAT/bin/GMAT.exe",
+      "bin": "/mnt/c/Program Files/GMAT/bin/GmatConsole.exe",
+      "guiBin": "/mnt/c/Program Files/GMAT/bin/GMAT.exe",
       "timeoutMs": 120000
+    },
+    "opalis": {
+      "_comment": "Optional. Configure these paths only when OPALIS and Simu-CIC are installed on this computer.",
+      "baseScenario": null,
+      "celestlabDir": null,
+      "installationDir": null,
+      "scilabBin": null,
+      "simucicDir": null,
+      "simuCicRunner": null,
+      "timeoutMs": 600000,
+      "workerPython": null
     }
   },
-  "funasr": {
-    "apiUrl": "http://127.0.0.1:18080/v1/audio/transcriptions"
-  },
-  "cosyvoice": {
-    "apiUrl": "http://127.0.0.1:50000/inference_zero_shot",
-    "promptText": "You are a helpful assistant.<|endofprompt|>希望你以后能够做的比我还好呦。",
-    "streamCacheTtlMs": 600000,
-    "streamCacheMaxItems": 64,
-    "ttsMaxTextLength": 5000
-  },
-  "auth": {
-    "enabled": false,
-    "headerName": "x-codex-user-id",
-    "cookieName": "codex_user_id",
-    "devUserId": "default",
-    "usersDir": "users"
-  },
-  "gnc": {
-    "dashboard": {
-      "telemetryMaxBytes": 8388608,
-      "telemetryPaths": {
-        "time": "02_sim/42_run/runtime_case/InOut/time.42",
-        "wbn": "02_sim/42_run/runtime_case/InOut/wbn.42",
-        "qbn": "02_sim/42_run/runtime_case/InOut/qbn.42",
-        "posn": "02_sim/42_run/runtime_case/InOut/PosN.42",
-        "veln": "02_sim/42_run/runtime_case/InOut/VelN.42",
-        "hwhl": "02_sim/42_run/runtime_case/InOut/Hwhl.42",
-        "mtb": "02_sim/42_run/runtime_case/InOut/MTB.42",
-        "modeSummary": "AIGNC_Workflow/08_run/run_summary.json"
-      }
-    }
-  },
-  "logging": {
-    "level": "info",
-    "file": "logs/app.log",
-    "alsoStdout": true
-  }
+  "auth": { "enabled": false, "headerName": "x-codex-user-id", "cookieName": "codex_user_id", "devUserId": "default", "usersDir": "users" },
+  "logging": { "level": "info", "file": "logs/app.log", "alsoStdout": true }
 }
