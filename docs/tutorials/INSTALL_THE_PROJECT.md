@@ -62,9 +62,9 @@ Choose a directory on a local Windows drive. The example below uses `D:` and
 clones the repository from WSL:
 
 ```bash
-mkdir -p /mnt/d/STAGE
-git clone https://github.com/justlb/agent-gmat.git /mnt/d/STAGE/agent-gmat-main
-cd /mnt/d/STAGE/agent-gmat-main
+mkdir -p /mnt/d/path/to
+git clone https://github.com/justlb/agent-gmat.git /mnt/d/path/to/agent-gmat-main
+cd /mnt/d/path/to/agent-gmat-main
 git status
 ```
 
@@ -72,7 +72,7 @@ git status
 update an existing checkout later, use:
 
 ```bash
-cd /mnt/d/STAGE/agent-gmat-main
+cd /mnt/d/path/to/agent-gmat-main
 git pull
 ```
 
@@ -81,7 +81,7 @@ git pull
 Create the local configuration file from the tracked example:
 
 ```bash
-cd /mnt/d/STAGE/agent-gmat-main
+cd /mnt/d/path/to/agent-gmat-main
 cp config.example.json config.json
 ```
 
@@ -96,11 +96,12 @@ At minimum, configure:
 | `frontend.port` / `frontend.httpsPort` | Frontend ports | `5174` / `5175` |
 | `frontend.publicHost` | IP address used to open the frontend | Your local IP address |
 | `tmux.backendSession` / `tmux.frontendSession` | Names for the local services | `agent-gmat-backend`, `agent-gmat-frontend` |
-| `workspace.templateDir` | Repository example data | `/mnt/d/STAGE/agent-gmat-main/data/input_data` |
-| `workspace.usersRoot` | Local user-run data directory | `/mnt/d/STAGE/agent-gmat-main/data/user` |
+| `workspace.templateDir` | Repository example data | `/mnt/d/path/to/agent-gmat-main/data/input_data` |
+| `workspace.usersRoot` | Local user-run data directory | `/mnt/d/path/to/agent-gmat-main/data/user` |
 | `tools.gmat.bin` | Windows GMAT console executable, visible from WSL | `/mnt/c/Program Files/GMAT/bin/GmatConsole.exe` |
 | `tools.gmat.guiBin` | Windows GMAT graphical executable, visible from WSL | `/mnt/c/Program Files/GMAT/bin/GMAT.exe` |
-| `openai` / `chatModel` | API endpoint, model, and API key for assistant features | Credentials supplied by the project owner |
+| `tools.rfComlink.home` | Windows folder containing `rf-comlink.exe` | `C:\Program Files\RF-COMLINK` |
+| `openai` / `chatModel` | API endpoint, model, and API key required by the current backend | Credentials supplied by the project owner |
 
 `config.json` contains local paths and credentials. Do not commit it, send it
 by email, or add it to GitHub.
@@ -111,7 +112,7 @@ The launcher installs dependencies automatically. You can also install them
 explicitly to diagnose a setup issue:
 
 ```bash
-cd /mnt/d/STAGE/agent-gmat-main/backend
+cd /mnt/d/path/to/agent-gmat-main/backend
 npm install
 
 cd ../frontend
@@ -123,7 +124,7 @@ npm install
 From WSL, run:
 
 ```bash
-cd /mnt/d/STAGE/agent-gmat-main
+cd /mnt/d/path/to/agent-gmat-main
 python3 scripts/start_local_web.py
 ```
 

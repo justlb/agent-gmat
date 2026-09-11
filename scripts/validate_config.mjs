@@ -199,13 +199,13 @@ function validateShape(config, issues) {
 
   walkPlaceholders(config, "", issues)
 
-  requiredString(config, "openai.apiKey", issues)
+  optionalString(config, "openai.apiKey", issues)
   optionalUrl(config, "openai.baseUrl", issues)
   optionalString(config, "openai.model", issues)
 
-  requiredString(config, "chatModel.apiKey", issues)
+  optionalString(config, "chatModel.apiKey", issues)
   optionalUrl(config, "chatModel.baseUrl", issues)
-  requiredString(config, "chatModel.model", issues)
+  optionalString(config, "chatModel.model", issues)
   optionalBoolean(config, "chatModel.responsesCompat", issues)
 
   optionalString(config, "codex.modelProvider", issues)
@@ -252,6 +252,9 @@ function validateShape(config, issues) {
   checkOptionalExecutable(config, "tools.gmat.bin", issues)
   optionalString(config, "tools.comsol.sudo", issues)
   optionalUrl(config, "tools.gnc.url", issues)
+  optionalString(config, "tools.rfComlink.home", issues)
+  optionalString(config, "tools.rfComlink.python", issues)
+  optionalPositiveInteger(config, "tools.rfComlink.waitSeconds", issues)
 
   optionalUrl(config, "funasr.apiUrl", issues)
   optionalUrl(config, "cosyvoice.apiUrl", issues)

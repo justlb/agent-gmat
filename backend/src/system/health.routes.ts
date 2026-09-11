@@ -7,12 +7,15 @@ export interface HealthResult {
   baseUrl: string
   model: string | null
   latencyMs?: number
-  reason?: "auth_failed" | "unreachable" | "bad_status"
+  reason?: "auth_failed" | "unreachable" | "bad_status" | "not_configured"
   status?: number
   error?: string
 }
 
 export async function checkCodexEndpoint(config: AppConfig): Promise<HealthResult> {
+  if (!config.chatModel.apiKey || !config.chatModel.baseUrl || !config.chatModel.model) {
+    return { ok: false, baseUrl: "", model: null, reason: "not_configured", error: "LLM settings are absent from config.json." }
+  }
   const baseUrl = config.chatModel.baseUrl.replace(/\/+$/, "")
   const url = `${baseUrl}/models`
   const t0 = Date.now()

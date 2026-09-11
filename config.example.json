@@ -1,15 +1,15 @@
 {
   "openai": {
-    "apiKey": "REPLACE_WITH_OPENAI_API_KEY",
-    "_apiKeyComment": "Used by the optional assistant. Keep the real key only in the ignored config.json file.",
-    "baseUrl": "https://api.openai.com/v1",
-    "model": "gpt-5.5"
+    "apiKey": null,
+    "_apiKeyComment": "Optional. Add a real key only to the ignored config.json file when OpenAI-backed features are used.",
+    "baseUrl": null,
+    "model": null
   },
   "chatModel": {
-    "apiKey": "REPLACE_WITH_CHAT_MODEL_API_KEY",
-    "_apiKeyComment": "The Mission Studio chat service may use a separate OpenAI-compatible endpoint.",
-    "baseUrl": "https://REPLACE_WITH_CHAT_MODEL_ENDPOINT/v1",
-    "model": "REPLACE_WITH_CHAT_MODEL_NAME",
+    "apiKey": null,
+    "_apiKeyComment": "Optional. Configure all three fields to enable Mission Studio discussion.",
+    "baseUrl": null,
+    "model": null,
     "responsesCompat": false
   },
   "server": { "port": 3002, "host": "0.0.0.0" },
@@ -69,6 +69,12 @@
       "simuCicRunner": null,
       "timeoutMs": 600000,
       "workerPython": null
+    },
+    "rfComlink": {
+      "_comment": "Required to calculate RF link budgets. Point home to the folder that contains rf-comlink.exe.",
+      "home": "REPLACE_WITH_RF_COMLINK_HOME",
+      "python": null,
+      "waitSeconds": 3
     }
   },
   "auth": { "enabled": false, "headerName": "x-codex-user-id", "cookieName": "codex_user_id", "devUserId": "default", "usersDir": "users" },

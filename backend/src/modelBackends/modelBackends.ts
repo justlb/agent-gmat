@@ -29,6 +29,10 @@ export function parseModelBackend(value: unknown): ModelBackend {
 
 export function resolveModelBackend(config: AppConfig, requested?: unknown): ResolvedModelBackend {
   const id = parseModelBackend(requested)
+  const candidate = id === "openai" ? config.openai : config.chatModel
+  if (!candidate.apiKey || !candidate.baseUrl || (id === "chatModel" && !candidate.model)) {
+    throw new RunRequestError(503, "The LLM is not configured. Add the API key, endpoint, and model to config.json before using mission discussion.")
+  }
   if (id === "openai") {
     return {
       apiKey: config.openai.apiKey,

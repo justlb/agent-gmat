@@ -59,7 +59,7 @@ commit history, a ticket, or this document.
 3. Start the services from WSL:
 
    ```bash
-   cd /mnt/d/STAGE/agent-gmat-main
+   cd /mnt/d/path/to/agent-gmat-main
    python3 scripts/start_local_web.py
    ```
 
