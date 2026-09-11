@@ -1,0 +1,258 @@
+% GEO station keeping with chemical impulsive maneuvers.
+% The protected geographical box is parameterized about the initial GEO slot.
+% Change TargetLongitude before the mission sequence to select a fixed slot.
+%
+% This is a mission-analysis example, not an operational flight-control law.
+% It corrects once per day and reports the latitude/longitude at each control epoch.
+
+Create Spacecraft GEO;
+
+GEO.DateFormat       = TAIModJulian;
+GEO.Epoch            = '21545';
+GEO.CoordinateSystem = EarthMJ2000Eq;
+GEO.DisplayStateType = Keplerian;
+GEO.SMA              = 42164.17;
+GEO.ECC              = 0;
+GEO.INC              = 0;
+GEO.RAAN             = 0;
+GEO.AOP              = 0;
+GEO.TA               = 0;
+GEO.DryMass          = 1800;
+GEO.Cd               = 2.2;
+GEO.Cr               = 1.4;
+GEO.DragArea         = 20;
+GEO.SRPArea          = 35;
+GEO.Tanks            = {GEO_Tank};
+
+Create ChemicalTank GEO_Tank;
+GEO_Tank.AllowNegativeFuelMass = false;
+GEO_Tank.FuelMass              = 500;
+GEO_Tank.Pressure              = 1500;
+GEO_Tank.Temperature           = 20;
+GEO_Tank.RefTemperature        = 20;
+GEO_Tank.Volume                = 0.75;
+GEO_Tank.FuelDensity           = 1260;
+GEO_Tank.PressureModel         = PressureRegulated;
+
+% The maneuvers below are chemical pulses: Isp and mass decrement are modeled.
+Create ImpulsiveBurn EastWest;
+EastWest.CoordinateSystem   = Local;
+EastWest.Origin             = Earth;
+EastWest.Axes               = VNB;
+EastWest.Element1           = 0;
+EastWest.Element2           = 0;
+EastWest.Element3           = 0;
+EastWest.DecrementMass      = true;
+EastWest.Isp                = 320;
+EastWest.GravitationalAccel = 9.80665;
+EastWest.Tank               = {GEO_Tank};
+
+Create ImpulsiveBurn NorthSouth;
+NorthSouth.CoordinateSystem   = Local;
+NorthSouth.Origin             = Earth;
+NorthSouth.Axes               = VNB;
+NorthSouth.Element1           = 0;
+NorthSouth.Element2           = 0;
+NorthSouth.Element3           = 0;
+NorthSouth.DecrementMass      = true;
+NorthSouth.Isp                = 320;
+NorthSouth.GravitationalAccel = 9.80665;
+NorthSouth.Tank               = {GEO_Tank};
+
+Create ForceModel GEO_FM;
+GEO_FM.CentralBody                      = Earth;
+GEO_FM.PrimaryBodies                    = {Earth};
+GEO_FM.PointMasses                      = {Sun, Luna};
+GEO_FM.Drag                             = None;
+GEO_FM.SRP                              = On;
+GEO_FM.RelativisticCorrection           = Off;
+GEO_FM.ErrorControl                     = RSSStep;
+GEO_FM.GravityField.Earth.Degree        = 8;
+GEO_FM.GravityField.Earth.Order         = 8;
+GEO_FM.GravityField.Earth.PotentialFile = 'JGM2.cof';
+GEO_FM.GravityField.Earth.TideModel     = 'SolidAndPole';
+GEO_FM.SRP.Flux                         = 1367;
+GEO_FM.SRP.SRPModel                     = Spherical;
+GEO_FM.SRP.Nominal_Sun                  = 149597870.691;
+
+Create Propagator GEO_Prop;
+GEO_Prop.FM                       = GEO_FM;
+GEO_Prop.Type                     = RungeKutta89;
+GEO_Prop.InitialStepSize          = 60;
+GEO_Prop.Accuracy                 = 1e-11;
+GEO_Prop.MinStep                  = 0.1;
+GEO_Prop.MaxStep                  = 900;
+GEO_Prop.MaxStepAttempts          = 50;
+GEO_Prop.StopIfAccuracyIsViolated = true;
+
+
+Create EphemerisFile EphemerisFile1;
+EphemerisFile1.Spacecraft = GEO;
+EphemerisFile1.Filename = 'EphemerisFile1.oem';
+EphemerisFile1.FileFormat = CCSDS-OEM;
+EphemerisFile1.EpochFormat = UTCGregorian;
+EphemerisFile1.InitialEpoch = InitialSpacecraftEpoch;
+EphemerisFile1.FinalEpoch = FinalSpacecraftEpoch;
+EphemerisFile1.StepSize = IntegratorSteps;
+EphemerisFile1.Interpolator = Lagrange;
+EphemerisFile1.InterpolationOrder = 7;
+EphemerisFile1.CoordinateSystem = EarthMJ2000Eq;
+EphemerisFile1.WriteEphemeris = true;
+
+Create DifferentialCorrector GEO_DC;
+GEO_DC.ShowProgress      = false;
+GEO_DC.ReportStyle       = Normal;
+GEO_DC.ReportFile        = 'GEO_StationKeeping_DC.data';
+GEO_DC.MaximumIterations = 20;
+GEO_DC.DerivativeMethod  = ForwardDifference;
+GEO_DC.Algorithm         = NewtonRaphson;
+
+Create ReportFile GEO_Report;
+GEO_Report.Filename    = 'GEO_StationKeeping_Chemical_Report.txt';
+GEO_Report.Precision   = 12;
+GEO_Report.ColumnWidth = 20;
+GEO_Report.WriteHeaders = true;
+GEO_Report.WriteReport = true;
+GEO_Report.Add = {GEO.UTCGregorian, GEO.ElapsedDays, GEO.Earth.Latitude, GEO.Earth.Longitude, GEO.INC, GEO.TotalMass, GEO.GEO_Tank.FuelMass, missionCompleted, EastWest.Element1, NorthSouth.Element2};
+
+Create Variable TargetLongitude TargetLatitude TargetInclination slotLongitude BoxHalfWidth NextControlEpoch mission_days ControlIntervalSecs;
+Create Variable tolerance_eastwest tolerance_northsouth;
+Create Variable eastwest_pulse westward_pulse west_tolerance eastward_trigger eastwest_guardband;
+Create Variable northsouth_pulse southward_pulse northsouth_trigger fuelReserve missionCompleted ewState;
+Create Variable targetlongitude Mlongitude mlongitude targetECC targetlatitude Mlatitude mlatitude sat_INC MINC mINC X;
+Create Variable longitude_error longitude_shift latitude_error abs_longitude_error abs_latitude_error inclination_error abs_inclination_error;
+
+%----------------------------------------
+%---------- Visualisation des bornes GEO
+%----------------------------------------
+
+Create XYPlot XYPlot4;
+XYPlot4.SolverIterations = Current;
+XYPlot4.UpperLeft        = [ 0.01576263328697265 0.0153015301530153 ];
+XYPlot4.Size             = [ 0.9049605934167826 0.2709270927092709 ];
+XYPlot4.RelativeZOrder   = 1179;
+XYPlot4.Maximized        = false;
+XYPlot4.XVariable        = GEO.ElapsedDays;
+XYPlot4.YVariables       = {GEO.Earth.Longitude, mlongitude, Mlongitude, targetlongitude};
+XYPlot4.ShowGrid         = true;
+XYPlot4.ShowPlot         = true;
+
+Create XYPlot XYPlot3;
+XYPlot3.SolverIterations = Current;
+XYPlot3.UpperLeft        = [ 0.01576263328697265 0.3020000000000000 ];
+XYPlot3.Size             = [ 0.9049605934167826 0.2709270927092709 ];
+XYPlot3.RelativeZOrder   = 1180;
+XYPlot3.Maximized        = false;
+XYPlot3.XVariable        = GEO.ElapsedDays;
+XYPlot3.YVariables       = {GEO.Earth.Latitude, mlatitude, Mlatitude, targetlatitude};
+XYPlot3.ShowGrid         = true;
+XYPlot3.ShowPlot         = true;
+
+BeginMissionSequence;
+
+% Nominal slot.  Set slotLongitude to the assigned Earth-fixed longitude (deg).
+slotLongitude = GEO.Earth.Longitude;
+TargetLongitude = slotLongitude;
+TargetLatitude = GEO.Earth.Latitude;
+TargetInclination = GEO.INC;
+
+% -------------------------------------------------------------
+% Configuration utilisateur (unites : degres)
+% Modifier uniquement ces deux valeurs pour changer la taille du carre.
+% -------------------------------------------------------------
+tolerance_eastwest  = 0.10;
+tolerance_northsouth = 0.05;
+% Delta-V per corrective pulse (km/s).  This value was tuned for the daily
+% control cadence and the 30-day scenario below.
+eastwest_pulse = 0.00005;
+westward_pulse = 0.0 - eastwest_pulse;
+% Start the correction before the hard boundary; keep this below the selected
+% east-west tolerance.
+eastwest_guardband = 0.01;
+eastward_trigger   = tolerance_eastwest - eastwest_guardband;
+west_tolerance     = 0.0 - eastward_trigger;
+northsouth_pulse   = 0.00100;
+northsouth_trigger = 0.5 * tolerance_northsouth;
+southward_pulse    = 0.0 - northsouth_pulse;
+% Preserve this propellant reserve; a zero missionCompleted value flags an early stop.
+fuelReserve = 5;
+missionCompleted = 0;
+ewState = 0;
+
+% User-requested monitoring variables.
+targetlongitude = TargetLongitude;
+Mlongitude      = targetlongitude + tolerance_eastwest;
+mlongitude      = targetlongitude - tolerance_eastwest;
+targetECC       = GEO.Earth.ECC;
+targetlatitude  = GEO.Earth.Latitude;
+TargetInclination = GEO.INC;
+Mlatitude       = targetlatitude + tolerance_northsouth;
+mlatitude       = targetlatitude - tolerance_northsouth;
+sat_INC         = GEO.INC;
+MINC            = sat_INC + tolerance_northsouth;
+mINC            = sat_INC - tolerance_northsouth;
+X               = targetlongitude + 0.5 * tolerance_eastwest;
+BoxHalfWidth    = tolerance_eastwest;
+mission_days    = 30;
+ControlIntervalSecs = 3600;
+
+Report GEO_Report GEO.UTCGregorian GEO.ElapsedDays GEO.Earth.Latitude GEO.Earth.Longitude GEO.INC GEO.TotalMass EastWest.Element1 NorthSouth.Element2;
+
+% A daily deadband controller protects the requested longitude box.
+Toggle EphemerisFile1 On;
+While 'GEO station keeping' GEO.ElapsedDays < mission_days & GEO.GEO_Tank.FuelMass > fuelReserve
+   % Wrap longitude so a slot that straddles +/-180 deg uses the short error.
+   longitude_error     = GEO.Earth.Longitude - TargetLongitude;
+   longitude_shift     = longitude_error + 180;
+   longitude_error     = mod(longitude_shift, 360);
+   longitude_error     = longitude_error - 180;
+   abs_longitude_error = Abs(longitude_error);
+
+   % East-west deadband: positive VNB-V raises the orbit and slows eastward
+   % drift; negative VNB-V lowers it and speeds westward drift.
+   EastWest.Element1 = 0.0;
+   If 'Satellite approaching east boundary' longitude_error > eastward_trigger & ewState < 1
+      EastWest.Element1 = eastwest_pulse;
+      Maneuver 'Slow eastward drift' EastWest(GEO);
+      ewState = 1;
+   Else
+      If 'Satellite too far west' longitude_error < west_tolerance & ewState > -1
+         EastWest.Element1 = westward_pulse;
+         Maneuver 'Slow westward drift' EastWest(GEO);
+         ewState = -1;
+      EndIf;
+   EndIf;
+   Propagate 'Propagate one control interval' GEO_Prop(GEO) {GEO.ElapsedSecs = ControlIntervalSecs};
+
+   % Inclination is corrected with VNB-N (Element2) at an equator crossing.
+   % At the ascending node (VZ > 0), negative normal DV lowers inclination;
+   % the sign reverses at the descending node.
+   inclination_error     = GEO.INC - TargetInclination;
+   abs_inclination_error = Abs(inclination_error);
+   NorthSouth.Element2   = 0.0;
+   If 'Inclination approaching north-south tolerance' abs_inclination_error > northsouth_trigger
+      Propagate 'Coast to next equator crossing' GEO_Prop(GEO) {GEO.Earth.Latitude = 0};
+      If 'Inclination above target' inclination_error > 0
+         If 'Ascending node' GEO.VZ > 0
+            NorthSouth.Element2 = southward_pulse;
+         Else
+            NorthSouth.Element2 = northsouth_pulse;
+         EndIf;
+      Else
+         If 'Ascending node' GEO.VZ > 0
+            NorthSouth.Element2 = northsouth_pulse;
+         Else
+            NorthSouth.Element2 = southward_pulse;
+         EndIf;
+      EndIf;
+      Maneuver 'Correct inclination at node' NorthSouth(GEO);
+   EndIf;
+   Report GEO_Report GEO.UTCGregorian GEO.ElapsedDays GEO.Earth.Latitude GEO.Earth.Longitude GEO.INC GEO.TotalMass EastWest.Element1 NorthSouth.Element2;
+EndWhile;
+
+% missionCompleted = 1 means the requested duration was achieved.
+If 'Requested duration completed' GEO.ElapsedDays >= mission_days
+   missionCompleted = 1;
+EndIf;
+Report GEO_Report GEO.UTCGregorian GEO.ElapsedDays GEO.Earth.Latitude GEO.Earth.Longitude GEO.INC GEO.TotalMass GEO.GEO_Tank.FuelMass missionCompleted EastWest.Element1 NorthSouth.Element2;
+Toggle EphemerisFile1 Off;

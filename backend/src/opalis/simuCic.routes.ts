@@ -16,7 +16,7 @@ import { appendRunConversation } from "../digitalThread/missionConversationStore
 import { cancelActiveCalculations, registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
 import { loadRunWorkflowLog } from "./workflowRunLog.js"
 import { beginRunStage, completeRunStage, failRunStage } from "../runs/runLifecycle.js"
-import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
+import { writeConsolidatedRunReport } from "./consolidatedRunReport.js"
 import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
 import { acquireMissionPipelineLock, releaseMissionPipelineLock } from "../runs/missionPipelineLock.js"
 
@@ -272,7 +272,7 @@ export async function runSimuCicForRun(config: AppConfig, root: string, runDir: 
   }
   await completeRunStage(runDir, "simu_cic", "Simu-CIC completed and generated CIC data.")
   await appendRunConversation(runDir, { answer: `Simu-CIC completed. CIC data generated in ${result.cicSatDir}.`, askedAt: new Date().toISOString(), channel: "simu-cic", question: "Run Simu-CIC" })
-  await writeRunAnalysisContext(runDir)
+  await writeConsolidatedRunReport(runDir)
   return result
 }
 
@@ -334,8 +334,10 @@ export async function simuCicRoutes(fastify: FastifyInstance, { config }: { conf
     try {
       return reply.send(await runSimuCicForRun(config, root, runDir))
     } catch (error) {
-      await failRunStage(runDir, "simu_cic", getErrorMessage(error, "failed to run Simu-CIC")).catch(() => undefined)
-      return reply.status(422).send({ error: getErrorMessage(error, "failed to run Simu-CIC") })
+      const message = getErrorMessage(error, "failed to run Simu-CIC")
+      await failRunStage(runDir, "simu_cic", message).catch(() => undefined)
+      await writeConsolidatedRunReport(runDir).catch(() => undefined)
+      return reply.status(422).send({ error: message })
     } finally { releaseMissionPipelineLock(runDir, "simu_cic") }
   })
 

@@ -4,7 +4,7 @@ import { runManagedProcess } from "./externalProcess.js"
 
 export type OrbitKeepingReportSample = {
   altitudeKm: number
-  epochA1ModJulian: number
+  elapsedSeconds: number
   fuelMassKg: number
 }
 
@@ -41,7 +41,7 @@ export function parseOrbitKeepingReport(source: string): OrbitKeepingReportSampl
     const values = line.trim().split(/\s+/u).map(Number)
     if (values.length < 3 || values.slice(0, 3).some(value => !Number.isFinite(value))) continue
     samples.push({
-      epochA1ModJulian: values[0],
+      elapsedSeconds: values[0],
       fuelMassKg: values[1],
       altitudeKm: values[2],
     })
@@ -56,7 +56,7 @@ export function parseOrbitKeepingTimeSeriesReport(source: string): OrbitKeepingT
     const values = line.trim().split(/\s+/u).map(Number)
     if (values.length < 7 || values.slice(0, 7).some(value => !Number.isFinite(value))) continue
     samples.push({
-      epochA1ModJulian: values[0],
+      elapsedSeconds: values[0],
       altitudeKm: values[1],
       fuelMassKg: values[2],
       totalMassKg: values[3],

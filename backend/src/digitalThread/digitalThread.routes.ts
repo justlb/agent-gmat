@@ -7,7 +7,7 @@ import { resolveModelBackend } from "../modelBackends/modelBackends.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage } from "../shared/index.js"
 import { adaptDigitalThreadToGmat } from "./gmatDigitalThreadAdapter.js"
-import { createEphemeralDigitalThread, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
+import { createEphemeralDigitalThread, draftDigitalThreadWorkspaceDir, isMissionRunWorkspace, loadOrCreateDigitalThread, saveDigitalThread, type JsonValue, updateDigitalThreadWithLlm } from "./digitalThreadStore.js"
 import { getSatelliteDefinition, listSatelliteDefinitions, selectSatelliteDefinition } from "./satelliteLibrary.js"
 import { assertValidSimuCicRequest } from "../opalis/groundStationCatalog.js"
 import { appendMissionConversation, loadMissionConversation } from "./missionConversationStore.js"
@@ -71,6 +71,50 @@ export async function digitalThreadRoutes(fastify: FastifyInstance, { config }: 
       const planningRun = await createMissionRun(resolveWorkspaceDir(root, req.body?.workspaceDir))
       return reply.status(201).send({ planningRun })
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to start a planning run") }) }
+  })
+
+  /** Starts an editable draft from a prior run's input snapshot. Results and
+   * workflow artifacts remain in the source directory and are never copied. */
+  fastify.post<{ Body: { sourceRunPath?: unknown } }>("/api/digital-thread/planning-runs/duplicate", async (req, reply) => {
+    const root = getRequestUserWorkspaceRoot()
+    if (!root) return reply.status(500).send({ error: "user workspace is unavailable" })
+    try {
+      const source = resolveMissionRun(root, req.body?.sourceRunPath)
+      if (!source) throw new Error("select a saved mission run to duplicate")
+      const sourceDocument = await loadOrCreateDigitalThread(source.runDir)
+      const planningRun = await createMissionRun(root)
+      const freshDocument = await loadOrCreateDigitalThread(planningRun.workspaceDir)
+      const duplicate = JSON.parse(JSON.stringify(sourceDocument)) as typeof sourceDocument
+      duplicate.digital_thread.thread_id = freshDocument.digital_thread.thread_id
+      duplicate.digital_thread.created_at = freshDocument.digital_thread.created_at
+      duplicate.digital_thread.updated_at = new Date().toISOString()
+      const provenance = duplicate.provenance.values && typeof duplicate.provenance.values === "object" && !Array.isArray(duplicate.provenance.values)
+        ? duplicate.provenance.values as Record<string, JsonValue>
+        : {} as Record<string, JsonValue>
+      provenance.cloned_from_run = { source_run_id: source.runId, copied_at: duplicate.digital_thread.updated_at }
+      duplicate.provenance.values = provenance
+      await saveDigitalThread(planningRun.workspaceDir, duplicate)
+
+      const manifest: { templateId?: unknown } = await fs.readFile(path.join(source.runDir, "run_manifest.json"), "utf8")
+        .then(content => JSON.parse(content) as { templateId?: unknown })
+        .catch(() => ({} as { templateId?: unknown }))
+      const selection = duplicate.digital_thread.satellite_definition
+      const satelliteId = selection && typeof selection === "object" && !Array.isArray(selection) && typeof (selection as Record<string, unknown>).id === "string"
+        ? (selection as Record<string, string>).id
+        : null
+      const simuCic = duplicate.analysis_requests.simu_cic
+      const stationIds = simuCic && typeof simuCic === "object" && !Array.isArray(simuCic)
+        ? (simuCic as Record<string, unknown>).ground_station_ids
+        : null
+      const groundStationId = Array.isArray(stationIds) && typeof stationIds[0] === "string" ? stationIds[0] : null
+      return reply.status(201).send({
+        groundStationId,
+        planningRun,
+        satelliteId,
+        sourceRunId: source.runId,
+        templateId: typeof manifest.templateId === "string" ? manifest.templateId : null,
+      })
+    } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to duplicate the mission run") }) }
   })
 
   fastify.post<{ Body: { id?: unknown; version?: unknown; workspaceDir?: unknown } }>("/api/satellite-library/select", async (req, reply) => {

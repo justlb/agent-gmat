@@ -6,13 +6,27 @@ local machine.
 
 ## What the project does
 
-Open Codex Web is a local engineering workspace for spacecraft mission studies.
+GMAT Agent (formerly Open Codex Web) is a local engineering workspace for spacecraft mission studies.
 The React frontend lets an engineer select a versioned satellite and GMAT
 mission scenario, prepare a dated mission run, launch GMAT and downstream
 analyses, and inspect the resulting artifacts. The Fastify backend owns
 workspace isolation, tool invocation, run persistence, and model requests.
 
 The component boundaries are documented in [Code Structure](CODE_STRUCTURE.md).
+
+## Read this first
+
+For a future human maintainer or coding agent, use this order of precedence:
+
+1. the TypeScript implementation and tests for current behaviour;
+2. the run-local artifacts for the evidence of one particular mission run;
+3. `config.example.json` for the complete configuration shape;
+4. this handover and the tutorials for operational procedure.
+
+Do not treat an old audit, an MVP note, a report, a slide deck, or a completed
+run as a specification for current behaviour. Those documents are retained as
+historical context. Before changing an external-tool integration, read its
+module README and run one focused test plus the relevant end-to-end check.
 
 ## Required access and runtime dependencies
 
@@ -42,16 +56,19 @@ commit history, a ticket, or this document.
    node scripts/validate_config.mjs --config config.json
    ```
 
-3. Start the services:
+3. Start the services from WSL:
 
    ```bash
-   ./start_open_codex_web.sh
+   cd /mnt/d/STAGE/agent-gmat-main
+   python3 scripts/start_local_web.py
    ```
 
 4. Open the printed frontend URL and complete a small mission run with a
    reference satellite.
 5. Confirm that the run has a `satellite.json`, a generated GMAT script,
-   workflow status, and visible artifacts in **Results**.
+   workflow status, and visible artifacts in **Results**. If downstream tools
+   are configured, confirm their CIC/OPALIS/RF artifacts as well; a stage
+   marked complete is not a substitute for reviewing its primary report.
 
 For installation and manual start commands, see [README.en.md](../README.en.md).
 For the engineering workflow, see [Use the Project](tutorials/USE_THE_PROJECT.md).
@@ -65,6 +82,21 @@ For the engineering workflow, see [Use the Project](tutorials/USE_THE_PROJECT.md
   Their lack of a direct TypeScript import is not evidence that they can be deleted.
 - Generated directories such as `node_modules/`, `dist/`, `tmp/`, Python
   caches, and TypeScript build information are excluded by `.gitignore`.
+
+## Known operational limitations
+
+- A completed workflow stage means its launcher completed and its declared
+  artifacts were recorded. It does not automatically certify an engineering
+  result; inspect the primary output before relying on it.
+- Simu-CIC contact, propagation-latency, and eclipse summaries are calculated
+  from saved CIC samples. Their approximation and units are defined in
+  [Results calculation contract](RESULTS_CALCULATION_CONTRACT.md).
+- RF-COMLINK currently saves an inventory of extracted HTML reports and link
+  files. It does not yet deterministically expose RF margins, Eb/N0,
+  availability, or data-volume figures in the overview. Empty reports must be
+  treated as unavailable evidence, even if the stage says `completed`.
+- The Results discussion explains saved evidence; it must never launch a tool
+  or modify a completed run.
 
 ## Validation before a release
 
@@ -99,6 +131,7 @@ GMAT output and every enabled downstream stage before tagging a release.
 - [ ] `git status --short --branch` has no uncommitted or untracked work.
 - [ ] The release commit is pushed to the shared remote and tagged if the team uses release tags.
 - [ ] The successor has repository access and a secure path to the required secrets and external services.
-- [ ] The successor has completed the first-day procedure on the target Linux environment.
+- [ ] The successor has completed the first-day procedure in the supported
+  WSL/Windows environment, including the external tools they are expected to operate.
 - [ ] Mission outputs or validation reports that must be retained have been copied to the team's approved storage.
 - [ ] Ownership of outstanding work, including the Results-page improvement backlog, has been assigned.

@@ -36,7 +36,7 @@ export type OrbitKeepingRunResult = {
   error?: string
   executionDurationMs?: number
   finalAltitudeKm?: number
-  finalEpochA1ModJulian?: number
+  finalElapsedSeconds?: number
   finalFuelMassKg?: number
   fuelUsedBetweenReportsKg?: number
   maximumReportedAltitudeKm?: number
@@ -92,7 +92,7 @@ function summarizeExecution(execution?: OrbitKeepingExecutionResult): OrbitKeepi
     executionDurationMs: execution.durationMs,
     ...(final ? {
       finalAltitudeKm: final.altitudeKm,
-      finalEpochA1ModJulian: final.epochA1ModJulian,
+      finalElapsedSeconds: final.elapsedSeconds,
       finalFuelMassKg: final.fuelMassKg,
     } : {}),
     ...(first && final ? { fuelUsedBetweenReportsKg: first.fuelMassKg - final.fuelMassKg } : {}),

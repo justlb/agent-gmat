@@ -1,17 +1,17 @@
-# Workflow actif : GMAT -> Simu-CIC -> OPALIS
+# Active workflow: GMAT -> Simu-CIC -> OPALIS
 
-Le workflow web orchestre les trois etapes separees ci-dessous. Les scripts
-restent ici comme adaptateurs techniques ; ils ne doivent pas etre lances via
-un orchestrateur global dans ce repertoire.
+The web workflow orchestrates the three separate steps below. The scripts
+remain here as technical adapters; they must not be launched via
+a global orchestrator in this repository.
 
-1. `1-conversion_vers_SIMU-CIC/eph_conversion.py` convertit l'ephemeride OEM
-   GMAT en fichier utilisable par Simu-CIC.
-2. `2-run_SIMU-CIC/run_scilab_simulation.py` lance Simu-CIC avec un
-   `--save-root` obligatoire, fourni par le backend.
-3. `3-run_OPALIS/opalis_pipeline.py` prepare et execute le scenario OPALIS
-   depuis les fichiers CIC et la definition du satellite.
+1. `1-conversion_vers_SIMU-CIC/eph_conversion.py` converts the GMAT OEM
+   ephemeris into a file usable by Simu-CIC.
+2. `2-run_SIMU-CIC/run_scilab_simulation.py` launches Simu-CIC with a
+   mandatory `--save-root`, provided by the backend.
+3. `3-run_OPALIS/opalis_pipeline.py` prepares and executes the OPALIS
+   scenario from the CIC files and the satellite definition.
 
-Toutes les sorties d'une mission sont rangees exclusivement dans :
+All outputs of a mission are stored exclusively in:
 
 ```text
 data/user/default/gmat/mission-runs/<run-id>/opalis/
@@ -20,5 +20,5 @@ data/user/default/gmat/mission-runs/<run-id>/opalis/
 `-- 03-opalis/
 ```
 
-Les anciens lanceurs manuels, sorties d'exemple et prototypes RF-COMLINK sont
-conserves sous `archive/legacy/` et ne font pas partie du workflow actif.
+Legacy manual launchers, example outputs, and RF-COMLINK prototypes are
+kept under `archive/legacy/` and are not part of the active workflow.

@@ -60,15 +60,45 @@ export function askResultAssistant(runPath: string, message: string) {
   })
 }
 
+export type ComparisonRow = {
+  runId: string | null
+  template: string | null
+  satelliteName: string | null
+  gmatStatus: string
+  finalAltitudeKm: number | null
+  finalFuelMassKg: number | null
+  fuelUsedKg: number | null
+  blockerCount: number
+  warningCount: number
+  infoCount: number
+}
+
+export type MultiRunAnalysisResult = {
+  answer: string
+  runIds: (string | null)[]
+  comparison: ComparisonRow[]
+}
+
+export function askMultiRunAssistant(runPaths: string[], message: string) {
+  return request<MultiRunAnalysisResult>('/runs/analysis/multi', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ runPaths, message }),
+  })
+}
+
 export async function getResultSamples(runPath: string) {
   const { samples } = await request<{ samples: Array<Record<string, unknown>> }>(`/runs/timeseries?${new URLSearchParams({ runPath })}`)
-  const firstEpoch = samples.find(sample => typeof sample.epochA1ModJulian === 'number')?.epochA1ModJulian as number | undefined
 
   return samples.flatMap(sample => {
     const elapsedDays = typeof sample.elapsedDays === 'number'
       ? sample.elapsedDays
-      : typeof sample.epochA1ModJulian === 'number' && firstEpoch !== undefined
-        ? sample.epochA1ModJulian - firstEpoch
+      : typeof sample.elapsedSeconds === 'number'
+        ? sample.elapsedSeconds / 86_400
+        // Compatibility with orbit-keeping JSON written before elapsedSeconds
+        // was named correctly. The GMAT report's first column is seconds.
+        : typeof sample.epochA1ModJulian === 'number'
+          ? sample.epochA1ModJulian / 86_400
         : NaN
     if (!Number.isFinite(elapsedDays)) return []
 

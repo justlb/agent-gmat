@@ -2,7 +2,7 @@ import path from "node:path"
 
 import { snapshotDigitalThreadForRun, type DigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
 import { appendRunConversation, snapshotMissionConversationForRun } from "../digitalThread/missionConversationStore.js"
-import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
+import { writeConsolidatedRunReport } from "../opalis/consolidatedRunReport.js"
 import { completeRunStage, deferRunStage, failRunStage } from "../runs/runLifecycle.js"
 import { getErrorMessage } from "../shared/index.js"
 import { updateRunManifest } from "../runs/runManifest.js"
@@ -41,11 +41,12 @@ export async function finalizeMissionRun({
     await snapshotMissionConversationForRun(workspaceDir, runDir, draftConversation)
     await appendRunConversation(runDir, { answer, askedAt: new Date().toISOString(), channel: "gmat-draft", question: "GMAT execution" })
     await snapshotDigitalThreadForRun(workspaceDir, runDir, digitalThreadSnapshot)
-    await writeRunAnalysisContext(runDir)
     await updateRunManifest(runDir, { status: result.status })
     if (gmatCompleted) await completeRunStage(runDir, "gmat", gmatMessage)
     else if (gmatGenerated) await deferRunStage(runDir, "gmat", "GMAT script generated; simulation not executed.")
     else await failRunStage(runDir, "gmat", gmatMessage ?? `GMAT ended with status ${result.status}.`)
+    // Preserve a partial report as soon as GMAT reaches a terminal state.
+    await writeConsolidatedRunReport(runDir)
   } catch (error) {
     await updateRunManifest(runDir, { status: "failed", finalizationError: getErrorMessage(error, "unknown persistence error") }).catch(() => undefined)
     await failRunStage(runDir, "gmat", `Run finalization failed: ${getErrorMessage(error, "unknown persistence error")}`).catch(() => undefined)

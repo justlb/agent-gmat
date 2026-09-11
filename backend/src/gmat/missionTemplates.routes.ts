@@ -41,6 +41,14 @@ function resolveWorkspace(root: string, candidate: unknown) {
  * satellite snapshot and downstream artifacts in the same directory. */
 async function assertWorkspaceTemplate(workspaceDir: string, template: GmatTemplateId) {
   const manifest = JSON.parse(await fs.readFile(path.join(workspaceDir, "run_manifest.json"), "utf8").catch(() => "{}")) as { templateId?: unknown }
+  // Block re-execution on a run that has already been launched, even with the
+  // same template.  Once GMAT has run, the directory is an immutable record.
+  if (typeof manifest.templateId === "string" && manifest.templateId === template) {
+    const workflow = await loadRunWorkflowLog(workspaceDir)
+    if (workflow.stages.gmat.status === "running" || workflow.stages.gmat.status === "completed") {
+      throw new Error(`this run has already been executed; create a New run to run GMAT again`)
+    }
+  }
   if (typeof manifest.templateId === "string" && manifest.templateId !== template) {
     const workflow = await loadRunWorkflowLog(workspaceDir)
     if (workflow.stages.gmat.status === "running" || workflow.stages.gmat.status === "completed") {
@@ -50,9 +58,9 @@ async function assertWorkspaceTemplate(workspaceDir: string, template: GmatTempl
     // only its known run-local outputs so it can be reused without stale
     // scripts, reports or status records leaking into the new scenario.
     const staleArtifacts = [
-      "EphemerisFile1.oem", "ElectricTransferReport.txt", "ReboostReport.txt", "OrbitAnalysisReport.txt",
+      "EphemerisFile1.oem", "ElectricTransferReport.txt", "ReportFile1.txt", "ReboostReport.txt", "OrbitAnalysisReport.txt",
       "electric_propulsion_transfer.script", "electric_propulsion_transfer.values.yaml", "electric_propulsion_calibration.json", "electric_transfer_timeseries.json",
-      "chemical_hohmann_transfer.script", "chemical_hohmann_transfer.values.yaml",
+      "chemical_hohmann_transfer.script", "chemical_hohmann_transfer.values.yaml", "chemical_hohmann_timeseries.json",
       "orbit_keeping.script", "orbit_keeping.values.yaml", "orbit_timeseries.json", "gmat.log", "gmat_result.json",
     ]
     await Promise.all(staleArtifacts.map(file => fs.rm(path.join(workspaceDir, file), { force: true }).catch(() => undefined)))

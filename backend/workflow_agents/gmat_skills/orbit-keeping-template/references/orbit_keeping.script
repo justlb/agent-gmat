@@ -97,6 +97,7 @@ ChemicalTank1.PressureModel = PressureRegulated;
 
 
 
+
 %----------------------------------------
 %---------- Force model
 %----------------------------------------
@@ -193,9 +194,9 @@ DefaultDC.Algorithm = NewtonRaphson;
 Create XYPlot AltitudePlot;
 
 AltitudePlot.SolverIterations = Current;
-AltitudePlot.UpperLeft = [ 0.001282051282051282 0 ];
-AltitudePlot.Size = [ 0.8188034188034188 0.4569707401032702 ];
-AltitudePlot.RelativeZOrder = 530;
+AltitudePlot.UpperLeft = [ 0.001176470588235294 0 ];
+AltitudePlot.Size = [ 0.8188235294117647 0.4565701559020044 ];
+AltitudePlot.RelativeZOrder = 39;
 AltitudePlot.Maximized = false;
 AltitudePlot.XVariable = DefaultSC.ElapsedDays;
 AltitudePlot.YVariables = {DefaultSC.Earth.Altitude};
@@ -205,9 +206,9 @@ AltitudePlot.ShowPlot = true;
 Create XYPlot FuelPlot;
 
 FuelPlot.SolverIterations = Current;
-FuelPlot.UpperLeft = [ 0.001282051282051282 0.455249569707401 ];
-FuelPlot.Size = [ 0.8188034188034188 0.4569707401032702 ];
-FuelPlot.RelativeZOrder = 572;
+FuelPlot.UpperLeft = [ 0.001176470588235294 0.4543429844097995 ];
+FuelPlot.Size = [ 0.8188235294117647 0.4565701559020044 ];
+FuelPlot.RelativeZOrder = 33;
 FuelPlot.Maximized = false;
 FuelPlot.XVariable = DefaultSC.A1ModJulian;
 FuelPlot.YVariables = {DefaultSC.ChemicalTank1.FuelMass};
@@ -254,9 +255,9 @@ OrbitAnalysisReport.AppendToExistingFile = false;
 
 Create OpenFramesInterface OrbitView1;
 OrbitView1.SolverIterations = Current;
-OrbitView1.UpperLeft = [ 0.6064102564102564 0.1196213425129088 ];
-OrbitView1.Size = [ 0.979059829059829 0.6041308089500861 ];
-OrbitView1.RelativeZOrder = 538;
+OrbitView1.UpperLeft = [ 0.6058823529411764 0.1191536748329621 ];
+OrbitView1.Size = [ 0.9782352941176471 0.6024498886414253 ];
+OrbitView1.RelativeZOrder = 28;
 OrbitView1.Maximized = false;
 OrbitView1.Add = {DefaultSC, Earth};
 OrbitView1.View = {OrbitView1_View};
@@ -337,12 +338,14 @@ ReportFile1.AppendToExistingFile = false;
 %----------------------------------------
 %---------- Arrays, Variables, Strings
 %----------------------------------------
-Create Variable minAltitude finalAltitude fuelReserve reboostFuelMargin minimumReboostFuel targetSMA reboostFuelBefore lastReboostFuelUsed;
+Create Variable minAltitude finalAltitude fuelReserve reboostFuelMargin minimumReboostFuel targetSMA reboostFuelBefore lastReboostFuelUsed timelimit;
 minAltitude = 250;
 finalAltitude = 150;
 fuelReserve = 1;
 reboostFuelMargin = 0.5;
 targetSMA = 6631.1363;
+timelimit = 100;
+
 
 
 
@@ -385,10 +388,10 @@ minimumReboostFuel = fuelReserve + lastReboostFuelUsed;
 % sequence has left the spacecraft below that altitude.  In that case the
 % decaying orbit cannot cross minAltitude again and would propagate to entry.
 % The margin prevents the two finite reboost impulses from consuming reserve fuel.
-While DefaultSC.ChemicalTank1.FuelMass > minimumReboostFuel & DefaultSC.Earth.Altitude > minAltitude
+While DefaultSC.ChemicalTank1.FuelMass > minimumReboostFuel & DefaultSC.Earth.Altitude > minAltitude & DefaultSC.ElapsedDays <= timelimit
    
    Propagate 'Propagate to Reboost Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = minAltitude};
-
+   
    % Record the actual tank state immediately before the two-burn maneuver.
    reboostFuelBefore = DefaultSC.ChemicalTank1.FuelMass;
    
@@ -411,12 +414,12 @@ While DefaultSC.ChemicalTank1.FuelMass > minimumReboostFuel & DefaultSC.Earth.Al
       Achieve 'Achieve Circular Orbit' DefaultDC(DefaultSC.Earth.ECC = 0.0, {Tolerance = 0.001});
       
    EndTarget;  % For targeter DefaultDC
-
+   
    % The next reboost is allowed only if the tank still carries enough fuel
    % for one reboost comparable to this one, while preserving fuelReserve.
    lastReboostFuelUsed = reboostFuelBefore - DefaultSC.ChemicalTank1.FuelMass;
    minimumReboostFuel = fuelReserve + lastReboostFuelUsed;
-
+   
    % Persist one sample per completed reboost.  The backend uses this file for
    % the orbit-maintenance summary shown in Mission V2.
    Report ReboostReport DefaultSC.ElapsedSecs DefaultSC.ChemicalTank1.FuelMass DefaultSC.Earth.Altitude;
@@ -424,11 +427,6 @@ While DefaultSC.ChemicalTank1.FuelMass > minimumReboostFuel & DefaultSC.Earth.Al
 
 EndWhile;
 
-% Controlled end-of-life descent.  This propagation terminates at the
-% requested altitude (150 km by default), before the atmospheric model fails.
-If DefaultSC.Earth.Altitude > finalAltitude
-   Propagate 'Propagate to Final Altitude' DefaultProp(DefaultSC) {DefaultSC.Earth.Altitude = finalAltitude};
-EndIf;
 
 % Always write a final state.  It keeps a valid result available even when no
 % reboost was required during this run.

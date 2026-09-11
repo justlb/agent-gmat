@@ -1,25 +1,27 @@
-# Pilotage d'OPALIS avec Python
+# Driving OPALIS with Python
 
-## Template de référence et interpolation
+> **Technical adapter reference.** The active web workflow invokes
+> `opalis_pipeline.py` through the backend. The examples below are for local
+> diagnosis only; do not run them against a mission run in place. Paths,
+> OPALIS versions, and Python installations are environment-specific.
 
-Le workflow utilise par défaut
-`templates/cas A - interpolation lineaire.opalis`. Dans ce template, l'option
-OPALIS `SimulationModel.InterpolateEphemeris` est activée. OPALIS interpole
-donc linéairement les valeurs d'éphéméride manquantes pendant le calcul.
-Conformément au comportement du GUI, le profil de consommation électrique
-conserve son mode propre et n'est pas interpolé par cette option.
+## Reference template and interpolation
 
-Le script `opalis_python.py` charge directement la bibliothèque .NET
-`Opalis-2.3.0/lib/OpalisApi.dll`. Il fonctionne sous Windows avec Python 3.10+
-et .NET Framework 4.8. Vérifiez que `py -3 --version` sélectionne bien Python
-3 et non l'ancien Python 2.7.
+The workflow uses by default
+`templates/cas A - interpolation lineaire.opalis`. In this template, the
+OPALIS option `SimulationModel.InterpolateEphemeris` is enabled. OPALIS
+therefore linearly interpolates missing ephemeris values during
+computation. Consistent with the GUI behaviour, the power consumption
+profile retains its own mode and is not interpolated by this option.
 
-Dans cette session, le lanceur `py -3` ne trouve pas Python 3. La commande
-equivalente qui fonctionne est :
+The `opalis_python.py` script directly loads the configured OPALIS .NET
+library. It works on Windows with Python 3.10+
+and .NET Framework 4.8. Verify that `py -3 --version` selects Python 3
+and not the legacy Python 2.7.
 
-```powershell
-C:\Users\justine\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe .\opalis_python.py --help
-```
+If `py -3` is unavailable, use the organisation-supported Python executable
+configured for the OPALIS integration. Do not copy a former developer's local
+cache path into a new environment.
 
 ## Installation
 
@@ -27,75 +29,75 @@ C:\Users\justine\.cache\codex-runtimes\codex-primary-runtime\dependencies\python
 py -3 -m pip install -r requirements-opalis-python.txt
 ```
 
-Si Windows refuse le chargement d'une DLL téléchargée, débloquez une fois le
-dossier OPALIS :
+If Windows refuses to load a downloaded DLL, unblock the OPALIS
+folder once:
 
 ```powershell
 Get-ChildItem -Recurse '.\Opalis-2.3.0' | Unblock-File
 ```
 
-## Lire une simulation
+## Read a simulation
 
 ```powershell
 py -3 .\opalis_python.py info '.\Opalis-2.3.0\Example\cas A.opalis'
 ```
 
-Une propriété supplémentaire de l'API peut être demandée avec `--get` :
+An additional API property can be requested with `--get`:
 
 ```powershell
 py -3 .\opalis_python.py info '.\Opalis-2.3.0\Example\cas A.opalis' `
   --get SimulationModel.Battery.Energy
 ```
 
-## Modifier et exécuter
+## Modify and execute
 
 ```powershell
 py -3 .\opalis_python.py run '.\Opalis-2.3.0\Example\cas A.opalis' `
   --set SimulationModel.PowerProfil.PMargin=12 `
   --set SimulationModel.SimulationInitialisation.SocBattery=0.8 `
-  --save '.\resultats\cas-A-calcule.opalis' `
-  --json '.\resultats\cas-A.json'
+  --save '.\results\cas-A-computed.opalis' `
+  --json '.\results\cas-A.json'
 ```
 
-`--set` accepte toute propriété publique modifiable, avec son chemin complet
-depuis `OpalisSimulation`. Les nombres décimaux utilisent un point.
+`--set` accepts any public modifiable property, with its full path
+from `OpalisSimulation`. Decimal numbers use a dot.
 
-Les elements dans les collections OPALIS peuvent etre cibles avec des crochets.
-Exemple pour modifier la premiere section solaire :
+Items in OPALIS collections can be targeted with brackets.
+Example to modify the first solar section:
 
 ```powershell
 C:\Users\justine\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe .\opalis_python.py run `
-  '.\resultats\cas-A-SA1-4-sections.opalis' `
+  '.\results\cas-A-SA1-4-sections.opalis' `
   --set SimulationModel.SolarGenerator.Sections[0].NTsection=12 `
-  --save '.\resultats\cas-A-SA1-4-sections-test-param.opalis'
+  --save '.\results\cas-A-SA1-4-sections-test-param.opalis'
 ```
 
-## Balayer la marge de puissance
+## Sweep the power margin
 
 ```powershell
 py -3 .\opalis_python.py sweep '.\Opalis-2.3.0\Example\cas A.opalis' `
   --start 0 --stop 10 --step 1 `
-  --csv '.\resultats\balayage-marge.csv'
+  --csv '.\results\margin-sweep.csv'
 ```
 
-Chaque essai repart du fichier source afin que l'état final d'un calcul ne
-devienne pas l'état initial du suivant.
+Each trial restarts from the source file so that the final state of one
+computation does not become the initial state of the next.
 
-## Remplacer les éphémérides de « Generate fluxes »
+## Replace ephemerides for "Generate fluxes"
 
-Avec les fichiers placés dans `file_generate_flux`, la forme courte est :
+With files placed in `file_generate_flux`, the short form is:
 
 ```powershell
 py -3 .\opalis_python.py generate-flux `
   '.\Opalis-2.3.0\Example\cas A.opalis' `
   --section 0 `
   --inputs-dir '.\file_generate_flux' `
-  --flux-output '.\resultats\FLOWS-SA-1.TXT' `
-  --save '.\resultats\cas-A-SA1-nouvelles-ephemerides.opalis'
+  --flux-output '.\results\FLOWS-SA-1.TXT' `
+  --save '.\results\cas-A-SA1-new-ephemerides.opalis'
 ```
 
-Ajoutez `--run` pour lancer le calcul OPALIS juste après le remplacement du
-profil de flux. Le dossier `--inputs-dir` est mappé automatiquement vers :
+Add `--run` to launch the OPALIS computation just after replacing the
+flux profile. The `--inputs-dir` directory is automatically mapped to:
 
 - `Sat_SUN_ANGLE_SA_1.TXT`
 - `Sat_SATELLITE_ECLIPSE.TXT`
@@ -106,9 +108,10 @@ profil de flux. Le dossier `--inputs-dir` est mappé automatiquement vers :
 - `Sat_SUN_DIRECTION-ORBITAL_FRAME.TXT`
 - `Sat_GEOGRAPHICAL_COORDINATES.TXT`
 
-La commande suivante reproduit le calcul du dialogue **Generate fluxes**,
-affecte le profil généré à la première section solaire du cas exemple, puis
-sauvegarde un nouveau cas sans écraser l'original :
+The following command reproduces the **Generate fluxes** dialog
+computation, assigns the generated profile to the first solar section
+of the example case, then saves a new case without overwriting the
+original:
 
 ```powershell
 py -3 .\opalis_python.py generate-flux `
@@ -121,84 +124,85 @@ py -3 .\opalis_python.py generate-flux `
   --earth-direction '.\ephemerides\earth-direction-satellite-frame.mem' `
   --sun-direction '.\ephemerides\sun-direction-satellite-frame.mem' `
   --coordinates '.\ephemerides\geographical-coordinates.mem' `
-  --flux-output '.\resultats\fluxes-sa-1.mem' `
-  --save '.\resultats\cas-A-nouvelles-ephemerides.opalis' `
+  --flux-output '.\results\fluxes-sa-1.mem' `
+  --save '.\results\cas-A-new-ephemerides.opalis' `
   --run
 ```
 
-Ajoutez `--moon-eclipse chemin.mem` si l'éclipse lunaire doit être prise en
-compte. L'index `--section` commence à zéro : `0` est la section 1 dans
-l'interface, `1` la section 2, etc. Pour plusieurs sections, relancez la
-commande pour chaque section en repartant du dernier fichier `.opalis` produit.
+Add `--moon-eclipse path.mem` if the lunar eclipse must be taken into
+account. The `--section` index is zero-based: `0` is section 1 in the
+UI, `1` is section 2, etc. For multiple sections, rerun the command for
+each section starting from the last produced `.opalis` file.
 
-## Reduire le nombre de sections solaires
+## Reduce the number of solar sections
 
-Pour repartir du cas genere et garder seulement les 4 premieres sections :
+To restart from the generated case and keep only the first 4 sections:
 
 ```powershell
 C:\Users\justine\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe .\opalis_python.py resize-sections `
-  '.\resultats\cas-A-SA1-nouvelles-ephemerides.opalis' `
+  '.\results\cas-A-SA1-new-ephemerides.opalis' `
   --count 4 `
-  --save '.\resultats\cas-A-SA1-4-sections.opalis' `
-  --json '.\resultats\cas-A-SA1-4-sections.json'
+  --save '.\results\cas-A-SA1-4-sections.opalis' `
+  --json '.\results\cas-A-SA1-4-sections.json'
 ```
 
-## Pipeline automatique complet
+## Full automatic pipeline
 
-Le script `opalis_pipeline.py` orchestre la chaine complete :
+The `opalis_pipeline.py` script orchestrates the complete chain:
 
-1. lecture du dossier d'ephemerides ;
-2. mapping vers les entrees attendues par Generate fluxes ;
-3. generation du fichier `FLOWS-SA-*.TXT` ;
-4. modification des parametres utilisateur avec `--set` ;
-5. lancement du calcul OPALIS ;
-6. sauvegarde du `.opalis` et du JSON de resultats.
+1. read the ephemerides directory;
+2. map to the inputs expected by Generate fluxes;
+3. generate the `FLOWS-SA-*.TXT` file;
+4. modify user parameters with `--set`;
+5. launch the OPALIS computation;
+6. save the `.opalis` and results JSON.
 
-Si le fichier de simulation n'est pas indique, le pipeline charge directement
-`Opalis-2.3.0/Example/cas A.opalis`. Une copie de travail est creee dans le
-dossier de sortie afin de ne jamais modifier l'exemple original.
+If the simulation file is not specified, the pipeline directly loads
+`Opalis-2.3.0/Example/cas A.opalis`. A working copy is created in the
+output directory so the original example is never modified.
 
-Le pas et la duree sont synchronises automatiquement avec les fichiers de flux
-dynamiques :
+The time step and duration are automatically synchronised with the
+dynamic flux files:
 
-- la cadence CIC est calculee a partir des colonnes MJD et secondes UTC ;
-- le pas OPALIS conserve la valeur du cas A, car il pilote aussi l'integration
-  thermique ; il n'est reduit que si une entree dynamique exige plus fin ;
-- la duree du cas A est conservee si les flux la couvrent et seulement reduite
-  si leur plage commune est plus courte ;
-- les valeurs detectees et les grilles de chaque fichier sont enregistrees
-  dans `automatic_timing` du JSON de sortie.
+- the CIC cadence is computed from the MJD and UTC seconds columns;
+- the OPALIS time step keeps the cas A value, because it also drives
+  the thermal integration; it is only reduced if a dynamic input
+  requires a finer step;
+- the cas A duration is kept if the fluxes cover it and only reduced
+  if their common range is shorter;
+- detected values and grids of each file are recorded in
+  `automatic_timing` of the output JSON.
 
-Le remplacement dynamique reproduit aussi les affectations du GUI :
+Dynamic replacement also reproduces the GUI assignments:
 
-- les 8 fichiers geometriques CIC sont places dans leurs types
-  `FlowsManagerApi` respectifs ;
-- un `FLOWS-SA-n.TXT` a 6 colonnes est genere et charge dans chaque section du
-  cas A ;
-- les anciennes lignes `RawEphemeris` du cas A sont retirees ;
-- le profil de puissance consommee embarque dans le cas A est recale sur la
-  nouvelle plage temporelle et recharge avec `LoadPowerFile` ;
-- le JSON consigne les fichiers utilises, les replis sur `SA_1`, le nombre de
-  lignes retirees/ajoutees et le profil de puissance genere.
+- the 8 geometric CIC files are placed in their respective
+  `FlowsManagerApi` types;
+- a `FLOWS-SA-n.TXT` with 6 columns is generated and loaded into each
+  section of cas A;
+- the old `RawEphemeris` lines of cas A are removed;
+- the embedded power consumption profile in cas A is resampled to the
+  new time range and reloaded with `LoadPowerFile`;
+- the JSON records the files used, SA_1 fallbacks, the number of
+  lines removed/added, and the generated power profile.
 
-Par defaut, toutes les sections sont chargees. `--section 0` permet encore de
-limiter explicitement l'operation a la premiere section, mais cela ne convient
-que si le modele OPALIS a lui-meme une seule section ou si les autres profils
-sont geres separement.
+By default, all sections are loaded. `--section 0` can still be used
+to explicitly limit the operation to the first section, but this is
+only suitable if the OPALIS model itself has a single section or if
+the other profiles are managed separately.
 
-La commande minimale, depuis `3-run_OPALIS`, est donc :
+The minimal command, from `3-run_OPALIS`, is therefore:
 
 ```powershell
 python .\opalis_pipeline.py `
-  --ephemeris-dir C:\chemin\vers\CIC\Sat
+  --ephemeris-dir C:\path\to\CIC\Sat
 ```
 
-`--time-step 60` force un pas particulier. `--no-auto-time-step` conserve le
-pas du cas A et `--no-auto-duration` conserve sa duree. Les affectations
-`--set SimulationModel.SimulationTiming...` sont appliquees en dernier et ont
-donc toujours priorite.
+`--time-step 60` forces a specific step. `--no-auto-time-step` keeps
+the cas A step and `--no-auto-duration` keeps its duration. The
+`--set SimulationModel.SimulationTiming...` assignments are applied
+last and therefore always take precedence.
 
-Exemple teste :
+Tested example:
 
 ```powershell
 C:\Users\justine\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe .\opalis_pipeline.py `
@@ -207,19 +211,19 @@ C:\Users\justine\.cache\codex-runtimes\codex-primary-runtime\dependencies\python
   --sections-count 4 `
   --section 0 `
   --set SimulationModel.SolarGenerator.Sections[0].NTsection=12 `
-  --output-dir '.\resultats\pipeline-test' `
+  --output-dir '.\results\pipeline-test' `
   --name 'cas-A-pipeline-test'
 ```
 
-Les sorties produites sont :
+The produced outputs are:
 
-- `00-cas-reference/cas A.opalis`, la copie de travail du cas de reference ;
-- `01-flux-dynamiques/FLOWS-SA-1.TXT`, le profil de flux genere ;
-- `02-resultats/cas-A-pipeline-test.opalis`, le cas modifie et calcule ;
-- `02-resultats/cas-A-pipeline-test.json`, le resume des entrees, parametres
-  appliques et resultats OPALIS.
+- `00-cas-reference/cas A.opalis`, the working copy of the reference case;
+- `01-flux-dynamiques/FLOWS-SA-1.TXT`, the generated flux profile;
+- `02-resultats/cas-A-pipeline-test.opalis`, the modified and computed case;
+- `02-resultats/cas-A-pipeline-test.json`, the summary of inputs, applied
+  parameters, and OPALIS results.
 
-Exemple avec les ephemerides CIC `2304` :
+Example with `2304` CIC ephemerides:
 
 ```powershell
 C:\Users\justine\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe .\opalis_pipeline.py `
@@ -227,8 +231,8 @@ C:\Users\justine\.cache\codex-runtimes\codex-primary-runtime\dependencies\python
   --ephemeris-dir 'C:\JUSTINE\APP\SIMU_CIC\simu_cic\result\2304\CIC\Sat' `
   --sections-count 4 `
   --section 0 `
-  --output-dir '.\resultats\pipeline-2304' `
+  --output-dir '.\results\pipeline-2304' `
   --name 'cas-A-2304-4-sections'
 ```
 
-Pour preparer le cas sans lancer le calcul, ajoutez `--no-run`.
+To prepare the case without launching the computation, add `--no-run`.

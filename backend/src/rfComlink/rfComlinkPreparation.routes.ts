@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url"
 
 import type { FastifyInstance } from "fastify"
 
-import { loadRunDigitalThreadSnapshot } from "../digitalThread/digitalThreadStore.js"
+import { loadRunDigitalThreadSnapshot, type DigitalThreadDocument, type JsonValue } from "../digitalThread/digitalThreadStore.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage } from "../shared/index.js"
 import { adaptDigitalThreadToRFComlink } from "./rfComlinkDigitalThreadAdapter.js"
@@ -43,6 +43,95 @@ function record(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : null
 }
 
+type CicPoint = { time: number; value: number }
+type RFRunGeometry = {
+  mean_elevation_deg: number
+  mean_range_km: number
+  sample_count: number
+  source_files: string[]
+  system_temperature_k_by_link: Record<string, number>
+}
+
+/** CIC files share an MJD + seconds grid. This deliberately keeps only their
+ * scalar payload, allowing the RF scenario to use the actual Simu-CIC pass
+ * geometry rather than template placeholder values. */
+function parseCicColumn(source: string, valueIndex: number): CicPoint[] {
+  const marker = source.indexOf("META_STOP")
+  if (marker < 0) throw new Error("CIC file is missing META_STOP")
+  return source.slice(marker).split(/\r?\n/u).flatMap(line => {
+    const fields = line.trim().split(/\s+/u)
+    const day = Number(fields[0])
+    const seconds = Number(fields[1])
+    const value = Number(fields[valueIndex])
+    return Number.isFinite(day) && Number.isFinite(seconds) && Number.isFinite(value)
+      ? [{ time: day * 86_400 + seconds, value }]
+      : []
+  })
+}
+
+function mean(values: number[]) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+}
+
+function systemTemperatureForLink(link: { direction: string; id: string; spacecraftAntenna: Record<string, JsonValue>; system: Record<string, JsonValue> }) {
+  const band = typeof link.system.frequency_band === "string" ? link.system.frequency_band.toUpperCase() : "S"
+  // A spacecraft receiver can be reconstructed from its explicit G/T and
+  // antenna gain. Ground-receiver defaults are conservative band values when
+  // RF-COMLINK's station database is the hardware authority.
+  if (link.direction === "EarthSpace") {
+    const gain = link.spacecraftAntenna.gain_db
+    const figureOfMerit = link.spacecraftAntenna.figure_of_merit_db_per_k
+    if (typeof gain === "number" && typeof figureOfMerit === "number") {
+      return 10 ** ((gain - figureOfMerit) / 10)
+    }
+    return 300
+  }
+  return band === "X" ? 250 : 150
+}
+
+async function writeRFRunGeometry(
+  runDir: string,
+  document: DigitalThreadDocument,
+  links: ReturnType<typeof adaptDigitalThreadToRFComlink>["links"],
+  sourceFiles: string[],
+) {
+  const [distanceSource, visibilitySource, directionSource] = await Promise.all(sourceFiles.map(file => fs.readFile(path.join(runDir, file), "utf8")))
+  const distances = new Map(parseCicColumn(distanceSource, 2).map(point => [point.time, point.value]))
+  const elevations = new Map(parseCicColumn(directionSource, 3).map(point => [point.time, point.value]))
+  const visibleTimes = parseCicColumn(visibilitySource, 2).filter(point => point.value > 0).map(point => point.time)
+  const samples = visibleTimes.flatMap(time => {
+    const distance = distances.get(time)
+    const elevation = elevations.get(time)
+    return typeof distance === "number" && typeof elevation === "number" && elevation > 0 ? [{ distance, elevation }] : []
+  })
+  const meanRangeKm = mean(samples.map(sample => sample.distance))
+  const meanElevationDeg = mean(samples.map(sample => sample.elevation))
+  if (meanRangeKm === null || meanElevationDeg === null) throw new Error("Simu-CIC has no visible geometry samples for the selected RF-COMLINK station")
+  const systemTemperature = Object.fromEntries(links.map(link => [link.id, Number(systemTemperatureForLink(link).toFixed(2))]))
+  const geometry: RFRunGeometry = {
+    mean_elevation_deg: Number(meanElevationDeg.toFixed(3)),
+    mean_range_km: Number(meanRangeKm.toFixed(3)),
+    sample_count: samples.length,
+    source_files: sourceFiles,
+    system_temperature_k_by_link: systemTemperature,
+  }
+  const request = record(document.analysis_requests.rf_comlink) ?? {}
+  request.run_geometry = {
+    ...geometry,
+    method: {
+      elevation: "arithmetic mean of positive-elevation Simu-CIC visibility samples",
+      range: "arithmetic mean of Simu-CIC distance samples during visible passes",
+      system_temperature: "receiver G/T and gain when available; otherwise conservative receiver-band default",
+    },
+  }
+  document.analysis_requests.rf_comlink = request as JsonValue
+  const provenance = record(document.provenance.values) ?? {}
+  provenance["analysis_requests.rf_comlink.run_geometry"] = { source: "simu_cic", computed_at: new Date().toISOString(), source_files: sourceFiles }
+  document.provenance.values = provenance as JsonValue
+  await fs.writeFile(path.join(runDir, "satellite.json"), `${JSON.stringify(document, null, 2)}\n`, "utf8")
+  return geometry
+}
+
 function rfInputProblem(missing: string[]) {
   const details: string[] = []
   if (missing.some(item => item.includes("attitude_mode=ground_station_tracking") || item.includes("executed attitude.mode=ground_station_tracking"))) {
@@ -65,8 +154,8 @@ function rfInputProblem(missing: string[]) {
  * from .rfcl construction: no satellite radio parameter is fabricated here.
  */
 export async function prepareRFComlinkInputs(root: string, runDir: string) {
-  const snapshot = await loadRunDigitalThreadSnapshot(runDir)
-  const staticInputs = adaptDigitalThreadToRFComlink(snapshot)
+  let snapshot = await loadRunDigitalThreadSnapshot(runDir)
+  let staticInputs = adaptDigitalThreadToRFComlink(snapshot)
   const missing = [...staticInputs.validation.missing]
   const warnings = [...staticInputs.validation.warnings]
 
@@ -107,6 +196,15 @@ export async function prepareRFComlinkInputs(root: string, runDir: string) {
     if (!hasVisibleSample) missing.push(`CIC/Sat/${visibilityFile} contains no visible samples`)
   }
 
+  let runGeometry: RFRunGeometry | null = null
+  if (!missing.length && sourceFiles.length === 3) {
+    runGeometry = await writeRFRunGeometry(runDir, snapshot, staticInputs.links, sourceFiles.map(file => path.relative(runDir, path.join(cicDirectory, file)).split(path.sep).join("/")))
+    // The geometry is now part of the run-local satellite snapshot, which is
+    // the only source consumed by the adapter and RF scenario builder.
+    snapshot = await loadRunDigitalThreadSnapshot(runDir)
+    staticInputs = adaptDigitalThreadToRFComlink(snapshot)
+  }
+
   const uniqueMissing = [...new Set(missing)]
   const uniqueWarnings = [...new Set(warnings)]
   const output = {
@@ -117,6 +215,7 @@ export async function prepareRFComlinkInputs(root: string, runDir: string) {
     selected_ground_station: stationIndex >= 0 ? stations[stationIndex] : null,
     data_handling: staticInputs.dataHandling,
     links: staticInputs.links,
+    run_geometry: runGeometry,
     cic_inputs: sourceFiles.map(file => path.relative(runDir, path.join(cicDirectory, file)).split(path.sep).join("/")),
     validation: {
       missing: uniqueMissing,

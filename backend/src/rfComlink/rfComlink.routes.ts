@@ -12,7 +12,7 @@ import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage } from "../shared/index.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
 import { beginRunStage, completeRunStage, failRunStage } from "../runs/runLifecycle.js"
-import { writeRunAnalysisContext } from "../analysis/runAnalysisContext.js"
+import { writeConsolidatedRunReport } from "../opalis/consolidatedRunReport.js"
 import { prepareRFComlinkScenario } from "./rfComlinkPreparation.routes.js"
 import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
 import { artifactDefinitionForPath } from "../runs/artifactRegistry.js"
@@ -162,7 +162,10 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       const executable = path.join(rfComlinkHomeForHost(), "rf-comlink.exe")
       await fs.access(executable)
       const automation = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "04-run-calculation", "run_rfcomlink_calculation.ps1")
-      const waitSeconds = Math.max(1, Number.parseInt(process.env.RF_COMLINK_WAIT_SECONDS ?? "5", 10) || 5)
+      // UI Automation runs one simulation per link. The wait applies to each
+      // link before opening its Budget report, and can be raised for slower
+      // RF-COMLINK hosts without delaying already completed reports.
+      const waitSeconds = Math.max(1, Number.parseInt(process.env.RF_COMLINK_WAIT_SECONDS ?? "3", 10) || 3)
       await beginRunStage(run.runDir, "rf_comlink", "RF-COMLINK calculation is running for this mission run.")
       let output = ""
       try {
@@ -176,15 +179,20 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       const extractScript = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "03-save-results", "extract_rf_comlink_results.py")
       const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
       await runProcess(python, [extractScript, "--scenario", calculated, "--output", summaryPath], run.runDir)
-      const summary = JSON.parse(await fs.readFile(summaryPath, "utf8")) as { reports?: unknown[] }
+      const summary = JSON.parse(await fs.readFile(summaryPath, "utf8")) as { link_budgets?: unknown[]; reports?: unknown[] }
       const reportCount = Array.isArray(summary.reports) ? summary.reports.length : 0
-      await completeRunStage(run.runDir, "rf_comlink", `RF-COMLINK completed with ${reportCount} report(s).`)
+      const budgetCount = Array.isArray(summary.link_budgets) ? summary.link_budgets.length : 0
+      if (reportCount > 0 && budgetCount === 0) {
+        throw new Error("RF-COMLINK saved empty reports. The scenario did not finish loading or calculating before it was saved; no link status is available.")
+      }
+      await completeRunStage(run.runDir, "rf_comlink", `RF-COMLINK saved ${reportCount} report(s), including ${budgetCount} populated link budget(s).`)
       await appendRunConversation(run.runDir, { answer: `RF-COMLINK completed for this run. ${reportCount} report(s) were extracted and the raw calculated .rfcl package is saved in Technical files.`, askedAt: new Date().toISOString(), channel: "rf-comlink", question: "Run RF-COMLINK" })
-      await writeRunAnalysisContext(run.runDir)
+      await writeConsolidatedRunReport(run.runDir)
       return reply.send({ ok: true, reportCount, scenario: relativeToWorkspaceRoot(root, calculated), summary: relativeToWorkspaceRoot(root, summaryPath), artifacts: ["rf-comlink/03-results/calculated-rf-comlink.rfcl", "rf-comlink/03-results/rf-comlink-results.json", "rf-comlink/03-results/rf-comlink-calculation.log"].map(artifactDefinitionForPath).filter(Boolean) })
     } catch (error) {
       const message = getErrorMessage(error, "failed to run RF-COMLINK")
       await failRunStage(run.runDir, "rf_comlink", message).catch(() => undefined)
+      await writeConsolidatedRunReport(run.runDir).catch(() => undefined)
       return reply.status(422).send({ error: message })
     } finally { releaseMissionPipelineLock(run.runDir, "rf_comlink") }
   })
@@ -203,14 +211,20 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       const script = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "03-save-results", "extract_rf_comlink_results.py")
       const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
       await runProcess(python, [script, "--scenario", calculated, "--output", summaryPath], run.runDir)
-      const summary = JSON.parse(await fs.readFile(summaryPath, "utf8")) as { reports?: unknown[] }
+      const summary = JSON.parse(await fs.readFile(summaryPath, "utf8")) as { link_budgets?: unknown[]; reports?: unknown[] }
       const reportCount = Array.isArray(summary.reports) ? summary.reports.length : 0
-      await completeRunStage(run.runDir, "rf_comlink", `Saved RF-COMLINK calculation with ${reportCount} report(s).`)
+      const budgetCount = Array.isArray(summary.link_budgets) ? summary.link_budgets.length : 0
+      if (reportCount > 0 && budgetCount === 0) {
+        throw new Error("RF-COMLINK saved empty reports. Calculate the scenario in RF-COMLINK and save it only after the link-budget reports are populated.")
+      }
+      await completeRunStage(run.runDir, "rf_comlink", `Saved RF-COMLINK calculation with ${reportCount} report(s), including ${budgetCount} populated link budget(s).`)
       await appendRunConversation(run.runDir, { answer: `RF-COMLINK results were saved with ${reportCount} report(s). You can now ask about link budget, availability, telemetry, or telecommand results.`, askedAt: new Date().toISOString(), channel: "rf-comlink", question: "Save RF-COMLINK results" })
-      await writeRunAnalysisContext(run.runDir)
+      await writeConsolidatedRunReport(run.runDir)
       return reply.send({ ok: true, reportCount, summary: relativeToWorkspaceRoot(root, summaryPath) })
     } catch (error) {
       const message = getErrorMessage(error, "failed to save RF-COMLINK results")
+      await failRunStage(run.runDir, "rf_comlink", message).catch(() => undefined)
+      await writeConsolidatedRunReport(run.runDir).catch(() => undefined)
       return reply.status(422).send({ error: message })
     }
   })

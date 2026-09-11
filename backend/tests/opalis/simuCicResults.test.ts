@@ -3,7 +3,8 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
-import { activeDuration, contactLatencyMs, loadSimuCicResultMetrics, parseCicScalar } from '../../src/opalis/simuCicResults.js'
+import { activeDuration, contactLatencyMs, loadSimuCicResultMetrics, loadSimuCicResultSummary, parseCicScalar } from '../../src/opalis/simuCicResults.js'
+import { updateRunWorkflowLog } from '../../src/opalis/workflowRunLog.js'
 
 const series = (values: number[]) => 'META_STOP\n' + values.map((v, i) => `61262 ${i * 60} ${v}`).join('\n')
 test('CIC dates, midnight rollover, zero and malformed series', () => {
@@ -39,5 +40,26 @@ test('run metrics use executed station ordering and isolate missing files', asyn
     assert.match((await loadSimuCicResultMetrics(root, 'completed')).latency.value, /kiruna: No contact/u)
     await fs.writeFile(path.join(base, 'simucic.definition.json'), JSON.stringify({ attitude: { ground_stations: [] } }))
     assert.equal((await loadSimuCicResultMetrics(root, 'completed')).contactTime.value, 'Not applicable')
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+test('consolidated Simu-CIC evidence preserves numeric values, formulas, and source files', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'simucic-evidence-'))
+  try {
+    const base = path.join(root, 'opalis/02-simu-cic'), dir = path.join(base, '02-fichiers-cic/Sat')
+    await fs.mkdir(dir, { recursive: true })
+    await fs.writeFile(path.join(base, 'simucic.definition.json'), JSON.stringify({ attitude: { ground_stations: [{ id: 'kiruna' }] } }))
+    await fs.writeFile(path.join(dir, 'Sat_SATELLITE_ECLIPSE.TXT'), series([0, 1, 1, 0]))
+    await fs.writeFile(path.join(dir, 'Sat_GEOMETRICAL_VISIBILITY_GROUND_STATION_1.TXT'), series([1, 0, 1, 0]))
+    await fs.writeFile(path.join(dir, 'Sat_DISTANCE_GROUND_STATION_1.TXT'), series([2997.92458, 2997.92458, 2997.92458, 2997.92458]))
+    await updateRunWorkflowLog(root, 'simu_cic', 'completed', null)
+
+    const summary = await loadSimuCicResultSummary(root)
+    assert.equal(summary?.calculation.eclipse.duration_seconds, 120)
+    assert.equal(summary?.calculation.eclipse.source_file, 'opalis/02-simu-cic/02-fichiers-cic/Sat/Sat_SATELLITE_ECLIPSE.TXT')
+    assert.equal(summary?.calculation.stations[0].contact_duration_seconds, 120)
+    assert.equal(summary?.calculation.stations[0].one_way_latency_ms, 10)
+    assert.equal(summary?.calculation.stations[0].round_trip_latency_ms, 20)
+    assert.match(summary?.calculation.method.latency ?? '', /distance\/c/u)
   } finally { await fs.rm(root, { recursive: true, force: true }) }
 })

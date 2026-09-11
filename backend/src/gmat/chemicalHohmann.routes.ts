@@ -18,9 +18,11 @@ import { listRunArtifactHistory } from "./artifactHistory.js"
 import { finalizeMissionRun } from "./missionRunLifecycle.js"
 
 type WorkspaceBody = { workspaceDir?: unknown }
-type ChemicalHohmannFileKind = "digital-thread" | "ephemeris" | "log" | "manifest" | "opalis" | "result" | "rf-comlink" | "script" | "simu-cic" | "values"
+type ChemicalHohmannFileKind = "digital-thread" | "ephemeris" | "log" | "manifest" | "opalis" | "report" | "result" | "rf-comlink" | "script" | "simu-cic" | "timeseries" | "values"
 const CHEMICAL_HOHMANN_ARTIFACT_KINDS: Record<string, ChemicalHohmannFileKind> = {
   "EphemerisFile1.oem": "ephemeris",
+  "ReportFile1.txt": "report",
+  "chemical_hohmann_timeseries.json": "timeseries",
   "chemical_hohmann_transfer.script": "script",
   "chemical_hohmann_transfer.values.yaml": "values",
   "gmat.log": "log",
@@ -94,7 +96,7 @@ export async function chemicalHohmannRoutes(fastify: FastifyInstance, { config }
       if (!filePath || !stat?.isFile()) return reply.status(404).send({ error: "chemical Hohmann GMAT artifact not found" })
       const relativeFile = path.relative(workspaceDir, filePath).split(path.sep).join("/")
       const kind = chemicalHohmannArtifactKind(relativeFile, relativeFile.startsWith("artifact-history/"))
-      const contentType = kind === "values" ? "application/x-yaml; charset=utf-8" : ["digital-thread", "manifest", "result"].includes(kind ?? "") ? "application/json; charset=utf-8" : "text/plain; charset=utf-8"
+      const contentType = kind === "values" ? "application/x-yaml; charset=utf-8" : ["digital-thread", "manifest", "result", "timeseries"].includes(kind ?? "") ? "application/json; charset=utf-8" : "text/plain; charset=utf-8"
       return reply.header("Content-Type", contentType).header("Content-Disposition", `attachment; filename="${path.basename(filePath)}"`).header("Content-Length", String(stat.size)).send(createReadStream(filePath))
     } catch (error) { return reply.status(422).send({ error: getErrorMessage(error, "failed to download chemical Hohmann GMAT artifact") }) }
   })

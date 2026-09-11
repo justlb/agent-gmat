@@ -28,20 +28,28 @@ paths. The example file contains the available fields and inline hints.
 
 ## Start the application
 
-On the supported Linux environment, use the root startup script:
+Run from WSL (the project depends on tmux and Linux tooling):
 
 ```bash
-./start_open_codex_web.sh
+cd /mnt/d/STAGE/agent-gmat-main
+python3 scripts/start_local_web.py
 ```
 
-It validates `config.json`, installs backend and frontend dependencies when
-needed, starts configured remote tools, and starts both web services. The
-printed frontend URL is the address to open in a browser.
+The script stops existing tmux sessions and frees ports, installs
+backend/frontend npm dependencies automatically, validates `config.json`, and
+starts both web services. The printed frontend URL is the address to open in
+a browser.
 
-For local diagnosis without external connection checks:
+For local diagnosis without model connectivity checks:
 
 ```bash
-SKIP_CONFIG_SERVICE_CHECKS=1 ./start_open_codex_web.sh
+python3 scripts/start_local_web.py --keep-proxy
+```
+
+To also start remote GUI tools (FreeCAD, ParaView, COMSOL):
+
+```bash
+python3 scripts/start_local_web.py --with-remote-gui
 ```
 
 Useful manual checks are:

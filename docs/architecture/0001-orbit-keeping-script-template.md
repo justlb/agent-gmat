@@ -1,76 +1,82 @@
-# ADR-0001 — Génération déterministe d'un script GMAT orbit keeping
+# ADR-0001 — Deterministic generation of a GMAT orbit-keeping script
 
-Statut : accepté pour le MVP-0
+> **Status: superseded.** This ADR records the original MVP-0 decision that
+> selected Handlebars and a two-file template (.script.hbs + .values.yaml).
+> The current project uses slot-based auto-extraction directly from .script
+> files; Handlebars and the 193-slot YAML were removed. The historical
+> decision chain is preserved below.
 
-## Contexte
+Status: accepted for MVP-0
 
-Le produit doit adapter une mission GMAT d'orbit keeping à une demande en langage naturel. Toutes les missions produites doivent conserver la forme du script `AutonomousLEOReboost` fourni comme référence : même organisation générale, mêmes ressources GMAT et même séquence de mission.
+## Context
 
-Les valeurs doivent toutes pouvoir évoluer, notamment l'orbite initiale, l'orbite cible, l'altitude minimale, les masses, les surfaces, les paramètres atmosphériques, le propagateur, le solveur, les burns, les seuils, les durées et les sorties.
+The product must adapt a GMAT orbit-keeping mission to a natural-language request. All produced missions must preserve the structure of the `AutonomousLEOReboost` reference script: same general organization, same GMAT resources, and same mission sequence.
 
-Les appels LLM sont lents. Le projet doit donc utiliser un seul appel LLM par demande et rester déterministe pour toutes les autres étapes. Le LLM ne doit pas corriger les erreurs rencontrées.
+All values must be adjustable, including the initial orbit, target orbit, minimum altitude, masses, areas, atmospheric parameters, propagator, solver, burns, thresholds, durations, and outputs.
 
-## Décision
+LLM calls are slow. The project must therefore use a single LLM call per request and remain deterministic for all other steps. The LLM must not correct encountered errors.
 
-La chaîne initiale utilise un seul template de mission : `orbit_keeping`.
+## Decision
 
-Le template est composé de deux fichiers complémentaires :
+The initial pipeline uses a single mission template: `orbit_keeping`.
 
-- `orbit_keeping.script.hbs` contient la structure GMAT fixe issue du script de référence ;
-- `orbit_keeping.values.yaml` contient toutes les valeurs remplaçables du script.
+The template consists of two complementary files:
 
-Le déroulement d'une génération est strictement linéaire :
+- `orbit_keeping.script.hbs` contains the fixed GMAT structure derived from the reference script;
+- `orbit_keeping.values.yaml` contains all replaceable values in the script.
 
-1. le backend copie le fichier de valeurs par défaut dans un workspace d'exécution isolé ;
-2. un unique appel LLM reçoit la demande, le fichier de valeurs et des instructions lui interdisant de modifier autre chose ;
-3. le fichier YAML retourné est parsé et validé sans nouvel appel LLM ;
-4. le moteur de template produit `mission.script` de façon déterministe ;
-5. le workflow publie le script, le diff des valeurs et, en cas d'échec, une erreur structurée.
+The generation flow is strictly linear:
 
-Une erreur de syntaxe YAML, une valeur absente ou un rendu impossible arrête la génération. Il n'existe aucune boucle de réparation automatique par le LLM.
+1. the backend copies the default values file into an isolated execution workspace;
+2. a single LLM call receives the request, the values file, and instructions forbidding any other modification;
+3. the returned YAML is parsed and validated without any further LLM call;
+4. the template engine produces `mission.script` deterministically;
+5. the workflow publishes the script, the values diff, and, on failure, a structured error.
 
-## Responsabilités
+A YAML syntax error, a missing value, or an impossible render stops the generation. There is no automatic LLM repair loop.
+
+## Responsibilities
 
 ### LLM
 
-- interpréter la demande utilisateur ;
-- modifier uniquement les valeurs du fichier YAML de travail ;
-- effectuer toutes les modifications demandées pendant l'unique appel.
+- interpret the user request;
+- modify only the values in the working YAML file;
+- perform all requested changes during the single call.
 
-### Code déterministe
+### Deterministic code
 
-- préparer le workspace et copier les valeurs par défaut ;
-- parser et valider le YAML ;
-- calculer le diff avec les valeurs par défaut ;
-- rendre le template en mode strict ;
-- écrire atomiquement `mission.script` ;
-- retourner une erreur sans tenter de la corriger.
+- prepare the workspace and copy default values;
+- parse and validate the YAML;
+- compute the diff with default values;
+- render the template in strict mode;
+- atomically write `mission.script`;
+- return an error without attempting to correct it.
 
-### Template orbit keeping
+### Orbit-keeping template
 
-- conserver la structure du script de référence ;
-- exposer chaque valeur littérale utile sous un nom explicite ;
-- ne contenir aucune décision métier dynamique cachée dans le renderer.
+- preserve the structure of the reference script;
+- expose each useful literal value under an explicit name;
+- contain no hidden dynamic business logic in the renderer.
 
-## Choix techniques minimaux
+## Minimal technical choices
 
-- TypeScript, dans le backend existant ;
-- paquet `yaml` pour lire et écrire les valeurs ;
-- Handlebars en mode strict pour rendre le fichier texte GMAT ;
-- aucune exécution de GMAT dans le périmètre actuel ;
-- aucun générateur GMAT générique et aucun planificateur de manœuvres.
+- TypeScript, in the existing backend;
+- `yaml` package to read and write values;
+- Handlebars in strict mode to render the GMAT text file;
+- no GMAT execution in the current scope;
+- no generic GMAT generator and no manoeuvre planner.
 
-Le projet `open_codex_web-master` peut fournir des noms de propriétés GMAT et des exemples de sortie. Son orchestrateur, sa pipeline de correction et son générateur généraliste ne sont pas repris sans validation indépendante.
+The `open_codex_web-master` project may provide GMAT property names and sample outputs. Its orchestrator, correction pipeline, and generic generator are not reused without independent validation.
 
-## Invariants vérifiables
+## Verifiable invariants
 
-1. Une demande déclenche au maximum un appel LLM.
-2. Le renderer ne contacte jamais un modèle.
-3. Les valeurs par défaut produisent un script équivalent au script de référence.
-4. Changer une valeur YAML modifie uniquement les emplacements correspondants du `.script`.
-5. Une clé manquante provoque une erreur explicite en mode strict.
-6. Le workflow ne lance pas GMAT et ne répare pas automatiquement les erreurs.
+1. A request triggers at most one LLM call.
+2. The renderer never contacts a model.
+3. Default values produce a script equivalent to the reference script.
+4. Changing a YAML value modifies only the corresponding locations in the `.script`.
+5. A missing key causes an explicit error in strict mode.
+6. The workflow does not launch GMAT and does not automatically repair errors.
 
 ## Progression
 
-Le MVP-1 a validé la connectivité au LLM configuré en un seul appel. Le MVP-2a matérialise maintenant le script orbit-keeping de référence et vérifie son rendu déterministe, sans appel LLM ni exécution GMAT.
+MVP-1 validated connectivity to the configured LLM in a single call. MVP-2a now materialises the orbit-keeping reference script and verifies its deterministic rendering, without any LLM call or GMAT execution.

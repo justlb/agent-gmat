@@ -17,11 +17,29 @@ export type RunViewArtifact = {
   updatedAt: string
 }
 
+export type RFComlinkBudgetCases = { nominal: number; three_sigma?: number; worst_case_rss?: number }
+export type RFComlinkLinkBudget = {
+  achieved_ebn0_db: RFComlinkBudgetCases | null
+  binary_rate_bps: number | null
+  data_recovery_margin_db: RFComlinkBudgetCases | null
+  elevation_deg: number | null
+  frequency_mhz: number | null
+  link_name: string
+  link_type: string | null
+  range_km: number | null
+  received_cn0_dbhz: RFComlinkBudgetCases | null
+  required_ebn0_db: number | null
+  source_report: string
+  status: 'pass' | 'fail' | 'unavailable'
+  system_temperature_k: number | null
+}
+
 export type RunView = {
   artifacts: RunViewArtifact[]
   document: Record<string, unknown>
   missionValues: Record<string, string | number | null>
   overview: Record<string, { source: string; value: string; detail?: string }>
+  rfComlink: { linkBudgets: RFComlinkLinkBudget[] }
   runId: string
   runPath: string
   satelliteAssumptions: Array<{ label: string; value: string }>
@@ -37,4 +55,10 @@ export async function getRunView(runPath: string) {
   const payload = await response.json() as RunView & { error?: unknown }
   if (!response.ok) throw new Error(typeof payload.error === 'string' ? payload.error : 'Unable to load the saved mission run.')
   return payload
+}
+
+/** Direct download URL for one generated artifact of a dated run. */
+export function runArtifactDownloadUrl(runPath: string, relativePath: string) {
+  const query = new URLSearchParams({ runPath, relativePath }).toString()
+  return joinApiPath(undefined, `/runs/artifact?${query}`)
 }

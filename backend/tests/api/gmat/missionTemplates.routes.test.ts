@@ -109,8 +109,10 @@ describe("generic GMAT mission template routes", () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "gmat-hohmann-generic-"))
     const server = await createTestServer({ config: createTestConfig({ workspace: { usersRoot: path.join(tempRoot, "users") } }) })
     try {
-      const workspaceDir = path.join(tempRoot, "users", "alice", "workspaces", "gmat", "versions", "v0001")
-      const planningRun = await createPlanningRun(workspaceDir)
+      // The generic files route only scans the user's canonical mission-runs
+      // directory, so the planning run must be created there like MissionV2 does.
+      const planningRun = await createPlanningRun(path.join(tempRoot, "users", "alice"))
+      const workspaceDir = planningRun.workspaceDir
       await selectSatelliteDefinition(planningRun.workspaceDir, "ref-leo-orbit-keeping", "1.0.0")
       const headers = { "x-codex-user-id": "alice" }
       const base = "/api/gmat/templates/chemical-hohmann-transfer"
