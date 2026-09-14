@@ -31,7 +31,7 @@ paths. The example file contains the available fields and inline hints.
 Run from WSL (the project depends on tmux and Linux tooling):
 
 ```bash
-cd /mnt/d/path/to/agent-gmat-main
+cd /mnt/d/STAGE/agent-gmat-main
 python3 scripts/start_local_web.py
 ```
 

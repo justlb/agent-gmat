@@ -13,17 +13,14 @@ import { loadRunWorkflowLog } from "../opalis/workflowRunLog.js"
 import { failRunStage } from "../runs/runLifecycle.js"
 import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
 import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
-import { loadConfig } from "../config.js"
 
 type RunBody = { runPath?: unknown }
 type JsonRecord = Record<string, unknown>
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(SOURCE_DIR, "../../..")
-const config = loadConfig()
 
 function rfComlinkHomeForHost() {
-  const configured = process.env.RF_COMLINK_HOME?.trim() || config.tools.rfComlink.home
-  if (!configured) throw new Error("RF-COMLINK is not configured. Set tools.rfComlink.home in config.json.")
+  const configured = process.env.RF_COMLINK_HOME?.trim() || "D:\\STAGE\\APP\\rf-comlink"
   if (process.platform === "win32") return configured
   const normalized = configured.replace(/\\/gu, "/")
   const windowsPath = /^([a-z]):\/(.*)$/iu.exec(normalized)

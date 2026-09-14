@@ -10,19 +10,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 from pathlib import Path
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--home", type=Path, default=os.environ.get("RF_COMLINK_HOME"), help="RF-COMLINK installation directory")
+    parser.add_argument("--home", type=Path, default=Path(r"D:\\STAGE\\APP\\rf-comlink"))
     parser.add_argument("--probe-cli", action="store_true")
     parser.add_argument("--timeout-seconds", type=float, default=5)
     args = parser.parse_args()
-    if args.home is None:
-        parser.error("--home or RF_COMLINK_HOME is required")
     executable = args.home / "rf-comlink.exe"
     report: dict[str, object] = {
         "rf_comlink_home": str(args.home),

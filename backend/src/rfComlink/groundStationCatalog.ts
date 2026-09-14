@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { PREDEFINED_GROUND_STATIONS } from '../opalis/groundStationCatalog.js'
-import { loadConfig } from '../config.js'
 
 /** Same site matching as the RF-COMLINK scenario builder; never substitute another site. */
 export function rfGroundStationsFromDatabase(database: string) {
@@ -17,8 +16,7 @@ export function rfGroundStationsFromDatabase(database: string) {
 }
 
 export async function listRFComlinkGroundStations() {
-  const configured = process.env.RF_COMLINK_HOME?.trim() || loadConfig().tools.rfComlink.home
-  if (!configured) throw new Error('RF-COMLINK is not configured. Set tools.rfComlink.home in config.json.')
+  const configured = process.env.RF_COMLINK_HOME?.trim() || 'D:\\STAGE\\APP\\rf-comlink'
   const normalized = configured.replaceAll('\\', '/')
   const windowsPath = /^([a-z]):\/(.*)$/iu.exec(normalized)
   const home = process.platform !== 'win32' && windowsPath ? `/mnt/${windowsPath[1].toLowerCase()}/${windowsPath[2]}` : configured

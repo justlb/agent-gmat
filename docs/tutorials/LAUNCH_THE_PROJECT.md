@@ -12,7 +12,7 @@
 From WSL, at the project root:
 
 ```bash
-cd /mnt/d/path/to/agent-gmat-main
+cd /mnt/d/STAGE/agent-gmat-main
 python3 scripts/start_local_web.py
 ```
 

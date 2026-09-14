@@ -18,12 +18,10 @@ import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace
 import { artifactDefinitionForPath } from "../runs/artifactRegistry.js"
 import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
 import { acquireMissionPipelineLock, releaseMissionPipelineLock } from "../runs/missionPipelineLock.js"
-import { loadConfig } from "../config.js"
 
 type RunBody = { runPath?: unknown }
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(SOURCE_DIR, "../../..")
-const config = loadConfig()
 
 /**
  * RF-COMLINK 1.1.1 is a WPF application.  It accepts a single .rfcl file as
@@ -32,10 +30,7 @@ const config = loadConfig()
  * the generated scenario manually.
  */
 function rfComlinkHomeForHost() {
-  const configured = process.env.RF_COMLINK_HOME?.trim() || config.tools.rfComlink.home
-  if (!configured) {
-    throw new Error("RF-COMLINK is not configured. Set tools.rfComlink.home in config.json to the folder containing rf-comlink.exe.")
-  }
+  const configured = process.env.RF_COMLINK_HOME?.trim() || "D:\\STAGE\\APP\\rf-comlink"
   if (process.platform === "win32") return configured
   const normalized = configured.replace(/\\/gu, "/")
   const windowsPath = /^([a-z]):\/(.*)$/iu.exec(normalized)
@@ -170,7 +165,7 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       // UI Automation runs one simulation per link. The wait applies to each
       // link before opening its Budget report, and can be raised for slower
       // RF-COMLINK hosts without delaying already completed reports.
-      const waitSeconds = Math.max(1, Number.parseInt(process.env.RF_COMLINK_WAIT_SECONDS ?? String(config.tools.rfComlink.waitSeconds), 10) || config.tools.rfComlink.waitSeconds)
+      const waitSeconds = Math.max(1, Number.parseInt(process.env.RF_COMLINK_WAIT_SECONDS ?? "3", 10) || 3)
       await beginRunStage(run.runDir, "rf_comlink", "RF-COMLINK calculation is running for this mission run.")
       let output = ""
       try {
@@ -182,7 +177,7 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       await fs.writeFile(logPath, output || "RF-COMLINK completed without console output.\n", "utf8")
       const summaryPath = path.join(resultDir, "rf-comlink-results.json")
       const extractScript = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "03-save-results", "extract_rf_comlink_results.py")
-      const python = process.env.RF_COMLINK_PYTHON?.trim() || config.tools.rfComlink.python || (process.platform === "win32" ? "python" : "python3")
+      const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
       await runProcess(python, [extractScript, "--scenario", calculated, "--output", summaryPath], run.runDir)
       const summary = JSON.parse(await fs.readFile(summaryPath, "utf8")) as { link_budgets?: unknown[]; reports?: unknown[] }
       const reportCount = Array.isArray(summary.reports) ? summary.reports.length : 0
@@ -214,7 +209,7 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       if (preparedHash === calculatedHash) throw new Error("RF-COMLINK results have not been saved yet. Run the calculation in RF-COMLINK and save the opened scenario first.")
       const summaryPath = path.join(run.runDir, "rf-comlink", "03-results", "rf-comlink-results.json")
       const script = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "03-save-results", "extract_rf_comlink_results.py")
-      const python = process.env.RF_COMLINK_PYTHON?.trim() || config.tools.rfComlink.python || (process.platform === "win32" ? "python" : "python3")
+      const python = process.env.RF_COMLINK_PYTHON?.trim() || (process.platform === "win32" ? "python" : "python3")
       await runProcess(python, [script, "--scenario", calculated, "--output", summaryPath], run.runDir)
       const summary = JSON.parse(await fs.readFile(summaryPath, "utf8")) as { link_budgets?: unknown[]; reports?: unknown[] }
       const reportCount = Array.isArray(summary.reports) ? summary.reports.length : 0

@@ -1,8 +1,6 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 
-import { loadConfig } from "../config.js"
-
 export type RFComlinkBatchCapability = {
   batchMode: "gui_only"
   documentationPath: string
@@ -19,16 +17,7 @@ export type RFComlinkBatchCapability = {
  * claim that a native batch computation exists.
  */
 export async function discoverRFComlinkBatchCapability(): Promise<RFComlinkBatchCapability> {
-  const installationDir = process.env.RF_COMLINK_HOME?.trim() || loadConfig().tools.rfComlink.home
-  if (!installationDir) {
-    return {
-      batchMode: "gui_only",
-      documentationPath: "",
-      executableExists: false,
-      executablePath: "",
-      nextAction: "Set tools.rfComlink.home in config.json to the RF-COMLINK installation directory, then rerun the probe.",
-    }
-  }
+  const installationDir = process.env.RF_COMLINK_HOME?.trim() || "D:\\STAGE\\APP\\rf-comlink"
   const executablePath = path.join(installationDir, "rf-comlink.exe")
   const documentationPath = path.join(installationDir, "doc", "index.html")
   const executableExists = await fs.access(executablePath).then(() => true).catch(() => false)
@@ -39,6 +28,6 @@ export async function discoverRFComlinkBatchCapability(): Promise<RFComlinkBatch
     executablePath,
     nextAction: executableExists
       ? "Prepare the .rfcl scenario and open RF-COMLINK GUI. Native batch execution is unavailable on this installation."
-      : "Set tools.rfComlink.home in config.json to the RF-COMLINK installation directory, then rerun the probe.",
+      : "Set RF_COMLINK_HOME to the RF-COMLINK installation directory, then rerun the probe.",
   }
 }

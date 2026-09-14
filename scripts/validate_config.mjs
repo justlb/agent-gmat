@@ -66,9 +66,7 @@ function get(config, field) {
 }
 
 function isPlaceholder(value) {
-  if (typeof value !== "string") return false
-  const normalized = value.trim().toLowerCase()
-  return normalized === "xxx" || normalized.startsWith("replace_with_") || normalized.includes("/path/to/")
+  return typeof value === "string" && value.trim().toLowerCase() === "xxx"
 }
 
 function walkPlaceholders(value, prefix, issues) {
@@ -84,7 +82,7 @@ function walkPlaceholders(value, prefix, issues) {
     return
   }
   if (isPlaceholder(value)) {
-    add(issues, "error", prefix, "Placeholder value detected; replace it with a local setting.")
+    add(issues, "error", prefix, "仍是占位值 xxx，请按本机环境填写")
   }
 }
 
@@ -199,13 +197,13 @@ function validateShape(config, issues) {
 
   walkPlaceholders(config, "", issues)
 
-  optionalString(config, "openai.apiKey", issues)
+  requiredString(config, "openai.apiKey", issues)
   optionalUrl(config, "openai.baseUrl", issues)
   optionalString(config, "openai.model", issues)
 
-  optionalString(config, "chatModel.apiKey", issues)
+  requiredString(config, "chatModel.apiKey", issues)
   optionalUrl(config, "chatModel.baseUrl", issues)
-  optionalString(config, "chatModel.model", issues)
+  requiredString(config, "chatModel.model", issues)
   optionalBoolean(config, "chatModel.responsesCompat", issues)
 
   optionalString(config, "codex.modelProvider", issues)
@@ -252,9 +250,6 @@ function validateShape(config, issues) {
   checkOptionalExecutable(config, "tools.gmat.bin", issues)
   optionalString(config, "tools.comsol.sudo", issues)
   optionalUrl(config, "tools.gnc.url", issues)
-  optionalString(config, "tools.rfComlink.home", issues)
-  optionalString(config, "tools.rfComlink.python", issues)
-  optionalPositiveInteger(config, "tools.rfComlink.waitSeconds", issues)
 
   optionalUrl(config, "funasr.apiUrl", issues)
   optionalUrl(config, "cosyvoice.apiUrl", issues)

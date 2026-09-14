@@ -95,11 +95,6 @@ export interface AppConfig {
       timeoutMs: number
       workerPython: string | null
     }
-    rfComlink: {
-      home: string | null
-      python: string | null
-      waitSeconds: number
-    }
   }
   workspace: {
     filesystemGroup: string
@@ -307,8 +302,10 @@ export function loadConfig(): AppConfig {
   const apiKey = (envKey ?? openai.apiKey ?? "").trim()
   const baseUrl = (envBase ?? openai.baseUrl ?? optionalString(openai.base_url, "openai.base_url") ?? "").trim()
   const model = optionalString(openai.model, "openai.model")
+  if (!apiKey) die("openai.apiKey 未设置（或为空）。")
   if (apiKey === "sk-REPLACE-ME") die("openai.apiKey 仍是占位符，请填真实 key。")
-  if (baseUrl) try { new URL(baseUrl) } catch { die(`openai.baseUrl 不是合法 URL: ${baseUrl}`) }
+  if (!baseUrl) die("openai.baseUrl 未设置（或为空）。")
+  try { new URL(baseUrl) } catch { die(`openai.baseUrl 不是合法 URL: ${baseUrl}`) }
 
   const chatModelConfig: RawChatModelConfig = cfg.chatModel ?? cfg.chat_model ?? {}
   const chatApiKeyValue = stringValue(chatModelConfig.apiKey, "chatModel.apiKey")
@@ -336,7 +333,10 @@ export function loadConfig(): AppConfig {
     chatModelConfig.responsesCompat ?? chatModelConfig.responses_compat,
     "chatModel.responsesCompat",
   )
-  if (chatBaseUrl) try { new URL(chatBaseUrl) } catch { die(`chatModel.baseUrl 不是合法 URL: ${chatBaseUrl}`) }
+  if (!chatApiKey) die("chatModel.apiKey 未设置（或为空）。")
+  if (!chatBaseUrl) die("chatModel.baseUrl 未设置（或为空）。")
+  if (!chatModel) die("chatModel.model 未设置（或为空）。")
+  try { new URL(chatBaseUrl) } catch { die(`chatModel.baseUrl 不是合法 URL: ${chatBaseUrl}`) }
 
   const codex: RawCodexConfig = cfg.codex ?? {}
   const codexModelProvider = optionalString(codex.modelProvider ?? codex.model_provider, "codex.modelProvider")
@@ -372,7 +372,6 @@ export function loadConfig(): AppConfig {
   const gncTool = tools.gnc ?? {} as Partial<AppConfig["tools"]["gnc"]>
   const gmatTool = tools.gmat ?? {} as Partial<AppConfig["tools"]["gmat"]>
   const opalisTool = tools.opalis ?? {} as Partial<AppConfig["tools"]["opalis"]>
-  const rfComlinkTool = tools.rfComlink ?? {} as Partial<AppConfig["tools"]["rfComlink"]>
   const workspace = (
     cfg.workspace ??
     (typeof cfg[LEGACY_CAD_CONFIG_KEY] === "object" && cfg[LEGACY_CAD_CONFIG_KEY] !== null
@@ -492,11 +491,6 @@ export function loadConfig(): AppConfig {
         timeoutMs: positiveInteger(opalisTool.timeoutMs, "tools.opalis.timeoutMs", 600_000),
         workerPython: optionalString(opalisTool.workerPython, "tools.opalis.workerPython"),
       },
-      rfComlink: {
-        home: optionalString(rfComlinkTool.home, "tools.rfComlink.home"),
-        python: optionalString(rfComlinkTool.python, "tools.rfComlink.python"),
-        waitSeconds: positiveInteger(rfComlinkTool.waitSeconds, "tools.rfComlink.waitSeconds", 3),
-      },
     },
     workspace: {
       filesystemGroup: optionalString(process.env.WORKSPACE_FILESYSTEM_GROUP ?? workspace.filesystemGroup, "workspace.filesystemGroup") ?? "xieteam",
@@ -557,12 +551,12 @@ export function loadConfig(): AppConfig {
     },
     compliance: {
       database: {
-        host: optionalString(process.env.POSTGRES_HOST ?? complianceDatabase.host, "compliance.database.host") ?? "",
+        host: optionalString(process.env.POSTGRES_HOST ?? complianceDatabase.host, "compliance.database.host") ?? "10.110.10.101",
         port: optionalString(process.env.POSTGRES_PORT ?? complianceDatabase.port, "compliance.database.port") ?? "5432",
-        user: optionalString(process.env.POSTGRES_USER ?? complianceDatabase.user, "compliance.database.user") ?? "",
-        password: optionalString(process.env.POSTGRES_PASSWORD ?? complianceDatabase.password, "compliance.database.password") ?? "",
+        user: optionalString(process.env.POSTGRES_USER ?? complianceDatabase.user, "compliance.database.user") ?? "postgres",
+        password: optionalString(process.env.POSTGRES_PASSWORD ?? complianceDatabase.password, "compliance.database.password") ?? "lbk123",
         catalog: {
-          db: optionalString(process.env.CATALOG_POSTGRES_DB ?? complianceCatalogDatabase.db, "compliance.database.catalog.db") ?? "",
+          db: optionalString(process.env.CATALOG_POSTGRES_DB ?? complianceCatalogDatabase.db, "compliance.database.catalog.db") ?? "components_db",
           recallLimitPerComponent: positiveInteger(
             complianceCatalogDatabase.recallLimitPerComponent,
             "compliance.database.catalog.recallLimitPerComponent",
@@ -570,8 +564,8 @@ export function loadConfig(): AppConfig {
           ),
         },
         reliability: {
-          db: optionalString(process.env.POSTGRES_DB ?? complianceReliabilityDatabase.db, "compliance.database.reliability.db") ?? "",
-          schema: optionalString(complianceReliabilityDatabase.schema, "compliance.database.reliability.schema") ?? "public",
+          db: optionalString(process.env.POSTGRES_DB ?? complianceReliabilityDatabase.db, "compliance.database.reliability.db") ?? "satllm_db",
+          schema: optionalString(complianceReliabilityDatabase.schema, "compliance.database.reliability.schema") ?? "staging",
           limitPerComponent: positiveInteger(
             complianceReliabilityDatabase.limitPerComponent,
             "compliance.database.reliability.limitPerComponent",

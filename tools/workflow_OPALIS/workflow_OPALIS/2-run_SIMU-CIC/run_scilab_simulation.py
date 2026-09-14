@@ -29,6 +29,8 @@ def first_existing_dir(candidates):
 DEFAULT_SIMUCIC_DIR = first_existing_dir(
     [
         os.path.join(os.path.dirname(HERE), "simu_cic"),
+        r"D:\STAGE\APP\simu-cic\simu_cic",
+        r"D:\STAGE\APP\SIMU_CIC\simu_cic",
     ]
 )
 DEFAULT_BASE_SCENARIO = os.path.join(

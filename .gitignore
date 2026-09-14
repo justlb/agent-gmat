@@ -34,8 +34,6 @@ cad_sim_agents
 codex_agent
 .codex
 .agents
-.final-review-render/
-.ppt-review-current/
 
 __pycache__/
 *.py[cod]
