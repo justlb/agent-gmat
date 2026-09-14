@@ -102,8 +102,9 @@ def load_opalis_api(opalis_dir: Path) -> tuple[Any, Any]:
         # principale dépendance non système d'OpalisApi.
         clr.AddReference(str(lib_dir / "CicCcsdsNet.dll"))
         clr.AddReference(str(api_dll))
-        # OPALIS 2.4 renamed the .NET namespace from Helper to Helpers.
-        from OpalisApi.Helpers import SimulationHelper
+        # OPALIS 2.3 exposes SimulationHelper in the singular Helper
+        # namespace. Other utility classes remain under Helpers.
+        from OpalisApi.Helper import SimulationHelper
         from OpalisApi.Model import OpalisSimulation
     except Exception as exc:
         message = str(exc)

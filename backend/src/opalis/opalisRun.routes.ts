@@ -33,6 +33,14 @@ function resolveGmatRunDir(root: string, candidate: unknown) {
 
 function nativePath(filePath: string) { return toGmatNativePath(filePath) }
 
+// OPALIS pipeline is a Python process. Keep WSL paths when the backend runs
+// under WSL; Windows conversion is only for Windows-hosted workers/GUI apps.
+function workerPath(filePath: string, workerPython: string) {
+  // A configured *.exe Python is a Windows process even when WSL launches it.
+  // It must receive Windows paths so pythonnet can host .NET Framework 4.8.
+  return process.platform === "win32" || /\.exe$/iu.test(workerPython) ? nativePath(filePath) : filePath
+}
+
 function opalisInputProblem(action: "prepared" | "run", inputs: { validation: { missing: string[]; warnings: string[] } }) {
   const missing = inputs.validation.missing.filter(Boolean)
   if (missing.length === 1 && missing[0] === "digital_thread.satellite_definition") {
@@ -133,12 +141,12 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       const outputDir = path.join(runDir, "opalis", "03-opalis")
       const runName = "prepared-opalis"
       const output = await runCommand(settings.workerPython, [
-        nativePath(PIPELINE),
-        nativePath(EMPTY_TEMPLATE),
-        "--parameters-file", nativePath(inputs.outputPath),
-        "--ephemeris-dir", nativePath(inputs.cicDirectory),
-        "--opalis-dir", nativePath(settings.installationDir),
-        "--output-dir", nativePath(outputDir),
+        workerPath(PIPELINE, settings.workerPython),
+        workerPath(EMPTY_TEMPLATE, settings.workerPython),
+        "--parameters-file", workerPath(inputs.outputPath, settings.workerPython),
+        "--ephemeris-dir", workerPath(inputs.cicDirectory, settings.workerPython),
+        "--opalis-dir", workerPath(settings.installationDir, settings.workerPython),
+        "--output-dir", workerPath(outputDir, settings.workerPython),
         "--name", runName,
         "--no-run",
       ], runDir, settings.timeoutMs, "preparation")
@@ -186,12 +194,12 @@ export async function opalisRunRoutes(fastify: FastifyInstance, { config }: { co
       const outputDir = path.join(runDir, "opalis", "03-opalis")
       const runName = "calculated-opalis"
       const output = await runCommand(settings.workerPython, [
-        nativePath(PIPELINE),
-        nativePath(EMPTY_TEMPLATE),
-        "--parameters-file", nativePath(inputs.outputPath),
-        "--ephemeris-dir", nativePath(inputs.cicDirectory),
-        "--opalis-dir", nativePath(settings.installationDir),
-        "--output-dir", nativePath(outputDir),
+        workerPath(PIPELINE, settings.workerPython),
+        workerPath(EMPTY_TEMPLATE, settings.workerPython),
+        "--parameters-file", workerPath(inputs.outputPath, settings.workerPython),
+        "--ephemeris-dir", workerPath(inputs.cicDirectory, settings.workerPython),
+        "--opalis-dir", workerPath(settings.installationDir, settings.workerPython),
+        "--output-dir", workerPath(outputDir, settings.workerPython),
         "--name", runName,
       ], runDir, settings.timeoutMs, "calculation")
       const scenario = path.join(outputDir, "02-resultats", `${runName}.opalis`)

@@ -3,6 +3,8 @@ import type { AppConfig } from "../config.js"
 import type { Logger } from "../logger.js"
 
 export interface HealthResult {
+  /** False when model settings are deliberately absent; the application is still healthy. */
+  aiEnabled: boolean
   ok: boolean
   baseUrl: string
   model: string | null
@@ -13,6 +15,9 @@ export interface HealthResult {
 }
 
 export async function checkCodexEndpoint(config: AppConfig): Promise<HealthResult> {
+  if (!config.chatModel.apiKey || !config.chatModel.baseUrl || !config.chatModel.model) {
+    return { aiEnabled: false, ok: true, baseUrl: "", model: null }
+  }
   const baseUrl = config.chatModel.baseUrl.replace(/\/+$/, "")
   const url = `${baseUrl}/models`
   const t0 = Date.now()
@@ -23,14 +28,15 @@ export async function checkCodexEndpoint(config: AppConfig): Promise<HealthResul
     })
     const latencyMs = Date.now() - t0
     if (res.status === 401 || res.status === 403) {
-      return { ok: false, baseUrl, model: config.chatModel.model, latencyMs, reason: "auth_failed", status: res.status }
+      return { aiEnabled: true, ok: false, baseUrl, model: config.chatModel.model, latencyMs, reason: "auth_failed", status: res.status }
     }
     if (!res.ok) {
-      return { ok: false, baseUrl, model: config.chatModel.model, latencyMs, reason: "bad_status", status: res.status }
+      return { aiEnabled: true, ok: false, baseUrl, model: config.chatModel.model, latencyMs, reason: "bad_status", status: res.status }
     }
-    return { ok: true, baseUrl, model: config.chatModel.model, latencyMs }
+    return { aiEnabled: true, ok: true, baseUrl, model: config.chatModel.model, latencyMs }
   } catch (err) {
     return {
+      aiEnabled: true,
       ok: false,
       baseUrl,
       model: config.chatModel.model,

@@ -66,7 +66,9 @@ function get(config, field) {
 }
 
 function isPlaceholder(value) {
-  return typeof value === "string" && value.trim().toLowerCase() === "xxx"
+  if (typeof value !== "string") return false
+  const normalized = value.trim().toLowerCase()
+  return normalized === "xxx" || normalized.startsWith("replace_with_") || normalized.includes("/path/to/")
 }
 
 function walkPlaceholders(value, prefix, issues) {
@@ -82,7 +84,7 @@ function walkPlaceholders(value, prefix, issues) {
     return
   }
   if (isPlaceholder(value)) {
-    add(issues, "error", prefix, "仍是占位值 xxx，请按本机环境填写")
+    add(issues, "error", prefix, "Placeholder value detected; replace it with a local setting.")
   }
 }
 
@@ -197,13 +199,13 @@ function validateShape(config, issues) {
 
   walkPlaceholders(config, "", issues)
 
-  requiredString(config, "openai.apiKey", issues)
+  optionalString(config, "openai.apiKey", issues)
   optionalUrl(config, "openai.baseUrl", issues)
   optionalString(config, "openai.model", issues)
 
-  requiredString(config, "chatModel.apiKey", issues)
+  optionalString(config, "chatModel.apiKey", issues)
   optionalUrl(config, "chatModel.baseUrl", issues)
-  requiredString(config, "chatModel.model", issues)
+  optionalString(config, "chatModel.model", issues)
   optionalBoolean(config, "chatModel.responsesCompat", issues)
 
   optionalString(config, "codex.modelProvider", issues)
@@ -237,7 +239,8 @@ function validateShape(config, issues) {
   optionalPositiveInteger(config, "workspace.textChunkBytes", issues)
   optionalPositiveInteger(config, "workspace.textChunkMaxBytes", issues)
 
-  if (!SKIP_REMOTE_GUI) {
+  const remoteTools = config?.tools
+  if (!SKIP_REMOTE_GUI && remoteTools && (remoteTools.remoteDesktopLauncher || remoteTools.cad || remoteTools.paraview || remoteTools.comsol)) {
     checkExecutable(config, "tools.remoteDesktopLauncher", issues)
     for (const tool of ["cad", "paraview", "comsol"]) {
       requiredString(config, `tools.${tool}.displayNum`, issues)
@@ -250,6 +253,19 @@ function validateShape(config, issues) {
   checkOptionalExecutable(config, "tools.gmat.bin", issues)
   optionalString(config, "tools.comsol.sudo", issues)
   optionalUrl(config, "tools.gnc.url", issues)
+  optionalString(config, "tools.opalis.installationDir", issues)
+  optionalString(config, "tools.opalis.workerPython", issues)
+  optionalPositiveInteger(config, "tools.opalis.timeoutMs", issues)
+  optionalString(config, "tools.simuCic.baseScenario", issues)
+  optionalString(config, "tools.simuCic.celestlabDir", issues)
+  optionalString(config, "tools.simuCic.scilabBin", issues)
+  optionalString(config, "tools.simuCic.simucicDir", issues)
+  optionalString(config, "tools.simuCic.simuCicRunner", issues)
+  optionalPositiveInteger(config, "tools.simuCic.timeoutMs", issues)
+  optionalString(config, "tools.simuCic.workerPython", issues)
+  optionalString(config, "tools.rfComlink.home", issues)
+  optionalString(config, "tools.rfComlink.python", issues)
+  optionalPositiveInteger(config, "tools.rfComlink.waitSeconds", issues)
 
   optionalUrl(config, "funasr.apiUrl", issues)
   optionalUrl(config, "cosyvoice.apiUrl", issues)

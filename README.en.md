@@ -34,6 +34,7 @@ Do not commit real API keys, internal hosts, or private paths. Key fields:
 | `workspace.usersRoot` | Per-user workspace root |
 | `tools.gmat.bin` | Path to GMAT console executable |
 | `tools.gmat.timeoutMs` | GMAT execution timeout in milliseconds |
+| `tools.rfComlink.home` | Windows folder containing `rf-comlink.exe` |
 | `chatModel.*` | LLM settings for Mission Studio discussion |
 
 ## Start the project (recommended)
@@ -41,7 +42,7 @@ Do not commit real API keys, internal hosts, or private paths. Key fields:
 **Run from WSL** — the project depends on tmux and Linux tooling:
 
 ```bash
-cd /mnt/d/STAGE/agent-gmat-main
+cd /mnt/d/path/to/agent-gmat-main
 python3 scripts/start_local_web.py
 ```
 

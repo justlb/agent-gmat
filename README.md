@@ -16,7 +16,7 @@ GMAT Agent 是一个由 React 前端和 Fastify 后端组成的航天工程工�
 cp config.example.json config.json
 ```
 
-然后编辑 `config.json`。`config.example.json` 中值为 `xxx` 的字段必须按本机环境填写；相邻的 `_...Comment` 字段只是填写说明。不要把真实 API Key、内网地址或模型路径提交到代码仓库。
+然后编辑 `config.json`。`config.example.json` 中标记为 `REPLACE_WITH_...` 或 `/path/to/...` 的字段必须按本机环境填写；相邻的 `_...Comment` 字段只是填写说明。不要把真实 API Key、内网地址或模型路径提交到代码仓库。
 
 ### 关键字段
 

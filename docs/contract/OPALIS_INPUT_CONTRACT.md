@@ -96,8 +96,9 @@ by the satellite: thermal model, regulator type, detailed cell data,
 resistances, current limits, and dynamic power profile. The adapter
 does not override them.
 
-The starting point is `D:/STAGE/APP/opalis-2.4.0/Example/empty.opalis`,
-referenced by `satellite.bus.opalis.model.template_id = "empty.opalis"`.
+The starting point is the `empty.opalis` template under the configured
+`tools.opalis.installationDir`, referenced by
+`satellite.bus.opalis.model.template_id = "empty.opalis"`.
 The adapter must populate all static properties from the first tab
 of this file before loading CIC files. It never copies embedded
 files (`ephemeris/*`), `results.xml`, `charts.xml`, or reference-case

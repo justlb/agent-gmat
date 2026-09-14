@@ -408,7 +408,16 @@ def main() -> int:
             archive.extractall(work)
         files = sorted((work / "links").glob("*.xml"))
         if len(files) < len(links):
-            raise SystemExit(f"template exposes {len(files)} link files, but {len(links)} are required")
+            if not files:
+                raise SystemExit("template exposes no link files")
+            # Some RF-COMLINK releases ship a two-link example only. A copied
+            # telemetry link is a valid XML skeleton; update_link below then
+            # replaces its name, direction, RF parameters and CIC references.
+            source = files[-1]
+            for index in range(len(files), len(links)):
+                destination = work / "links" / f"{index:02d}_generated_link.xml"
+                shutil.copy2(source, destination)
+            files = sorted((work / "links").glob("*.xml"))
         station = manifest.get("selected_ground_station_id")
         run_dir = args.inputs.parents[2]
         cic = cic_sources(run_dir, manifest.get("cic_inputs", []))

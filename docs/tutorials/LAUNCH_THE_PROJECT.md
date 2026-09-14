@@ -1,20 +1,29 @@
 # Launch the Project
 
+Related guides: [Install the Project](INSTALL_THE_PROJECT.md),
+[Use the Project](USE_THE_PROJECT.md), [Add a Satellite](ADD_A_SATELLITE.md),
+and [Implement a Mission Scenario](IMPLEMENT_A_MISSION_SCENARIO.md).
+
 ## Prerequisites
 
 - WSL (Windows Subsystem for Linux) installed and configured
 - `config.json` configured at the project root (see [Install the Project](INSTALL_THE_PROJECT.md))
 - Node.js installed via nvm in WSL
 - GMAT installed on Windows (path configured in `config.json` > `tools.gmat.bin`)
+- AI configuration is optional: leave the `openai` and `chatModel` fields at
+  `null` when AI-assisted discussion is not needed.
 
 ## Quick start
 
-From WSL, at the project root:
+From WSL, open a terminal in the project root: the directory that contains
+`config.json` and the `scripts/` directory. Then run:
 
 ```bash
-cd /mnt/d/STAGE/agent-gmat-main
 python3 scripts/start_local_web.py
 ```
+
+Every installation can place the clone in a different directory; do not copy a
+path from this guide.
 
 The script will:
 1. Stop existing tmux sessions and free ports
@@ -25,6 +34,9 @@ The script will:
    - Starts the frontend in tmux (`frontend.httpsPort` from `config.json`)
 3. Wait until backend and frontend are ready (default timeout 90s)
 4. Print the access URLs
+
+This is the normal command to test the project. Do not run individual tool,
+Node, or Python diagnostics unless this command reports an error.
 
 ## Access
 

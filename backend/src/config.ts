@@ -86,14 +86,23 @@ export interface AppConfig {
       timeoutMs: number
     }
     opalis: {
+      installationDir: string | null
+      timeoutMs: number
+      workerPython: string | null
+    }
+    simuCic: {
       baseScenario: string | null
       celestlabDir: string | null
-      installationDir: string | null
       scilabBin: string | null
       simucicDir: string | null
       simuCicRunner: string | null
       timeoutMs: number
       workerPython: string | null
+    }
+    rfComlink: {
+      home: string | null
+      python: string | null
+      waitSeconds: number
     }
   }
   workspace: {
@@ -302,10 +311,8 @@ export function loadConfig(): AppConfig {
   const apiKey = (envKey ?? openai.apiKey ?? "").trim()
   const baseUrl = (envBase ?? openai.baseUrl ?? optionalString(openai.base_url, "openai.base_url") ?? "").trim()
   const model = optionalString(openai.model, "openai.model")
-  if (!apiKey) die("openai.apiKey 未设置（或为空）。")
   if (apiKey === "sk-REPLACE-ME") die("openai.apiKey 仍是占位符，请填真实 key。")
-  if (!baseUrl) die("openai.baseUrl 未设置（或为空）。")
-  try { new URL(baseUrl) } catch { die(`openai.baseUrl 不是合法 URL: ${baseUrl}`) }
+  if (baseUrl) try { new URL(baseUrl) } catch { die(`openai.baseUrl 不是合法 URL: ${baseUrl}`) }
 
   const chatModelConfig: RawChatModelConfig = cfg.chatModel ?? cfg.chat_model ?? {}
   const chatApiKeyValue = stringValue(chatModelConfig.apiKey, "chatModel.apiKey")
@@ -333,10 +340,7 @@ export function loadConfig(): AppConfig {
     chatModelConfig.responsesCompat ?? chatModelConfig.responses_compat,
     "chatModel.responsesCompat",
   )
-  if (!chatApiKey) die("chatModel.apiKey 未设置（或为空）。")
-  if (!chatBaseUrl) die("chatModel.baseUrl 未设置（或为空）。")
-  if (!chatModel) die("chatModel.model 未设置（或为空）。")
-  try { new URL(chatBaseUrl) } catch { die(`chatModel.baseUrl 不是合法 URL: ${chatBaseUrl}`) }
+  if (chatBaseUrl) try { new URL(chatBaseUrl) } catch { die(`chatModel.baseUrl 不是合法 URL: ${chatBaseUrl}`) }
 
   const codex: RawCodexConfig = cfg.codex ?? {}
   const codexModelProvider = optionalString(codex.modelProvider ?? codex.model_provider, "codex.modelProvider")
@@ -372,6 +376,8 @@ export function loadConfig(): AppConfig {
   const gncTool = tools.gnc ?? {} as Partial<AppConfig["tools"]["gnc"]>
   const gmatTool = tools.gmat ?? {} as Partial<AppConfig["tools"]["gmat"]>
   const opalisTool = tools.opalis ?? {} as Partial<AppConfig["tools"]["opalis"]>
+  const simuCicTool = tools.simuCic ?? {} as Partial<AppConfig["tools"]["simuCic"]>
+  const rfComlinkTool = tools.rfComlink ?? {} as Partial<AppConfig["tools"]["rfComlink"]>
   const workspace = (
     cfg.workspace ??
     (typeof cfg[LEGACY_CAD_CONFIG_KEY] === "object" && cfg[LEGACY_CAD_CONFIG_KEY] !== null
@@ -441,33 +447,28 @@ export function loadConfig(): AppConfig {
       ...frontendConfig,
     },
     tools: {
-      remoteDesktopLauncher: optionalString(tools.remoteDesktopLauncher, "tools.remoteDesktopLauncher")
-        ?? die("tools.remoteDesktopLauncher 未设置。"),
+      // Remote CAD tools are not part of the GMAT workflow.  Keep harmless
+      // defaults so local installations do not need to carry unused paths.
+      remoteDesktopLauncher: optionalString(tools.remoteDesktopLauncher, "tools.remoteDesktopLauncher") ?? "/bin/true",
       cad: {
         bin: optionalString(cadTool.bin, "tools.cad.bin"),
-        displayNum: optionalString(cadTool.displayNum, "tools.cad.displayNum")
-          ?? die("tools.cad.displayNum 未设置。"),
-        launcher: optionalString(cadTool.launcher, "tools.cad.launcher")
-          ?? die("tools.cad.launcher 未设置。"),
-        noVncPort: requiredPositiveInteger(cadTool.noVncPort, "tools.cad.noVncPort"),
-        vncPort: requiredPositiveInteger(cadTool.vncPort, "tools.cad.vncPort"),
+        displayNum: optionalString(cadTool.displayNum, "tools.cad.displayNum") ?? ":1",
+        launcher: optionalString(cadTool.launcher, "tools.cad.launcher") ?? "/bin/true",
+        noVncPort: positiveInteger(cadTool.noVncPort, "tools.cad.noVncPort", 6080),
+        vncPort: positiveInteger(cadTool.vncPort, "tools.cad.vncPort", 5901),
       },
       paraview: {
-        displayNum: optionalString(paraviewTool.displayNum, "tools.paraview.displayNum")
-          ?? die("tools.paraview.displayNum 未设置。"),
-        launcher: optionalString(paraviewTool.launcher, "tools.paraview.launcher")
-          ?? die("tools.paraview.launcher 未设置。"),
-        noVncPort: requiredPositiveInteger(paraviewTool.noVncPort, "tools.paraview.noVncPort"),
-        vncPort: requiredPositiveInteger(paraviewTool.vncPort, "tools.paraview.vncPort"),
+        displayNum: optionalString(paraviewTool.displayNum, "tools.paraview.displayNum") ?? ":2",
+        launcher: optionalString(paraviewTool.launcher, "tools.paraview.launcher") ?? "/bin/true",
+        noVncPort: positiveInteger(paraviewTool.noVncPort, "tools.paraview.noVncPort", 6081),
+        vncPort: positiveInteger(paraviewTool.vncPort, "tools.paraview.vncPort", 5902),
       },
       comsol: {
-        displayNum: optionalString(comsolTool.displayNum, "tools.comsol.displayNum")
-          ?? die("tools.comsol.displayNum 未设置。"),
-        launcher: optionalString(comsolTool.launcher, "tools.comsol.launcher")
-          ?? die("tools.comsol.launcher 未设置。"),
-        noVncPort: requiredPositiveInteger(comsolTool.noVncPort, "tools.comsol.noVncPort"),
+        displayNum: optionalString(comsolTool.displayNum, "tools.comsol.displayNum") ?? ":32",
+        launcher: optionalString(comsolTool.launcher, "tools.comsol.launcher") ?? "/bin/true",
+        noVncPort: positiveInteger(comsolTool.noVncPort, "tools.comsol.noVncPort", 6082),
         sudo: optionalString(comsolTool.sudo, "tools.comsol.sudo") ?? "sudo",
-        vncPort: requiredPositiveInteger(comsolTool.vncPort, "tools.comsol.vncPort"),
+        vncPort: positiveInteger(comsolTool.vncPort, "tools.comsol.vncPort", 5932),
       },
       gnc: {
         url: optionalString(gncTool.url, "tools.gnc.url"),
@@ -482,14 +483,23 @@ export function loadConfig(): AppConfig {
         ),
       },
       opalis: {
-        baseScenario: optionalString(opalisTool.baseScenario, "tools.opalis.baseScenario"),
-        celestlabDir: optionalString(opalisTool.celestlabDir, "tools.opalis.celestlabDir"),
         installationDir: optionalString(opalisTool.installationDir, "tools.opalis.installationDir"),
-        scilabBin: optionalString(opalisTool.scilabBin, "tools.opalis.scilabBin"),
-        simucicDir: optionalString(opalisTool.simucicDir, "tools.opalis.simucicDir"),
-        simuCicRunner: optionalString(opalisTool.simuCicRunner, "tools.opalis.simuCicRunner"),
         timeoutMs: positiveInteger(opalisTool.timeoutMs, "tools.opalis.timeoutMs", 600_000),
         workerPython: optionalString(opalisTool.workerPython, "tools.opalis.workerPython"),
+      },
+      simuCic: {
+        baseScenario: optionalString(simuCicTool.baseScenario, "tools.simuCic.baseScenario"),
+        celestlabDir: optionalString(simuCicTool.celestlabDir, "tools.simuCic.celestlabDir"),
+        scilabBin: optionalString(simuCicTool.scilabBin, "tools.simuCic.scilabBin"),
+        simucicDir: optionalString(simuCicTool.simucicDir, "tools.simuCic.simucicDir"),
+        simuCicRunner: optionalString(simuCicTool.simuCicRunner, "tools.simuCic.simuCicRunner"),
+        timeoutMs: positiveInteger(simuCicTool.timeoutMs, "tools.simuCic.timeoutMs", 600_000),
+        workerPython: optionalString(simuCicTool.workerPython, "tools.simuCic.workerPython"),
+      },
+      rfComlink: {
+        home: optionalString(rfComlinkTool.home, "tools.rfComlink.home"),
+        python: optionalString(rfComlinkTool.python, "tools.rfComlink.python"),
+        waitSeconds: positiveInteger(rfComlinkTool.waitSeconds, "tools.rfComlink.waitSeconds", 3),
       },
     },
     workspace: {
@@ -551,12 +561,12 @@ export function loadConfig(): AppConfig {
     },
     compliance: {
       database: {
-        host: optionalString(process.env.POSTGRES_HOST ?? complianceDatabase.host, "compliance.database.host") ?? "10.110.10.101",
+        host: optionalString(process.env.POSTGRES_HOST ?? complianceDatabase.host, "compliance.database.host") ?? "",
         port: optionalString(process.env.POSTGRES_PORT ?? complianceDatabase.port, "compliance.database.port") ?? "5432",
-        user: optionalString(process.env.POSTGRES_USER ?? complianceDatabase.user, "compliance.database.user") ?? "postgres",
-        password: optionalString(process.env.POSTGRES_PASSWORD ?? complianceDatabase.password, "compliance.database.password") ?? "lbk123",
+        user: optionalString(process.env.POSTGRES_USER ?? complianceDatabase.user, "compliance.database.user") ?? "",
+        password: optionalString(process.env.POSTGRES_PASSWORD ?? complianceDatabase.password, "compliance.database.password") ?? "",
         catalog: {
-          db: optionalString(process.env.CATALOG_POSTGRES_DB ?? complianceCatalogDatabase.db, "compliance.database.catalog.db") ?? "components_db",
+          db: optionalString(process.env.CATALOG_POSTGRES_DB ?? complianceCatalogDatabase.db, "compliance.database.catalog.db") ?? "",
           recallLimitPerComponent: positiveInteger(
             complianceCatalogDatabase.recallLimitPerComponent,
             "compliance.database.catalog.recallLimitPerComponent",
@@ -564,8 +574,8 @@ export function loadConfig(): AppConfig {
           ),
         },
         reliability: {
-          db: optionalString(process.env.POSTGRES_DB ?? complianceReliabilityDatabase.db, "compliance.database.reliability.db") ?? "satllm_db",
-          schema: optionalString(complianceReliabilityDatabase.schema, "compliance.database.reliability.schema") ?? "staging",
+          db: optionalString(process.env.POSTGRES_DB ?? complianceReliabilityDatabase.db, "compliance.database.reliability.db") ?? "",
+          schema: optionalString(complianceReliabilityDatabase.schema, "compliance.database.reliability.schema") ?? "public",
           limitPerComponent: positiveInteger(
             complianceReliabilityDatabase.limitPerComponent,
             "compliance.database.reliability.limitPerComponent",

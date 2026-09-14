@@ -1,137 +1,167 @@
 # Project Handover
 
-This handover gives the next maintainer the information needed to understand,
-run, maintain, and extend GMAT Agent without relying on the previous
-maintainer's computer. Keep this document current whenever ownership, external
-tools, deployment, or operational limitations change.
+This document gives the next maintainer the information needed to operate,
+validate, and extend the project without relying on the departing developer's
+local machine.
 
-## 1. Context and overview
+## What the project does
 
-### Purpose
+GMAT Agent (formerly Open Codex Web) is a local engineering workspace for spacecraft mission studies.
+The React frontend lets an engineer select a versioned satellite and GMAT
+mission scenario, prepare a dated mission run, launch GMAT and downstream
+analyses, and inspect the resulting artifacts. The Fastify backend owns
+workspace isolation, tool invocation, run persistence, and model requests.
 
-GMAT Agent is a local engineering workspace for spacecraft mission studies. An
-engineer selects a versioned satellite and a GMAT mission scenario, prepares a
-dated mission run, launches GMAT and downstream analyses, then reviews the
-resulting artifacts. The downstream pipeline can include Simu-CIC, OPALIS, and
-RF-COMLINK.
+The component boundaries are documented in [Code Structure](CODE_STRUCTURE.md).
+The complete artifact chain is documented in [Mission Data Flow](MISSION_DATA_FLOW.md).
 
-### History and current status
+## Continuity essentials
 
-- The project was formerly called **Open Codex Web**.
-- It is a local engineering application, not a hosted production service.
-- The primary workflow is the deterministic GMAT mission pipeline. The older
-  Codex-agent and remote-GUI capabilities remain optional.
-- The current implementation and tests are the source of truth for behaviour;
-  older reports, MVP notes, and completed runs are historical evidence, not
-  current specifications.
-
-### Roadmap and decisions
-
-- Review [Results Audit](RESULTS_AUDIT.md) for the current results-page
-  improvement backlog.
-- Before changing an external-tool integration, read its module documentation,
-  run a focused test, and perform the relevant end-to-end check.
-- A mission run is engineering evidence. Do not overwrite or delete a
-  completed run to retry an analysis; create a new run or re-prepare its draft.
-
-## 2. Technical information
-
-### Repository and architecture
-
-- Repository: use the Git remote configured for the checkout. The shared
-  branch and release-tag policy must be confirmed with the project owner.
-- Architecture: React frontend, Fastify backend, and run-local mission
-  artifacts. The frontend communicates with backend routes; it must not write
-  directly to a mission-run directory or launch a scientific tool.
-- Component and module boundaries: [Code Structure](CODE_STRUCTURE.md).
-- File-level map: [File Map](FILE_MAP.md).
-
-| Area | Responsibility |
+| Item | Handover information |
 | --- | --- |
-| `frontend/` | React user interface for mission authoring, results, and discussion. |
-| `backend/` | Fastify API, domain services, workspace isolation, tool invocation, and run persistence. |
-| `backend/src/gmat/` | Mission templates, drafts, GMAT generation, and run lifecycle. |
-| `backend/src/opalis/` | Simu-CIC and OPALIS preparation, execution, and workflow state. |
-| `backend/src/rfComlink/` | RF-COMLINK scenario preparation and result parsing. |
-| `data/` | Satellite library, runtime inputs, and mission-run evidence. |
-| `tools/` | External-tool scripts and templates called by the backend. |
+| **Git repository URL** | https://github.com/justlb/agent-gmat.git. The successor must have this URL and repository access before any clone, update, review, or release is possible. |
+| **Tool versions** | Record the versions installed on the target workstation before handover; the verified reference environment is listed below. |
+| **Known errors and pitfalls** | Read the installation guide troubleshooting table before changing tool paths or bypassing validation. |
+| **Backup and restoration** | No automated backup procedure is defined by this repository. Source recovery comes from the Git remote; mission-run and local-config recovery must use the organisation's approved storage. Search the project owner, shared engineering storage, and the release/tag history for the current backup location. |
+| **Business glossary** | See the glossary in this document before assigning maintenance to a non-specialist. |
 
-### Runtime and installation
+## Verified tool versions and compatibility
 
-The application is run from WSL because its startup scripts use Bash, tmux,
-and Linux command-line tools. The scientific applications themselves are
-installed on Windows and their paths are set in `config.json`.
+These are the versions used to validate the current Windows/WSL integration.
+They are not a substitute for recording the exact versions on the successor's
+machine.
 
-1. Create `config.json` from `config.example.json` and set local ports,
-   workspace paths, and executable paths.
-2. From a WSL terminal opened in the project root (the directory containing
-   `config.json` and `scripts/`), run:
+| Component | Verified version or requirement | Notes |
+| --- | --- | --- |
+| WSL | WSL2 with Ubuntu | Runs the web stack, Node.js and WSL Python workers. |
+| Node.js | 22 LTS or newer | Used for backend/frontend dependency installation and build. |
+| Python for OPALIS | Windows Python 3.12, 64-bit | Must use `pythonnet==3.0.5`; it hosts .NET Framework. |
+| OPALIS | 2.3.0 / .NET Framework 4.8 | Must run through Windows Python, not `/usr/bin/python3`. |
+| Scilab | 2025.1.0 | Configure `Scilex.exe`; the Simu-CIC launcher selects `WScilex.exe`. |
+| Simu-CIC / CelestLab | Local installed pair | `simu_cic/loader.sce` and `celestlab/loader.sce` must both exist. |
+| RF-COMLINK | 1.1.1.0 | Must include `rf-comlink.exe` and `Resources/GROUND_STATION_DATABASE.txt`. |
+| GMAT | Installed Windows GMAT release | Both `GmatConsole.exe` and `GMAT.exe` are required. Record the actual installed version. |
+
+## Backup and restoration procedure
+
+1. Recover the source by cloning the required Git commit or release tag from
+   the repository URL above.
+2. Recreate the ignored `config.json` from `config.example.json`, then obtain
+   paths and credentials through the approved secret-management process.
+3. Restore `data/user/` only from approved engineering storage when historical
+   mission evidence is required. Do not copy generated runs into the source
+   repository.
+4. Restore any required satellite-library additions, tool templates, reports,
+   or external-tool licences from the team's approved storage.
+5. Run the installation preflight and first-day procedure below before relying
+   on a restored workstation.
+
+If no approved backup location is known, escalate to the project owner before
+deleting a workstation, cleaning `data/user/`, or replacing external-tool
+installations.
+
+## Business glossary
+
+| Term | Meaning in this project |
+| --- | --- |
+| GMAT | General Mission Analysis Tool. It propagates the mission and produces the OEM ephemeris. |
+| OEM | CCSDS Orbit Ephemeris Message produced by GMAT, normally `EphemerisFile1.oem`. |
+| Simu-CIC | CNES/Scilab simulation step that converts the trajectory into attitude, visibility, eclipse and geometry CIC files. |
+| CIC | Files produced by Simu-CIC and consumed by OPALIS/RF-COMLINK, such as distance, visibility and direction time series. |
+| CelestLab | CNES Scilab library loaded before Simu-CIC. |
+| OPALIS | Electrical-power simulation tool. It consumes CIC flux/geometry data and satellite electrical parameters. |
+| RF-COMLINK | Communication-link tool. It consumes selected ground-station data, CIC geometry and RF system parameters. |
+| Digital thread | The run-local `satellite.json` plus its revision history and analysis requests; it is the shared source for tool adapters. |
+| Mission run | A dated, immutable evidence directory under `data/user/<user>/gmat/mission-runs/`. |
+| Run-local artifact | A file generated or copied for one mission run. It must not overwrite an immutable library/template input. |
+
+## Read this first
+
+For a future human maintainer or coding agent, use this order of precedence:
+
+1. the TypeScript implementation and tests for current behaviour;
+2. the run-local artifacts for the evidence of one particular mission run;
+3. `config.example.json` for the complete configuration shape;
+4. this handover and the tutorials for operational procedure.
+
+Do not treat an old audit, an MVP note, a report, a slide deck, or a completed
+run as a specification for current behaviour. Those documents are retained as
+historical context. Before changing an external-tool integration, read its
+module README and run one focused test plus the relevant end-to-end check.
+
+## Required access and runtime dependencies
+
+The standard startup scripts target Linux and use Bash, tmux, and the external
+tools configured in `config.json`. The handover must give the maintainer access
+to the following items through the organisation's approved secret-management
+process:
+
+| Item | Why it is needed |
+| --- | --- |
+| Repository and its Git remote | Source history, release tags, and collaboration. |
+| `config.json` values or their replacement secret source | Ports, workspace roots, model endpoints, and optional services are environment-specific and deliberately ignored by Git. |
+| GMAT installation | Required for GMAT execution; set `tools.gmat.bin` to its console executable. |
+| Workspace storage | `workspace.templateDir` and `workspace.usersRoot` must be accessible and writable by the backend user. |
+| Model endpoint credentials | Required only for the Codex and mission-discussion features that use a model. |
+| Optional service access | PostgreSQL, FunASR, CosyVoice, FreeCAD, ParaView, COMSOL, and remote desktop tools are enabled only when the corresponding features are used. |
+
+Never send a real `config.json` or its credentials in the source repository,
+commit history, a ticket, or this document.
+
+## First-day procedure
+
+1. Clone the release commit and create `config.json` from `config.example.json`.
+2. Validate configuration:
 
    ```bash
+   node scripts/validate_config.mjs --config config.json
+   ```
+
+3. Start the services from WSL:
+
+   ```bash
+   cd /mnt/d/path/to/agent-gmat-main
    python3 scripts/start_local_web.py
    ```
 
-3. Open the frontend URL printed by the launcher. The backend health endpoint
-   is printed as well.
+4. Open the printed frontend URL and complete a small mission run with a
+   reference satellite.
+5. Confirm that the run has a `satellite.json`, a generated GMAT script,
+   workflow status, and visible artifacts in **Results**. If downstream tools
+   are configured, confirm their CIC/OPALIS/RF artifacts as well; a stage
+   marked complete is not a substitute for reviewing its primary report.
 
-Follow [Install the Project](tutorials/INSTALL_THE_PROJECT.md) for a new
-computer and [Launch the Project](tutorials/LAUNCH_THE_PROJECT.md) for the
-normal day-to-day command.
+For installation and manual start commands, see [README.en.md](../README.en.md).
+For the engineering workflow, see [Use the Project](tutorials/USE_THE_PROJECT.md).
 
-### Dependencies and external services
+## Source of truth and data retention
 
-| Dependency | Role | Required? |
-| --- | --- | --- |
-| Node.js, npm, Python 3, tmux, and `lsof` in WSL | Build and launch the local web application. | Yes |
-| GMAT | Orbit propagation and mission calculations. | Required for GMAT runs |
-| Scilab, Simu-CIC, and CelestLab | Attitude, contact, eclipse, and geometry workflow. | Required for the Simu-CIC stage |
-| OPALIS | Electrical-power analysis. | Required for the OPALIS stage |
-| RF-COMLINK | Telecommand and telemetry link budgets. | Required for the RF stage |
-| AI model endpoint | Mission discussion and AI-assisted analysis. | Optional; leave model configuration `null` when unused |
-| PostgreSQL, speech, remote CAD, and remote-desktop services | Optional integrations. | Only when the corresponding feature is enabled |
+- `data/satellite-library/` stores immutable, versioned physical satellite definitions.
+- Each dated mission run stores its own `satellite.json`, draft, generated
+  GMAT script, workflow log, and outputs. Preserve these files as engineering evidence.
+- `data/` and `tools/` include runtime contracts and external tool inputs.
+  Their lack of a direct TypeScript import is not evidence that they can be deleted.
+- Generated directories such as `node_modules/`, `dist/`, `tmp/`, Python
+  caches, and TypeScript build information are excluded by `.gitignore`.
 
-Use `config.example.json` as the complete configuration reference. Do not
-commit `config.json`: it contains machine-specific paths and may contain
-credentials.
+## Known operational limitations
 
-## 3. Deployment and infrastructure
+- A completed workflow stage means its launcher completed and its declared
+  artifacts were recorded. It does not automatically certify an engineering
+  result; inspect the primary output before relying on it.
+- Simu-CIC contact, propagation-latency, and eclipse summaries are calculated
+  from saved CIC samples. Their approximation and units are defined in
+  [Results calculation contract](RESULTS_CALCULATION_CONTRACT.md).
+- RF-COMLINK saves the calculated `.rfcl` package, extracted reports, and
+  parsed link-budget indicators for each configured link. Empty reports or a
+  missing link-budget table remain unavailable evidence, even if the stage is
+  marked `completed`.
+- The Results discussion explains saved evidence; it must never launch a tool
+  or modify a completed run.
 
-The supported deployment is a local Windows + WSL installation started with
-`python3 scripts/start_local_web.py`. The launcher starts backend and frontend
-in tmux sessions, frees stale project ports, validates configuration, and
-prints the local URLs.
+## Validation before a release
 
-No shared hosting, CI/CD pipeline, staging environment, production URL, or
-central monitoring service is documented in this repository. If any of these
-exist outside the repository, record the owner, access method, environment
-URLs, deployment procedure, and log location here before handover.
-
-On a launch failure, read the tmux logs printed by the launcher and check
-`config.json`, installed npm dependencies, executable paths, and port usage.
-
-## 4. Data, access, and security
-
-- `data/satellite-library/` stores versioned physical satellite definitions.
-- Each mission run stores its own `satellite.json`, draft values, generated
-  GMAT script, workflow log, and output artifacts. Preserve them as evidence.
-- `data/` and `tools/` are runtime contracts; do not remove them merely
-  because they are not directly imported by TypeScript.
-- Generated `node_modules/`, `dist/`, `tmp/`, Python caches, and TypeScript
-  build information are local artifacts and are ignored by Git.
-- Give the maintainer repository access, access to the required Windows tool
-  installations, writable workspace storage, and approved access to optional
-  services they will operate.
-- Store credentials through the organisation's approved secret-management
-  process. Never place real secrets, internal hosts, or a real `config.json`
-  in Git, tickets, email, or this document.
-- Backup, retention, restoration, personal-data, and compliance procedures are
-  not defined in the repository. The project owner must provide them when they
-  apply to the installation.
-
-## 5. Tests and quality checks
-
-Run these checks in the supported WSL environment after installing
-dependencies:
+Run the following in the supported environment after installing dependencies:
 
 ```bash
 cd backend
@@ -146,61 +176,24 @@ npm run lint
 npm test
 ```
 
-Before a release, run one compatible GMAT scenario through the full pipeline.
-Review the GMAT output and each enabled downstream tool's primary report; a
-stage marked `completed` does not by itself certify an engineering result.
+Then run one compatible GMAT scenario through the full pipeline. Check the
+GMAT output and every enabled downstream stage before tagging a release.
 
-## 6. Process and ownership
+## Extension guides
 
-The repository does not define Scrum, Kanban, ticketing, chat tools, team
-rituals, or contact ownership. Before a handover is complete, the project
-owner must record:
+- [Implement a new GMAT mission scenario](tutorials/IMPLEMENT_A_MISSION_SCENARIO.md)
+- [Add a satellite definition](tutorials/ADD_A_SATELLITE.md)
+- [Use the project](tutorials/USE_THE_PROJECT.md)
+- [RF-COMLINK input contract](contract/RF_COMLINK_INPUT_CONTRACT.md)
+- [Results audit and improvement backlog](RESULTS_AUDIT.md)
 
-- the maintainer responsible for the application and each external tool;
-- the person who grants repository, service, and secret access;
-- the location of open tickets, known bugs, and planned work;
-- the review and release/tagging process.
+## Final delivery checklist
 
-## 7. Documentation and resources
-
-- [Install the Project](tutorials/INSTALL_THE_PROJECT.md)
-- [Launch the Project](tutorials/LAUNCH_THE_PROJECT.md)
-- [Use the Project](tutorials/USE_THE_PROJECT.md)
-- [Add a Satellite](tutorials/ADD_A_SATELLITE.md)
-- [Implement a Mission Scenario](tutorials/IMPLEMENT_A_MISSION_SCENARIO.md)
-- [Code Structure](CODE_STRUCTURE.md)
-- [Results Calculation Contract](RESULTS_CALCULATION_CONTRACT.md)
-- [OPALIS Input Contract](OPALIS_INPUT_CONTRACT.md)
-- [RF-COMLINK Input Contract](RF_COMLINK_INPUT_CONTRACT.md)
-- [Results Audit](RESULTS_AUDIT.md)
-
-## 8. Important cautions
-
-- Simu-CIC contact, propagation-latency, and eclipse summaries are calculated
-  from saved CIC samples. Their approximations and units are defined in the
-  [Results Calculation Contract](RESULTS_CALCULATION_CONTRACT.md).
-- RF-COMLINK currently records extracted HTML reports and link files. It does
-  not deterministically expose RF margins, Eb/N0, availability, or data-volume
-  figures in the overview. Empty reports are unavailable evidence, even when
-  the stage says `completed`.
-- The Results discussion may explain saved evidence, but it must never launch
-  a tool or modify a completed run.
-- External-tool paths, versions, licences, and user access are environment
-  dependencies. A working configuration on one computer is not portable until
-  these values have been checked on the successor's computer.
-
-## Handover completion checklist
-
-- [ ] All intended source, test, and documentation changes are in a reviewed
-  Git commit.
-- [ ] `git status --short --branch` is clean.
-- [ ] The release commit is pushed to the shared remote and tagged if the team
-  uses release tags.
-- [ ] The successor has repository access and a secure route to required
-  secrets and external services.
-- [ ] The successor has launched the project successfully in the supported
-  Windows + WSL environment and completed a small reference mission run.
-- [ ] Required mission outputs and validation reports are stored in the
-  team's approved location.
-- [ ] Owners for outstanding work, known issues, and external-tool access are
-  recorded.
+- [ ] All intended source, test, and documentation changes are committed in a reviewed Git commit.
+- [ ] `git status --short --branch` has no uncommitted or untracked work.
+- [ ] The release commit is pushed to the shared remote and tagged if the team uses release tags.
+- [ ] The successor has repository access and a secure path to the required secrets and external services.
+- [ ] The successor has completed the first-day procedure in the supported
+  WSL/Windows environment, including the external tools they are expected to operate.
+- [ ] Mission outputs or validation reports that must be retained have been copied to the team's approved storage.
+- [ ] Ownership of outstanding work, including the Results-page improvement backlog, has been assigned.

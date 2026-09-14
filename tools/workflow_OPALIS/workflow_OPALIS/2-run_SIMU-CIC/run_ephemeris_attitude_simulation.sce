@@ -2,7 +2,7 @@
 // Simu-CIC - lancement depuis un fichier d'ephemerides OEM/CIC
 // ======================================================================
 // Utilisation depuis Scilab:
-//   exec("C:\JUSTINE\APP\SIMU_CIC\conversion_GMAT-CIC\run_ephemeris_attitude_simulation.sce", -1)
+//   exec("C:/JUSTINE/demonstrator/tools/workflow_OPALIS/workflow_OPALIS/2-run_SIMU-CIC/run_ephemeris_attitude_simulation.sce", -1)
 //
 // Le script:
 //   1) charge Simu-CIC,
@@ -21,6 +21,12 @@ end
 
 if exists("SIMUCIC_DIR") == 0 then
   SIMUCIC_DIR = fullfile(SCRIPT_DIR, "..", "simu_cic");
+end
+
+// CelestLab fourni avec l'installation Simu-CIC. Le lanceur Python injecte
+// ce chemin pour éviter toute dépendance a un ancien dossier Scilab contrib.
+if exists("CELESTLAB_DIR") == 0 then
+  CELESTLAB_DIR = "C:/JUSTINE/APP/____autre/CEF/cnes_software/SIMU-CIC_complet/celestlab";
 end
 
 // Fichier OEM/CIC compris par le GUI Simu-CIC.
@@ -176,9 +182,9 @@ endfunction
 // Chargement Simu-CIC
 // ----------------------------------------------------------------------
 if exists("CL_dat_convert") == 0 then
-  // Local project installation takes precedence over the legacy Scilab
-  // contrib location.  This keeps the workflow portable across Scilab releases.
-  celestlab_loader = "D:/STAGE/APP/celestlab/loader.sce";
+  // L'installation configuree prime; le fallback conserve la compatibilite
+  // avec une installation CelestLab en contrib Scilab.
+  celestlab_loader = fullfile(CELESTLAB_DIR, "loader.sce");
   if ~isfile(celestlab_loader) then
     celestlab_loader = fullfile(SCI, "contrib", "celestlab", "loader.sce");
   end

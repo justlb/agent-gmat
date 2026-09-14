@@ -70,7 +70,9 @@ await registerApiRoutes(fastify, { config, logger })
 
 // 启动时做一次连接自检（不阻塞启动）
 void checkCodexEndpoint(config).then(result => {
-  if (result.ok) {
+  if (!result.aiEnabled) {
+    logger.info("AI assistant is disabled; scientific workflows remain available")
+  } else if (result.ok) {
     logger.info("codex endpoint reachable", { latencyMs: result.latencyMs, baseUrl: result.baseUrl })
   } else {
     logger.error("startup connectivity check failed", result as unknown as Record<string, unknown>)

@@ -13,14 +13,17 @@ import { loadRunWorkflowLog } from "../opalis/workflowRunLog.js"
 import { failRunStage } from "../runs/runLifecycle.js"
 import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
 import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
+import { loadConfig } from "../config.js"
 
 type RunBody = { runPath?: unknown }
 type JsonRecord = Record<string, unknown>
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(SOURCE_DIR, "../../..")
+const config = loadConfig()
 
 function rfComlinkHomeForHost() {
-  const configured = process.env.RF_COMLINK_HOME?.trim() || "D:\\STAGE\\APP\\rf-comlink"
+  const configured = process.env.RF_COMLINK_HOME?.trim() || config.tools.rfComlink.home
+  if (!configured) throw new Error("RF-COMLINK is not configured. Set tools.rfComlink.home in config.json.")
   if (process.platform === "win32") return configured
   const normalized = configured.replace(/\\/gu, "/")
   const windowsPath = /^([a-z]):\/(.*)$/iu.exec(normalized)
@@ -240,7 +243,16 @@ export async function prepareRFComlinkScenario(root: string, runDir: string) {
     throw Object.assign(new Error(rfInputProblem(inputs.validation.missing)), { inputs })
   }
   const templateOverride = process.env.RF_COMLINK_TEMPLATE?.trim()
-  const template = templateOverride || path.join(rfComlinkHomeForHost(), "example", "vide.rfcl")
+  const exampleDirectory = path.join(rfComlinkHomeForHost(), "example")
+  // RF-COMLINK releases do not all include vide.rfcl. example.rfcl is the
+  // complete, valid ZIP template distributed with the current installation.
+  const template = templateOverride || (await (async () => {
+    for (const fileName of ["vide.rfcl", "example.rfcl"]) {
+      const candidate = path.join(exampleDirectory, fileName)
+      if (await fs.access(candidate).then(() => true).catch(() => false)) return candidate
+    }
+    throw new Error("RF-COMLINK template is unavailable. Expected example/vide.rfcl or example/example.rfcl under " + rfComlinkHomeForHost())
+  })())
   const output = path.join(runDir, "rf-comlink", "02-scenario", "prepared-rf-comlink.rfcl")
   await fs.access(template)
   const script = path.join(PROJECT_ROOT, "tools", "workflow_RF-COMLINK", "02-prepare-scenario", "build_rf_comlink_scenario.py")

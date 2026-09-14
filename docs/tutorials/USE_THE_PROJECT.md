@@ -28,10 +28,11 @@ paths. The example file contains the available fields and inline hints.
 
 ## Start the application
 
-Run from WSL (the project depends on tmux and Linux tooling):
+From WSL, open a terminal in the project root (the directory containing
+`config.json` and `scripts/`). The project depends on tmux and Linux tooling.
+Run:
 
 ```bash
-cd /mnt/d/STAGE/agent-gmat-main
 python3 scripts/start_local_web.py
 ```
 

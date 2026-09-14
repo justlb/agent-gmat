@@ -27,12 +27,14 @@ function resolveGmatRunDir(userWorkspaceRoot: string, runPath: unknown) {
 }
 
 function requiredSimuCicConfig(config: AppConfig) {
-  const tool = config.tools.opalis
+  const tool = config.tools.simuCic
   const required: Array<[string, string | null]> = [
-    ["tools.opalis.workerPython", tool.workerPython],
-    ["tools.opalis.simuCicRunner", tool.simuCicRunner],
-    ["tools.opalis.baseScenario", tool.baseScenario],
-    ["tools.opalis.simucicDir", tool.simucicDir],
+    ["tools.simuCic.workerPython", tool.workerPython],
+    ["tools.simuCic.simuCicRunner", tool.simuCicRunner],
+    ["tools.simuCic.baseScenario", tool.baseScenario],
+    ["tools.simuCic.celestlabDir", tool.celestlabDir],
+    ["tools.simuCic.scilabBin", tool.scilabBin],
+    ["tools.simuCic.simucicDir", tool.simucicDir],
   ]
   const missing = required.filter(([, value]) => !value).map(([name]) => name)
   if (missing.length) throw new Error("Simu-CIC is not configured: " + missing.join(", "))
@@ -53,6 +55,12 @@ function guiBinFor(scilabBin: string | null) {
 
 function nativePath(filePath: string) {
   return toGmatNativePath(filePath)
+}
+
+/** Paths sent to Python stay in the host filesystem format.  In particular,
+ * a Python worker running in WSL cannot resolve a Windows C:\\ path. */
+function workerPath(filePath: string) {
+  return process.platform === "win32" ? nativePath(filePath) : filePath
 }
 
 function ephemerisConverterFor(simuCicRunner: string) {
@@ -159,9 +167,9 @@ async function convertGmatEphemeris(settings: ReturnType<typeof requiredSimuCicC
     throw new Error("OPALIS ephemeris converter is unavailable: " + converter)
   })
   const output = await runCommand(settings.workerPython, [
-    nativePath(converter),
-    nativePath(ephemeris),
-    "--output", nativePath(convertedEphemeris),
+    workerPath(converter),
+    workerPath(ephemeris),
+    "--output", workerPath(convertedEphemeris),
     "--json",
   ], runDir, settings.timeoutMs)
   const convertedStat = await fs.stat(convertedEphemeris).catch(() => null)
@@ -190,7 +198,7 @@ async function snapshotBaseScenario(settings: ReturnType<typeof requiredSimuCicC
 
 async function openGui(config: AppConfig, runDir: string) {
   const settings = requiredSimuCicConfig(config)
-  if (!settings.celestlabDir) throw new Error("Simu-CIC GUI is not configured: tools.opalis.celestlabDir")
+  if (!settings.celestlabDir) throw new Error("Simu-CIC GUI is not configured: tools.simuCic.celestlabDir")
   const scenario = await latestScenario(runDir)
   if (!scenario) throw new Error("Run Simu-CIC first: no generated scenario is available for this GMAT run")
   const template = await fs.readFile(path.join(path.dirname(settings.simuCicRunner), "open_simucic_gui_template.sce"), "utf8")
@@ -234,14 +242,15 @@ export async function runSimuCicForRun(config: AppConfig, root: string, runDir: 
   const args = [
     // Simu-CIC requires the GUI runtime of this installation, but its window
     // remains hidden and artifact completion below keeps the pipeline batch.
-    nativePath(settings.simuCicRunner), "--gui", "--hide-window",
-    "--scilab", nativePath(guiBinFor(settings.scilabBin)),
-    "--ephemeris", nativePath(conversion.convertedEphemeris),
-    "--simucic-definition", nativePath(simuCicDefinition.output),
-    "--simucic-dir", nativePath(settings.simucicDir),
-    "--base-scenario", nativePath(inputScenario),
-    "--save-root", nativePath(saveRoot),
-    "--cic-output", nativePath(cicOutput),
+    workerPath(settings.simuCicRunner), "--gui", "--hide-window",
+    "--scilab", workerPath(guiBinFor(settings.scilabBin)),
+    "--ephemeris", workerPath(conversion.convertedEphemeris),
+    "--simucic-definition", workerPath(simuCicDefinition.output),
+    "--simucic-dir", workerPath(settings.simucicDir),
+    "--celestlab-dir", workerPath(settings.celestlabDir!),
+    "--base-scenario", workerPath(inputScenario),
+    "--save-root", workerPath(saveRoot),
+    "--cic-output", workerPath(cicOutput),
   ]
   const output = await runCommand(settings.workerPython, args, runDir, settings.timeoutMs, async () => {
     const entries = await fs.readdir(saveRoot, { withFileTypes: true }).catch(() => [])

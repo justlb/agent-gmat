@@ -1,7 +1,5 @@
 # Code Structure
 
-14/09/2026
-
 This repository is a local engineering workspace for spacecraft mission
 studies. The frontend presents a mission and saved outputs; the backend owns
 workspace access, tool invocation, run persistence, and model requests.
