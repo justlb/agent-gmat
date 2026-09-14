@@ -1,87 +1,119 @@
-# Finalisation audit: results, chatbot, and cleanup
+# Results page and analysis audit
 
-Date: 6 September 2026. This is a historical audit snapshot, not the current
-operational contract. For current computed metrics, see
-[Results calculation contract](RESULTS_CALCULATION_CONTRACT.md); for current
-ownership and known limitations, see [Project Handover](HANDOVER.md).
+**Audit date:** 14 September 2026
 
-## Scope and limitations
+**Previous audit:** 6 September 2026
 
-Targeted static audit of the Results page, charts, conversation, routes, and analysis context, with inspection of the repository layout. This document constitutes the requested finalisation plan; no deletions or functional overhauls were performed. It does not certify the absence of dead code across the entire project. No visual inspection of the application and no evaluation with a real model were carried out.
+**Scope:** static review of the Results page, run-view API, analysis context,
+single-run and multi-run assistant paths, and their focused tests. This audit
+does not include a visual browser review, a real AI-model evaluation, or a
+full execution of GMAT, Simu-CIC, OPALIS, and RF-COMLINK.
 
-The list of modifications below was an observation at the time of the audit,
-not a release manifest. Use Git history and `git status` for the current tree.
+The current code and tests are the source of truth. This document records the
+state observed on the audit date; it is not a release manifest.
 
-## What already works in the design
+## Executive summary
 
-- The page selects the summary, charts, and discussion of an execution together.
-- ResultsDiscussion is keyed by runPath; a late response must not contaminate another selection. A test covers this scenario.
-- POST /api/runs/analysis bypasses the intent router and analyses only the selected execution. It does not launch a simulation.
-- The context gathers GMAT, Simu-CIC, OPALIS, and RF-COMLINK, with references to files and missing data.
-- The prompt asks to distinguish facts from interpretations, cite sources, and respond in the language of the question.
-- Conversations use existing atomic persistence. Full success requires all four stages completed.
+The Results area is substantially more complete than it was on 6 September.
+It now presents a backend-owned, run-local view, supports comparison of up to
+five runs, exposes downloadable artifacts, and displays parsed RF-COMLINK link
+budgets. The assistant receives an evidence context for the selected run(s)
+and is instructed not to rerun tools.
 
-## Findings and priorities
+The remaining priorities are evidence traceability in assistant answers,
+bounded analysis context, cancellation/streaming, separation of discussion
+channels, and two failing backend regression tests. The Results calculation
+contract also needs a correction for orbit-keeping duration terminology.
 
-| Priority | Verified finding | Proposed action |
+## Changes verified since 6 September
+
+| Previous finding | Current state | Evidence |
 | --- | --- | --- |
-| High | runResultsApi.ts derives altitudeKm from semiMajorAxisKm - 6378.1363 when altitude is missing; electricSamples does the same conversion. | Explicitly identify this quantity as derived from the semi-major axis; for instantaneous altitude, use an available radial distance. Test a non-circular orbit. |
-| High | runAnalysisLlm.ts asks for citations but returns only free text; no structured validation of references. | Return structured references linked to an authorised evidence catalogue, then display openable sources. Path validity alone does not prove a conclusion: keep a response evaluation. |
-| High | The manifest and the entire conversation are re-injected at each question, without an explicit context budget. | Limit context, keep recent exchanges and a conversation summary; keep full history separately. Prioritise relevant evidence. |
-| Medium | The frontend waits for a complete response; no cancel button or progressive flow in this path. | Add progressive display, cancellation, and controlled resume. Provide request identifiers to avoid duplicates after a lost response. |
-| Medium | Results analysis is saved with channel: gmat-draft; loading also restores preparatory discussions. | Introduce a results-analysis channel, maintain archive compatibility, and differentiate preparation from analysis in the UI. |
-| Medium | ResultsDiscussion uses ReactMarkdown without remark-gfm. | Reuse existing Markdown capabilities for tables; add copy response and contextual suggestions. |
-| Medium | The page refreshes the list every five seconds, even without an active execution. | Space out idle checks, suspend them when the page is hidden, keep Refresh and new-execution detection. |
-| Medium | Each question regenerates the context and re-reads outputs, including CIC. | Cache by a version or fingerprint of the artifacts; invalidate during workflow advancement. Do not reuse stale context. |
-| Medium | SelectedResults does not re-enable loading during a refresh; old data remains visible during reload. | Distinguish initial loading, refresh, and stale data; display the freshness of the summary and curves. |
-| Medium | The comparison relies solely on templateId and overlays curves. | Show configuration, unit, and duration differences; add relevant numerical gaps. The chatbot does not currently receive the second execution. |
+| Altitude derived from semi-major axis was not identified. | **Improved.** The legacy electric-transfer fallback is explicitly documented in code as a semi-major-axis offset, not instantaneous altitude for an ellipse. | `frontend/src/pages/agent/runResultsApi.ts` |
+| Charts and Results presentation were entangled in an old panel. | **Improved.** Chart rendering is isolated in `ResultCharts.tsx`; the Results page uses a unified run table, calculation details, artifact downloads, and charts. | `frontend/src/pages/agent/ResultCharts.tsx`, `ResultsPage.tsx` |
+| Comparison was based only on template ID and did not give the assistant both runs. | **Improved.** The UI selects up to five runs, displays side-by-side inputs/results and overlays series. The multi-run endpoint sends a separate evidence context for every selected run plus a deterministic comparison table. | `ResultsPage.tsx`, `multiRunAnalysisLlm.ts` |
+| RF-COMLINK only exposed an inventory of HTML files. | **Improved.** Parsed link budgets are shown separately per link, including nominal, 3σ, and worst-case RSS values. The displayed pass/fail rule is the worst-case RSS data-recovery margin. | `runViewModel.ts`, `rfComlinkResults.ts`, `ResultsPage.tsx` |
+| Results evidence lacked a compact, run-scoped aggregation. | **Improved.** `run-analysis-context.json` aggregates run configuration, workflow status, normalized GMAT/OPALIS/RF outputs, CIC file inventory, verdicts, and source paths. | `backend/src/analysis/runAnalysisContext.ts` |
+| A stage could be treated as sufficient engineering evidence. | **Improved.** The UI exposes calculation details and generated files, and the prompts instruct the assistant to name missing evidence and not claim tool reruns. | `ResultsPage.tsx`, `runAnalysisLlm.ts`, `multiRunAnalysisLlm.ts` |
 
-## Target experience
+## Open findings and recommended actions
 
-1. An initial summary: chain status, objectives achieved or not assessable, alerts, and key indicators with units and sources.
-2. Per-tool details and selectable charts, with hover values and data export; keep unavailable data as such.
-3. An assistant offering "Summarise this simulation", "Explain alerts", and "What data is missing?". For a comparison, explicitly transmit both executions and identify the provenance of each conclusion.
-4. Short answers organised as finding, explanation, evidence, and limitations. Numbers come from deterministic results; the model serves to explain them.
-5. On small screens, direct access to the discussion, rather than having to scroll through the entire page to reach the panel placed after the results.
+| Priority | Finding | Risk | Recommended action |
+| --- | --- | --- | --- |
+| High | Assistant answers are still free text. The prompt requests a tool and source file for each factual claim, but the response has no validated structured references or clickable evidence links. | An answer can appear sourced without proving that every conclusion matches an authorised artifact. | Return a structured response containing claims and source references from the run artifact catalogue; validate references server-side and render links in the UI. |
+| High | The single-run prompt includes the complete saved `conversation.json`, and no explicit byte/token budget, summary, or relevance selection is applied. | Long histories can exceed model context, increase latency/cost, and make evidence less relevant. | Keep a bounded recent history plus a server-generated summary; impose a size budget for manifest, context, and conversation. |
+| High | Two focused backend tests fail (details below). | A passing build does not guarantee that analysis context and Chemical 3D result projection are regression-safe. | Align the fixtures and implementation with the current canonical `satellite.json` schema, then keep both tests passing in CI. |
+| Medium | Results analysis is written with the `gmat-draft` channel, so preparatory mission discussion and results discussion remain mixed in one persisted conversation. | The UI may restore unrelated preparation messages when reviewing results. | Add a `results-analysis` channel, preserve legacy reading, and filter/group channels in the Results UI. |
+| Medium | The assistant has no streaming output, cancellation, request identifier, or resume protocol. It only displays an `Analyzing…` placeholder and offers reload after an error. | A timeout or lost response can leave the engineer waiting or retrying without controlled deduplication. | Use a cancellable request with an idempotency key; add streaming or explicit polling and a safe retry/resume flow. |
+| Medium | `ResultsDiscussion` uses `ReactMarkdown` without `remark-gfm`, although the package is installed. There are no copy controls or context-specific suggested questions. | Markdown tables may not render as expected and the analysis workflow remains less usable than intended. | Enable GFM deliberately, add copy, and provide evidence-oriented suggestions such as “summarise”, “explain alerts”, and “what is missing?”. |
+| Medium | The run list polls every five seconds even when the page is idle or hidden. | Unnecessary API activity and refresh churn. | Slow or pause polling when no stage is running and resume on visibility/focus; retain the manual refresh button. |
+| Medium | Run views and time series retain prior values during refresh and do not display a freshness timestamp. | Engineers can read stale results without an explicit indication. | Distinguish initial loading, refresh, and stale data; show the last successful refresh time. |
+| Medium | The comparison view aligns inputs and results side by side, but does not calculate/display explicit metric deltas or compatibility diagnostics beyond template family text in the assistant prompt. | Users can compare inapplicable values or miss meaningful numerical differences. | Add deterministic deltas with units and template/configuration compatibility warnings before assistant interpretation. |
+| Medium | `RESULTS_CALCULATION_CONTRACT.md` says orbit-keeping duration is `final_epoch - initial_epoch`, while current code interprets the stored legacy `epochA1ModJulian` field as elapsed seconds and divides the final value by 86,400. | Documentation and implementation disagree on a mission-duration definition. | Correct the contract and add a test that covers both the correctly named `elapsedSeconds` field and legacy artifacts. |
+| Low | The frontend production build emits chunks larger than 650 kB after minification. | Initial load performance may degrade on constrained workstations. | Profile the largest `three` and vendor chunks; lazy-load non-Results views where appropriate. |
+| Low | ESLint reports three React Hook dependency warnings in `ResultsDiscussion.tsx` and `ResultsPage.tsx`. | Future refactors can introduce stale closures or unnecessary reloads. | Refactor dependency values into stable variables and resolve the warnings rather than suppressing them. |
 
-## Cleanup and simplification
+## Evidence and safety boundaries verified
 
-### Observed candidates, to be treated according to their nature
+- Results reads saved run artifacts; it does not itself start GMAT, Simu-CIC,
+  OPALIS, or RF-COMLINK.
+- The single-run analysis endpoint receives a run path and question and uses a
+  run-local analysis context.
+- Multi-run analysis is capped at five runs and sends every selected run's
+  context to the model. It returns a deterministic comparison row alongside
+  the free-text answer.
+- The artifact list is built from the backend registry and only exposes files
+  present in the selected run directory.
+- RF-COMLINK link budgets remain separate per link; they are not averaged.
+- CIC contact, eclipse, and latency values remain sampled engineering
+  summaries. Their definitions, units, and limitations are in the
+  [Results Calculation Contract](RESULTS_CALCULATION_CONTRACT.md).
 
-- backend/tsconfig.tsbuildinfo: generated cache not tracked; candidate for cleanup and a *.tsbuildinfo rule in .gitignore.
-- archive/legacy: the only files found during inspection are two Python caches; verify the final inventory and documentation references before removing directories.
-- package-lock.json at the root: packages is empty and no root package.json was found. Likely candidate for removal after verifying scripts. Keep frontend and backend lockfiles.
-- tmp: contains RF/OPALIS inspections, but also a script and internship report renders. Do not treat the entire folder as waste; isolate deliverables and references before cleanup.
-- reports/gmat-batch-60s.json and .md: reports tracked by Git, potentially validation evidence. Keep or archive them explicitly.
-- node_modules and dist: reproducible outputs, not dead code. Removing them does not simplify the architecture and may prevent offline validation.
-- data, workflow tools, and models: resources used indirectly by configuration, paths, or external processes. The absence of a TypeScript import does not prove they are unused.
+## Validation performed on 14 September
 
-### Targeted simplifications
+| Check | Result |
+| --- | --- |
+| `backend/npm run build` | Passed. |
+| Focused backend tests: analysis context, RF-COMLINK results, run view model, and Results routes | 6 passed, 2 failed. |
+| `frontend/npm run build` | Passed. Vite warned that several chunks exceed 650 kB after minification. |
+| `frontend/npm run lint` | No errors; 3 React Hook dependency warnings. |
+| `npx vitest run src/pages/agent --reporter=dot` | No matching frontend test files; command exited with code 1. |
 
-- Extract ResultCharts and its pure functions from GmatAnalysisPanel.tsx. No usage of the exported GmatAnalysisPanel component was found in frontend/src; its file remains used for ResultCharts. Verify full references before removing the old panel.
-- Reuse requestApiJson instead of the local client in runResultsApi, preserving cache: no-store and useful messages when the server returns something other than JSON.
-- Mutualise responseText decoding, present in seven backend files, after comparing variants; keep specific business prompts.
-- Decompose the long JSX lines and async effects of ResultsPage and ResultsDiscussion into readable functions. A discussion hook can group loading, sending, error, and cancellation.
-- Add English comments on invariants: per-execution isolation, provenance, units, stale context, cancellation, legacy file compatibility. Avoid commenting every obvious instruction.
-- Defer the decomposition of large out-of-scope modules, such as ComplianceCheckPanel.tsx (~148 KB) and AgentPage.tsx (~77 KB), to a separate intervention if truly necessary.
+### Failing backend tests
 
-## Execution order and exit criteria
+1. `tests/analysis/runAnalysisContext.test.ts` expects the analysis context to
+   read a fixture under `digital-thread/satellite.json`, while the current
+   context builder reads the canonical run-root `satellite.json`. The test
+   observed a null satellite name instead of `Test satellite`.
+2. `tests/runs/runViewModel.test.ts` expects Chemical 3D target fields to be
+   projected from `analysis_requests.gmat.chemical_3d_transfer`; the observed
+   `transfer.finalAltitudeKm` was `undefined` instead of `35786`.
 
-1. Stabilise the Windows validation environment and obtain a baseline of existing tests, preserving local modifications.
-2. Clean only the identified artifacts, extract charts, and mutualise utilities; verify imports, compilation, and targeted tests after each batch.
-3. Fix quantity provenance, introduce structured sources, and bound the chatbot context.
-4. Add suggestions, resume, cancellation, and progressive display; clarify history-loading and sending errors.
-5. Finalise the summary, comparisons, and mobile display; add English comments to touched modules.
+These are test failures, not evidence that the scientific executables fail.
+No full external-tool run, browser test, or live AI response was performed in
+this audit.
 
-Expected validation: no modification of mission inputs and no tool launch from the chatbot; isolation between executions even with a late response; missing evidence explicitly flagged; citations resolved in the correct execution; handling of a long history, a timeout, a network failure, and retries; comparison without source mixing; preservation of existing business behaviours.
+## Recommended completion order
 
-Prepare a small corpus of questions on known executions (success, failure, partial results, missing evidence, elliptical orbit, comparison), with verified expected facts. Tests with simulated model responses do not measure the real quality of the assistant.
+1. Resolve the two failing backend tests and correct the orbit-keeping
+   calculation contract.
+2. Add structured, validated evidence references to assistant responses.
+3. Bound and summarise analysis history; then add cancellation and safe retry.
+4. Separate results-analysis conversation turns from GMAT draft turns.
+5. Improve idle polling, freshness indicators, comparison deltas, and
+   frontend hook dependencies.
+6. Run a browser review and a controlled full-pipeline campaign with known
+   successful, failed, partial, elliptical-orbit, and multi-run cases.
 
-## Verifications performed
+## Exit criteria for the next audit
 
-Code inspection and reading of existing tests, without functional modification. Attempts:
-
-- Frontend: ResultsPage.test.tsx, runResultsApi.test.ts, and MissionOverview.test.tsx. Startup blocked by the missing native module @rollup/rollup-win32-x64-msvc.
-- Backend: runAnalysisContext.test.ts, runResults.routes.test.ts, and runResults.test.ts. Startup blocked in tsx by uv_os_get_passwd / ENOMEM.
-
-These errors occur before assertions; they do not demonstrate business regressions. No passing test result is claimed.
+- All focused backend tests pass, including analysis context and Chemical 3D
+  projection coverage.
+- Every factual assistant claim has a validated run ID and an openable source
+  artifact reference.
+- Long histories, cancellation, timeout, and retry behaviour are covered by
+  tests.
+- A comparison clearly labels incompatible templates/configurations and shows
+  deterministic metric differences with units.
+- A human has reviewed the Results page in a browser using real saved runs and
+  at least one complete external-tool pipeline.
