@@ -179,6 +179,8 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
   const currentRun = runPath.split('/').filter(Boolean).at(-1) ?? (draftId ? `Draft ${draftId.slice(-8)}` : 'No run selected')
   const runStatus = pipeline.gmat.status === 'failed' || pipeline.simu_cic.status === 'failed' || pipeline.opalis.status === 'failed' || pipeline.rf_comlink.status === 'failed'
     ? 'Failed'
+    : pipeline.rf_comlink.status === 'not_visible'
+      ? 'Ground station not visible'
     : running || Object.values(pipeline).some(stage => stage.status === 'running')
       ? 'Running'
       : Object.values(pipeline).every(stage => stage.status === 'completed')
@@ -245,7 +247,7 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
             <span>Mission workflow</span>
             {PIPELINE_STAGES.map(([key, label]) => <div key={key}>
               <b>{label}</b>
-              <strong className={`is-${pipeline[key].status}`}>{pipeline[key].status.replaceAll('_', ' ')}</strong>
+              <strong className={`is-${pipeline[key].status}`}>{pipeline[key].status === 'not_visible' ? 'Ground station not visible' : pipeline[key].status.replaceAll('_', ' ')}</strong>
               {pipeline[key].detail ? <small>{pipeline[key].detail}</small> : null}
             </div>)}
           </section>

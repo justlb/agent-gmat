@@ -29,6 +29,12 @@ export function failRunStage(runDir: string, stage: WorkflowStage, message: stri
   return updateRunWorkflowLog(runDir, stage, "failed", message)
 }
 
+/** Records an analysis that cannot run because the selected ground station
+ * has no geometric visibility during this mission window. */
+export function markRunStageNotVisible(runDir: string, stage: WorkflowStage, message: string) {
+  return updateRunWorkflowLog(runDir, stage, "not_visible", message)
+}
+
 /** Keeps a stage available for execution while recording why it has not run. */
 export function deferRunStage(runDir: string, stage: WorkflowStage, message: string) {
   return updateRunWorkflowLog(runDir, stage, "not_started", message)

@@ -109,7 +109,10 @@ function startWorkflowBranch(entries: WorkflowLoopProgressEntry[] | null, key: '
 }
 
 function workflowForSavedRun(log: RunWorkflowLog) {
-  const status = (value: RunWorkflowLog['stages']['gmat']['status']) => value === 'not_started' ? 'pending' : value
+  // The compact agent rail has no dedicated geometric-visibility state. Keep
+  // the detailed wording in the persisted workflow message while showing this
+  // legitimate non-execution as blocked, never as a software failure.
+  const status = (value: RunWorkflowLog['stages']['gmat']['status']) => value === 'not_started' ? 'pending' : value === 'not_visible' ? 'blocked' : value
   let entries = setGmatWorkflowStatus(setGmatWorkflowStatus(newGmatWorkflow(), 'draft_llm', 'completed'), 'run_gmat', status(log.stages.gmat.status))
   entries = setGmatWorkflowStatus(entries, 'run_simucic', status(log.stages.simu_cic.status))
   entries = setGmatWorkflowStatus(entries, 'run_opalis', status(log.stages.opalis.status))

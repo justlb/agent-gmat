@@ -5,7 +5,10 @@ import { updateJsonFile } from "../shared/atomicPersistence.js"
 
 /** A run status always includes GMAT and its downstream tools. */
 export type WorkflowStage = "gmat" | "opalis" | "rf_comlink" | "simu_cic"
-export type WorkflowStageStatus = "completed" | "failed" | "not_started" | "running"
+/** `not_visible` is a valid engineering outcome: Simu-CIC completed, but the
+ * selected ground station has no line-of-sight sample in the studied window.
+ * It must not be presented as an RF-COMLINK software failure. */
+export type WorkflowStageStatus = "completed" | "failed" | "not_started" | "not_visible" | "running"
 
 export type WorkflowRunLog = {
   updated_at: string

@@ -4,6 +4,24 @@ The web services and Python workers run in Ubuntu/WSL. GMAT, Scilab, Simu-CIC,
 OPALIS and RF-COMLINK are Windows applications. Mixing Windows and WSL paths is
 a common cause of failed calculations.
 
+## Quick installation summary
+
+Use this short checklist first. The sections below then explain every action
+step by step.
+
+1. Install the required Windows and WSL/Ubuntu prerequisites.
+2. Clone the repository from PowerShell into the Windows folder you chose for
+   the project.
+3. Open that same folder from Ubuntu/WSL.
+4. Copy `config.example.json` to `config.json`, then fill in the project paths,
+   installed-tool paths, and any required credentials in **`config.json`**.
+5. Validate `config.json`, then install the backend and frontend dependencies.
+6. Start the local web application.
+
+Do not edit `config.example.json` as the active configuration: the application
+reads `config.json`. Follow **Prerequisites**, **Clone and update**, then
+**Create config.json** below for the complete tutorial.
+
 ## Related guides
 
 - [Start and Use the Project](tutorials/START_AND_USE_THE_PROJECT.md): start, stop, troubleshoot, run and review a mission study.
@@ -60,30 +78,178 @@ Reopen Ubuntu if nvm is not found.
 
 ## Clone and update
 
-The repository is public:
+The repository is public. Choose a Windows parent folder and a name for the
+new project folder. This example installs it in `C:\JUSTINE\test2`.
 
-    mkdir -p /mnt/c/JUSTINE
-    git clone https://github.com/justlb/agent-gmat.git /mnt/c/JUSTINE/demonstrator
-    cd /mnt/c/JUSTINE/demonstrator
-    git status
+### 1. Clone with PowerShell (recommended on this computer)
+
+Open **PowerShell** and run:
+
+```powershell
+cd C:\JUSTINE
+git clone https://github.com/justlb/agent-gmat.git test2
+cd test2
+dir
+```
+
+The `git clone` line downloads the repository and creates the `test2` folder.
+After it finishes, `dir` must show `backend`, `frontend`, `docs`, `data`, and
+`config.example.json`.
+
+Use a plain URL after `git clone`; do not include `[`, `]`, `(`, or `)`.
+
+If `test2` already exists, choose a different new name such as `test3`. Do not
+clone over a folder containing files.
+
+### 2. Open the cloned folder
+
+The project folder is now:
+
+```text
+C:\JUSTINE\test2
+```
+
+Open this exact folder in Windows Explorer. It is the folder you use in
+PowerShell and it is the same project that WSL sees as:
+
+```text
+/mnt/c/JUSTINE/test2
+```
+
+### 3. Use WSL for the project commands
+
+Open Ubuntu and enter the project folder:
+
+```bash
+cd /mnt/c/JUSTINE/test2
+ls
+```
+
+Use Ubuntu for the remaining installation, validation, and launch commands.
+The project may be cloned from PowerShell because WSL network access can be
+blocked by a VPN or proxy (such as LetsTAP) even when Windows can reach GitHub.
+
+### Choose another installation folder
+
+Replace `C:\JUSTINE\test2` and `/mnt/c/JUSTINE/test2` consistently with your
+own folder. For example, Windows `D:\Work\demonstrator` becomes WSL
+`/mnt/d/Work/demonstrator`.
+
+In JSON configuration, replace `<your-project-folder>` with your real WSL
+folder path; do not leave angle-bracket placeholders in `config.json`.
 
 Always update before diagnosing a known failure. Simu-CIC fixes below are code
 fixes, so an old checkout does not contain them:
 
     git pull --ff-only
 
-If cloning fails, check proxy/network settings and open the repository URL in a
-browser. Prefer Git over a ZIP archive so updates remain possible.
+If PowerShell cloning fails, check the Git error, network, proxy, or VPN.
+Prefer Git over a ZIP archive so updates remain possible.
 
 ## Create config.json
 
 config.json is the live local configuration. config.example.json is a tracked
 template and must not contain a computer's credentials or paths.
 
-    cd /mnt/c/JUSTINE/demonstrator
-    cp config.example.json config.json
+### 1. Create your local configuration file
+
+In Ubuntu, from the project folder, run:
+
+```bash
+cd /mnt/c/JUSTINE/test2
+cp config.example.json config.json
+```
+
+This creates a new file named `config.json`. It is a copy of
+`config.example.json`; only `config.json` is used when the application starts.
+
+### 2. Open config.json to edit it
+
+For the example installation, the new file is located here in Windows:
+
+```text
+C:\JUSTINE\test2\config.json
+```
+
+From the same Ubuntu terminal, open that exact file in its Windows default
+editor with:
+
+```bash
+explorer.exe config.json
+```
+
+Or open `C:\JUSTINE\test2` in Windows Explorer and double-click
+`config.json`. If VS Code is installed and available in Ubuntu, this also
+opens the file directly:
+
+```bash
+code config.json
+```
+
+Edit **config.json**, not `config.example.json`. The latter is only the
+versioned example kept in Git.
 
 config.json is ignored by Git. Never commit or share it.
+
+### 3. Change the required lines
+
+Use the editor search function to find each setting below in `config.json`.
+Only replace the value after the colon; keep the quotes, commas, braces, and
+setting names unchanged. For the example project folder `C:\JUSTINE\test2`,
+the first section must become:
+
+```json
+"workspace": {
+  "templateDir": "/mnt/c/JUSTINE/test2/data/input_data",
+  "usersRoot": "/mnt/c/JUSTINE/test2/data/user"
+}
+```
+
+These two paths must point to the new cloned project, not to an older
+installation such as `C:\JUSTINE\demonstrator`.
+
+Then find the `"gmat"` section. Change both paths only if GMAT is installed
+somewhere else on this computer:
+
+```json
+"gmat": {
+  "bin": "/mnt/c/Program Files/GMAT/bin/GmatConsole.exe",
+  "guiBin": "/mnt/c/Program Files/GMAT/bin/GMAT.exe",
+  "timeoutMs": 120000
+}
+```
+
+Next find the `"rfComlink"` section. Replace the placeholder with the Windows
+folder containing `rf-comlink.exe`. This one value uses Windows backslashes,
+which must be doubled in JSON:
+
+```json
+"rfComlink": {
+  "home": "C:\\JUSTINE\\APP\\RF-COMLINK",
+  "python": "/usr/bin/python3",
+  "waitSeconds": 3
+}
+```
+
+Do not leave `REPLACE_WITH_RF_COMLINK_HOME`, `xxx`, or
+`<your-project-folder>` in `config.json`: validation deliberately rejects
+placeholders.
+
+### 4. Decide whether to configure optional services
+
+Leave the following sections as `null` if they are not used on this computer:
+
+| Section | Configure it only when you need… |
+|---|---|
+| `openai` | OpenAI-backed application features. |
+| `chatModel` | Mission Studio discussion with a configured model service. |
+| `compliance.database` | The optional PostgreSQL compliance database. |
+| `tools.opalis` | OPALIS calculations. |
+| `tools.simuCic` | Simu-CIC calculations. |
+
+Do not change `server`, `tmux`, `codex`, `auth`, `logging`, port numbers, or
+timeouts during a first local installation unless you know why the default is
+not suitable.
 
 ### Path convention
 
@@ -100,8 +266,8 @@ Core fields:
 
 | Setting | Example |
 |---|---|
-| workspace.templateDir | /mnt/c/JUSTINE/demonstrator/data/input_data |
-| workspace.usersRoot | /mnt/c/JUSTINE/demonstrator/data/user |
+| workspace.templateDir | `<your-project-folder>/data/input_data` |
+| workspace.usersRoot | `<your-project-folder>/data/user` |
 | tools.gmat.bin | /mnt/c/Program Files/GMAT/bin/GmatConsole.exe |
 | tools.gmat.guiBin | /mnt/c/Program Files/GMAT/bin/GMAT.exe |
 | frontend.publicHost | 127.0.0.1 or the workstation LAN IP |
@@ -138,7 +304,7 @@ All tools.simuCic fields are required:
       "celestlabDir": "/mnt/c/JUSTINE/APP/____autre/CEF/cnes_software/SIMU-CIC_complet/celestlab",
       "scilabBin": "/mnt/c/Program Files/scilab-2025.1.0/bin/Scilex.exe",
       "simucicDir": "/mnt/c/JUSTINE/APP/SIMU_CIC/simu_cic",
-      "simuCicRunner": "/mnt/c/JUSTINE/demonstrator/tools/workflow_OPALIS/workflow_OPALIS/2-run_SIMU-CIC/run_scilab_simulation.py",
+      "simuCicRunner": "<your-project-folder>/tools/workflow_OPALIS/workflow_OPALIS/2-run_SIMU-CIC/run_scilab_simulation.py",
       "timeoutMs": 600000,
       "workerPython": "/usr/bin/python3"
     }
@@ -178,7 +344,7 @@ remote-GUI workflow started with --with-remote-gui.
 
 From WSL:
 
-    cd /mnt/c/JUSTINE/demonstrator
+    cd /mnt/c/JUSTINE/test2
     node scripts/validate_config.mjs --skip-services
     cd backend && npm ci && npm run build
     cd ../frontend && npm ci && npm run build
@@ -242,7 +408,7 @@ must be updated rather than worked around with SKIP_CONFIG_VALIDATE.
 Never commit config.json, credentials, user mission runs, generated scenarios,
 CIC output or local logs. Before publishing source or documentation:
 
-    cd /mnt/c/JUSTINE/demonstrator
+    cd /mnt/c/JUSTINE/test2
     node scripts/validate_config.mjs --skip-services
     cd backend && npm run build
     cd ../frontend && npm run build

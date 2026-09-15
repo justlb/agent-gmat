@@ -11,9 +11,9 @@ import { snapshotRunArtifacts } from "../gmat/artifactHistory.js"
 import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage } from "../shared/index.js"
 import { appendRunConversation } from "../digitalThread/missionConversationStore.js"
-import { beginRunStage, completeRunStage, failRunStage } from "../runs/runLifecycle.js"
+import { beginRunStage, completeRunStage, failRunStage, markRunStageNotVisible } from "../runs/runLifecycle.js"
 import { writeConsolidatedRunReport } from "../opalis/consolidatedRunReport.js"
-import { prepareRFComlinkScenario } from "./rfComlinkPreparation.routes.js"
+import { isGroundStationNotVisibleError, prepareRFComlinkScenario } from "./rfComlinkPreparation.routes.js"
 import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
 import { artifactDefinitionForPath } from "../runs/artifactRegistry.js"
 import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
@@ -196,7 +196,8 @@ export async function rfComlinkRoutes(fastify: FastifyInstance) {
       return reply.send({ ok: true, reportCount, scenario: relativeToWorkspaceRoot(root, calculated), summary: relativeToWorkspaceRoot(root, summaryPath), artifacts: ["rf-comlink/03-results/calculated-rf-comlink.rfcl", "rf-comlink/03-results/rf-comlink-results.json", "rf-comlink/03-results/rf-comlink-calculation.log"].map(artifactDefinitionForPath).filter(Boolean) })
     } catch (error) {
       const message = getErrorMessage(error, "failed to run RF-COMLINK")
-      await failRunStage(run.runDir, "rf_comlink", message).catch(() => undefined)
+      const updateStage = isGroundStationNotVisibleError(error) ? markRunStageNotVisible : failRunStage
+      await updateStage(run.runDir, "rf_comlink", message).catch(() => undefined)
       await writeConsolidatedRunReport(run.runDir).catch(() => undefined)
       return reply.status(422).send({ error: message })
     } finally { releaseMissionPipelineLock(run.runDir, "rf_comlink") }

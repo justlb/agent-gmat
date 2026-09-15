@@ -10,7 +10,7 @@ import { getRequestUserWorkspaceRoot } from "../server/requestContext.js"
 import { getErrorMessage } from "../shared/index.js"
 import { adaptDigitalThreadToRFComlink } from "./rfComlinkDigitalThreadAdapter.js"
 import { loadRunWorkflowLog } from "../opalis/workflowRunLog.js"
-import { failRunStage } from "../runs/runLifecycle.js"
+import { failRunStage, markRunStageNotVisible } from "../runs/runLifecycle.js"
 import { resolveMissionRun, relativeToWorkspaceRoot } from "../runs/runWorkspace.js"
 import { registerActiveCalculation, unregisterActiveCalculation } from "../gmat/activeCalculationRegistry.js"
 import { loadConfig } from "../config.js"
@@ -53,6 +53,16 @@ type RFRunGeometry = {
   sample_count: number
   source_files: string[]
   system_temperature_k_by_link: Record<string, number>
+}
+
+const GROUND_STATION_NOT_VISIBLE = "GROUND_STATION_NOT_VISIBLE"
+
+function isNoGroundStationVisibility(inputs: { validation: { missing: string[] } }) {
+  return inputs.validation.missing.some(item => item.includes("contains no visible samples"))
+}
+
+export function isGroundStationNotVisibleError(error: unknown) {
+  return Boolean(error && typeof error === "object" && (error as { code?: unknown }).code === GROUND_STATION_NOT_VISIBLE)
 }
 
 /** CIC files share an MJD + seconds grid. This deliberately keeps only their
@@ -240,6 +250,12 @@ export async function prepareRFComlinkScenario(root: string, runDir: string) {
   }
   const inputs = await prepareRFComlinkInputs(root, runDir)
   if (inputs.validation.status !== "ready") {
+    if (isNoGroundStationVisibility(inputs)) {
+      const station = inputs.selected_ground_station && typeof inputs.selected_ground_station.name === "string"
+        ? inputs.selected_ground_station.name
+        : inputs.selected_ground_station_id ?? "selected ground station"
+      throw Object.assign(new Error(`Ground station not visible: ${station} has no line-of-sight during the simulated mission window. RF-COMLINK was not started.`), { code: GROUND_STATION_NOT_VISIBLE, inputs })
+    }
     throw Object.assign(new Error(rfInputProblem(inputs.validation.missing)), { inputs })
   }
   const templateOverride = process.env.RF_COMLINK_TEMPLATE?.trim()
@@ -283,7 +299,8 @@ export async function rfComlinkPreparationRoutes(fastify: FastifyInstance) {
       return reply.send(await prepareRFComlinkScenario(run.root, run.runDir))
     } catch (error) {
       const message = getErrorMessage(error, "failed to prepare RF-COMLINK scenario")
-      await failRunStage(run.runDir, "rf_comlink", message)
+      if (isGroundStationNotVisibleError(error)) await markRunStageNotVisible(run.runDir, "rf_comlink", message)
+      else await failRunStage(run.runDir, "rf_comlink", message)
       return reply.status(422).send({ error: message })
     }
   })

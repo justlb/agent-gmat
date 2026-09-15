@@ -40,7 +40,7 @@
       { "label": "Initial RAAN", "path": "initialOrbit.raanDeg", "unit": "deg", "example_value": 0 },
       { "label": "Initial argument of periapsis", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg", "example_value": 0 },
       { "label": "Initial true anomaly", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg", "example_value": 0 },
-      { "label": "IADC base altitude", "path": "graveyard.iadcBaseAltitudeKm", "unit": "km", "example_value": 235 },
+      { "label": "Minimum clearance above GEO", "path": "graveyard.iadcBaseAltitudeKm", "unit": "km", "example_value": 235 },
       { "label": "Escape C3", "path": "escape.c3Km2PerS2", "unit": "km²/s²", "example_value": 0.01 },
       { "label": "Post-maneuver coast", "path": "mission.postManeuverCoastDays", "unit": "days", "example_value": 2 }
     ]

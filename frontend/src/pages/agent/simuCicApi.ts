@@ -58,7 +58,7 @@ export async function runOpalisScenario(runPath: string) {
   return response.json() as Promise<{ parameters: string; scenario: string; summary: string }>
 }
 
-export type RunWorkflowStatus = 'not_started' | 'running' | 'completed' | 'failed'
+export type RunWorkflowStatus = 'not_started' | 'running' | 'completed' | 'failed' | 'not_visible'
 export type RunWorkflowLog = {
   updated_at: string
   stages: {

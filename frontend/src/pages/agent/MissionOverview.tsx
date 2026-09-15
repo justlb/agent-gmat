@@ -24,8 +24,8 @@ export function MissionOverview({ overview, stages = {}, saved = false, compact 
       const status = stages[stage]?.status ?? (saved ? 'unknown' : 'not_started')
       const reported = overview?.[key]
       const tool = RESULT_STAGES.find(([id]) => id === stage)![1]
-      const finished = status === 'failed' || status === 'completed' || status === 'unknown'
-      const fallback = finished ? 'Unavailable' : status === 'running' ? `${tool} running` : `Waiting for ${tool}`
+      const finished = status === 'failed' || status === 'completed' || status === 'not_visible' || status === 'unknown'
+      const fallback = status === 'not_visible' ? 'Ground station not visible' : finished ? 'Unavailable' : status === 'running' ? `${tool} running` : `Waiting for ${tool}`
       // Missing evidence is not "waiting" after a stage has finished or failed.
       const value = reported && !(finished && reported.value.startsWith('Waiting')) ? reported.value : fallback
       return <div key={key} className={`metric-${status}`}><label>{label}</label><b title={reported?.source}>{value}</b>{!compact && reported?.detail ? <small>{reported.detail}</small> : null}{!compact ? <small>{tool} calculation: {status.replaceAll('_', ' ')}</small> : null}</div>
