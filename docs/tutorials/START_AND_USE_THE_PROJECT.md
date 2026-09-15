@@ -11,6 +11,29 @@ That guide explains how to install the scientific applications and create
 Related guides: [Add a Satellite](ADD_A_SATELLITE.md) and [Implement a Mission
 Scenario](IMPLEMENT_A_MISSION_SCENARIO.md).
 
+## Quick start: double-click the launcher
+
+After the project has been installed and `config.json` has been completed, the
+simplest normal start is to double-click
+[`START_PROJECT.bat`](../../START_PROJECT.bat) in the **project root folder**.
+It opens Ubuntu/WSL in the folder containing the launcher and runs the normal
+startup command automatically. Keep the black command window open until it
+prints the frontend URL; it stays open on error so that the message can be
+read.
+
+This launcher is portable between Windows folders: it finds its own folder, so
+it does not require `C:\JUSTINE\demonstrator`. On another computer, however,
+the project must first be installed there and configured for that computer:
+
+1. WSL2 with a distribution named **Ubuntu** must be installed.
+2. The project must contain its own `config.json`; do not copy API keys or
+   tool paths blindly from another computer.
+3. GMAT and every downstream application you intend to use must be installed,
+   and their local paths must be correct in that computer's `config.json`.
+
+If one of those prerequisites is missing, use the error shown in the command
+window and return to [Install the Project](../INSTALL_THE_PROJECT.md).
+
 ## 1. Open the project folder in WSL
 
 Open **Ubuntu** from the Windows Start menu. Go to the project root: it is the
@@ -50,7 +73,8 @@ return to [Install the Project](../INSTALL_THE_PROJECT.md).
 
 ## 3. Start the application
 
-At the project root, run this single command:
+Either double-click [`START_PROJECT.bat`](../../START_PROJECT.bat) in the
+project root, as described above, or run this command from Ubuntu/WSL:
 
 ```bash
 python3 scripts/start_local_web.py
