@@ -145,12 +145,14 @@ Normally, starting the project again replaces the old local instance. To stop
 it without restarting, run:
 
 ```bash
-tmux kill-session -t ocw-backend
-tmux kill-session -t ocw-frontend
+tmux kill-session -t agent-gmat-backend
+tmux kill-session -t agent-gmat-frontend
 ```
 
 If a session does not exist, tmux prints an error; this simply means that part
-of the application was already stopped.
+of the application was already stopped. If you changed `tmux.backendSession`
+or `tmux.frontendSession` in `config.json`, replace these two names with your
+configured names.
 
 ## Advanced start options
 

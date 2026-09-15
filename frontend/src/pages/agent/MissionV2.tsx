@@ -38,6 +38,7 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
   const [running, setRunning] = useState(false)
   const [runLaunched, setRunLaunched] = useState(false)
   const [scriptReady, setScriptReady] = useState(false)
+  const [geoSmaLocked, setGeoSmaLocked] = useState(false)
   const [pipeline, setPipeline] = useState<PipelineStatus>(initialPipeline)
   const [runPath, setRunPath] = useState('')
   const [overview, setOverview] = useState<RunView['overview'] | null>(null)
@@ -95,6 +96,8 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
     ? ['initialOrbit.altitudeKm', 'initialOrbit.eccentricity', 'initialOrbit.inclinationDeg', 'transfer.finalAltitudeKm']
     : templateId === 'orbit-keeping' || templateId === 'electrical-leo-orbit-maintenance'
       ? ['initialOrbit.altitudeKm', 'initialOrbit.eccentricity', 'initialOrbit.inclinationDeg', 'stationKeeping.minimumAltitudeKm']
+    : templateId === 'chemical-escape'
+      ? ['mission.mode', 'initialOrbit.epochUtc', 'initialOrbit.smaKm', 'initialOrbit.eccentricity', 'initialOrbit.inclinationDeg', 'initialOrbit.raanDeg', 'initialOrbit.argPeriapsisDeg', 'initialOrbit.trueAnomalyDeg']
       : ['initialOrbit.altitudeKm', 'initialOrbit.eccentricity', 'initialOrbit.inclinationDeg', 'transfer.targetAltitudeKm'])
   const requiredFields = template?.ui.missionInputFields.filter(field => requiredPaths.has(field.path)) ?? []
   const optionalFields = template?.ui.missionInputFields.filter(field => !requiredPaths.has(field.path)) ?? []
@@ -106,7 +109,7 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
     try { const current = await ensureWorkspace(); const item = satellites.find(x => x.id === id); if (!item) return; await selectSatelliteDefinition(item.id, item.version, current); setMessage('Choose a compatible mission scenario.') } catch (error) { setMessage(error instanceof Error ? error.message : 'Satellite selection failed') }
   }
   const chooseTemplate = async (id: string) => {
-    setTemplateId(id as GmatMissionTemplateId); setDraftId(''); setValues({}); setScriptReady(false)
+    setTemplateId(id as GmatMissionTemplateId); setDraftId(''); setValues({}); setScriptReady(false); setGeoSmaLocked(false)
     if (!id) return
     try { const current = await ensureWorkspace(); const selected = satellites.find(item => item.id === satelliteId); if (!selected) throw new Error('Choose a satellite before choosing a mission scenario.'); await selectSatelliteDefinition(selected.id, selected.version, current); const draft = await missionTemplateRuntime(id as GmatMissionTemplateId).create(current); const response = id === 'electrical-leo-orbit-maintenance' ? await fetch(joinApiPath(undefined, `/gmat/templates/${id}/drafts/${draft.draftId}/values`), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceDir: current, path: 'transfer.finalAltitudeKm', value: '500' }) }) : null; const saved = response?.ok ? await response.json() as { values?: Record<string, string | number | null> } : null; setDraftId(draft.draftId); setValues(id === 'electrical-leo-orbit-maintenance' ? { ...draft.values, ...(saved?.values ?? {}), 'stationKeeping.missionDays': 3, 'stationKeeping.throttleBias': 0.87, 'stationKeeping.throttleGain': 0.15, 'spacecraft.initialFuelMassKg': draft.values['spacecraft.initialFuelMassKg'] ?? 80 } : draft.values); setMessage('Enter the required mission values, then run the deterministic pipeline.') } catch (error) { setMessage(error instanceof Error ? error.message : 'Mission scenario setup failed') }
   }
@@ -222,7 +225,7 @@ export function MissionV2({ onStartMission, workspaceDir }: Props) {
             <h3>Required mission inputs</h3>
             <div className="mission-v2-inputs">
               {requiredFields.map(field => <label key={field.path}>{field.label}{field.unit ? ` (${field.unit})` : ''}
-                <input disabled={runLaunched} value={missionInputValue(values, field)} placeholder={field.unit ? `Enter ${field.unit}` : 'Enter value'} onChange={event => setValues(current => ({ ...current, [field.path]: event.target.value }))} onBlur={event => void update(field.path, event.target.value)} />
+                {field.path === 'mission.mode' ? <select disabled={runLaunched} value={missionInputValue(values, field)} onChange={event => { setValues(current => ({ ...current, [field.path]: event.target.value })); void update(field.path, event.target.value) }}><option value="">Choose disposal mode…</option><option value="graveyard">Graveyard orbit</option><option value="escape">Earth escape</option></select> : <span className="mission-v2-input-with-action"><input disabled={runLaunched || (field.path === 'initialOrbit.smaKm' && geoSmaLocked)} value={missionInputValue(values, field)} placeholder={field.unit ? `Enter ${field.unit}` : 'Enter value'} onChange={event => setValues(current => ({ ...current, [field.path]: event.target.value }))} onBlur={event => void update(field.path, event.target.value)} />{field.path === 'initialOrbit.smaKm' ? <button disabled={runLaunched} type="button" onClick={() => { const locked = !geoSmaLocked; setGeoSmaLocked(locked); if (locked) { setValues(current => ({ ...current, 'initialOrbit.smaKm': 42164.17 })); void update('initialOrbit.smaKm', '42164.17') } }}>{geoSmaLocked ? 'GEO locked' : 'GEO'}</button> : null}</span>}
               </label>)}
             </div>
           </section>

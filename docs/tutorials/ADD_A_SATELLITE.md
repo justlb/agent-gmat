@@ -1,14 +1,13 @@
 # Add a Satellite to the Project
 
-This is the beginner path for adding one physical spacecraft to the project.
-You create **one JSON file** in the satellite library. You do not need to edit
-TypeScript, register the satellite anywhere, or create a mission run by hand.
+This tutorial adds one physical satellite definition to the application. The
+normal task changes **one file only**: a new JSON file under
+`data/satellite-library/`. Do not change backend TypeScript files merely to add
+a normal satellite.
 
-The library stores physical spacecraft data. A mission orbit, selected ground
-station, and what-if values are created later in a run-local `satellite.json`.
-Do not add them to the library file.
+## Before starting
 
-## Before you start
+**Where to work**
 
 Open a WSL terminal in the project root:
 
@@ -16,84 +15,147 @@ Open a WSL terminal in the project root:
 cd /mnt/c/JUSTINE/demonstrator
 ```
 
-You need a text editor that preserves valid JSON (for example VS Code). Every
-JSON file in `data/satellite-library/` becomes available in the **Satellites**
-screen automatically. There is no second registration file to edit.
+**What to do**
 
-## Quick path: add a chemical satellite
+Keep this terminal open. Use a JSON-capable editor, such as VS Code, to edit
+the new file.
 
-Follow these five steps in order.
+**Expected result**
 
-### Step 1 — choose the closest starting file
+You are in the folder that contains `data/`, `backend/`, `frontend/`, and
+`config.json`.
 
-For a chemical-propulsion satellite, copy this existing example:
+## Step 1 — Create a new JSON file
 
-[reference-leo-orbit-keeping.v1.json](../../data/satellite-library/reference-leo-orbit-keeping.v1.json)
+**Where to work**
 
-For an electric-propulsion satellite, use
-[reference-leo-electric.v1.json](../../data/satellite-library/reference-leo-electric.v1.json).
+The satellite library is this folder:
 
-If the new satellite needs a detailed OPALIS and RF-COMLINK structure, use
-[fudan-satellite.v1.json](../../data/satellite-library/fudan-satellite.v1.json)
-as a structural reference. Do not copy real spacecraft values without an
-engineering source.
+```text
+data/satellite-library/
+```
 
-### Step 2 — copy it to the satellite-library folder
+**What to do**
 
-Choose a short, stable, lowercase identifier. In this example it is
-`my-chemical-demo`. Create the new file beside the other satellite files:
+Choose the closest existing satellite, then copy it. For a chemical satellite,
+start with [reference-leo-orbit-keeping.v1.json](../../data/satellite-library/reference-leo-orbit-keeping.v1.json):
 
 ```bash
 cp data/satellite-library/reference-leo-orbit-keeping.v1.json \
   data/satellite-library/my-chemical-demo.v1.json
 ```
 
-The destination must be exactly under:
+Replace `my-chemical-demo` with a stable, lowercase identifier for your own
+satellite. Use hyphens, not spaces.
 
-```text
-data/satellite-library/
-```
+**Expected result**
 
-The filename and the JSON identity should agree:
-
-```text
-my-chemical-demo.v1.json  ->  id: "my-chemical-demo", version: "1.0.0"
-```
-
-When the design changes later, do not overwrite a released definition. Copy
-it to `my-chemical-demo.v2.json` and set `"version": "2.0.0"`.
-
-### Step 3 — edit only the new file
-
-Open the file you just created:
+The folder contains a new file:
 
 ```text
 data/satellite-library/my-chemical-demo.v1.json
 ```
 
-First, change these top-level fields. They identify the satellite in the UI:
+Nothing else has to be created. In particular, do not add the satellite name
+to a TypeScript list or a frontend file: the backend reads every `.json` file
+in this folder automatically.
+
+## Step 2 — Give the satellite its identity
+
+**Where to work**
+
+Open the new file created in step 1:
+
+```text
+data/satellite-library/my-chemical-demo.v1.json
+```
+
+**What to do**
+
+At the top of the file, replace these values with your satellite information:
 
 ```json
 {
   "id": "my-chemical-demo",
   "version": "1.0.0",
   "name": "My Chemical Demonstrator",
-  "description": "Physical reference for a fictional chemical-propulsion LEO demonstrator.",
+  "description": "Physical reference for a chemical-propulsion LEO demonstrator.",
   "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
   "mission_templates": ["orbit-keeping", "chemical-hohmann-transfer"]
 }
 ```
 
-Next, update the physical and chemical-propulsion values in the existing
-`"satellite" -> "bus"` section. Keep the field names; replace only the values
-with values supported by your engineering source:
+- `id` must match the filename before `.v1.json`.
+- `version` is `1.0.0` for the first version.
+- `name` is the name shown in the interface.
+- `description` records what the data represents and any important assumption.
+- `mission_templates` lists the mission types offered after selection.
+
+For a chemical satellite, keep `orbit-keeping` and/or
+`chemical-hohmann-transfer`. Do not list `electric-propulsion-transfer`.
+
+**Expected result**
+
+The new satellite has its own ID and display name. It will not be confused
+with the reference satellite that was copied.
+
+## Step 3 — Enter the physical values
+
+**Where to work**
+
+Stay in the same new JSON file. Find this section:
+
+```text
+satellite -> bus -> physical
+```
+
+**What to do**
+
+Replace the numbers with your spacecraft's values. Keep the field names and
+their units unchanged:
 
 ```json
 "physical": {
-  "mass_kg": { "dry": 120, "wet_at_launch": 155, "propellant": 35 },
+  "mass_kg": {
+    "dry": 120,
+    "wet_at_launch": 155,
+    "propellant": 35
+  },
   "drag_area_m2": 1.2,
   "drag_coefficient": 2.2
-},
+}
+```
+
+- `dry` is the spacecraft mass without propellant, in kg.
+- `wet_at_launch` is the launch mass, in kg.
+- `propellant` is the initial usable propellant mass, in kg.
+- `drag_area_m2` is the drag reference area, in m².
+- `drag_coefficient` has no unit.
+
+Use real engineering data when it exists. If the definition is only a
+demonstrator, state the assumption in `description` or in a nearby `note`.
+
+**Expected result**
+
+The file describes the physical vehicle. The mission orbit is not entered
+here; it will be entered when a user creates a mission.
+
+## Step 4 — Configure chemical propulsion
+
+**Where to work**
+
+In the same JSON file, find:
+
+```text
+satellite -> bus -> propulsion_subsystem
+```
+
+**What to do**
+
+For a chemical vehicle, make the section look like this and replace the
+example values with your own:
+
+```json
 "propulsion_subsystem": {
   "type": "Bipropellant chemical propulsion",
   "propellant": "Chemical bipropellant",
@@ -102,104 +164,197 @@ with values supported by your engineering source:
 }
 ```
 
-For a chemical satellite, the word `chemical`, `bipropellant`, or
-`monopropellant` must appear in `propulsion_subsystem.type`. This is how the
-GMAT adapter recognises it as compatible with chemical scenarios.
+The `type` value must contain one of these words: `chemical`, `bipropellant`,
+or `monopropellant`. The GMAT adapter uses those words to allow chemical
+mission templates.
 
-Do not add an `electric_thruster` section to a chemical satellite. If you
-started from an electric reference file, delete both:
+If you copied an **electric** satellite instead, delete these two complete
+objects before saving:
 
 ```text
 satellite.bus.propulsion_subsystem.electric_thruster
 satellite.bus.electrical_subsystem.electric_propulsion_mode
 ```
 
-Keep the copied `electrical_subsystem`, `opalis`, and `rf_comlink` sections
-only if their values are applicable and documented. If you do not have enough
-data for OPALIS or RF-COMLINK, remove the unsupported capability from
-`capabilities` instead of inventing values.
+Do not keep an `electric_thruster` object in a chemical satellite. Otherwise
+the definition mixes two incompatible propulsion models.
 
-### Step 4 — save the JSON file
+**Expected result**
 
-Check that commas, braces, and quotation marks are intact. The quickest local
-check is:
+The application recognises the satellite as chemical. The chemical scenario
+choices declared in step 2 can be used; electric-only scenarios are not.
 
-```bash
-node -e "JSON.parse(require('fs').readFileSync('data/satellite-library/my-chemical-demo.v1.json', 'utf8'))"
+## Step 5 — Decide which optional analyses the satellite supports
+
+**Where to work**
+
+Still edit the same JSON file. Look at the top-level `capabilities` list and
+at these optional sections under `satellite -> bus`:
+
+```text
+electrical_subsystem
+opalis
+rf_comlink
 ```
 
-No output means the JSON syntax is valid. An error tells you the line to fix.
+**What to do**
 
-### Step 5 — select it in the application
+Use this simple decision table:
 
-1. Start the application from the project root:
+| If you have… | Keep or add… | Otherwise… |
+| --- | --- | --- |
+| Mass, drag, and chemical engine data | `GMAT` and chemical `mission_templates` | These are the minimum fields for this tutorial. |
+| Solar panels, battery, bus voltage and a valid Simu-CIC setup | `Simu-CIC` | Remove `Simu-CIC` from `capabilities`. |
+| Electrical model, battery, load and solar-generator data | `OPALIS` plus the `opalis` section | Remove `OPALIS` from `capabilities`. |
+| Radio links, frequencies, data rates and antenna data | `RF-COMLINK` plus the `rf_comlink` section | Remove `RF-COMLINK` from `capabilities`. |
+
+If you copied the chemical reference file and do not have replacement
+electrical or RF values, leave the existing structure only while it is clearly
+labelled as an engineering assumption. For a real satellite, replace every
+copied value with a documented source before using the result.
+
+**Expected result**
+
+`capabilities` matches the data actually present in the file. The interface
+will not present an analysis as supported solely because it sounds useful.
+
+## Step 6 — Save, check, and select the satellite
+
+**Where to work**
+
+First use the WSL terminal in the project root. Then use the running web
+application.
+
+**What to do**
+
+1. Check the JSON syntax:
+
+   ```bash
+   node -e "JSON.parse(require('fs').readFileSync('data/satellite-library/my-chemical-demo.v1.json', 'utf8'))"
+   ```
+
+2. Start the project if it is not running:
 
    ```bash
    python3 scripts/start_local_web.py
    ```
 
-2. Open the frontend URL printed by the launcher.
-3. Open **Satellites** and find **My Chemical Demonstrator**.
-4. Select it, then open **New simulation**.
-5. Confirm that `orbit-keeping` or `chemical-hohmann-transfer` is offered.
-6. Create a new run. The application copies the physical satellite data to
-   that run's `satellite.json`; it never modifies your library JSON file.
+3. Open the frontend URL printed by the launcher.
+4. Open **Satellites**, find **My Chemical Demonstrator**, and select it.
+5. Open **New simulation** and confirm that a chemical scenario is available.
+6. Create a new mission run. Do not edit the generated run folder manually.
 
-If the satellite is not visible, refresh the browser first. The backend scans
-the library on each request. Check that the file ends in `.json`, is placed in
-`data/satellite-library/`, and has valid JSON.
+**Expected result**
 
-## Important rules
+The selected satellite is copied into the new run as `satellite.json`. The
+library file in `data/satellite-library/` remains unchanged. If the satellite
+does not appear, refresh the browser and check that the new file is valid JSON
+and ends with `.json`.
 
-- Use the unit in the field name: `mass_kg`, `drag_area_m2`,
-  `specific_impulse_seconds`, and so on.
-- Give the source or an explicit assumption in `description` or a `note`.
-- Do not put a mission orbit, ground station, or single-run RF selection in a
-  library definition.
-- Do not change an existing library record to repair one mission. Create a new
-  version or change the run-local snapshot instead.
-- Declare only capabilities the definition can support with available data.
+## When backend files must be changed (advanced)
 
-## Worked project example
+For the normal steps above, do **not** change any file in this section. These
+files are changed only when the application itself needs a new rule or a new
+data model.
 
-[fudan-like-chemical-demo.v1.json](../../data/satellite-library/fudan-like-chemical-demo.v1.json)
-is a complete, fictional example. It follows the detailed Fudan data shape,
-but replaces electric propulsion with explicitly labelled chemical assumptions.
-It is not a description of the real Fudan spacecraft.
+### Change library discovery rules
 
-Files used to implement and check that example:
+**Where to work:** [satelliteLibrary.ts](../../backend/src/digitalThread/satelliteLibrary.ts).
 
-- [Fudan reference definition](../../data/satellite-library/fudan-satellite.v1.json)
-  — detailed electrical and RF structure.
-- [Chemical reference definition](../../data/satellite-library/reference-leo-orbit-keeping.v1.json)
-  — chemical field names and compatible scenarios.
-- [Completed example](../../data/satellite-library/fudan-like-chemical-demo.v1.json)
-  — the new satellite record.
-- [Satellite-library loader](../../backend/src/digitalThread/satelliteLibrary.ts)
-  — automatic discovery and selection.
-- [Digital-thread validator](../../backend/src/digitalThread/digitalThreadSchema.ts)
-  — run-local structural checks.
-- [GMAT adapter](../../backend/src/digitalThread/gmatDigitalThreadAdapter.ts)
-  — chemical-propulsion compatibility checks.
-- [Focused selection test](../../backend/tests/digitalThread/fudanLikeChemicalSatellite.test.ts)
-  — automated discovery and selection check.
+**When to change it:** only if satellite files move to another directory or if
+new mandatory top-level fields are introduced.
 
-## Optional developer verification
+**What to change:**
 
-These checks are not required to add the file, but use them before publishing
-the project or changing the satellite schema.
+- Change `LIBRARY_DIR` only when the library directory itself moves.
+- Extend `SatelliteDefinition` and `validDefinition()` together when adding a
+  mandatory top-level field.
+- Do not add one satellite ID to this file. Discovery is automatic.
 
-From **WSL**, where the backend dependencies were installed:
+**Expected result:** every valid JSON file in the configured library folder is
+listed; malformed definitions produce a clear error.
+
+### Change run-local validation rules
+
+**Where to work:** [digitalThreadSchema.ts](../../backend/src/digitalThread/digitalThreadSchema.ts).
+
+**When to change it:** only when a new field needs a rule, such as “this value
+must be positive” or “these two values must be consistent”.
+
+**What to change:** add the field path to the appropriate validation block;
+then add a matching passing and failing test in
+`backend/tests/digitalThread/`.
+
+**Expected result:** an invalid selected `satellite.json` is rejected with the
+name of the field that must be corrected.
+
+### Change GMAT compatibility rules
+
+**Where to work:** [gmatDigitalThreadAdapter.ts](../../backend/src/digitalThread/gmatDigitalThreadAdapter.ts).
+
+**When to change it:** only when adding a new GMAT template, a new propulsion
+class, or a new satellite field that GMAT must consume.
+
+**What to change:** map the new field to the GMAT value expected by the
+template, add a guard for missing or incompatible data, then add adapter tests
+under `backend/tests/digitalThread/`.
+
+**Expected result:** a compatible satellite produces GMAT inputs; an
+incompatible one is blocked before GMAT starts.
+
+### Add or update the selection test
+
+**Where to work:** [fudanLikeChemicalSatellite.test.ts](../../backend/tests/digitalThread/fudanLikeChemicalSatellite.test.ts).
+
+**When to change it:** after adding a new tutorial satellite or changing its
+ID, propulsion type, or offered templates.
+
+**What to change:** copy this test, rename it for the new satellite, then
+update the ID, version, expected propulsion type, mission templates, and key
+physical values.
+
+**Expected result:** from WSL, this command confirms that the backend discovers
+and selects the satellite correctly:
 
 ```bash
 cd /mnt/c/JUSTINE/demonstrator/backend
 node --import tsx --test tests/digitalThread/fudanLikeChemicalSatellite.test.ts
+```
+
+Run TypeScript tests from WSL, not Windows Node, when `node_modules` was
+installed in WSL: `tsx` and `esbuild` use platform-specific binaries.
+
+## Optional release checks
+
+After the normal steps work, a maintainer can run:
+
+```bash
+cd /mnt/c/JUSTINE/demonstrator/backend
 npm run build
 npm run test:stability
 ```
 
-Do not run the TypeScript test with Windows Node when `node_modules` was
-installed in WSL: `tsx` and `esbuild` contain platform-specific binaries.
+## Worked example: Fudan-like chemical demonstrator
 
-For a new GMAT scenario rather than a new satellite, read
-[Implement a Mission Scenario](IMPLEMENT_A_MISSION_SCENARIO.md).
+[fudan-like-chemical-demo.v1.json](../../data/satellite-library/fudan-like-chemical-demo.v1.json)
+is a complete fictional example. It is structurally similar to the Fudan
+reference, with chemical propulsion substituted for electric propulsion. Its
+chemical figures are labelled assumptions; it does not describe the real Fudan
+spacecraft.
+
+Files used to create it:
+
+- [Fudan reference definition](../../data/satellite-library/fudan-satellite.v1.json)
+  — source structure for electrical, OPALIS, and RF fields.
+- [Chemical reference definition](../../data/satellite-library/reference-leo-orbit-keeping.v1.json)
+  — source for chemical propulsion naming and chemical scenarios.
+- [Completed example](../../data/satellite-library/fudan-like-chemical-demo.v1.json)
+  — the actual new library file.
+- [Satellite-library loader](../../backend/src/digitalThread/satelliteLibrary.ts)
+  — automatic discovery and selection behaviour.
+- [Digital-thread validator](../../backend/src/digitalThread/digitalThreadSchema.ts)
+  — selected run-local validation.
+- [GMAT adapter](../../backend/src/digitalThread/gmatDigitalThreadAdapter.ts)
+  — chemical compatibility rule.
+- [Focused selection test](../../backend/tests/digitalThread/fudanLikeChemicalSatellite.test.ts)
+  — automated discovery and selection check.

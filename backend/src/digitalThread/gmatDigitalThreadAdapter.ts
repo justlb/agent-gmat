@@ -144,8 +144,8 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
   requireNumber(document, "satellite.bus.physical.mass_kg.dry", "spacecraft.dryMassKg", values, guards)
   const propulsionType = stringAt(document, "satellite.bus.propulsion_subsystem.type")?.toLowerCase() ?? ""
 
-  if (template === "orbit-keeping" || template === "chemical-hohmann-transfer" || template === "chemical-3d-transfer") {
-    if (!propulsionType || !/(chemical|bipropellant|monopropellant)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: `The ${template === "chemical-hohmann-transfer" ? "chemical Hohmann-transfer" : template === "chemical-3d-transfer" ? "chemical 3D GEO-transfer" : "orbit-keeping"} template requires an explicitly identified chemical propulsion subsystem.`, path: "satellite.bus.propulsion_subsystem.type" })
+  if (template === "orbit-keeping" || template === "chemical-hohmann-transfer" || template === "chemical-escape" || template === "chemical-3d-transfer") {
+    if (!propulsionType || !/(chemical|bipropellant|monopropellant)/u.test(propulsionType)) guards.push({ code: "incompatible_propulsion", message: `The ${template === "chemical-hohmann-transfer" ? "chemical Hohmann-transfer" : template === "chemical-escape" ? "chemical end-of-life" : template === "chemical-3d-transfer" ? "chemical 3D GEO-transfer" : "orbit-keeping"} template requires an explicitly identified chemical propulsion subsystem.`, path: "satellite.bus.propulsion_subsystem.type" })
     if (template === "orbit-keeping") {
       requireNumber(document, "analysis_requests.gmat.orbit_keeping.minimum_reboost_altitude_km", "stationKeeping.minimumAltitudeKm", values, guards)
       optionalNumber(document, "analysis_requests.gmat.orbit_keeping.target_semi_major_axis_km", "stationKeeping.targetSmaKm", values)
@@ -159,7 +159,9 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
       optionalNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.final_propagation_seconds", "transfer.finalPropagationSeconds", values)
       const fuelMass = firstNumber(document, "analysis_requests.gmat.chemical_hohmann_transfer.initial_fuel_mass_kg", "satellite.bus.physical.mass_kg.propellant")
       if (fuelMass !== null) values["spacecraft.initialFuelMassKg"] = fuelMass
-    } else {
+    } else if (template === "chemical-escape") {
+      requireNumber(document, "satellite.bus.physical.mass_kg.propellant", "spacecraft.initialFuelMassKg", values, guards)
+    } else if (template === "chemical-3d-transfer") {
       const initialSma = values["initialOrbit.smaKm"]
       if (typeof initialSma === "number") values["initialOrbit.altitudeKm"] = initialSma - 6378.1363
       optionalNumber(document, "analysis_requests.gmat.chemical_3d_transfer.final_altitude_km", "transfer.finalAltitudeKm", values)
@@ -193,6 +195,8 @@ export function adaptDigitalThreadToGmat(document: DigitalThreadDocument, templa
     ? ["spacecraft.dryMassKg"]
     : template === "chemical-hohmann-transfer"
       ? ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.targetRadiusKm"]
+      : template === "chemical-escape"
+        ? ["spacecraft.dryMassKg", "spacecraft.dragAreaM2", "spacecraft.dragCoefficient", "spacecraft.initialFuelMassKg", "propulsion.ispSeconds"]
       : template === "chemical-3d-transfer"
         ? ["initialOrbit.epoch", "initialOrbit.altitudeKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.finalAltitudeKm", "transfer.finalInclinationDeg"]
       : ["initialOrbit.epoch", "initialOrbit.smaKm", "initialOrbit.eccentricity", "initialOrbit.inclinationDeg", "transfer.finalAltitudeKm"]
@@ -223,7 +227,14 @@ function missionDraftPaths(templateId: string) {
   const root = `analysis_requests.gmat.${analysisTemplateKey(templateId)}`
   return {
     ...Object.fromEntries(Object.entries(MISSION_ORBIT_PATHS).map(([draftPath, threadPath]) => [draftPath, `${root}.initial_orbit.${threadPath}`])),
-    ...(templateId === "chemical-hohmann-transfer"
+    ...(templateId === "chemical-escape"
+      ? {
+          "mission.mode": `${root}.mode`,
+          "graveyard.iadcBaseAltitudeKm": `${root}.iadc_base_altitude_km`,
+          "escape.c3Km2PerS2": `${root}.escape_c3_km2_per_s2`,
+          "mission.postManeuverCoastDays": `${root}.post_maneuver_coast_days`,
+        }
+      : templateId === "chemical-hohmann-transfer"
       ? {
           "initialOrbit.altitudeKm": `${root}.initial_orbit.altitude_km`,
           "transfer.targetAltitudeKm": `${root}.target_orbit.altitude_km`,

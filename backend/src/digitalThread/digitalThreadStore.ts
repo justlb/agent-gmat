@@ -100,7 +100,7 @@ function ensureMissionRequestShape(document: DigitalThreadDocument) {
   }
   const analysis = document.analysis_requests
   const gmat = asObject(analysis.gmat) ?? (analysis.gmat = {}, analysis.gmat as { [key: string]: JsonValue })
-  for (const template of ["orbit_keeping", "electric_propulsion_transfer", "chemical_hohmann_transfer", "chemical_3d_transfer"]) {
+  for (const template of ["orbit_keeping", "electric_propulsion_transfer", "chemical_hohmann_transfer", "chemical_escape", "chemical_3d_transfer"]) {
     const request = asObject(gmat[template]) ?? (gmat[template] = {}, gmat[template] as { [key: string]: JsonValue })
     const orbit = asObject(request.initial_orbit) ?? (request.initial_orbit = {}, request.initial_orbit as { [key: string]: JsonValue })
     for (const field of ["epoch_tai_mod_julian", "semi_major_axis_km", "eccentricity", "inclination_deg", "raan_deg", "arg_of_perigee_deg", "true_anomaly_deg"]) {
@@ -204,7 +204,7 @@ export async function loadOrCreateDigitalThread(workspaceDir: string) {
 
 /** Starts a clean, per-draft digital thread from the selected satellite only.
  * Earlier mission values deliberately do not leak into a new draft. */
-export async function initializeDraftDigitalThread(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer" | "chemical-3d-transfer", draftId: string) {
+export async function initializeDraftDigitalThread(workspaceDir: string, template: "orbit-keeping" | "electric-propulsion-transfer" | "chemical-hohmann-transfer" | "chemical-escape" | "chemical-3d-transfer", draftId: string) {
   const draftWorkspaceDir = draftDigitalThreadWorkspaceDir(workspaceDir, template, draftId)
   const output = digitalThreadPath(draftWorkspaceDir)
   const existing = await fs.readFile(output, "utf8").catch(() => null)

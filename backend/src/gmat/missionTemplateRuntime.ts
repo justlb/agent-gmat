@@ -18,6 +18,7 @@ import { defaultOrbitKeepingTemplatePath } from "./orbitKeepingTemplate.js"
 import { extractOrbitKeepingValues } from "./orbitKeepingValues.js"
 import type { GmatTemplateId } from "./templateRegistry.js"
 import { appendChemical3dDraftConversation, confirmChemical3dDraft, createChemical3dDraft, discussChemical3dDraft, generateChemical3dMission, loadChemical3dDraft, recordChemical3dDraftRun, setChemical3dDraftValue } from "./chemical3dTransfer.js"
+import { appendChemicalEscapeDraftConversation, confirmChemicalEscapeDraft, createChemicalEscapeDraft, discussChemicalEscapeDraft, generateChemicalEscapeMission, loadChemicalEscapeDraft, recordChemicalEscapeDraftRun, setChemicalEscapeDraftValue, type ChemicalEscapeDraft } from "./chemicalEscape.js"
 
 export type MissionDraftValue = string | number | null
 
@@ -55,6 +56,16 @@ type MissionTemplateRuntime = {
  * Its GMAT generator remains template-specific, while shared HTTP/UI workflow
  * operations use this uniform contract. */
 const runtimes: Record<GmatTemplateId, MissionTemplateRuntime> = {
+  "chemical-escape": {
+    appendConversation: appendChemicalEscapeDraftConversation,
+    confirm: async (workspaceDir, draftId) => confirmChemicalEscapeDraft(workspaceDir, draftId),
+    create: async (workspaceDir, initialValues, requiredPaths) => createChemicalEscapeDraft(workspaceDir, initialValues, requiredPaths),
+    discuss: async ({ connection, draft, message, workspaceDir }) => discussChemicalEscapeDraft({ connection, draft: draft as ChemicalEscapeDraft, message, workspaceDir }),
+    execute: async ({ draft, execution, workspaceDir }) => generateChemicalEscapeMission({ draft: draft as ChemicalEscapeDraft, execution, workspaceDir }),
+    load: loadChemicalEscapeDraft,
+    recordRun: async ({ draft, execution, runPath, workspaceDir }) => recordChemicalEscapeDraftRun(workspaceDir, draft.draftId, { completedAt: new Date().toISOString(), result: execution.result as ChemicalEscapeDraft["runs"][number]["result"], runId: execution.runId, runPath }),
+    setValue: async (workspaceDir, draft, field, value) => setChemicalEscapeDraftValue(workspaceDir, draft as ChemicalEscapeDraft, field, value),
+  },
   "chemical-3d-transfer": {
     appendConversation: appendChemical3dDraftConversation,
     confirm: confirmChemical3dDraft,

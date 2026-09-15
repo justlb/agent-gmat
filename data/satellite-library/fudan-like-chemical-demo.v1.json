@@ -4,7 +4,7 @@
   "name": "Fudan-like Chemical Demonstrator",
   "description": "Fictional tutorial definition derived from the public Fudan reference structure. Electrical and RF fields retain the reference shape for integration testing; chemical-propulsion values are illustrative assumptions, not Fudan spacecraft data. Mission orbit and run-specific values are intentionally excluded.",
   "capabilities": ["GMAT", "Simu-CIC", "OPALIS", "RF-COMLINK"],
-  "mission_templates": ["orbit-keeping", "chemical-hohmann-transfer"],
+  "mission_templates": ["orbit-keeping", "chemical-hohmann-transfer", "chemical-escape"],
   "satellite": {
     "identity": {
       "name": "Fudan-like Chemical Demonstrator",

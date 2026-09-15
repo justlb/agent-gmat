@@ -1,254 +1,1023 @@
-# Implement a New GMAT Mission Scenario
+# Implement a GMAT Mission Template
 
-This guide adds a maintained GMAT mission scenario to the application. A
-scenario is more than a GMAT script: it defines a versioned engineering
-contract, accepts a satellite digital thread, produces declared artifacts, and
-participates in the shared Mission Studio lifecycle.
+This guide turns one GMAT `.script` file into a mission scenario visible in the
+web application. A template is not only a script: it defines user inputs,
+validates them, creates a run-local script, and declares the output files.
 
-Use an existing scenario as the closest starting point:
+The normal workflow is: create the template folder, add its manifest, register
+it, connect its renderer, then select it with a compatible satellite.
 
-| Scenario | Good reference when your scenario needs |
-| --- | --- |
-| `orbit-keeping` | Chemical reboost and orbit-maintenance logic. |
-| `electric-propulsion-transfer` | A draft driven by electric-propulsion inputs. |
-| `electrical-leo-orbit-maintenance` | Electric propulsion plus an electrical downstream workflow. |
-| `chemical-hohmann-transfer` | A deterministic two-impulse transfer and its dedicated artifacts. |
+## Before starting
 
-## Understand the lifecycle
+### Where to work
 
-```text
-template.json + immutable GMAT reference
-        -> template registry
-        -> digital-thread adapter
-        -> draft adapter
-        -> shared create / edit / confirm / prepare / execute routes
-        -> dated run with GMAT and downstream artifacts
-        -> Mission V2 and Results
+Open WSL in the project root:
+
+```bash
+cd /mnt/c/JUSTINE/demonstrator
 ```
 
-The shared routes are under `/api/gmat/templates/:template/...`. Do not create
-a second family of HTTP routes for a normal scenario. The common lifecycle
-already creates drafts, saves values, supports discussion, confirms the draft,
-prepares the reviewed script, executes GMAT, and starts the full pipeline.
-
-Every dated run is immutable after GMAT completes. A changed scenario must use
-a new run; do not overwrite an existing trajectory or its satellite snapshot.
-
-## Current example-script values
-
-The maintained reference scripts are examples, not validated operating limits.
-They are useful as a reproducible baseline only. A scenario must prove that
-each displayed mission field changes the generated script before it is called
-parametric.
-
-| Maintained scenario | Reference-script baseline |
-| --- | --- |
-| `orbit-keeping` | Epoch `31258.66709490726` TAIModJulian; SMA `6631.1363 km`; ECC `0`; INC `15 deg`; RAAN/AOP/TA `0 deg`; dry mass `300 kg`; fuel `10 kg`; Isp `300 s`; minimum reboost altitude `250 km`; fuel reserve `1 kg`; duration limit `100 days`. |
-| `chemical-hohmann-transfer` | Epoch `21545` TAIModJulian; SMA `9000 km`; ECC `0`; INC/RAAN/AOP/TA `0 deg`; dry mass `850 kg`; drag area `15 m²`; chemical fuel `2200 kg`. The current template also has a post-transfer propagation of `86400 s` (one day), which is scheduled for removal. |
-| `electric-propulsion-transfer` | Epoch `31262.66709490726` TAIModJulian; SMA `6678.1363 km`; ECC approximately `0`; INC/RAAN/AOP/TA `0 deg`; dry mass `850 kg`; drag area `15 m²`; electric propellant `756 kg`; target final altitude `7000 km`; fuel reserve `1 kg`. |
-| `electrical-leo-orbit-maintenance` | Epoch `31262.66709490726` TAIModJulian; SMA `6878.1363 km`; ECC approximately `0`; INC `0 deg`; xenon `80 kg`; mission duration `3 days`; fuel reserve `2 kg`; throttle bias `0.87`; throttle gain `0.15`. |
-
-Do not present these values as mission recommendations. They are recorded here
-to make deviations testable and to prevent a hidden script default from being
-mistaken for an engineer-entered value.
-
-See [Known Issues and Verification Backlog](../KNOWN_ISSUES.md) before adding
-or changing a mission scenario.
-
-## 1. Create the template contract
-
-Create this directory, using a lowercase, stable identifier:
+Candidate scripts that have not yet been integrated are stored here:
 
 ```text
-backend/workflow_agents/gmat_skills/<scenario-id>-template/
-  template.json
-  references/
-    <scenario-id>.script
-    <scenario-id>.values.yaml       # optional
+backend/workflow_agents/gmat_skills/mission scenario to implement/
 ```
 
-`references/` contains source-controlled, immutable engineering references.
-The generator may copy and parameterize them into a run directory, but must
-never rewrite them in place.
+They are engineering source material, not selectable templates. A script in
+this folder becomes selectable only after the steps below are completed.
 
-Create `template.json`. This minimal example shows the required shape; replace
-the paths, fields, and descriptions with real engineering values.
+### What to do before implementation
+
+Read the candidate script before creating files. Write down: its physical
+assumptions, user-adjustable parameters, required propulsion type, report
+files, OEM file, and whether it can feed downstream tools.
+
+### Expected result
+
+You know what the scenario does and which questions an engineer must answer.
+Do not execute GMAT while designing a template; prepare and review the
+run-local script first.
+
+## Step 1 — Create the template folder
+
+### 1.1 Where to work
+
+Create a folder below:
+
+```text
+backend/workflow_agents/gmat_skills/
+```
+
+### 1.2 What you are doing and why
+
+Choose a stable lowercase ID. For `chemical_escape.script`, use
+`chemical-escape`:
+
+```text
+backend/workflow_agents/gmat_skills/
+└── chemical-escape-template/
+    ├── template.json
+    └── references/
+        ├── chemical_escape.script
+        └── chemical_escape.values.yaml
+```
+
+### 1.3 Do it step by step
+
+Create the folders first, then copy the candidate script. From the project
+root in WSL, the commands for a new template are:
+
+```bash
+mkdir -p backend/workflow_agents/gmat_skills/chemical-escape-template/references
+cp "backend/workflow_agents/gmat_skills/mission scenario to implement/chemical_escape.script" \
+  backend/workflow_agents/gmat_skills/chemical-escape-template/references/chemical_escape.script
+```
+
+The copied `.script` belongs in `references/`, beside the YAML file. It is the
+immutable GMAT source for the template. Never place it in `backend/src/gmat/`,
+in `data/satellite-library/`, or in a dated mission-run folder. A dated mission
+run receives a *new copy* later, after the engineer chooses inputs.
+
+For the completed `chemical-escape` example in this repository, the source
+script has already been promoted and is already at
+`chemical-escape-template/references/chemical_escape.script`; do not copy it
+again.
+
+### 1.4 What the result must look like
+
+There is one folder per implemented scenario. Its name ends in `-template`.
+Do not put draft files or generated GMAT outputs in this folder.
+
+## Step 2 — Describe the scenario in template.json
+
+### 2.1 Where to work
+
+Edit:
+
+```text
+backend/workflow_agents/gmat_skills/chemical-escape-template/template.json
+```
+
+### 2.2 What you are doing and why
+
+The manifest tells the application what this scenario is and where its source
+files live. `template.json` is not generated by GMAT. It is a small manifest that the
+developer creates manually. The fastest safe method is to copy the manifest of
+the closest existing scenario, then replace its complete contents with the
+manifest for the new scenario:
+
+### 2.3 Do it step by step
+
+#### 2.3.1 Create the template manifest
+
+```bash
+cp backend/workflow_agents/gmat_skills/chemical-hohmann-transfer-template/template.json \
+  backend/workflow_agents/gmat_skills/chemical-escape-template/template.json
+```
+
+Then edit the newly created file. Do not put Windows paths, WSL paths, or GMAT
+commands in it. The two reference-file paths are always relative to the
+template folder. For `chemical-escape`, the important part must read:
 
 ```json
 {
-  "id": "inclined-orbit-keeping",
-  "name": "Inclined Orbit Keeping",
-  "description": "Maintains an inclined low-Earth orbit with chemical reboosts.",
-  "analysis_request_key": "inclined_orbit_keeping",
-  "chat_mode": "gmat-inclined-orbit-keeping",
-  "initial_state_representation": "EarthMJ2000Eq Keplerian elements",
-  "propulsion_requirement": "chemical",
-  "satellite_inputs": [
-    "satellite.bus.physical.mass_kg.dry",
-    "satellite.bus.propulsion_subsystem.specific_impulse_seconds"
+  "id": "chemical-escape",
+  "name": "Chemical GEO disposal or Earth escape",
+  "analysis_request_key": "chemical_escape",
+  "draft_directory": ["gmat", "chemical-escape", "drafts"],
+  "chat_mode": "gmat-chemical-escape",
+  "gmat_reference_script": "references/chemical_escape.script",
+  "gmat_reference_values": "references/chemical_escape.values.yaml",
+  "propulsion_requirement": "chemical"
+}
+```
+
+Keep the `artifacts`, `satellite_inputs`, `downstream_analyses`, and `ui`
+sections from the closest manifest, but change their values to match the GMAT
+script. The actual complete working example is
+[template.json](../../backend/workflow_agents/gmat_skills/chemical-escape-template/template.json).
+Copying that file is preferable to reconstructing a manifest from memory.
+
+#### 2.3.2 Create the reference YAML
+
+#### Where to work
+
+Create this file next to the copied GMAT script:
+
+```text
+backend/workflow_agents/gmat_skills/chemical-escape-template/references/chemical_escape.values.yaml
+```
+
+#### What to do
+
+The YAML is also written manually; it is not generated by GMAT. It records
+the reviewed source-script defaults in a readable form. Copy every default
+that the renderer must know, grouping values by purpose. For this template,
+copy the complete working file
+[chemical_escape.values.yaml](../../backend/workflow_agents/gmat_skills/chemical-escape-template/references/chemical_escape.values.yaml),
+or start with:
+
+```yaml
+mission:
+  mode: graveyard
+  postManeuverCoastDays: 2
+initialOrbit:
+  epochUtc: "01 Jan 2000 11:59:28.000"
+  smaKm: 42164.17
+spacecraft:
+  dryMassKg: 1800
+  initialFuelMassKg: 1200
+propulsion:
+  ispSeconds: 320
+graveyard:
+  iadcBaseAltitudeKm: 235
+escape:
+  c3Km2PerS2: 0.01
+```
+
+Add the remaining values used by the GMAT script (the complete reference file
+includes areas, drag coefficient, reflectivity, and all orbital elements).
+Keep the YAML values aligned with the source script. In this implementation,
+the draft creator reads this YAML when it creates a new draft; changing a YAML
+default changes new drafts, but never changes an existing run.
+Although this YAML records `mission.mode: graveyard` as the source-script
+default, the application deliberately clears that one value in each new draft:
+the engineer must explicitly choose `graveyard` or `escape`.
+
+The three files have distinct roles:
+
+| File | Created by | Purpose |
+| --- | --- | --- |
+| `references/chemical_escape.script` | Developer | Immutable GMAT source with the equations and commands. |
+| `template.json` | Developer | Declares how the application finds, displays, validates, and runs the template. |
+| `references/chemical_escape.values.yaml` | Developer | Readable, versioned defaults copied from the source script. |
+| `<mission-run>/chemical_escape.values.json` | Application | Actual values selected for one particular run. |
+
+#### Decide which values appear in the mission form
+
+The GMAT script and YAML contain **all** values needed to run a mission. That
+does not mean that the person using the web application should edit all of
+them. `ui.mission_input_fields` is the explicit list of values shown in the
+Mission Studio form.
+
+For every YAML value, make one of these choices:
+
+| If the value is… | Put it in `ui.mission_input_fields`? | What happens |
+| --- | --- | --- |
+| A mission choice an engineer must make for each run | Yes | The value is shown as a form field and is saved in the run-local JSON. |
+| A documented default that an engineer may legitimately adjust | Yes | Show the field, pre-fill it from the YAML, and keep its unit in the label. |
+| A fixed modelling assumption or a script-internal setting | No | Keep it in the YAML/script; the application uses it silently. |
+| A satellite property, such as dry mass or available propellant | No | Read it from the selected satellite definition rather than asking the user to type it again. |
+
+For Chemical Escape, the disposal mode and the full initial Keplerian orbit are
+shown in **Required mission inputs**. The mode is a dropdown with only
+`graveyard` and `escape`. The SMA field has a **GEO** button: it sets the SMA
+to `42164.17 km` and locks that field while GEO is selected. No altitude field
+is shown or used for this scenario; its starting orbit is expressed directly
+with Keplerian elements.
+
+```json
+"mission_input_fields": [
+  { "label": "Disposal mode: graveyard or escape", "path": "mission.mode" },
+  { "label": "Initial semi-major axis", "path": "initialOrbit.smaKm", "unit": "km" },
+  { "label": "IADC base altitude", "path": "graveyard.iadcBaseAltitudeKm", "unit": "km" },
+  { "label": "Escape C3", "path": "escape.c3Km2PerS2", "unit": "km²/s²" },
+  { "label": "Post-maneuver coast", "path": "mission.postManeuverCoastDays", "unit": "days" }
+]
+```
+
+The spacecraft dry mass, initial propellant mass, drag area, and specific
+impulse are deliberately **not** mission-form fields. They are taken from the
+selected satellite definition, so the mission uses one consistent satellite
+model. Reflectivity and SRP area are currently fixed reference assumptions;
+they stay in the YAML and do not appear in the form.
+
+Before adding a new form field, check all three points: the renderer accepts
+the same `path`, the corresponding value is written into the generated GMAT
+script, and the user is authorised to alter it. If one point is false, keep
+the value out of `ui.mission_input_fields`.
+
+### 2.4 What the result must look like
+
+The template folder contains a source script, a readable defaults file, and a
+manifest that points to both. The frontend can display the scenario without a
+special React page.
+
+## Step 4 — Register the scenario
+
+### 4.1 Where to work
+
+Modify both files:
+
+- [backend/src/gmat/templateRegistry.ts](../../backend/src/gmat/templateRegistry.ts)
+- [frontend/src/pages/agent/gmatMissionTemplates.ts](../../frontend/src/pages/agent/gmatMissionTemplates.ts)
+
+### 4.2 What you are doing and why
+
+Registration makes the manifest available to the backend and makes the same
+template ID selectable in the frontend. The template folder alone is not read
+until it is registered.
+
+### 4.3 Do it step by step
+
+#### 4.3.1 Register it in the backend
+
+Open [templateRegistry.ts](../../backend/src/gmat/templateRegistry.ts). Find
+the constant named `GMAT_TEMPLATE_IDS` near the top of the file. Add the ID as
+one item in this array:
+
+```ts
+export const GMAT_TEMPLATE_IDS = [
+  "orbit-keeping",
+  "electric-propulsion-transfer",
+  "electrical-leo-orbit-maintenance",
+  "chemical-hohmann-transfer",
+  "chemical-escape", // add this line
+] as const
+```
+
+Then find `export type GmatAnalysisRequestKey = ...` immediately below it. Add
+the analysis key from `template.json` to this union:
+
+```ts
+export type GmatAnalysisRequestKey =
+  | "orbit_keeping"
+  | "electric_propulsion_transfer"
+  | "electrical_leo_orbit_maintenance"
+  | "chemical_hohmann_transfer"
+  | "chemical_escape" // add this value
+  | "chemical_3d_transfer"
+```
+
+The ID must exactly match `template.json` (`chemical-escape`, with hyphens).
+The analysis key must exactly match its `analysis_request_key`
+(`chemical_escape`, with underscores). Do not add a path to the script here:
+the registry constructs the path from the ID and loads
+`backend/workflow_agents/gmat_skills/chemical-escape-template/template.json`.
+
+#### 4.3.2 Register it in the frontend
+
+Open [gmatMissionTemplates.ts](../../frontend/src/pages/agent/gmatMissionTemplates.ts).
+Make these three edits.
+
+First, add a readable property and the same template ID to
+`GMAT_MISSION_TEMPLATES`:
+
+```ts
+export const GMAT_MISSION_TEMPLATES = {
+  chemicalEscape: 'chemical-escape', // add this line
+  chemicalHohmann: 'chemical-hohmann-transfer',
+  // existing scenarios remain here
+} as const
+```
+
+Second, extend `GmatChatMode` with the chat mode declared by `template.json`:
+
+```ts
+export type GmatChatMode =
+  | 'gmat-orbit-keeping'
+  | 'gmat-chemical-hohmann'
+  | 'gmat-chemical-escape' // add this value
+```
+
+Finally, find `CHAT_MODE_BY_TEMPLATE`. Add one entry using the same ID and
+chat mode:
+
+```ts
+const CHAT_MODE_BY_TEMPLATE: Record<GmatMissionTemplateId, GmatChatMode> = {
+  'chemical-escape': 'gmat-chemical-escape', // add this line
+  'chemical-hohmann-transfer': 'gmat-chemical-hohmann',
+  // existing scenarios remain here
+}
+```
+
+The property name `chemicalEscape` is only a TypeScript name for the frontend.
+It is not used as a file name and does not appear in `template.json`.
+
+#### 4.3.3 Check the registration before continuing
+
+From WSL, check the two strings without starting GMAT:
+
+```bash
+rg -n 'chemical-escape|chemical_escape|gmat-chemical-escape' \
+  backend/src/gmat/templateRegistry.ts \
+  frontend/src/pages/agent/gmatMissionTemplates.ts
+```
+
+You should see `chemical-escape` in the backend ID array and frontend object,
+`chemical_escape` in the backend type, and `gmat-chemical-escape` in both the
+manifest and the frontend map.
+
+Do not create a custom route or a custom page. The shared template routes and
+Mission Studio form use this registration plus `template.json`.
+
+### 4.4 What the result must look like
+
+The backend loads the manifest at startup and the frontend recognises the
+scenario ID and chat mode. The scenario still cannot create a simulation until
+the draft renderer is registered in the next step.
+
+## Step 5 — Create the draft and deterministic renderer
+
+### 5.1 Where to work
+
+All three files are in this backend folder:
+
+```text
+backend/src/gmat/
+```
+
+For the `chemical-escape` scenario, the folder contains:
+
+```text
+backend/src/gmat/
+├── chemicalEscape.ts             # create: draft, validation, script renderer
+├── chemicalEscapeTemplate.ts     # create: locates the immutable .script
+└── missionTemplateRuntime.ts     # edit: connects the shared application flow
+```
+
+Do not put these TypeScript files in `workflow_agents/gmat_skills/`. That
+folder stores the GMAT reference files; `backend/src/gmat/` stores the code
+that turns those references into a simulation.
+
+### 5.2 What you are doing and why
+
+Complete the following three parts in order.
+
+### 5.3 Do it step by step
+
+#### 5.3.1 Create the reference-script resolver
+
+**File to create**
+
+Create [chemicalEscapeTemplate.ts](../../backend/src/gmat/chemicalEscapeTemplate.ts)
+in `backend/src/gmat/` with this content:
+
+```ts
+import path from "node:path"
+
+import { gmatTemplateDefinition } from "./templateRegistry.js"
+
+export function defaultChemicalEscapeTemplatePath() {
+  const template = gmatTemplateDefinition("chemical-escape")
+  return path.resolve(template.skillDirectory, template.gmatReferenceScript)
+}
+```
+
+**What it does**
+
+It resolves the reference path declared in `template.json`, namely:
+
+```text
+backend/workflow_agents/gmat_skills/chemical-escape-template/
+└── references/chemical_escape.script
+```
+
+Do not hard-code this full path in the TypeScript code. The manifest is the
+single source of truth for the reference file name and its location.
+
+**Expected result**
+
+The renderer can call `defaultChemicalEscapeTemplatePath()` and always read
+the immutable GMAT source script.
+
+#### 5.3.2 Create the draft and renderer module
+
+**File to create**
+
+Create [chemicalEscape.ts](../../backend/src/gmat/chemicalEscape.ts) in the
+same `backend/src/gmat/` folder. To begin a similar scenario, copy the closest
+existing draft module as a starting point:
+
+```bash
+cd /mnt/c/JUSTINE/demonstrator
+cp backend/src/gmat/chemicalHohmannDraft.ts backend/src/gmat/chemicalEscape.ts
+```
+
+Then replace its contents with the scenario-specific implementation. The
+complete working [Chemical Escape module](../../backend/src/gmat/chemicalEscape.ts)
+is the concrete reference. When reproducing the worked example already in this
+repository, do not overwrite that file: read it and compare it with the steps
+below.
+
+**What the module must do**
+
+The module owns one mission draft from its creation to its generated GMAT
+files. It must export these functions because the shared runtime calls them:
+
+| Function | When it is used | Required behaviour |
+| --- | --- | --- |
+| `createChemicalEscapeDraft` | User selects the scenario | Read the reference YAML, merge satellite values, create `draft.json`. |
+| `loadChemicalEscapeDraft` | User reopens the scenario | Read the saved draft. |
+| `setChemicalEscapeDraftValue` | User edits a form field | Accept only recognised input paths and validate the value. |
+| `confirmChemicalEscapeDraft` | User confirms values | Refuse if a required input is missing. |
+| `discussChemicalEscapeDraft` | The shared conversation endpoint is used | Store a reply without inventing engineering inputs. |
+| `appendChemicalEscapeDraftConversation` | A conversation turn is saved | Append that turn to the draft history. |
+| `generateChemicalEscapeMission` | User prepares or runs | Create a run-local GMAT script from the reference script. |
+| `recordChemicalEscapeDraftRun` | A run finishes | Save its result in the draft history. |
+
+Start by listing the allowed input paths. Each path must correspond to a
+template field or a value supplied by the selected satellite:
+
+```ts
+const fields = [
+  "mission.mode",
+  "initialOrbit.epochUtc",
+  "initialOrbit.smaKm",
+  "spacecraft.dryMassKg",
+  "spacecraft.initialFuelMassKg",
+  "propulsion.ispSeconds",
+  "graveyard.iadcBaseAltitudeKm",
+  "escape.c3Km2PerS2",
+  "mission.postManeuverCoastDays",
+] as const
+```
+
+Also add the other GMAT inputs used by this script: eccentricity, inclination,
+RAAN, AOP, true anomaly, drag area/coefficient, reflectivity, and SRP area.
+`setChemicalEscapeDraftValue` must reject a path not in this list.
+
+Read defaults from `references/chemical_escape.values.yaml` instead of
+copying values into TypeScript. The values must line up like this:
+
+| YAML key | Draft field | GMAT assignment replaced in the generated script |
+| --- | --- | --- |
+| `initialOrbit.smaKm` | `initialOrbit.smaKm` | `GEO_CHEM.SMA` |
+| `spacecraft.initialFuelMassKg` | `spacecraft.initialFuelMassKg` | `ChemicalTank_EOL.FuelMass` |
+| `propulsion.ispSeconds` | `propulsion.ispSeconds` | the three maneuver `Isp` assignments |
+| `graveyard.iadcBaseAltitudeKm` | `graveyard.iadcBaseAltitudeKm` | `IADCBaseAltitude` |
+| `escape.c3Km2PerS2` | `escape.c3Km2PerS2` | `EscapeC3` |
+| `mission.postManeuverCoastDays` | `mission.postManeuverCoastDays` | `PostManeuverCoastDays` |
+
+`mission.mode` is deliberately different: set it to `null` for every new
+draft, even though the YAML lists `graveyard`. The user must choose either
+`graveyard` or `escape`; reject every other value.
+
+The renderer must read the reference script, change its content in memory,
+then write only to the dated mission-run folder:
+
+```ts
+let generatedScript = await fs.readFile(defaultChemicalEscapeTemplatePath(), "utf8")
+generatedScript = replace(generatedScript, "GEO_CHEM.SMA", String(draft.values["initialOrbit.smaKm"]))
+// Repeat for every assignment listed in the mapping table above.
+
+await fs.writeFile(path.join(workspaceDir, "chemical_escape.script"), generatedScript)
+await fs.writeFile(
+  path.join(workspaceDir, "chemical_escape.values.json"),
+  `${JSON.stringify(draft.values, null, 2)}\n`,
+)
+```
+
+`workspaceDir` is supplied by the application and is a dated run folder. Do
+not write into `references/chemical_escape.script`. Also redirect the GMAT OEM
+and report file names into this same folder.
+
+**Expected result**
+
+Selecting **Prepare** creates a new script and values snapshot:
+
+```text
+<dated mission run>/
+├── chemical_escape.script       # generated; safe to inspect
+└── chemical_escape.values.json  # actual inputs for this run
+```
+
+The reference `.script` and `.yaml` remain unchanged.
+
+#### 5.3.3 Connect the module to the shared runtime
+
+**File to edit**
+
+Open [missionTemplateRuntime.ts](../../backend/src/gmat/missionTemplateRuntime.ts)
+in `backend/src/gmat/`.
+
+First add this import with the other imports at the top of the file:
+
+```ts
+import {
+  appendChemicalEscapeDraftConversation,
+  confirmChemicalEscapeDraft,
+  createChemicalEscapeDraft,
+  discussChemicalEscapeDraft,
+  generateChemicalEscapeMission,
+  loadChemicalEscapeDraft,
+  recordChemicalEscapeDraftRun,
+  setChemicalEscapeDraftValue,
+  type ChemicalEscapeDraft,
+} from "./chemicalEscape.js"
+```
+
+Then find `const runtimes: Record<GmatTemplateId, MissionTemplateRuntime> = {`.
+Inside its braces, add this entry:
+
+```ts
+"chemical-escape": {
+  appendConversation: appendChemicalEscapeDraftConversation,
+  confirm: async (workspaceDir, draftId) => confirmChemicalEscapeDraft(workspaceDir, draftId),
+  create: async (workspaceDir, initialValues, requiredPaths) =>
+    createChemicalEscapeDraft(workspaceDir, initialValues, requiredPaths),
+  discuss: async ({ connection, draft, message, workspaceDir }) =>
+    discussChemicalEscapeDraft({ connection, draft: draft as ChemicalEscapeDraft, message, workspaceDir }),
+  execute: async ({ draft, execution, workspaceDir }) =>
+    generateChemicalEscapeMission({ draft: draft as ChemicalEscapeDraft, execution, workspaceDir }),
+  load: loadChemicalEscapeDraft,
+  recordRun: async ({ draft, execution, runPath, workspaceDir }) =>
+    recordChemicalEscapeDraftRun(workspaceDir, draft.draftId, {
+      completedAt: new Date().toISOString(),
+      result: execution.result as ChemicalEscapeDraft["runs"][number]["result"],
+      runId: execution.runId,
+      runPath,
+    }),
+  setValue: async (workspaceDir, draft, field, value) =>
+    setChemicalEscapeDraftValue(workspaceDir, draft as ChemicalEscapeDraft, field, value),
+},
+```
+
+Do not create new HTTP endpoints. The shared Mission Studio endpoints use this
+runtime map. Without this entry, the scenario may appear in the interface but
+will fail when a user tries to create a draft.
+
+#### 5.3.4 Check without running GMAT
+
+From WSL, check that the three connections exist:
+
+```bash
+rg -n 'chemical-escape|ChemicalEscape|defaultChemicalEscapeTemplatePath' \
+  backend/src/gmat/chemicalEscape.ts \
+  backend/src/gmat/chemicalEscapeTemplate.ts \
+  backend/src/gmat/missionTemplateRuntime.ts
+```
+
+Do not run GMAT yet. Use **Prepare** first and inspect the generated script in
+the dated mission-run folder.
+
+### 5.4 What the result must look like
+
+Preparing the scenario creates these run-local files:
+
+```text
+<mission-run>/
+├── chemical_escape.script
+├── chemical_escape.values.json
+├── EphemerisFile1.oem                 # after GMAT succeeds
+├── GEO_Chemical_EndOfLife_Summary.txt # after GMAT succeeds
+├── gmat.log                           # after GMAT is launched
+└── gmat_result.json                   # after GMAT is launched
+```
+
+## Step 6 — Allow compatible satellites to select it
+
+### 6.1 Where to work
+
+This step uses two folders:
+
+```text
+data/satellite-library/          # satellite definitions edited by the project owner
+backend/src/digitalThread/       # adapter that copies satellite data into a GMAT draft
+```
+
+### 6.2 What you are doing and why
+
+The template must be offered only when the selected satellite has the physical
+inputs required by its GMAT script. Do this in the following order.
+
+### 6.3 Do it step by step
+
+#### 6.3.1 Update a compatible satellite definition
+
+**File to edit**
+
+Choose a chemical satellite JSON file in
+`data/satellite-library/`. The worked example updates
+[reference-leo-orbit-keeping.v1.json](../../data/satellite-library/reference-leo-orbit-keeping.v1.json).
+
+**Required values**
+
+Before adding the template ID, verify the satellite defines all five values
+required by Chemical Escape:
+
+```text
+satellite.bus.physical.mass_kg.dry
+satellite.bus.physical.mass_kg.propellant
+satellite.bus.physical.drag_area_m2
+satellite.bus.physical.drag_coefficient
+satellite.bus.propulsion_subsystem.specific_impulse_seconds
+```
+
+It must also identify its propulsion as chemical. This is an example of the
+relevant part of a valid satellite definition:
+
+```json
+{
+  "mission_templates": [
+    "orbit-keeping",
+    "chemical-hohmann-transfer",
+    "chemical-escape"
   ],
-  "draft_directory": ["gmat", "drafts"],
-  "gmat_reference_script": "references/inclined-orbit-keeping.script",
-  "gmat_reference_values": "references/inclined-orbit-keeping.values.yaml",
-  "artifacts": [
-    { "kind": "script", "path": "inclined_orbit_keeping.script", "primary": true },
-    { "kind": "values", "path": "inclined_orbit_keeping.values.yaml", "primary": false },
-    { "kind": "report", "path": "InclinedOrbitKeepingReport.txt", "primary": true }
-  ],
-  "downstream_analyses": ["simu-cic", "opalis", "rf-comlink"],
-  "ui": {
-    "objective": "Maintain the requested inclined orbit.",
-    "summary": "Chemical station keeping for an inclined LEO mission.",
-    "satellite_requirements": ["Chemical propulsion", "Positive dry mass"],
-    "outputs": ["Propellant consumption", "Orbital-element history"],
-    "mission_input_fields": [
-      {
-        "label": "Mission duration",
-        "path": "mission.durationDays",
-        "unit": "days"
+  "satellite": {
+    "bus": {
+      "physical": {
+        "mass_kg": { "dry": 300, "propellant": 100 },
+        "drag_area_m2": 2,
+        "drag_coefficient": 2.2
+      },
+      "propulsion_subsystem": {
+        "type": "Bipropellant chemical propulsion",
+        "specific_impulse_seconds": 320
       }
-    ]
+    }
   }
 }
 ```
 
-Manifest paths must be relative paths without `.` or `..`. Declare every
-artifact that users should be able to find or download. The registry rejects
-unsafe artifact paths and missing reference scripts.
+Add `"chemical-escape"` once, inside `mission_templates`. Do not add it to
+an electric-only satellite. Do not write spacecraft mass or Isp in
+`template.json`: they belong to the satellite definition because they describe
+the hardware, not an individual mission.
 
-Use only the existing UI transforms when they are appropriate:
+**Expected result**
 
-```json
-{ "label": "Initial altitude", "path": "orbit.initialAltitudeKm", "unit": "km", "derived": "initialAltitude", "value_transform": "earth-radius" }
-```
+The scenario appears only after a compatible satellite is selected.
 
-The frontend reads the labels, input fields, requirements, and outputs from
-this manifest. Avoid duplicating those presentation strings in a component.
+#### 6.3.2 Teach the Digital Thread adapter which values are required
 
-## 2. Register the scenario
+**File to edit**
 
-In [`backend/src/gmat/templateRegistry.ts`](../../backend/src/gmat/templateRegistry.ts):
+Open [gmatDigitalThreadAdapter.ts](../../backend/src/digitalThread/gmatDigitalThreadAdapter.ts)
+in `backend/src/digitalThread/`.
 
-1. Add `"inclined-orbit-keeping"` to `GMAT_TEMPLATE_IDS`.
-2. Add `"inclined_orbit_keeping"` to `GmatAnalysisRequestKey`.
+This adapter has three responsibilities: it rejects incompatible propulsion,
+copies satellite values into the draft, and copies mission-form values back to
+the run-local `satellite.json` digital thread. The Chemical Escape
+implementation makes all three additions.
 
-The maintained ID list is an allow-list for the API. The registry loads every
-registered `template.json` during startup, so a typo or malformed manifest
-fails early.
+1. In the chemical-template condition, add `"chemical-escape"`:
 
-In [`frontend/src/pages/agent/gmatMissionTemplates.ts`](../../frontend/src/pages/agent/gmatMissionTemplates.ts):
+   ```ts
+   if (
+     template === "orbit-keeping" ||
+     template === "chemical-hohmann-transfer" ||
+     template === "chemical-escape" || // add this ID
+     template === "chemical-3d-transfer"
+   ) {
+   ```
 
-1. Add the scenario ID to `GMAT_MISSION_TEMPLATES`.
-2. Add its chat-mode literal to `GmatChatMode`.
-3. Add the matching entry to `CHAT_MODE_BY_TEMPLATE`.
+   The condition checks that `satellite.bus.propulsion_subsystem.type` contains
+   `chemical`, `bipropellant`, or `monopropellant`.
 
-The type unions intentionally force every frontend lifecycle call to recognize
-the new scenario.
+2. In the branch for the new template, require the chemical propellant mass:
 
-## 3. Adapt the satellite digital thread
+   ```ts
+   } else if (template === "chemical-escape") {
+     requireNumber(
+       document,
+       "satellite.bus.physical.mass_kg.propellant",
+       "spacecraft.initialFuelMassKg",
+       values,
+       guards,
+     )
+   }
+   ```
 
-The selected satellite is the source of physical vehicle data. The adapter
-converts that data to draft fields and guards against incompatible choices:
+   The common chemical branch already copies dry mass, drag area, drag
+   coefficient, and Isp. Do not duplicate those four mappings inside this new
+   branch.
 
-```text
-run-local satellite.json
-    -> adaptDigitalThreadToGmat(..., scenarioId)
-    -> required draft values and compatibility guards
-```
+3. Find `const requiredDraftPaths = ...` and add the complete required list:
 
-Extend [`backend/src/digitalThread/gmatDigitalThreadAdapter.ts`](../../backend/src/digitalThread/gmatDigitalThreadAdapter.ts).
-Map the scenario's draft field names to the paths in `satellite.json`, then
-add explicit guards for its physical requirements. For example, a chemical
-scenario should reject an electric-only satellite rather than silently using a
-nominal value. Keep deterministic calculations, such as Earth-radius to
-altitude conversion, in this adapter or the generator rather than in chat.
+   ```ts
+   : template === "chemical-escape"
+     ? [
+         "spacecraft.dryMassKg",
+         "spacecraft.dragAreaM2",
+         "spacecraft.dragCoefficient",
+         "spacecraft.initialFuelMassKg",
+         "propulsion.ispSeconds",
+       ]
+   ```
 
-When a draft changes, the shared route synchronizes mission values to both the
-draft snapshot and the run-local digital thread. Do not write the selected
-library definition from this code.
+   If one satellite value is absent, the application stops before GMAT and
+   names the missing path instead of silently using a false value.
 
-## 4. Implement the engineering adapter
+4. Find `function missionDraftPaths(templateId: string)`. Add the mission
+   fields that must be persisted into the run-local Digital Thread:
 
-Add a template-specific draft and generator module, or reuse a module only
-when its engineering contract truly matches. It must implement these lifecycle
-operations:
+   ```ts
+   ...(templateId === "chemical-escape"
+     ? {
+         "mission.mode": `${root}.mode`,
+         "graveyard.iadcBaseAltitudeKm": `${root}.iadc_base_altitude_km`,
+         "escape.c3Km2PerS2": `${root}.escape_c3_km2_per_s2`,
+         "mission.postManeuverCoastDays": `${root}.post_maneuver_coast_days`,
+       }
+   ```
+
+   These are mission values, so they are copied to
+   `analysis_requests.gmat.chemical_escape` in the dated run. Do not add dry
+   mass or Isp to this map; they remain owned by the satellite definition.
+
+**Expected result**
+
+When the user creates a Chemical Escape draft, the form receives real hardware
+data from the selected satellite. Preparing the run records the selected
+mission mode and disposal parameters in the run-local Digital Thread.
+
+#### 6.3.3 Add the default Digital Thread branch
+
+**File to edit**
+
+Open [digitalThreadStore.ts](../../backend/src/digitalThread/digitalThreadStore.ts)
+in the same `backend/src/digitalThread/` folder.
+
+Find the list beginning with:
 
 ```ts
-type MissionTemplateRuntime = {
-  create: (...args: unknown[]) => Promise<MissionTemplateDraft>
-  load: (...args: unknown[]) => Promise<MissionTemplateDraft>
-  setValue: (...args: unknown[]) => Promise<MissionTemplateDraft>
-  discuss: (...args: unknown[]) => Promise<MissionTemplateDraft>
-  confirm: (...args: unknown[]) => Promise<MissionTemplateDraft>
-  execute: (...args: unknown[]) => Promise<MissionTemplateExecution>
-  recordRun: (...args: unknown[]) => Promise<MissionTemplateDraft>
-  appendConversation: (...args: unknown[]) => Promise<MissionTemplateDraft>
-}
+for (const template of ["orbit_keeping", ...]) {
 ```
 
-Register the implementation in the `runtimes` map in
-[`backend/src/gmat/missionTemplateRuntime.ts`](../../backend/src/gmat/missionTemplateRuntime.ts).
-That map is the only explicit link between the generic workflow and
-template-specific engineering code.
+Add `"chemical_escape"` to that list:
 
-The adapter should:
-
-- validate values and units before rendering the GMAT script;
-- copy reference data into the dated run and generate only run-local files;
-- return the run ID, run path, execution result, and declared artifact paths;
-- preserve the draft and input snapshot when execution fails, so the user can
-  correct it and create a new run.
-
-Keep LLM discussion constrained to clarifying or updating allowed draft fields.
-GMAT rendering, unit conversion, validation, and numerical engineering rules
-must remain deterministic TypeScript code.
-
-## 5. Connect downstream analysis
-
-The template manifest identifies the downstream analysis names. Confirm that
-the generated GMAT outputs have the input form expected by Simu-CIC, OPALIS,
-and RF-COMLINK. If the scenario produces a new file type, add a narrow entry
-to [`backend/src/runs/artifactRegistry.ts`](../../backend/src/runs/artifactRegistry.ts)
-only when it is shared across scenarios. Scenario-only files belong in the
-manifest's `artifacts` list.
-
-The generic route merges the template artifacts with the shared downstream
-artifact registry. This keeps the Results page and artifact history consistent
-without another scenario-specific file browser.
-
-## 6. Make it selectable
-
-Mission Studio loads the template catalogue from the backend. Its scenario
-selector uses `template.json`; its satellite selector reads each satellite's
-`mission_templates` list. Add the new scenario ID to compatible satellite
-definitions, for example:
-
-```json
-"mission_templates": ["orbit-keeping", "inclined-orbit-keeping"]
+```ts
+for (const template of [
+  "orbit_keeping",
+  "electric_propulsion_transfer",
+  "chemical_hohmann_transfer",
+  "chemical_escape", // add this key
+  "chemical_3d_transfer",
+]) {
 ```
 
-The Mission V2 flow additionally filters the displayed scenarios by this list.
-Do not hard-code a new scenario page. The intended path is **New simulation**
-→ choose a satellite → choose a compatible mission scenario → enter fields →
-prepare → launch the pipeline.
+This creates the empty `analysis_requests.gmat.chemical_escape.initial_orbit`
+object for a newly created Digital Thread. Its key uses underscores because it
+is the `analysis_request_key`, not the template ID.
 
-## 7. Validate before merging
+#### 6.3.4 Include the scenario in shared guardrails
 
-From `backend/`, run:
+**File to edit**
+
+Open [missionGuardrails.ts](../../backend/src/gmat/missionGuardrails.ts). Add
+`"chemical-escape"` to the `GmatMissionGuardrailTemplate` union:
+
+```ts
+export type GmatMissionGuardrailTemplate =
+  | "orbit-keeping"
+  | "electric-propulsion-transfer"
+  | "electrical-leo-orbit-maintenance"
+  | "chemical-hohmann-transfer"
+  | "chemical-escape" // add this ID
+  | "chemical-3d-transfer"
+```
+
+The shared checks then reject invalid eccentricity, inclination, perigee,
+non-positive dry mass, drag area, drag coefficient, or Isp before GMAT is
+started. Add template-specific guardrails here only if the GMAT script has a
+clear engineering constraint that is not already checked by its draft module.
+
+### 6.4 What the result must look like
+
+After selecting a compatible satellite, **New simulation** offers the new
+chemical scenario. It is absent for incompatible satellites, and a satellite
+missing required physical data is blocked before GMAT starts.
+
+## Step 7 — Manual check in the application
+
+### 7.1 Where to work
+
+Use the running application. Start it from WSL if necessary:
 
 ```bash
+python3 scripts/start_local_web.py
+```
+
+### 7.2 What you are doing and why
+
+Run this exact sequence. Stop at the first unexpected result; do not launch
+GMAT to work around a failed validation.
+
+### 7.3 Do it step by step
+
+#### 7.3.1 Confirm selection and compatibility
+
+1. Select **Chemical Propulsion Sat** (or another satellite updated in step
+   6.1).
+2. Open **New simulation**.
+3. Confirm that **Chemical GEO disposal or Earth escape** is offered.
+4. Select an electric-only satellite and reopen **New simulation**.
+5. Confirm that Chemical Escape is not offered for that incompatible satellite.
+
+If the scenario is missing for the chemical satellite, return to step 6.1 and
+check its `mission_templates` array. If it appears for an electric satellite,
+return to step 6.2 and check the chemical-propulsion condition.
+
+#### 7.3.2 Create and complete a draft
+
+1. Select **Chemical GEO disposal or Earth escape**.
+2. Confirm that **Disposal mode** is initially missing or unselected. This is
+   intentional: no simulation may run until a human selects a mode.
+3. Select `graveyard`.
+4. Review the initial orbit, IADC altitude, C3, and coast duration. Change
+   only values that are approved for this mission.
+5. Confirm the draft.
+
+Expected behaviour: selecting `graveyard` or `escape` makes the draft ready
+when the satellite supplies dry mass, propellant, drag area/coefficient, and
+Isp. An invalid mode, negative number, or missing satellite value must produce
+a clear validation message rather than a GMAT launch.
+
+#### 7.3.3 Prepare and inspect the generated files
+
+Use **Prepare**. This renders files but does not require an engineering review
+of GMAT execution yet. Locate the dated run folder shown by the application.
+It must contain:
+
+```text
+<dated mission run>/
+├── chemical_escape.script
+└── chemical_escape.values.json
+```
+
+Open `chemical_escape.values.json` and check it contains your selected mode.
+Open `chemical_escape.script` and check the corresponding assignment:
+
+```text
+graveyard selected  -> MissionMode = 0;
+escape selected     -> MissionMode = 1;
+```
+
+Also check that `GEO_CHEM.SMA`, `ChemicalTank_EOL.FuelMass`, the maneuver Isp
+values, `IADCBaseAltitude`, `EscapeC3`, and `PostManeuverCoastDays` match the
+values JSON. The two output file paths in the generated script must point to
+the dated run folder, not to `workflow_agents/gmat_skills/`.
+
+#### 7.3.4 Optional GMAT execution
+
+Only after the generated script is correct and GMAT is configured, launch the
+run from the application. A successful GMAT run additionally creates:
+
+```text
+<dated mission run>/
+├── EphemerisFile1.oem
+├── GEO_Chemical_EndOfLife_Summary.txt
+├── gmat.log
+└── gmat_result.json
+```
+
+If GMAT fails, preserve these four files and the generated script. Diagnose
+the run-local files first; do not edit the immutable reference script to make
+one run succeed.
+
+### 7.4 What the result must look like
+
+The generated script contains the selected mode and values, the reference
+script under `workflow_agents/` is unchanged, and incompatible satellites
+cannot start the scenario.
+
+## Step 8 — Verify the implementation before merging
+
+Complete these checks before considering a template implemented. Run them from
+WSL, not from Windows PowerShell: dependencies installed in WSL include Linux
+native binaries and cannot be reused by Windows Node.js.
+
+### 8.1 Where to work
+
+Run all commands from WSL in the repository root or backend folder as shown.
+Windows PowerShell cannot run WSL-installed native Node dependencies.
+
+### 8.2 What you are doing and why
+
+You are checking structure, registration, and behaviour before a code review
+or merge. GMAT execution alone is not a test of the template implementation.
+
+### 8.3 Do it step by step
+
+#### 8.3.1 Verify the reference files and manifest
+
+From the repository root:
+
+```bash
+node -e "JSON.parse(require('fs').readFileSync('backend/workflow_agents/gmat_skills/chemical-escape-template/template.json', 'utf8')); console.log('template.json valid')"
+cd backend
+node -e "const fs=require('fs'), Y=require('yaml'); const p='workflow_agents/gmat_skills/chemical-escape-template/references/chemical_escape.values.yaml'; const v=Y.parse(fs.readFileSync(p, 'utf8')); if (!v.mission || !v.initialOrbit || !v.spacecraft || !v.propulsion) throw new Error('incomplete reference YAML'); console.log('reference YAML valid')"
+```
+
+Then check that no links or source paths still point to a pending-script
+folder:
+
+```bash
+cd /mnt/c/JUSTINE/demonstrator
+rg -n 'chemical_escape\.script' docs backend/src backend/workflow_agents/gmat_skills
+```
+
+#### 8.3.2 Run the focused automated test
+
+```bash
+cd /mnt/c/JUSTINE/demonstrator/backend
+node --import tsx --test tests/gmat/templateRegistry.test.ts
+```
+
+The existing [template registry test](../../backend/tests/gmat/templateRegistry.test.ts)
+checks that each registered template has a unique ID and analysis key, a
+reference script, reference values file, satellite inputs, and form fields.
+
+For each new template, add a focused test beside it in
+`backend/tests/gmat/`. It must cover:
+
+1. the template is registered and its manifest files exist;
+2. a new draft is incomplete until every deliberately required choice is set;
+3. an invalid input is rejected;
+4. a prepared script replaces the expected GMAT assignments and leaves the
+   reference script unchanged;
+5. a compatible satellite is accepted and an incompatible satellite is
+   rejected.
+
+Run the complete backend suite only after the focused test passes:
+
+```bash
+cd /mnt/c/JUSTINE/demonstrator/backend
 npm run build
-npm run test:gmat:baseline
 npm test
 ```
 
-Add a focused registry test and draft/generator test. Update
-[`backend/tests/gmat/templateRegistry.test.ts`](../../backend/tests/gmat/templateRegistry.test.ts)
-to check the scenario ID, its request key, reference script, unique chat mode,
-and declared UI contract. Then execute one real GMAT run with a compatible
-satellite and verify all expected artifacts in the Results view.
+Do not execute GMAT solely to test a manifest, a YAML file, or a renderer.
 
-If the new scenario needs a tool configuration or executable, validate it
-through `config.json` and the normal startup check before testing the full
-pipeline. See [Start and Use the Project](START_AND_USE_THE_PROJECT.md) for setup and operator
-workflow.
+### 8.4 What the result must look like — definition of done
+
+The template is complete only when every box below is true:
+
+- The template folder contains `template.json`, a reference `.script`, and a
+  reference `.yaml`.
+- IDs and keys match in the manifest, backend registry, frontend map, runtime
+  map, and Digital Thread adapter.
+- A compatible satellite offers the scenario and supplies every required
+  hardware input.
+- An incompatible or incomplete satellite is blocked before GMAT starts.
+- **Prepare** creates a run-local script and values JSON without changing the
+  reference files.
+- The focused automated test passes in WSL.
+- If GMAT is executed, the OEM, report, log, and result JSON are stored in the
+  same dated run folder.
+
+## Worked example: chemical-escape
+
+The implementation in this repository uses the supplied
+[chemical_escape.script](../../backend/workflow_agents/gmat_skills/chemical-escape-template/references/chemical_escape.script).
+It provides two modes:
+
+- `graveyard`: IADC-style GEO/GSO disposal with Hohmann transfer and
+  circularization.
+- `escape`: direct Earth escape targeted to a positive Earth-relative C3.
+
+Files used by this implementation:
+
+- [Template manifest](../../backend/workflow_agents/gmat_skills/chemical-escape-template/template.json)
+- [Source GMAT script](../../backend/workflow_agents/gmat_skills/chemical-escape-template/references/chemical_escape.script)
+- [Reference defaults YAML](../../backend/workflow_agents/gmat_skills/chemical-escape-template/references/chemical_escape.values.yaml)
+- [Draft and renderer](../../backend/src/gmat/chemicalEscape.ts)
+- [Template source resolver](../../backend/src/gmat/chemicalEscapeTemplate.ts)
+- [Template registry](../../backend/src/gmat/templateRegistry.ts)
+- [Shared runtime registration](../../backend/src/gmat/missionTemplateRuntime.ts)
+- [Satellite-to-GMAT compatibility adapter](../../backend/src/digitalThread/gmatDigitalThreadAdapter.ts)
+- [Digital Thread initialisation](../../backend/src/digitalThread/digitalThreadStore.ts)
+- [Shared GMAT guardrails](../../backend/src/gmat/missionGuardrails.ts)
+- [Chemical satellite reference](../../data/satellite-library/reference-leo-orbit-keeping.v1.json)
+- [Registry verification test](../../backend/tests/gmat/templateRegistry.test.ts)

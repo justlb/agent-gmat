@@ -10,6 +10,7 @@ export type GmatMissionGuardrailTemplate =
   | "electric-propulsion-transfer"
   | "electrical-leo-orbit-maintenance"
   | "chemical-hohmann-transfer"
+  | "chemical-escape"
   | "chemical-3d-transfer"
 
 export type MissionGuardrail = { code: string; message: string; path: string }

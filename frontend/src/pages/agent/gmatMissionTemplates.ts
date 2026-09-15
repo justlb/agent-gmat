@@ -1,4 +1,5 @@
 export const GMAT_MISSION_TEMPLATES = {
+  chemicalEscape: 'chemical-escape',
   chemical3d: 'chemical-3d-transfer',
   chemicalHohmann: 'chemical-hohmann-transfer',
   electricPropulsion: 'electric-propulsion-transfer',
@@ -7,13 +8,14 @@ export const GMAT_MISSION_TEMPLATES = {
 } as const
 
 export type GmatMissionTemplateId = typeof GMAT_MISSION_TEMPLATES[keyof typeof GMAT_MISSION_TEMPLATES]
-export type GmatChatMode = 'gmat-orbit-keeping' | 'gmat-electric-propulsion' | 'gmat-electrical-leo-orbit-maintenance' | 'gmat-chemical-hohmann' | 'gmat-chemical-3d'
+export type GmatChatMode = 'gmat-orbit-keeping' | 'gmat-electric-propulsion' | 'gmat-electrical-leo-orbit-maintenance' | 'gmat-chemical-hohmann' | 'gmat-chemical-escape' | 'gmat-chemical-3d'
 
 export function isGmatMissionTemplateId(value: string): value is GmatMissionTemplateId {
   return Object.values(GMAT_MISSION_TEMPLATES).includes(value as GmatMissionTemplateId)
 }
 
 const CHAT_MODE_BY_TEMPLATE: Record<GmatMissionTemplateId, GmatChatMode> = {
+  'chemical-escape': 'gmat-chemical-escape',
   'chemical-3d-transfer': 'gmat-chemical-3d',
   'chemical-hohmann-transfer': 'gmat-chemical-hohmann',
   'electric-propulsion-transfer': 'gmat-electric-propulsion',

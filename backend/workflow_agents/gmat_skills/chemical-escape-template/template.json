@@ -1,0 +1,48 @@
+{
+  "id": "chemical-escape",
+  "name": "Chemical GEO disposal or Earth escape",
+  "description": "Chemical end-of-life mission from GEO/GSO. It raises to an IADC-style graveyard orbit or targets positive Earth-relative C3 for direct escape.",
+  "analysis_request_key": "chemical_escape",
+  "draft_directory": ["gmat", "chemical-escape", "drafts"],
+  "chat_mode": "gmat-chemical-escape",
+  "gmat_reference_script": "references/chemical_escape.script",
+  "gmat_reference_values": "references/chemical_escape.values.yaml",
+  "artifacts": [
+    { "path": "chemical_escape.script", "kind": "script", "primary": true },
+    { "path": "chemical_escape.values.json", "kind": "values" },
+    { "path": "GEO_Chemical_EndOfLife_Summary.txt", "kind": "report", "primary": true },
+    { "path": "EphemerisFile1.oem", "kind": "ephemeris", "primary": true },
+    { "path": "gmat_result.json", "kind": "result" },
+    { "path": "gmat.log", "kind": "log" },
+    { "path": "satellite.json", "kind": "digital-thread", "primary": true }
+  ],
+  "propulsion_requirement": "chemical",
+  "initial_state_representation": "EarthMJ2000Eq Keplerian elements at GEO or GSO",
+  "satellite_inputs": [
+    "satellite.bus.physical.mass_kg.dry",
+    "satellite.bus.physical.mass_kg.propellant",
+    "satellite.bus.physical.drag_area_m2",
+    "satellite.bus.physical.drag_coefficient",
+    "satellite.bus.propulsion_subsystem.specific_impulse_seconds"
+  ],
+  "downstream_analyses": ["simu-cic", "opalis", "rf-comlink"],
+  "ui": {
+    "objective": "Dispose of a GEO/GSO spacecraft by graveyard transfer or direct Earth escape.",
+    "summary": "Chemical end-of-life disposal with a selected mission mode and deterministic GMAT targeting.",
+    "satellite_requirements": ["Chemical propulsion", "Dry mass", "Chemical propellant mass", "Specific impulse"],
+    "outputs": ["End-of-life summary", "Propellant use", "C3 or graveyard orbit", "OEM ephemeris"],
+    "mission_input_fields": [
+      { "label": "Disposal mode: graveyard or escape", "path": "mission.mode", "example_value": "graveyard" },
+      { "label": "Initial epoch", "path": "initialOrbit.epochUtc", "example_value": "01 Jan 2000 11:59:28.000" },
+      { "label": "Initial semi-major axis", "path": "initialOrbit.smaKm", "unit": "km", "example_value": 42164.17 },
+      { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity", "example_value": 0 },
+      { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Initial RAAN", "path": "initialOrbit.raanDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Initial argument of periapsis", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Initial true anomaly", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg", "example_value": 0 },
+      { "label": "IADC base altitude", "path": "graveyard.iadcBaseAltitudeKm", "unit": "km", "example_value": 235 },
+      { "label": "Escape C3", "path": "escape.c3Km2PerS2", "unit": "km²/s²", "example_value": 0.01 },
+      { "label": "Post-maneuver coast", "path": "mission.postManeuverCoastDays", "unit": "days", "example_value": 2 }
+    ]
+  }
+}

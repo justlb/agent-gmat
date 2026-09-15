@@ -1,0 +1,26 @@
+# Reference defaults copied from chemical_escape.script.
+# They are demonstrator values, not an engineering recommendation.
+mission:
+  mode: graveyard
+  postManeuverCoastDays: 2
+initialOrbit:
+  epochUtc: "01 Jan 2000 11:59:28.000"
+  smaKm: 42164.17
+  eccentricity: 0
+  inclinationDeg: 0
+  raanDeg: 0
+  argPeriapsisDeg: 0
+  trueAnomalyDeg: 0
+spacecraft:
+  dryMassKg: 1800
+  dragAreaM2: 20
+  dragCoefficient: 2.2
+  reflectivityCoefficient: 1.4
+  srpAreaM2: 35
+  initialFuelMassKg: 1200
+propulsion:
+  ispSeconds: 320
+graveyard:
+  iadcBaseAltitudeKm: 235
+escape:
+  c3Km2PerS2: 0.01

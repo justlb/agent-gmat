@@ -8,10 +8,10 @@ import { getBackendRoot } from "../config.js"
 // Only maintained scenarios are registered at startup.  Chemical 3D transfer
 // was intentionally removed with its skill directory, so it must not be
 // loaded merely because legacy source files still mention its historical ID.
-export const GMAT_TEMPLATE_IDS = ["orbit-keeping", "electric-propulsion-transfer", "electrical-leo-orbit-maintenance", "chemical-hohmann-transfer"] as const
+export const GMAT_TEMPLATE_IDS = ["orbit-keeping", "electric-propulsion-transfer", "electrical-leo-orbit-maintenance", "chemical-hohmann-transfer", "chemical-escape"] as const
 export type GmatTemplateId = typeof GMAT_TEMPLATE_IDS[number] | "chemical-3d-transfer"
 type RegisteredGmatTemplateId = typeof GMAT_TEMPLATE_IDS[number]
-export type GmatAnalysisRequestKey = "orbit_keeping" | "electric_propulsion_transfer" | "electrical_leo_orbit_maintenance" | "chemical_hohmann_transfer" | "chemical_3d_transfer"
+export type GmatAnalysisRequestKey = "orbit_keeping" | "electric_propulsion_transfer" | "electrical_leo_orbit_maintenance" | "chemical_hohmann_transfer" | "chemical_escape" | "chemical_3d_transfer"
 
 export type GmatTemplateMissionInput = {
   derived?: "initialAltitude"
