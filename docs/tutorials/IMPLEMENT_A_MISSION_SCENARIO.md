@@ -34,6 +34,27 @@ prepares the reviewed script, executes GMAT, and starts the full pipeline.
 Every dated run is immutable after GMAT completes. A changed scenario must use
 a new run; do not overwrite an existing trajectory or its satellite snapshot.
 
+## Current example-script values
+
+The maintained reference scripts are examples, not validated operating limits.
+They are useful as a reproducible baseline only. A scenario must prove that
+each displayed mission field changes the generated script before it is called
+parametric.
+
+| Maintained scenario | Reference-script baseline |
+| --- | --- |
+| `orbit-keeping` | Epoch `31258.66709490726` TAIModJulian; SMA `6631.1363 km`; ECC `0`; INC `15 deg`; RAAN/AOP/TA `0 deg`; dry mass `300 kg`; fuel `10 kg`; Isp `300 s`; minimum reboost altitude `250 km`; fuel reserve `1 kg`; duration limit `100 days`. |
+| `chemical-hohmann-transfer` | Epoch `21545` TAIModJulian; SMA `9000 km`; ECC `0`; INC/RAAN/AOP/TA `0 deg`; dry mass `850 kg`; drag area `15 m²`; chemical fuel `2200 kg`. The current template also has a post-transfer propagation of `86400 s` (one day), which is scheduled for removal. |
+| `electric-propulsion-transfer` | Epoch `31262.66709490726` TAIModJulian; SMA `6678.1363 km`; ECC approximately `0`; INC/RAAN/AOP/TA `0 deg`; dry mass `850 kg`; drag area `15 m²`; electric propellant `756 kg`; target final altitude `7000 km`; fuel reserve `1 kg`. |
+| `electrical-leo-orbit-maintenance` | Epoch `31262.66709490726` TAIModJulian; SMA `6878.1363 km`; ECC approximately `0`; INC `0 deg`; xenon `80 kg`; mission duration `3 days`; fuel reserve `2 kg`; throttle bias `0.87`; throttle gain `0.15`. |
+
+Do not present these values as mission recommendations. They are recorded here
+to make deviations testable and to prevent a hidden script default from being
+mistaken for an engineer-entered value.
+
+See [Known Issues and Verification Backlog](../KNOWN_ISSUES.md) before adding
+or changing a mission scenario.
+
 ## 1. Create the template contract
 
 Create this directory, using a lowercase, stable identifier:
@@ -229,5 +250,5 @@ satellite and verify all expected artifacts in the Results view.
 
 If the new scenario needs a tool configuration or executable, validate it
 through `config.json` and the normal startup check before testing the full
-pipeline. See [Using the Project](USE_THE_PROJECT.md) for setup and operator
+pipeline. See [Start and Use the Project](START_AND_USE_THE_PROJECT.md) for setup and operator
 workflow.

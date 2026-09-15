@@ -6,10 +6,9 @@ a common cause of failed calculations.
 
 ## Related guides
 
-- [Launch the Project](LAUNCH_THE_PROJECT.md): start, stop, and troubleshoot an installed project.
-- [Use the Project](USE_THE_PROJECT.md): run and review a mission study.
-- [Add a Satellite](ADD_A_SATELLITE.md): add a versioned satellite definition.
-- [Implement a Mission Scenario](IMPLEMENT_A_MISSION_SCENARIO.md): add a GMAT scenario.
+- [Start and Use the Project](tutorials/START_AND_USE_THE_PROJECT.md): start, stop, troubleshoot, run and review a mission study.
+- [Add a Satellite](tutorials/ADD_A_SATELLITE.md): add a versioned satellite definition.
+- [Implement a Mission Scenario](tutorials/IMPLEMENT_A_MISSION_SCENARIO.md): add a GMAT scenario.
 
 ## Information an installation LLM must collect first
 
@@ -63,9 +62,9 @@ Reopen Ubuntu if nvm is not found.
 
 The repository is public:
 
-    mkdir -p /mnt/d/path/to
-    git clone https://github.com/justlb/agent-gmat.git /mnt/d/path/to/agent-gmat
-    cd /mnt/d/path/to/agent-gmat
+    mkdir -p /mnt/c/JUSTINE
+    git clone https://github.com/justlb/agent-gmat.git /mnt/c/JUSTINE/demonstrator
+    cd /mnt/c/JUSTINE/demonstrator
     git status
 
 Always update before diagnosing a known failure. Simu-CIC fixes below are code
@@ -81,7 +80,7 @@ browser. Prefer Git over a ZIP archive so updates remain possible.
 config.json is the live local configuration. config.example.json is a tracked
 template and must not contain a computer's credentials or paths.
 
-    cd /mnt/d/path/to/agent-gmat
+    cd /mnt/c/JUSTINE/demonstrator
     cp config.example.json config.json
 
 config.json is ignored by Git. Never commit or share it.
@@ -101,8 +100,8 @@ Core fields:
 
 | Setting | Example |
 |---|---|
-| workspace.templateDir | /mnt/d/path/to/agent-gmat/data/input_data |
-| workspace.usersRoot | /mnt/d/path/to/agent-gmat/data/user |
+| workspace.templateDir | /mnt/c/JUSTINE/demonstrator/data/input_data |
+| workspace.usersRoot | /mnt/c/JUSTINE/demonstrator/data/user |
 | tools.gmat.bin | /mnt/c/Program Files/GMAT/bin/GmatConsole.exe |
 | tools.gmat.guiBin | /mnt/c/Program Files/GMAT/bin/GMAT.exe |
 | frontend.publicHost | 127.0.0.1 or the workstation LAN IP |
@@ -124,7 +123,7 @@ to /usr/bin/python3.
 
 From Windows PowerShell, install pythonnet with that same Python (replace the path):
 
-    & "C:\Users\<user>\AppData\Local\Programs\Python\Python312\python.exe" -m pip install -r "C:\path\to\agent-gmat\tools\workflow_OPALIS\workflow_OPALIS\3-run_OPALIS\requirements-opalis-python.txt"
+    & "C:\Users\<user>\AppData\Local\Programs\Python\Python312\python.exe" -m pip install -r "C:\JUSTINE\demonstrator\tools\workflow_OPALIS\workflow_OPALIS\3-run_OPALIS\requirements-opalis-python.txt"
 
     test -f /mnt/c/JUSTINE/APP/OPALIS/Opalis-2.3.0/Opalis.exe
     test -f /mnt/c/JUSTINE/APP/OPALIS/Opalis-2.3.0/lib/OpalisApi.dll
@@ -139,7 +138,7 @@ All tools.simuCic fields are required:
       "celestlabDir": "/mnt/c/JUSTINE/APP/____autre/CEF/cnes_software/SIMU-CIC_complet/celestlab",
       "scilabBin": "/mnt/c/Program Files/scilab-2025.1.0/bin/Scilex.exe",
       "simucicDir": "/mnt/c/JUSTINE/APP/SIMU_CIC/simu_cic",
-      "simuCicRunner": "/mnt/d/path/to/agent-gmat/tools/workflow_OPALIS/workflow_OPALIS/2-run_SIMU-CIC/run_scilab_simulation.py",
+      "simuCicRunner": "/mnt/c/JUSTINE/demonstrator/tools/workflow_OPALIS/workflow_OPALIS/2-run_SIMU-CIC/run_scilab_simulation.py",
       "timeoutMs": 600000,
       "workerPython": "/usr/bin/python3"
     }
@@ -179,7 +178,7 @@ remote-GUI workflow started with --with-remote-gui.
 
 From WSL:
 
-    cd /mnt/d/path/to/agent-gmat
+    cd /mnt/c/JUSTINE/demonstrator
     node scripts/validate_config.mjs --skip-services
     cd backend && npm ci && npm run build
     cd ../frontend && npm ci && npm run build
@@ -243,7 +242,7 @@ must be updated rather than worked around with SKIP_CONFIG_VALIDATE.
 Never commit config.json, credentials, user mission runs, generated scenarios,
 CIC output or local logs. Before publishing source or documentation:
 
-    cd /mnt/d/path/to/agent-gmat
+    cd /mnt/c/JUSTINE/demonstrator
     node scripts/validate_config.mjs --skip-services
     cd backend && npm run build
     cd ../frontend && npm run build

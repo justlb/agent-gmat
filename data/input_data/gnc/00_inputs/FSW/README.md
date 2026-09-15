@@ -1,6 +1,7 @@
 # FSW CFS-Only Implementation Template
 
-This folder contains the workspace-local flight-software scaffold used by `demo_server/open_codex_web/data/input_data/gnc`.
+This folder contains the workspace-local flight-software scaffold under
+`data/input_data/gnc`.
 It is intended to look like a small but real ADCS FSW stack: 42 owns the truth
 simulation, this FSW owns the `AC` data mirror, mode logic, control commands,
 and actuator dispatch.

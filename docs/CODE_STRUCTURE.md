@@ -12,7 +12,7 @@ The tree intentionally shows maintained source and documentation areas only;
 generated dependencies, build outputs, and per-user mission runs are omitted.
 
 ```text
-agent-gmat/
+demonstrator/
 ├── backend/
 │   ├── src/                 # Fastify API, domain modules, persistence adapters
 │   ├── tests/               # Node test suites by backend module
@@ -185,4 +185,64 @@ for a decision. They do not repeat the code directly below them.
 
 - [Implement a new GMAT mission scenario](tutorials/IMPLEMENT_A_MISSION_SCENARIO.md)
 - [Add a satellite definition](tutorials/ADD_A_SATELLITE.md)
-- [Use the project](tutorials/USE_THE_PROJECT.md)
+- [Start and use the project](tutorials/START_AND_USE_THE_PROJECT.md)
+
+## README map
+
+Every maintained `README.md` is listed below. Start at the root README for an
+overview; then use the README closest to the folder you are changing.
+
+- `demonstrator/`
+  - [README.md](../README.md)
+  - `backend/`
+    - [README.md](../backend/README.md)
+    - `src/`
+      - [README.md](../backend/src/README.md)
+      - `analysis/` — [README.md](../backend/src/analysis/README.md)
+      - `codex-run/` — [README.md](../backend/src/codex-run/README.md)
+      - `digitalThread/` — [README.md](../backend/src/digitalThread/README.md)
+      - `gmat/` — [README.md](../backend/src/gmat/README.md)
+      - `gnc_config/` — [README.md](../backend/src/gnc_config/README.md)
+      - `manifests/` — [README.md](../backend/src/manifests/README.md)
+      - `modelBackends/` — [README.md](../backend/src/modelBackends/README.md)
+      - `opalis/` — [README.md](../backend/src/opalis/README.md)
+      - `rfComlink/` — [README.md](../backend/src/rfComlink/README.md)
+      - `runs/` — [README.md](../backend/src/runs/README.md)
+      - `server/` — [README.md](../backend/src/server/README.md)
+      - `sessions/` — [README.md](../backend/src/sessions/README.md)
+      - `shared/` — [README.md](../backend/src/shared/README.md)
+      - `system/` — [README.md](../backend/src/system/README.md)
+      - `vts/` — [README.md](../backend/src/vts/README.md)
+      - `workspaces/` — [README.md](../backend/src/workspaces/README.md)
+    - `tests/` — [README.md](../backend/tests/README.md)
+    - `workflow_agents/`
+      - [README.md](../backend/workflow_agents/README.md)
+      - `gmat_skills/`
+        - [README.md](../backend/workflow_agents/gmat_skills/README.md)
+        - `chemical-hohmann-transfer-template/` — [README.md](../backend/workflow_agents/gmat_skills/chemical-hohmann-transfer-template/README.md)
+        - `electric-propulsion-transfer-template/` — [README.md](../backend/workflow_agents/gmat_skills/electric-propulsion-transfer-template/README.md)
+        - `electrical-leo-orbit-maintenance-template/` — [README.md](../backend/workflow_agents/gmat_skills/electrical-leo-orbit-maintenance-template/README.md)
+        - `orbit-keeping-template/` — [README.md](../backend/workflow_agents/gmat_skills/orbit-keeping-template/README.md)
+  - `data/`
+    - [README.md](../data/README.md)
+    - `input_data/gnc/00_inputs/FSW/` — [README.md](../data/input_data/gnc/00_inputs/FSW/README.md)
+    - `satellite-library/` — [README.md](../data/satellite-library/README.md)
+  - `docs/` — [README.md](README.md)
+  - `frontend/`
+    - [README.md](../frontend/README.md)
+    - `src/`
+      - [README.md](../frontend/src/README.md)
+      - `app/` — [README.md](../frontend/src/app/README.md)
+      - `components/` — [README.md](../frontend/src/components/README.md)
+      - `hooks/` — [README.md](../frontend/src/hooks/README.md)
+      - `pages/`
+        - [README.md](../frontend/src/pages/README.md)
+        - `agent/` — [README.md](../frontend/src/pages/agent/README.md)
+    - `tests/` — [README.md](../frontend/tests/README.md)
+  - `scripts/` — [README.md](../scripts/README.md)
+  - `tools/`
+    - [README.md](../tools/README.md)
+    - `workflow_OPALIS/workflow_OPALIS/` — [README.md](../tools/workflow_OPALIS/workflow_OPALIS/README.md)
+    - `workflow_RF-COMLINK/`
+      - `01-discover-batch/` — [README.md](../tools/workflow_RF-COMLINK/01-discover-batch/README.md)
+      - `02-prepare-scenario/` — [README.md](../tools/workflow_RF-COMLINK/02-prepare-scenario/README.md)

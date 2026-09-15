@@ -16,5 +16,5 @@ Each file is a single satellite definition with at least:
 
 ## Related
 
-- Adding a satellite: `docs/tutorials/ADD_A_SATELLITE.md`
-- Digital-thread store: `backend/src/digitalThread/satelliteLibrary.ts`
+- [Adding a satellite](../../docs/tutorials/ADD_A_SATELLITE.md)
+- [Digital-thread store](../../backend/src/digitalThread/satelliteLibrary.ts)

@@ -45,7 +45,7 @@ still required before release certification.
 - A completed workflow stage does not by itself certify an engineering result.
 - The assistant must not launch a tool or modify a completed run.
 - CIC contact, eclipse, and latency values are sampled engineering summaries;
-  see [Results Calculation Contract](RESULTS_CALCULATION_CONTRACT.md).
+  see [Results Calculation Contract](../contract/RESULTS_CALCULATION_CONTRACT.md).
 - RF-COMLINK links must remain separate; do not average different uplink or
   downlink budgets.
 

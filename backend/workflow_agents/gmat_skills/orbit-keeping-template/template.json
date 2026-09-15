@@ -29,16 +29,16 @@
     "outputs": ["GMAT script and values", "Orbit and reboost reports", "OEM ephemeris", "Run-local satellite.json"],
     "satellite_requirements": ["Dry mass", "Chemical propellant capacity", "Specific impulse", "Drag area and coefficient"],
     "mission_input_fields": [
-      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km", "derived": "initialAltitude" },
-      { "label": "Eccentricity", "path": "initialOrbit.eccentricity" },
-      { "label": "Inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
-      { "label": "Minimum reboost altitude", "path": "stationKeeping.minimumAltitudeKm", "unit": "km" },
-      { "label": "Epoch (optional)", "path": "initialOrbit.epoch" },
-      { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg" },
-      { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg" },
-      { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg" },
-      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg" },
-      { "label": "Mission duration limit (optional)", "path": "stationKeeping.missionDayLimit", "unit": "days" }
+      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km", "derived": "initialAltitude", "example_value": 253 },
+      { "label": "Eccentricity", "path": "initialOrbit.eccentricity", "example_value": 0 },
+      { "label": "Inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg", "example_value": 15 },
+      { "label": "Minimum reboost altitude", "path": "stationKeeping.minimumAltitudeKm", "unit": "km", "example_value": 250 },
+      { "label": "Epoch (optional)", "path": "initialOrbit.epoch", "example_value": "31258.66709490726" },
+      { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg", "example_value": 10 },
+      { "label": "Mission duration limit (optional)", "path": "stationKeeping.missionDayLimit", "unit": "days", "example_value": 100 }
     ]
   },
   "mission_inputs": {

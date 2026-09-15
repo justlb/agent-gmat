@@ -14,7 +14,7 @@ a global orchestrator in this repository.
 All outputs of a mission are stored exclusively in:
 
 ```text
-data/user/default/gmat/mission-runs/<run-id>/opalis/
+data/user/<user>/gmat/mission-runs/<run-id>/opalis/
 |-- 01-conversion_vers_SIMU-CIC/
 |-- 02-simu-cic/
 `-- 03-opalis/

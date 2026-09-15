@@ -15,6 +15,7 @@ export type GmatAnalysisRequestKey = "orbit_keeping" | "electric_propulsion_tran
 
 export type GmatTemplateMissionInput = {
   derived?: "initialAltitude"
+  exampleValue?: string | number
   label: string
   path: string
   unit?: string
@@ -93,10 +94,12 @@ function readUi(value: unknown, manifestPath: string): GmatTemplateUiDefinition 
     const field = item !== null && typeof item === "object" && !Array.isArray(item) ? item as Record<string, unknown> : null
     if (!field || typeof field.label !== "string" || !field.label.trim() || typeof field.path !== "string" || !field.path.trim()) throw new Error(`invalid ui.mission_input_fields[${index}] in ${manifestPath}`)
     if (field.unit !== undefined && typeof field.unit !== "string") throw new Error(`invalid ui.mission_input_fields[${index}].unit in ${manifestPath}`)
+    if (field.example_value !== undefined && typeof field.example_value !== "string" && (typeof field.example_value !== "number" || !Number.isFinite(field.example_value))) throw new Error(`invalid ui.mission_input_fields[${index}].example_value in ${manifestPath}`)
     if (field.derived !== undefined && field.derived !== "initialAltitude") throw new Error(`invalid ui.mission_input_fields[${index}].derived in ${manifestPath}`)
     if (field.value_transform !== undefined && field.value_transform !== "earth-radius") throw new Error(`invalid ui.mission_input_fields[${index}].value_transform in ${manifestPath}`)
     return {
       ...(field.derived === "initialAltitude" ? { derived: "initialAltitude" as const } : {}),
+      ...(typeof field.example_value === "string" || typeof field.example_value === "number" ? { exampleValue: field.example_value } : {}),
       label: field.label.trim(),
       path: field.path.trim(),
       ...(typeof field.unit === "string" ? { unit: field.unit } : {}),

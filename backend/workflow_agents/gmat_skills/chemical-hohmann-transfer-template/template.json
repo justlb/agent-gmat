@@ -28,16 +28,16 @@
     "outputs": ["GMAT script and values", "Altitude and fuel report", "OEM ephemeris", "Run-local satellite.json"],
     "satellite_requirements": ["Dry mass", "Chemical propellant mass and Isp", "Drag and SRP properties"],
     "mission_input_fields": [
-      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km" },
-      { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity" },
-      { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
-      { "label": "Final altitude", "path": "transfer.targetAltitudeKm", "unit": "km" },
-      { "label": "Initial epoch (optional)", "path": "initialOrbit.epoch" },
-      { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg" },
-      { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg" },
-      { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg" },
-      { "label": "Final propagation time (optional)", "path": "transfer.finalPropagationSeconds", "unit": "s" },
-      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg" }
+      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km", "example_value": 2621.8637 },
+      { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity", "example_value": 0 },
+      { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Final altitude", "path": "transfer.targetAltitudeKm", "unit": "km", "example_value": 35786.0327 },
+      { "label": "Initial epoch (optional)", "path": "initialOrbit.epoch", "example_value": 21545 },
+      { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Final propagation time (optional)", "path": "transfer.finalPropagationSeconds", "unit": "s", "example_value": 86400 },
+      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg", "example_value": 2200 }
     ]
   },
   "mission_inputs": {

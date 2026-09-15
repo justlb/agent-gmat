@@ -11,8 +11,8 @@ Satellite digital-thread store, schema, and adapters. The digital thread is the 
 | `digitalThreadSchema.ts` | JSDoc type contracts for satellite definitions. |
 | `digitalThread.routes.ts` | API routes for satellite selection and digital-thread queries. |
 | `gmatDigitalThreadAdapter.ts` | Converts a run-local satellite.json into GMAT draft values per template. |
-| `opalisDigitalThreadAdapter.ts` | Converts satellite.json into OPALIS case parameters. |
-| `rfComlinkDigitalThreadAdapter.ts` | Converts satellite.json into RF-COMLINK input JSON. |
+| `../opalis/opalisDigitalThreadAdapter.ts` | Converts satellite.json into OPALIS case parameters. |
+| `../rfComlink/rfComlinkDigitalThreadAdapter.ts` | Converts satellite.json into RF-COMLINK input JSON. |
 | `missionConversationStore.ts` | Persists turn-by-turn mission conversations for the Results discussion panel. |
 
 ## Key invariant

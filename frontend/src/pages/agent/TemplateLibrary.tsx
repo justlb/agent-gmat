@@ -19,7 +19,7 @@ export function TemplateLibrary() {
           <header><span>GMAT TEMPLATE</span><small>{template.id}</small></header><h3>{template.name}</h3><p>{template.ui.summary}</p>
           <dl className="template-card-summary"><div><dt>Mission inputs</dt><dd>{template.ui.missionInputFields.length}</dd></div><div><dt>Satellite constraints</dt><dd>{template.ui.satelliteRequirements.length}</dd></div><div><dt>Downstream tools</dt><dd>{template.downstreamAnalyses.length}</dd></div></dl>
           <div className="template-definition-actions">
-            <button type="button" onClick={() => setActiveId(template.id)}>View template details</button>
+            <button type="button" onClick={() => setActiveId(template.id)}>More information</button>
             <a download href={missionTemplateExampleScriptUrl(template.id)}>Download example script</a>
           </div>
         </article>)}
@@ -27,7 +27,9 @@ export function TemplateLibrary() {
       {active ? <aside className="template-active-card">
         <span>MODEL DESCRIPTION</span><small>{active.id}</small><h3>{active.name}</h3><p>{active.ui.summary}</p><hr />
         <h4>Purpose</h4><p>{active.ui.objective}</p>
-        <h4>Required mission inputs</h4><ul>{active.ui.missionInputFields.map(item => <li key={item.path}>{item.label}</li>)}</ul>
+        <h4>Modifiable mission values</h4>
+        <p className="template-example-note">Reference values from the example GMAT script. They are examples, not imposed mission values.</p>
+        <dl className="template-input-examples">{active.ui.missionInputFields.map(item => <div key={item.path}><dt>{item.label}{item.unit ? ` (${item.unit})` : ''}</dt><dd>{item.exampleValue === undefined ? 'Not defined in the example script' : String(item.exampleValue)}</dd></div>)}</dl>
         <h4>Read from satellite.json</h4><ul>{active.ui.satelliteRequirements.map(item => <li key={item}>{item}</li>)}</ul>
         <h4>Generated artifacts</h4><ul>{active.ui.outputs.map(item => <li key={item}>{item}</li>)}</ul>
         <h4>Next workflow stages</h4><ul>{active.downstreamAnalyses.map(item => <li key={item}>{item}</li>)}</ul>

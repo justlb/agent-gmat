@@ -27,15 +27,15 @@
     "outputs": ["GMAT script and values", "Electric-transfer report", "OEM ephemeris", "Run-local satellite.json"],
     "satellite_requirements": ["Dry mass", "Electric propellant capacity", "Thruster power limits", "Solar-array power, bus load and margin"],
     "mission_input_fields": [
-      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km", "derived": "initialAltitude" },
-      { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity" },
-      { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg" },
-      { "label": "Final altitude", "path": "transfer.finalAltitudeKm", "unit": "km" },
-      { "label": "Initial epoch (optional)", "path": "initialOrbit.epoch" },
-      { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg" },
-      { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg" },
-      { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg" },
-      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg" }
+      { "label": "Initial altitude", "path": "initialOrbit.altitudeKm", "unit": "km", "derived": "initialAltitude", "example_value": 300 },
+      { "label": "Initial eccentricity", "path": "initialOrbit.eccentricity", "example_value": 0 },
+      { "label": "Initial inclination", "path": "initialOrbit.inclinationDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Final altitude", "path": "transfer.finalAltitudeKm", "unit": "km", "example_value": 7000 },
+      { "label": "Initial epoch (optional)", "path": "initialOrbit.epoch", "example_value": "31262.66709490726" },
+      { "label": "Initial RAAN (optional)", "path": "initialOrbit.raanDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Initial AOP (optional)", "path": "initialOrbit.argPeriapsisDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Initial true anomaly (optional)", "path": "initialOrbit.trueAnomalyDeg", "unit": "deg", "example_value": 0 },
+      { "label": "Loaded fuel mass (optional)", "path": "spacecraft.initialFuelMassKg", "unit": "kg", "example_value": 756 }
     ]
   },
   "mission_inputs": {

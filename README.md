@@ -6,7 +6,7 @@ GMAT Agent 是一个由 React 前端和 Fastify 后端组成的航天工程工�
 
 项目交接请先阅读英文版 [交接指南](docs/HANDOVER.md)。其中记录了外部依赖、证据保留规则以及当前 RF-COMLINK 结果提取的限制。
 
-项目模块边界、数据保留规则见 [docs/CODE_STRUCTURE.md](docs/CODE_STRUCTURE.md)。
+项目模块边界、数据保留规则见 [docs/other/CODE_STRUCTURE.md](docs/other/CODE_STRUCTURE.md)。
 
 ## 配置文件
 
@@ -36,7 +36,7 @@ cp config.example.json config.json
 **必须从 WSL 启动**，因为项目依赖 tmux 和 Linux 工具链：
 
 ```bash
-cd /mnt/d/STAGE/agent-gmat-main
+cd /mnt/c/JUSTINE/demonstrator
 python3 scripts/start_local_web.py
 ```
 

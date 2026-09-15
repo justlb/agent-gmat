@@ -19,4 +19,6 @@ Simu-CIC and OPALIS pipeline: preparation, execution, result parsing, and workfl
 
 ## Key contract
 
-Only one GMAT run feeds one OPALIS execution. Dynamic inputs come from the run's own CIC directory; static inputs come from the run's `satellite.json`. See `docs/OPALIS_INPUT_CONTRACT.md`.
+One GMAT run feeds its own OPALIS work directory. Dynamic inputs come from the
+run's CIC directory; static inputs come from the run's `satellite.json`. See
+[the OPALIS input contract](../../../docs/contract/OPALIS_INPUT_CONTRACT.md).

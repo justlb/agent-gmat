@@ -1,6 +1,8 @@
 # tools
 
-External workflow scripts called by the backend to drive scientific tools (Simu-CIC, OPALIS, RF-COMLINK). These run on Windows and are invoked via the backend's external-process runner.
+External workflow scripts called by the backend to drive scientific tools
+(Simu-CIC, OPALIS, RF-COMLINK). The backend invokes the scripts from WSL; where
+needed, a worker then starts the configured Windows scientific executable.
 
 | Directory | Purpose |
 |---|---|

@@ -1,9 +1,11 @@
 # backend/src/vts, cosyvoice, funasr
 
-Empty or near-empty directories for legacy integrations.
+Near-empty directory for a legacy integration.
 
-- `vts/` — Video Track Shot module (no source).
-- `cosyvoice/` — TTS service (config references remain in `config.example.json`, no active implementation).
-- `funasr/` — Speech-to-text (config references remain in `config.example.json`, no active implementation).
+- `vts/` — Video Track Shot module (no source in this directory). GMAT runs may
+  still retain generated VTS artefacts.
+- CosyVoice (TTS) and FunASR (speech-to-text) are optional legacy services.
+  Their runtime settings can be supplied in `config.json` or environment
+  variables, but they are not part of the GMAT mission pipeline.
 
-All three directories are gitignored artefacts from an earlier project phase. They do not participate in the GMAT mission pipeline. Their entries in `config.example.json` can be safely left as placeholders.
+No active CosyVoice or FunASR source directory is maintained under `backend/src`.

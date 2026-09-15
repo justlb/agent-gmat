@@ -10,6 +10,7 @@ import type { GmatChatMode, GmatMissionTemplateId } from './gmatMissionTemplates
 
 export type MissionInputField = {
   derived?: 'initialAltitude'
+  exampleValue?: string | number
   label: string
   path: string
   unit?: string

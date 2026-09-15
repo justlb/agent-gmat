@@ -42,7 +42,7 @@ Do not commit real API keys, internal hosts, or private paths. Key fields:
 **Run from WSL** — the project depends on tmux and Linux tooling:
 
 ```bash
-cd /mnt/d/path/to/agent-gmat-main
+cd /mnt/c/JUSTINE/demonstrator
 python3 scripts/start_local_web.py
 ```
 

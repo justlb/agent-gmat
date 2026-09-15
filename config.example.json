@@ -16,8 +16,8 @@
   "tmux": { "backendSession": "agent-gmat-backend", "frontendSession": "agent-gmat-frontend" },
   "frontend": { "host": "0.0.0.0", "publicHost": "127.0.0.1", "port": 5174, "httpsPort": 5175, "strictPort": true },
   "workspace": {
-    "templateDir": "/mnt/d/path/to/agent-gmat-main/data/input_data",
-    "usersRoot": "/mnt/d/path/to/agent-gmat-main/data/user",
+    "templateDir": "/mnt/c/JUSTINE/demonstrator/data/input_data",
+    "usersRoot": "/mnt/c/JUSTINE/demonstrator/data/user",
     "filesystemGroup": "",
     "rpcHost": "localhost",
     "rpcPort": 9877,
